@@ -7,17 +7,29 @@ package api
 
 import (
 	"fmt"
+	"maps"
 	"net/http"
 	"strings"
 	"time"
 
 	"github.com/ClusterCockpit/cc-backend/internal/repository"
+	"github.com/ClusterCockpit/cc-backend/pkg/archive"
+	"github.com/ClusterCockpit/cc-backend/pkg/metricstore"
 	"github.com/ClusterCockpit/cc-lib/v2/schema"
 )
 
 type UpdateNodeStatesRequest struct {
 	Nodes   []schema.NodePayload `json:"nodes"`
 	Cluster string               `json:"cluster" example:"fritz"`
+}
+
+// metricListToNames converts a map of metric configurations to a list of metric names
+func metricListToNames(metricList map[string]*schema.Metric) []string {
+	names := make([]string, 0, len(metricList))
+	for name := range metricList {
+		names = append(names, name)
+	}
+	return names
 }
 
 // this routine assumes that only one of them exists per node
@@ -62,16 +74,42 @@ func (api *RestAPI) updateNodeStates(rw http.ResponseWriter, r *http.Request) {
 			http.StatusBadRequest, rw)
 		return
 	}
+	requestReceived := time.Now().Unix()
 	repo := repository.GetNodeRepository()
+	ms := metricstore.GetMemoryStore()
+
+	m := make(map[string][]string)
+	healthStates := make(map[string]schema.MonitoringState)
+
+	for _, node := range req.Nodes {
+		if sc, err := archive.GetSubClusterByNode(req.Cluster, node.Hostname); err == nil {
+			m[sc] = append(m[sc], node.Hostname)
+		}
+	}
+
+	for sc, nl := range m {
+		if sc != "" {
+			metricList := archive.GetMetricConfigSubCluster(req.Cluster, sc)
+			metricNames := metricListToNames(metricList)
+			if states, err := ms.HealthCheck(req.Cluster, nl, metricNames); err == nil {
+				maps.Copy(healthStates, states)
+			}
+		}
+	}
 
 	for _, node := range req.Nodes {
 		state := determineState(node.States)
+		healthState := schema.MonitoringStateFailed
+		if hs, ok := healthStates[node.Hostname]; ok {
+			healthState = hs
+		}
 		nodeState := schema.NodeStateDB{
-			TimeStamp: time.Now().Unix(), NodeState: state,
+			TimeStamp:       requestReceived,
+			NodeState:       state,
 			CpusAllocated:   node.CpusAllocated,
 			MemoryAllocated: node.MemoryAllocated,
 			GpusAllocated:   node.GpusAllocated,
-			HealthState:     schema.MonitoringStateFull,
+			HealthState:     healthState,
 			JobsRunning:     node.JobsRunning,
 		}
 

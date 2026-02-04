@@ -13,7 +13,7 @@
 /var/checkpoints*
 
 migrateTimestamps.pl
-test_ccms_write_api*
+test_ccms_*
 
 /web/frontend/public/build
 /web/frontend/node_modules

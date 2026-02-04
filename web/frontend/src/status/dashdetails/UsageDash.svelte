@@ -3,6 +3,9 @@
 
   Properties:
   - `presetCluster String`: The cluster to show status information for
+  - `presetSubCluster String?`: The subCluster to show status information for [Default: null]
+  - `useCbColors Bool?`: Use colorblind friendly colors [Default: false]
+  - `useAltColors Bool?`: Use alternative color set [Default: false]
 -->
 
  <script>
@@ -35,6 +38,7 @@
   /* Svelte 5 Props */
   let {
     presetCluster,
+    presetSubCluster = null,
     useCbColors = false,
     useAltColors = false
   } = $props();
@@ -52,7 +56,12 @@
   let numDurationBins = $state("1h");
 
   /* Derived */
-  let cluster = $derived(presetCluster)
+  const canvasPrefix = $derived(`${presetCluster}-${presetSubCluster ? presetSubCluster : ''}`)
+
+  const statusFilter = $derived(presetSubCluster
+      ? [{ state: ["running"] }, { cluster: { eq: presetCluster} }, { partition: { eq: presetSubCluster } }]
+      : [{ state: ["running"] }, { cluster: { eq: presetCluster} }] 
+  );
   const topJobsQuery = $derived(queryStore({
     client: client,
     query: gql`
@@ -82,7 +91,7 @@
       }
     `,
     variables: {
-      filter: [{ state: ["running"] }, { cluster: { eq: cluster} }],
+      filter: statusFilter,
       paging: pagingState // Top 10
     },
     requestPolicy: "network-only"
@@ -117,7 +126,7 @@
       }
     `,
     variables: {
-      filter: [{ state: ["running"] }, { cluster: { eq: cluster } }],
+      filter: statusFilter,
       paging: pagingState
     },
     requestPolicy: "network-only"
@@ -152,7 +161,7 @@
       }
     `,
     variables: {
-      filter: [{ state: ["running"] }, { cluster: { eq: cluster } }],
+      filter: statusFilter,
       paging: pagingState
     },
     requestPolicy: "network-only"
@@ -184,7 +193,7 @@
       }
     `,
     variables: {
-      filter: [{ state: ["running"] }, { cluster: { eq: cluster } }],
+      filter: statusFilter,
       selectedHistograms: selectedHistograms, // No Metrics requested for node hardware stats
       numDurationBins: numDurationBins,
     },
@@ -264,7 +273,7 @@
         </h4>
         <Pie
           {useAltColors}
-          canvasId="hpcpie-jobs-users"
+          canvasId="{canvasPrefix}-hpcpie-jobs-users"
           size={colWidthJobs * 0.75}
           sliceLabel="Jobs"
           quantities={$topJobsQuery.data.topUser.map(
@@ -284,14 +293,14 @@
         {#each $topJobsQuery.data.topUser as tu, i}
           <tr>
             <td><Icon name="circle-fill" style="color: {legendColors(i)};" /></td>
-            <td id="topName-jobs-{tu.id}">
-              <a target="_blank" href="/monitoring/user/{tu.id}?cluster={cluster}&state=running"
+            <td id="{canvasPrefix}-topName-jobs-{tu.id}">
+              <a target="_blank" href="/monitoring/user/{tu.id}?cluster={presetCluster}{presetSubCluster ? '&partition='+presetSubCluster : ''}&state=running"
                 >{scrambleNames ? scramble(tu.id) : tu.id}
               </a>
             </td>
             {#if tu?.name}
               <Tooltip
-                target={`topName-jobs-${tu.id}`}
+                target={`${canvasPrefix}-topName-jobs-${tu.id}`}
                 placement="left"
                 >{scrambleNames ? scramble(tu.name) : tu.name}</Tooltip
               >
@@ -308,7 +317,7 @@
       </h4>
       <Pie
         {useAltColors}
-        canvasId="hpcpie-jobs-projects"
+        canvasId="{canvasPrefix}-hpcpie-jobs-projects"
         size={colWidthJobs * 0.75}
         sliceLabel={'Jobs'}
         quantities={$topJobsQuery.data.topProjects.map(
@@ -328,7 +337,7 @@
           <tr>
             <td><Icon name="circle-fill" style="color: {legendColors(i)};" /></td>
             <td>
-              <a target="_blank" href="/monitoring/jobs/?cluster={cluster}&state=running&project={tp.id}&projectMatch=eq"
+              <a target="_blank" href="/monitoring/jobs/?cluster={presetCluster}{presetSubCluster ? '&partition='+presetSubCluster : ''}&state=running&project={tp.id}&projectMatch=eq"
                 >{scrambleNames ? scramble(tp.id) : tp.id}
               </a>
             </td>
@@ -368,7 +377,7 @@
         </h4>
         <Pie
           {useAltColors}
-          canvasId="hpcpie-nodes-users"
+          canvasId="{canvasPrefix}-hpcpie-nodes-users"
           size={colWidthNodes * 0.75}
           sliceLabel="Nodes"
           quantities={$topNodesQuery.data.topUser.map(
@@ -388,14 +397,14 @@
         {#each $topNodesQuery.data.topUser as tu, i}
           <tr>
             <td><Icon name="circle-fill" style="color: {legendColors(i)};" /></td>
-            <td id="topName-nodes-{tu.id}">
-              <a target="_blank" href="/monitoring/user/{tu.id}?cluster={cluster}&state=running"
+            <td id="{canvasPrefix}-topName-nodes-{tu.id}">
+              <a target="_blank" href="/monitoring/user/{tu.id}?cluster={presetCluster}{presetSubCluster ? '&partition='+presetSubCluster : ''}&state=running"
                 >{scrambleNames ? scramble(tu.id) : tu.id}
               </a>
             </td>
             {#if tu?.name}
               <Tooltip
-                target={`topName-nodes-${tu.id}`}
+                target={`${canvasPrefix}-topName-nodes-${tu.id}`}
                 placement="left"
                 >{scrambleNames ? scramble(tu.name) : tu.name}</Tooltip
               >
@@ -412,7 +421,7 @@
       </h4>
       <Pie
         {useAltColors}
-        canvasId="hpcpie-nodes-projects"
+        canvasId="{canvasPrefix}-hpcpie-nodes-projects"
         size={colWidthNodes * 0.75}
         sliceLabel={'Nodes'}
         quantities={$topNodesQuery.data.topProjects.map(
@@ -432,7 +441,7 @@
           <tr>
             <td><Icon name="circle-fill" style="color: {legendColors(i)};" /></td>
             <td>
-              <a target="_blank" href="/monitoring/jobs/?cluster={cluster}&state=running&project={tp.id}&projectMatch=eq"
+              <a target="_blank" href="/monitoring/jobs/?cluster={presetCluster}{presetSubCluster ? '&partition='+presetSubCluster : ''}&state=running&project={tp.id}&projectMatch=eq"
                 >{scrambleNames ? scramble(tp.id) : tp.id}
               </a>
             </td>
@@ -472,7 +481,7 @@
         </h4>
         <Pie
           {useAltColors}
-          canvasId="hpcpie-accs-users"
+          canvasId="{canvasPrefix}-hpcpie-accs-users"
           size={colWidthAccs * 0.75}
           sliceLabel="GPUs"
           quantities={$topAccsQuery.data.topUser.map(
@@ -492,14 +501,14 @@
         {#each $topAccsQuery.data.topUser as tu, i}
           <tr>
             <td><Icon name="circle-fill" style="color: {legendColors(i)};" /></td>
-            <td id="topName-accs-{tu.id}">
-              <a target="_blank" href="/monitoring/user/{tu.id}?cluster={cluster}&state=running"
+            <td id="{canvasPrefix}-topName-accs-{tu.id}">
+              <a target="_blank" href="/monitoring/user/{tu.id}?cluster={presetCluster}{presetSubCluster ? '&partition='+presetSubCluster : ''}&state=running"
                 >{scrambleNames ? scramble(tu.id) : tu.id}
               </a>
             </td>
             {#if tu?.name}
               <Tooltip
-                target={`topName-accs-${tu.id}`}
+                target={`${canvasPrefix}-topName-accs-${tu.id}`}
                 placement="left"
                 >{scrambleNames ? scramble(tu.name) : tu.name}</Tooltip
               >
@@ -516,7 +525,7 @@
       </h4>
       <Pie
         {useAltColors}
-        canvasId="hpcpie-accs-projects"
+        canvasId="{canvasPrefix}-hpcpie-accs-projects"
         size={colWidthAccs * 0.75}
         sliceLabel={'GPUs'}
         quantities={$topAccsQuery.data.topProjects.map(
@@ -536,7 +545,7 @@
           <tr>
             <td><Icon name="circle-fill" style="color: {legendColors(i)};" /></td>
             <td>
-              <a target="_blank" href="/monitoring/jobs/?cluster={cluster}&state=running&project={tp.id}&projectMatch=eq"
+              <a target="_blank" href="/monitoring/jobs/?cluster={presetCluster}{presetSubCluster ? '&partition='+presetSubCluster : ''}&state=running&project={tp.id}&projectMatch=eq"
                 >{scrambleNames ? scramble(tp.id) : tp.id}
               </a>
             </td>

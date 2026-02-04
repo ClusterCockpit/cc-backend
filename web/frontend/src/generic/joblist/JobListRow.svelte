@@ -79,6 +79,7 @@
 
   /* Derived */
   const jobId = $derived(job?.id);
+  const refinedData = $derived($metricsQuery?.data?.jobMetrics ? sortAndSelectScope($metricsQuery.data.jobMetrics) : []);
   const scopes = $derived.by(() => {
     if (job.numNodes == 1) {
       if (job.numAcc >= 1) return ["core", "accelerator"];
@@ -202,40 +203,45 @@
         />
       </td>
     {/if}
-    {#each sortAndSelectScope($metricsQuery.data.jobMetrics) as metric, i (metric?.name || i)}
+    {#each refinedData as metric, i (metric?.name || i)}
       <td>
-        <!-- Subluster Metricconfig remove keyword for jobtables (joblist main, user joblist, project joblist) to be used here as toplevel case-->
-        {#if metric.disabled == false && metric.data}
-          <MetricPlot
-            onZoom={(detail) => handleZoom(detail, metric.data.name)}
-            height={plotHeight}
-            timestep={metric.data.metric.timestep}
-            scope={metric.data.scope}
-            series={metric.data.metric.series}
-            statisticsSeries={metric.data.metric.statisticsSeries}
-            metric={metric.data.name}
-            cluster={cluster.find((c) => c.name == job.cluster)}
-            subCluster={job.subCluster}
-            isShared={job.shared != "none"}
-            numhwthreads={job.numHWThreads}
-            numaccs={job.numAcc}
-            zoomState={zoomStates[metric.data.name] || null}
-            thresholdState={thresholdStates[metric.data.name] || null}
-          />
-        {:else if metric.disabled == true && metric.data}
-          <Card body color="info"
-            >Metric disabled for subcluster <code
-              >{metric.data.name}:{job.subCluster}</code
-            ></Card
-          >
-        {:else}
-          <Card body class="mx-2" color="warning">
-            <p>No dataset(s) returned for <b>{metrics[i]}</b></p>
-            <p class="mb-1">Metric or host was not found in metric store for cluster <b>{job.cluster}</b>:</p>
-            <p class="mb-1">Identical messages in <i>{metrics[i]} column</i>: Metric not found.</p>
-            <p class="mb-1">Identical messages in <i>job {job.jobId} row</i>: Host not found.</p>
-          </Card>
-        {/if}
+        {#key metric}
+          {#if metric?.data}
+            {#if metric?.disabled}
+              <Card body class="mx-2" color="info">
+                Metric <b>{metric.data.name}</b>: Disabled for subcluster <code>{job.subCluster}</code>
+              </Card>
+            {:else}
+              <MetricPlot
+                onZoom={(detail) => handleZoom(detail, metric.data.name)}
+                height={plotHeight}
+                timestep={metric.data.metric.timestep}
+                scope={metric.data.scope}
+                series={metric.data.metric.series}
+                statisticsSeries={metric.data.metric.statisticsSeries}
+                metric={metric.data.name}
+                cluster={cluster.find((c) => c.name == job.cluster)}
+                subCluster={job.subCluster}
+                isShared={job.shared != "none"}
+                numhwthreads={job.numHWThreads}
+                numaccs={job.numAcc}
+                zoomState={zoomStates[metric.data.name] || null}
+                thresholdState={thresholdStates[metric.data.name] || null}
+              />
+            {/if}
+          {:else}
+            <Card body class="mx-2" color="warning">
+              <p>No dataset(s) returned for <b>{metrics[i]}</b></p>
+              <p class="mb-1">Metric or host was not found in metric store for cluster <b>{job.cluster}</b>:</p>
+              <p class="mb-1">Identical messages in <i>{metrics[i]} column</i>: Metric not found.</p>
+              <p class="mb-1">Identical messages in <i>job {job.jobId} row</i>: Host not found.</p>
+            </Card>
+          {/if}
+        {/key}
+      </td>
+    {:else}
+      <td>
+        <Card body class="mx-2">No metrics selected for display.</Card>
       </td>
     {/each}
   {/if}

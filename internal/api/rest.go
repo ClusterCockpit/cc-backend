@@ -81,7 +81,7 @@ func (api *RestAPI) MountAPIRoutes(r *mux.Router) {
 	// Cluster List
 	r.HandleFunc("/clusters/", api.getClusters).Methods(http.MethodGet)
 	// Slurm node state
-	r.HandleFunc("/nodestate/", api.updateNodeStates).Methods(http.MethodPost, http.MethodPut)
+	r.HandleFunc("/nodestates/", api.updateNodeStates).Methods(http.MethodPost, http.MethodPut)
 	// Job Handler
 	if config.Keys.APISubjects == nil {
 		cclog.Info("Enabling REST start/stop job API")
@@ -127,12 +127,12 @@ func (api *RestAPI) MountMetricStoreAPIRoutes(r *mux.Router) {
 	r.HandleFunc("/free", freeMetrics).Methods(http.MethodPost)
 	r.HandleFunc("/write", writeMetrics).Methods(http.MethodPost)
 	r.HandleFunc("/debug", debugMetrics).Methods(http.MethodGet)
-	r.HandleFunc("/healthcheck", metricsHealth).Methods(http.MethodGet)
+	r.HandleFunc("/healthcheck", api.updateNodeStates).Methods(http.MethodPost)
 	// Same endpoints but with trailing slash
 	r.HandleFunc("/free/", freeMetrics).Methods(http.MethodPost)
 	r.HandleFunc("/write/", writeMetrics).Methods(http.MethodPost)
 	r.HandleFunc("/debug/", debugMetrics).Methods(http.MethodGet)
-	r.HandleFunc("/healthcheck/", metricsHealth).Methods(http.MethodGet)
+	r.HandleFunc("/healthcheck/", api.updateNodeStates).Methods(http.MethodPost)
 }
 
 // MountConfigAPIRoutes registers configuration and user management endpoints.

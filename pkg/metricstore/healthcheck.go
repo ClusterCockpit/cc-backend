@@ -6,87 +6,260 @@
 package metricstore
 
 import (
-	"bufio"
+	"cmp"
 	"fmt"
+	"slices"
 	"time"
+
+	"github.com/ClusterCockpit/cc-lib/v2/schema"
 )
+
+// HealthCheckResponse represents the result of a health check operation.
+//
+// Status indicates the monitoring state (Full, Partial, Failed).
+// Error contains any error encountered during the health check.
+type HealthCheckResponse struct {
+	Status schema.MonitoringState
+	Error  error
+}
 
 // MaxMissingDataPoints is a threshold that allows a node to be healthy with certain number of data points missing.
 // Suppose a node does not receive last 5 data points, then healthCheck endpoint will still say a
 // node is healthy. Anything more than 5 missing points in metrics of the node will deem the node unhealthy.
 const MaxMissingDataPoints int64 = 5
 
-// MaxUnhealthyMetrics is a threshold which allows upto certain number of metrics in a node to be unhealthly.
-// Works with MaxMissingDataPoints. Say 5 metrics (including submetrics) do not receive the last
-// MaxMissingDataPoints data points, then the node will be deemed healthy. Any more metrics that does
-// not receive data for MaxMissingDataPoints data points will deem the node unhealthy.
-const MaxUnhealthyMetrics int64 = 5
-
-func (b *buffer) healthCheck() int64 {
+// isBufferHealthy checks if a buffer has received data for the last MaxMissingDataPoints.
+//
+// Returns true if the buffer is healthy (recent data within threshold), false otherwise.
+// A nil buffer or empty buffer is considered unhealthy.
+func (b *buffer) bufferExists() bool {
 	// Check if the buffer is empty
-	if b.data == nil {
-		return 1
+	if b == nil || b.data == nil || len(b.data) == 0 {
+		return false
 	}
 
+	return true
+}
+
+// isBufferHealthy checks if a buffer has received data for the last MaxMissingDataPoints.
+//
+// Returns true if the buffer is healthy (recent data within threshold), false otherwise.
+// A nil buffer or empty buffer is considered unhealthy.
+func (b *buffer) isBufferHealthy() bool {
+	// Get the last endtime of the buffer
 	bufferEnd := b.start + b.frequency*int64(len(b.data))
 	t := time.Now().Unix()
 
-	// Check if the buffer is too old
+	// Check if the buffer has recent data (within MaxMissingDataPoints threshold)
 	if t-bufferEnd > MaxMissingDataPoints*b.frequency {
-		return 1
+		return false
 	}
 
-	return 0
+	return true
 }
 
-func (l *Level) healthCheck(m *MemoryStore, count int64) (int64, error) {
+// MergeUniqueSorted merges two lists, sorts them, and removes duplicates.
+// Requires 'cmp.Ordered' because we need to sort the data.
+func mergeList[string cmp.Ordered](list1, list2 []string) []string {
+	// 1. Combine both lists
+	result := append(list1, list2...)
+
+	// 2. Sort the combined list
+	slices.Sort(result)
+
+	// 3. Compact removes consecutive duplicates (standard in Go 1.21+)
+	// e.g. [1, 1, 2, 3, 3] -> [1, 2, 3]
+	result = slices.Compact(result)
+
+	return result
+}
+
+// getHealthyMetrics recursively collects healthy and degraded metrics at this level and below.
+//
+// A metric is considered:
+//   - Healthy: buffer has recent data within MaxMissingDataPoints threshold AND has few/no NaN values
+//   - Degraded: buffer exists and has recent data, but contains more than MaxMissingDataPoints NaN values
+//
+// This routine walks the entire subtree starting from the current level.
+//
+// Parameters:
+//   - m: MemoryStore containing the global metric configuration
+//
+// Returns:
+//   - []string: Flat list of healthy metric names from this level and all children
+//   - []string: Flat list of degraded metric names (exist but have too many missing values)
+//   - error: Non-nil only for internal errors during recursion
+//
+// The routine mirrors healthCheck() but provides more granular classification:
+//   - healthCheck() finds problems (stale/missing)
+//   - getHealthyMetrics() separates healthy from degraded metrics
+func (l *Level) getHealthyMetrics(m *MemoryStore, expectedMetrics []string) ([]string, []string, error) {
 	l.lock.RLock()
 	defer l.lock.RUnlock()
 
-	for _, mc := range m.Metrics {
-		if b := l.metrics[mc.offset]; b != nil {
-			count += b.healthCheck()
+	globalMetrics := m.Metrics
+
+	missingList := make([]string, 0)
+	degradedList := make([]string, 0)
+
+	// Phase 1: Check metrics at this level
+	for _, metricName := range expectedMetrics {
+		offset := globalMetrics[metricName].offset
+		b := l.metrics[offset]
+
+		if !b.bufferExists() {
+			missingList = append(missingList, metricName)
+		} else if !b.isBufferHealthy() {
+			degradedList = append(degradedList, metricName)
 		}
 	}
 
+	// Phase 2: Recursively check child levels
 	for _, lvl := range l.children {
-		c, err := lvl.healthCheck(m, 0)
+		childMissing, childDegraded, err := lvl.getHealthyMetrics(m, expectedMetrics)
 		if err != nil {
-			return 0, err
+			return nil, nil, err
 		}
-		count += c
+
+		missingList = mergeList(missingList, childMissing)
+		degradedList = mergeList(degradedList, childDegraded)
 	}
 
-	return count, nil
+	return missingList, degradedList, nil
 }
 
-func (m *MemoryStore) HealthCheck(w *bufio.Writer, selector []string) error {
+// GetHealthyMetrics returns healthy and degraded metrics for a specific node as flat lists.
+//
+// This routine walks the metric tree starting from the specified node selector
+// and collects all metrics that have received data within the last MaxMissingDataPoints
+// (default: 5 data points). Metrics are classified into two categories:
+//
+//   - Healthy: Buffer has recent data AND contains few/no NaN (missing) values
+//   - Degraded: Buffer has recent data BUT contains more than MaxMissingDataPoints NaN values
+//
+// The returned lists include both node-level metrics (e.g., "load", "mem_used") and
+// hardware-level metrics (e.g., "cpu_user", "gpu_temp") in flat slices.
+//
+// Parameters:
+//   - selector: Hierarchical path to the target node, typically []string{cluster, hostname}.
+//     Example: []string{"emmy", "node001"} navigates to the "node001" host in the "emmy" cluster.
+//     The selector must match the hierarchy used during metric ingestion.
+//
+// Returns:
+//   - []string: Flat list of healthy metric names (recent data, few missing values)
+//   - []string: Flat list of degraded metric names (recent data, many missing values)
+//   - error: Non-nil if the node is not found or internal errors occur
+//
+// Example usage:
+//
+//	selector := []string{"emmy", "node001"}
+//	healthyMetrics, degradedMetrics, err := ms.GetHealthyMetrics(selector)
+//	if err != nil {
+//	    // Node not found or internal error
+//	    return err
+//	}
+//	fmt.Printf("Healthy metrics: %v\n", healthyMetrics)
+//	// Output: ["load", "mem_used", "cpu_user", ...]
+//	fmt.Printf("Degraded metrics: %v\n", degradedMetrics)
+//	// Output: ["gpu_temp", "network_rx", ...] (metrics with many NaN values)
+//
+// Note: This routine provides more granular classification than HealthCheck:
+//   - HealthCheck reports stale/missing metrics (problems)
+//   - GetHealthyMetrics separates fully healthy from degraded metrics (quality levels)
+func (m *MemoryStore) GetHealthyMetrics(selector []string, expectedMetrics []string) ([]string, []string, error) {
 	lvl := m.root.findLevel(selector)
 	if lvl == nil {
-		return fmt.Errorf("[METRICSTORE]> not found: %#v", selector)
+		return nil, nil, fmt.Errorf("[METRICSTORE]> error while GetHealthyMetrics, host not found: %#v", selector)
 	}
 
-	buf := make([]byte, 0, 25)
-	// buf = append(buf, "{"...)
-
-	var count int64 = 0
-
-	unhealthyMetricsCount, err := lvl.healthCheck(m, count)
+	missingList, degradedList, err := lvl.getHealthyMetrics(m, expectedMetrics)
 	if err != nil {
-		return err
+		return nil, nil, err
 	}
 
-	if unhealthyMetricsCount < MaxUnhealthyMetrics {
-		buf = append(buf, "Healthy"...)
-	} else {
-		buf = append(buf, "Unhealthy"...)
+	return missingList, degradedList, nil
+}
+
+// HealthCheck performs health checks on multiple nodes and returns their monitoring states.
+//
+// This routine provides a batch health check interface that evaluates multiple nodes
+// against a specific set of expected metrics. For each node, it determines the overall
+// monitoring state based on which metrics are healthy, degraded, or missing.
+//
+// Health Status Classification:
+//   - MonitoringStateFull: All expected metrics are healthy (recent data, few missing values)
+//   - MonitoringStatePartial: Some metrics are degraded (many missing values) or missing
+//   - MonitoringStateFailed: Node not found or all expected metrics are missing/stale
+//
+// Parameters:
+//   - cluster: Cluster name (first element of selector path)
+//   - nodes: List of node hostnames to check
+//   - expectedMetrics: List of metric names that should be present on each node
+//
+// Returns:
+//   - map[string]schema.MonitoringState: Map keyed by hostname containing monitoring state for each node
+//   - error: Non-nil only for internal errors (individual node failures are captured as MonitoringStateFailed)
+//
+// Example usage:
+//
+//	cluster := "emmy"
+//	nodes := []string{"node001", "node002", "node003"}
+//	expectedMetrics := []string{"load", "mem_used", "cpu_user", "cpu_system"}
+//	healthStates, err := ms.HealthCheck(cluster, nodes, expectedMetrics)
+//	if err != nil {
+//	    return err
+//	}
+//	for hostname, state := range healthStates {
+//	    fmt.Printf("Node %s: %s\n", hostname, state)
+//	}
+//
+// Note: This routine is optimized for batch operations where you need to check
+// the same set of metrics across multiple nodes.
+func (m *MemoryStore) HealthCheck(cluster string,
+	nodes []string, expectedMetrics []string,
+) (map[string]schema.MonitoringState, error) {
+	results := make(map[string]schema.MonitoringState, len(nodes))
+
+	// Create a set of expected metrics for fast lookup
+	expectedSet := make(map[string]bool, len(expectedMetrics))
+	for _, metric := range expectedMetrics {
+		expectedSet[metric] = true
 	}
 
-	// buf = append(buf, "}\n"...)
+	// Check each node
+	for _, hostname := range nodes {
+		selector := []string{cluster, hostname}
+		status := schema.MonitoringStateFull
+		healthyCount := 0
+		degradedCount := 0
+		missingCount := 0
 
-	if _, err = w.Write(buf); err != nil {
-		return err
+		// Get healthy and degraded metrics for this node
+		missingList, degradedList, err := m.GetHealthyMetrics(selector, expectedMetrics)
+		if err != nil {
+			// Node not found or internal error
+			results[hostname] = schema.MonitoringStateFailed
+			continue
+		}
+
+		missingCount = len(missingList)
+		degradedCount = len(degradedList)
+		healthyCount = len(expectedMetrics) - (missingCount + degradedCount)
+
+		// Determine overall health status
+		if missingCount > 0 || degradedCount > 0 {
+			if healthyCount == 0 {
+				// No healthy metrics at all
+				status = schema.MonitoringStateFailed
+			} else {
+				// Some healthy, some degraded/missing
+				status = schema.MonitoringStatePartial
+			}
+		}
+		// else: all metrics healthy, status remains MonitoringStateFull
+
+		results[hostname] = status
 	}
 
-	return w.Flush()
+	return results, nil
 }

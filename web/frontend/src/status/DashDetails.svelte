@@ -34,6 +34,9 @@
   /*Const Init */
   const { query: initq } = init();
   const useCbColors = getContext("cc-config")?.plotConfiguration_colorblindMode || false
+
+  /* Derived */
+  const subClusters = $derived($initq?.data?.clusters?.find((c) => c.name == presetCluster)?.subClusters || []);
 </script>
 
 <!-- Loading indicator & Refresh -->
@@ -66,11 +69,21 @@
         </CardBody>
       </TabPane>
 
-      <TabPane tabId="usage-dash" tab="Usage">
+      <TabPane tabId="usage-dash" tab="Cluster Usage">
         <CardBody>
           <UsageDash {presetCluster} {useCbColors}></UsageDash>
         </CardBody>
       </TabPane>
+
+      {#if subClusters?.length > 1}
+        {#each subClusters.map(sc => sc.name) as scn}
+        <TabPane tabId="{scn}-usage-dash" tab="{scn.charAt(0).toUpperCase() + scn.slice(1)} Usage">
+          <CardBody>
+            <UsageDash {presetCluster} presetSubCluster={scn} {useCbColors}></UsageDash>
+          </CardBody>
+        </TabPane>
+        {/each}
+      {/if}
       
       <TabPane tabId="metric-dash" tab="Statistics">
         <CardBody>

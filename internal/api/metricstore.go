@@ -135,36 +135,3 @@ func debugMetrics(rw http.ResponseWriter, r *http.Request) {
 		return
 	}
 }
-
-// handleHealthCheck godoc
-// @summary HealthCheck endpoint
-// @tags healthcheck
-// @description This endpoint allows the users to check if a node is healthy
-// @produce     json
-// @param       selector        query    string            false "Selector"
-// @success     200            {string} string  "Debug dump"
-// @failure     400            {object} api.ErrorResponse       "Bad Request"
-// @failure     401            {object} api.ErrorResponse       "Unauthorized"
-// @failure     403            {object} api.ErrorResponse       "Forbidden"
-// @failure     500            {object} api.ErrorResponse       "Internal Server Error"
-// @security    ApiKeyAuth
-// @router      /healthcheck/ [get]
-func metricsHealth(rw http.ResponseWriter, r *http.Request) {
-	rawCluster := r.URL.Query().Get("cluster")
-	rawNode := r.URL.Query().Get("node")
-
-	if rawCluster == "" || rawNode == "" {
-		handleError(errors.New("'cluster' and 'node' are required query parameter"), http.StatusBadRequest, rw)
-		return
-	}
-
-	rw.Header().Add("Content-Type", "application/json")
-
-	selector := []string{rawCluster, rawNode}
-
-	ms := metricstore.GetMemoryStore()
-	if err := ms.HealthCheck(bufio.NewWriter(rw), selector); err != nil {
-		handleError(err, http.StatusBadRequest, rw)
-		return
-	}
-}
