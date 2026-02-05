@@ -79,7 +79,6 @@
 
   /* Derived */
   const jobId = $derived(job?.id);
-  const refinedData = $derived($metricsQuery?.data?.jobMetrics ? sortAndSelectScope($metricsQuery.data.jobMetrics) : []);
   const scopes = $derived.by(() => {
     if (job.numNodes == 1) {
       if (job.numAcc >= 1) return ["core", "accelerator"];
@@ -95,6 +94,7 @@
       variables: { id: jobId, metrics, scopes, selectedResolution },
     })
   );
+  const refinedData = $derived($metricsQuery?.data?.jobMetrics ? sortAndSelectScope($metricsQuery.data.jobMetrics) : []);
 
   /* Effects */
   $effect(() => {
