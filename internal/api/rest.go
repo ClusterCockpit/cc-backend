@@ -81,7 +81,7 @@ func (api *RestAPI) MountAPIRoutes(r *mux.Router) {
 	// Cluster List
 	r.HandleFunc("/clusters/", api.getClusters).Methods(http.MethodGet)
 	// Slurm node state
-	r.HandleFunc("/nodestates/", api.updateNodeStates).Methods(http.MethodPost, http.MethodPut)
+	r.HandleFunc("/nodestate/", api.updateNodeStates).Methods(http.MethodPost, http.MethodPut)
 	// Job Handler
 	if config.Keys.APISubjects == nil {
 		cclog.Info("Enabling REST start/stop job API")
