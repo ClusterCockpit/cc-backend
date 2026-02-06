@@ -18,7 +18,7 @@
   import uPlot from "uplot";
   import { formatNumber, formatDurationTime } from "../units.js";
   import { getContext, onDestroy } from "svelte";
-  import { Card } from "@sveltestrap/sveltestrap";
+  import { Card, CardHeader, CardBody } from "@sveltestrap/sveltestrap";
 
   /* Svelte 5 Props */
   let {
