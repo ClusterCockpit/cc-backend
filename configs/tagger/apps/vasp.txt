@@ -1,2 +1,3 @@
-vasp
-VASP
+vasp_gam
+vasp_ncl
+vasp_std
