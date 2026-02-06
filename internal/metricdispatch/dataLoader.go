@@ -64,7 +64,7 @@ func cacheKey(
 	resolution int,
 ) string {
 	return fmt.Sprintf("%d(%s):[%v],[%v]-%d",
-		job.ID, job.State, metrics, scopes, resolution)
+		*job.ID, job.State, metrics, scopes, resolution)
 }
 
 // LoadData retrieves metric data for a job from the appropriate backend (memory store for running jobs,

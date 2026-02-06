@@ -113,7 +113,7 @@ func RegisterFootprintWorker() {
 						stmt := sq.Update("job")
 						stmt, err = jobRepo.UpdateFootprint(stmt, job)
 						if err != nil {
-							cclog.Errorf("update job (dbid: %d) statement build failed at footprint step: %s", job.ID, err.Error())
+							cclog.Errorf("update job (dbid: %d) statement build failed at footprint step: %s", *job.ID, err.Error())
 							ce++
 							continue
 						}

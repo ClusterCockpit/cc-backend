@@ -126,7 +126,7 @@ func archivingWorker() {
 			// not using meta data, called to load JobMeta into Cache?
 			// will fail if job meta not in repository
 			if _, err := jobRepo.FetchMetadata(job); err != nil {
-				cclog.Errorf("archiving job (dbid: %d) failed at check metadata step: %s", job.ID, err.Error())
+				cclog.Errorf("archiving job (dbid: %d) failed at check metadata step: %s", *job.ID, err.Error())
 				jobRepo.UpdateMonitoringStatus(*job.ID, schema.MonitoringStatusArchivingFailed)
 				archivePending.Done()
 				continue
@@ -136,7 +136,7 @@ func archivingWorker() {
 			// Use shutdown context to allow cancellation
 			jobMeta, err := ArchiveJob(job, shutdownCtx)
 			if err != nil {
-				cclog.Errorf("archiving job (dbid: %d) failed at archiving job step: %s", job.ID, err.Error())
+				cclog.Errorf("archiving job (dbid: %d) failed at archiving job step: %s", *job.ID, err.Error())
 				jobRepo.UpdateMonitoringStatus(*job.ID, schema.MonitoringStatusArchivingFailed)
 				archivePending.Done()
 				continue
@@ -145,24 +145,24 @@ func archivingWorker() {
 			stmt := sq.Update("job").Where("job.id = ?", job.ID)
 
 			if stmt, err = jobRepo.UpdateFootprint(stmt, jobMeta); err != nil {
-				cclog.Errorf("archiving job (dbid: %d) failed at update Footprint step: %s", job.ID, err.Error())
+				cclog.Errorf("archiving job (dbid: %d) failed at update Footprint step: %s", *job.ID, err.Error())
 				archivePending.Done()
 				continue
 			}
 			if stmt, err = jobRepo.UpdateEnergy(stmt, jobMeta); err != nil {
-				cclog.Errorf("archiving job (dbid: %d) failed at update Energy step: %s", job.ID, err.Error())
+				cclog.Errorf("archiving job (dbid: %d) failed at update Energy step: %s", *job.ID, err.Error())
 				archivePending.Done()
 				continue
 			}
 			// Update the jobs database entry one last time:
 			stmt = jobRepo.MarkArchived(stmt, schema.MonitoringStatusArchivingSuccessful)
 			if err := jobRepo.Execute(stmt); err != nil {
-				cclog.Errorf("archiving job (dbid: %d) failed at db execute: %s", job.ID, err.Error())
+				cclog.Errorf("archiving job (dbid: %d) failed at db execute: %s", *job.ID, err.Error())
 				archivePending.Done()
 				continue
 			}
 			cclog.Debugf("archiving job %d took %s", job.JobID, time.Since(start))
-			cclog.Infof("archiving job (dbid: %d) successful", job.ID)
+			cclog.Infof("archiving job (dbid: %d) successful", *job.ID)
 
 			repository.CallJobStopHooks(job)
 			archivePending.Done()

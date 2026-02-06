@@ -229,7 +229,7 @@ func (r *JobRepository) FetchMetadata(job *schema.Job) (map[string]string, error
 	}
 
 	start := time.Now()
-	cachekey := fmt.Sprintf("metadata:%d", job.ID)
+	cachekey := fmt.Sprintf("metadata:%d", *job.ID)
 	if cached := r.cache.Get(cachekey, nil); cached != nil {
 		job.MetaData = cached.(map[string]string)
 		return job.MetaData, nil
@@ -237,8 +237,8 @@ func (r *JobRepository) FetchMetadata(job *schema.Job) (map[string]string, error
 
 	if err := sq.Select("job.meta_data").From("job").Where("job.id = ?", job.ID).
 		RunWith(r.stmtCache).QueryRow().Scan(&job.RawMetaData); err != nil {
-		cclog.Warnf("Error while scanning for job metadata (ID=%d): %v", job.ID, err)
-		return nil, fmt.Errorf("failed to fetch metadata for job %d: %w", job.ID, err)
+		cclog.Warnf("Error while scanning for job metadata (ID=%d): %v", *job.ID, err)
+		return nil, fmt.Errorf("failed to fetch metadata for job %d: %w", *job.ID, err)
 	}
 
 	if len(job.RawMetaData) == 0 {
@@ -246,8 +246,8 @@ func (r *JobRepository) FetchMetadata(job *schema.Job) (map[string]string, error
 	}
 
 	if err := json.Unmarshal(job.RawMetaData, &job.MetaData); err != nil {
-		cclog.Warnf("Error while unmarshaling raw metadata json (ID=%d): %v", job.ID, err)
-		return nil, fmt.Errorf("failed to unmarshal metadata for job %d: %w", job.ID, err)
+		cclog.Warnf("Error while unmarshaling raw metadata json (ID=%d): %v", *job.ID, err)
+		return nil, fmt.Errorf("failed to unmarshal metadata for job %d: %w", *job.ID, err)
 	}
 
 	r.cache.Put(cachekey, job.MetaData, len(job.RawMetaData), 24*time.Hour)
@@ -270,12 +270,12 @@ func (r *JobRepository) UpdateMetadata(job *schema.Job, key, val string) (err er
 		return fmt.Errorf("job cannot be nil")
 	}
 
-	cachekey := fmt.Sprintf("metadata:%d", job.ID)
+	cachekey := fmt.Sprintf("metadata:%d", *job.ID)
 	r.cache.Del(cachekey)
 	if job.MetaData == nil {
 		if _, err = r.FetchMetadata(job); err != nil {
-			cclog.Warnf("Error while fetching metadata for job, DB ID '%v'", job.ID)
-			return fmt.Errorf("failed to fetch metadata for job %d: %w", job.ID, err)
+			cclog.Warnf("Error while fetching metadata for job, DB ID '%v'", *job.ID)
+			return fmt.Errorf("failed to fetch metadata for job %d: %w", *job.ID, err)
 		}
 	}
 
@@ -289,16 +289,16 @@ func (r *JobRepository) UpdateMetadata(job *schema.Job, key, val string) (err er
 	}
 
 	if job.RawMetaData, err = json.Marshal(job.MetaData); err != nil {
-		cclog.Warnf("Error while marshaling metadata for job, DB ID '%v'", job.ID)
-		return fmt.Errorf("failed to marshal metadata for job %d: %w", job.ID, err)
+		cclog.Warnf("Error while marshaling metadata for job, DB ID '%v'", *job.ID)
+		return fmt.Errorf("failed to marshal metadata for job %d: %w", *job.ID, err)
 	}
 
 	if _, err = sq.Update("job").
 		Set("meta_data", job.RawMetaData).
 		Where("job.id = ?", job.ID).
 		RunWith(r.stmtCache).Exec(); err != nil {
-		cclog.Warnf("Error while updating metadata for job, DB ID '%v'", job.ID)
-		return fmt.Errorf("failed to update metadata in database for job %d: %w", job.ID, err)
+		cclog.Warnf("Error while updating metadata for job, DB ID '%v'", *job.ID)
+		return fmt.Errorf("failed to update metadata in database for job %d: %w", *job.ID, err)
 	}
 
 	r.cache.Put(cachekey, job.MetaData, len(job.RawMetaData), 24*time.Hour)
@@ -324,8 +324,8 @@ func (r *JobRepository) FetchFootprint(job *schema.Job) (map[string]float64, err
 
 	if err := sq.Select("job.footprint").From("job").Where("job.id = ?", job.ID).
 		RunWith(r.stmtCache).QueryRow().Scan(&job.RawFootprint); err != nil {
-		cclog.Warnf("Error while scanning for job footprint (ID=%d): %v", job.ID, err)
-		return nil, fmt.Errorf("failed to fetch footprint for job %d: %w", job.ID, err)
+		cclog.Warnf("Error while scanning for job footprint (ID=%d): %v", *job.ID, err)
+		return nil, fmt.Errorf("failed to fetch footprint for job %d: %w", *job.ID, err)
 	}
 
 	if len(job.RawFootprint) == 0 {
@@ -333,8 +333,8 @@ func (r *JobRepository) FetchFootprint(job *schema.Job) (map[string]float64, err
 	}
 
 	if err := json.Unmarshal(job.RawFootprint, &job.Footprint); err != nil {
-		cclog.Warnf("Error while unmarshaling raw footprint json (ID=%d): %v", job.ID, err)
-		return nil, fmt.Errorf("failed to unmarshal footprint for job %d: %w", job.ID, err)
+		cclog.Warnf("Error while unmarshaling raw footprint json (ID=%d): %v", *job.ID, err)
+		return nil, fmt.Errorf("failed to unmarshal footprint for job %d: %w", *job.ID, err)
 	}
 
 	cclog.Debugf("Timer FetchFootprint %s", time.Since(start))
@@ -357,7 +357,7 @@ func (r *JobRepository) FetchEnergyFootprint(job *schema.Job) (map[string]float6
 	}
 
 	start := time.Now()
-	cachekey := fmt.Sprintf("energyFootprint:%d", job.ID)
+	cachekey := fmt.Sprintf("energyFootprint:%d", *job.ID)
 	if cached := r.cache.Get(cachekey, nil); cached != nil {
 		job.EnergyFootprint = cached.(map[string]float64)
 		return job.EnergyFootprint, nil
@@ -365,8 +365,8 @@ func (r *JobRepository) FetchEnergyFootprint(job *schema.Job) (map[string]float6
 
 	if err := sq.Select("job.energy_footprint").From("job").Where("job.id = ?", job.ID).
 		RunWith(r.stmtCache).QueryRow().Scan(&job.RawEnergyFootprint); err != nil {
-		cclog.Warnf("Error while scanning for job energy_footprint (ID=%d): %v", job.ID, err)
-		return nil, fmt.Errorf("failed to fetch energy footprint for job %d: %w", job.ID, err)
+		cclog.Warnf("Error while scanning for job energy_footprint (ID=%d): %v", *job.ID, err)
+		return nil, fmt.Errorf("failed to fetch energy footprint for job %d: %w", *job.ID, err)
 	}
 
 	if len(job.RawEnergyFootprint) == 0 {
@@ -374,8 +374,8 @@ func (r *JobRepository) FetchEnergyFootprint(job *schema.Job) (map[string]float6
 	}
 
 	if err := json.Unmarshal(job.RawEnergyFootprint, &job.EnergyFootprint); err != nil {
-		cclog.Warnf("Error while unmarshaling raw energy footprint json (ID=%d): %v", job.ID, err)
-		return nil, fmt.Errorf("failed to unmarshal energy footprint for job %d: %w", job.ID, err)
+		cclog.Warnf("Error while unmarshaling raw energy footprint json (ID=%d): %v", *job.ID, err)
+		return nil, fmt.Errorf("failed to unmarshal energy footprint for job %d: %w", *job.ID, err)
 	}
 
 	r.cache.Put(cachekey, job.EnergyFootprint, len(job.EnergyFootprint), 24*time.Hour)

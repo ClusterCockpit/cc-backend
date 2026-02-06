@@ -107,7 +107,7 @@ func RunTaggers() error {
 			tagger.Match(job)
 		}
 		for _, tagger := range jobTagger.stopTaggers {
-			cclog.Infof("Run stop tagger for job %d", job.ID)
+			cclog.Infof("Run stop tagger for job %d", *job.ID)
 			tagger.Match(job)
 		}
 	}
