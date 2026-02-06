@@ -11,6 +11,7 @@ import (
 	"slices"
 	"time"
 
+	cclog "github.com/ClusterCockpit/cc-lib/v2/ccLogger"
 	"github.com/ClusterCockpit/cc-lib/v2/schema"
 )
 
@@ -244,7 +245,16 @@ func (m *MemoryStore) HealthCheck(cluster string,
 
 		missingCount = len(missingList)
 		degradedCount = len(degradedList)
-		healthyCount = len(expectedMetrics) - (missingCount + degradedCount)
+		uniqueList := mergeList(missingList, degradedList)
+		healthyCount = len(expectedMetrics) - len(uniqueList)
+
+		// Debug log missing and degraded metrics
+		if missingCount > 0 {
+			cclog.ComponentDebug("metricstore", "HealthCheck: node", hostname, "missing metrics:", missingList)
+		}
+		if degradedCount > 0 {
+			cclog.ComponentDebug("metricstore", "HealthCheck: node", hostname, "degraded metrics:", degradedList)
+		}
 
 		// Determine overall health status
 		if missingCount > 0 || degradedCount > 0 {

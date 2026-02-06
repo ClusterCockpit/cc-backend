@@ -15,6 +15,7 @@ import (
 	"github.com/ClusterCockpit/cc-backend/internal/repository"
 	"github.com/ClusterCockpit/cc-backend/pkg/archive"
 	"github.com/ClusterCockpit/cc-backend/pkg/metricstore"
+	cclog "github.com/ClusterCockpit/cc-lib/v2/ccLogger"
 	"github.com/ClusterCockpit/cc-lib/v2/schema"
 )
 
@@ -81,6 +82,8 @@ func (api *RestAPI) updateNodeStates(rw http.ResponseWriter, r *http.Request) {
 	m := make(map[string][]string)
 	healthStates := make(map[string]schema.MonitoringState)
 
+	startMs := time.Now()
+
 	for _, node := range req.Nodes {
 		if sc, err := archive.GetSubClusterByNode(req.Cluster, node.Hostname); err == nil {
 			m[sc] = append(m[sc], node.Hostname)
@@ -96,6 +99,9 @@ func (api *RestAPI) updateNodeStates(rw http.ResponseWriter, r *http.Request) {
 			}
 		}
 	}
+
+	cclog.Infof("Timer updateNodeStates, MemStore HealthCheck: %s", time.Since(startMs))
+	startDb := time.Now()
 
 	for _, node := range req.Nodes {
 		state := determineState(node.States)
@@ -115,4 +121,6 @@ func (api *RestAPI) updateNodeStates(rw http.ResponseWriter, r *http.Request) {
 
 		repo.UpdateNodeState(node.Hostname, req.Cluster, &nodeState)
 	}
+
+	cclog.Infof("Timer updateNodeStates, SQLite Inserts: %s", time.Since(startDb))
 }

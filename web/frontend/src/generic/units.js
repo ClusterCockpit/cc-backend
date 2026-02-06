@@ -32,10 +32,6 @@ export function scaleNumber(x, p = '') {
     }
 }
 
-export function roundTwoDigits(x) {
-    return Math.round(x * 100) / 100
-}
-
 export function scaleNumbers(x, y, p = '') {
     const oldPower  = power[prefix.indexOf(p)]
     const rawXValue = x * oldPower 
@@ -75,6 +71,10 @@ export function formatUnixTime(t, withDate = false) {
             else return new Date(t * 1000).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
         }
     }
+}
+
+export function roundTwoDigits(x) {
+    return Math.round(x * 100) / 100
 }
 
 // const equalsCheck = (a, b) => {

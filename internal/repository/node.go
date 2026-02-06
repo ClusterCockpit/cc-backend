@@ -198,7 +198,6 @@ func (r *NodeRepository) UpdateNodeState(hostname string, cluster string, nodeSt
 			}
 
 			cclog.Debugf("Added node '%s' to database", hostname)
-			return nil
 		} else {
 			cclog.Warnf("Error while querying node '%v' from database", id)
 			return err

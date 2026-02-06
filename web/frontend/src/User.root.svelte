@@ -19,7 +19,8 @@
     Spinner,
     Input,
     InputGroup,
-    InputGroupText
+    InputGroupText,
+    Tooltip
   } from "@sveltestrap/sveltestrap";
   import {
     queryStore,
@@ -32,6 +33,10 @@
     scramble,
     scrambleNames,
   } from "./generic/utils.js";
+  import {
+    formatNumber,
+    formatDurationTime
+  } from "./generic/units.js";
   import JobList from "./generic/JobList.svelte";
   import JobCompare from "./generic/JobCompare.svelte";
   import Filters from "./generic/Filters.svelte";
@@ -56,6 +61,7 @@
   const durationBinOptions = ["1m","10m","1h","6h","12h"];
   const metricBinOptions = [10, 20, 50, 100];
   const matchedJobCompareLimit = 500;
+  const shortDuration = ccconfig.jobList_hideShortRunningJobs; // Always configured
 
   /* State Init */
   // List & Control Vars
@@ -108,6 +114,7 @@
             shortJobs
             totalWalltime
             totalCoreHours
+            totalAccHours
             histDuration {
               count
               value
@@ -133,6 +140,7 @@
       variables: { jobFilters, selectedHistograms, numDurationBins, numMetricBins },
     })
   );
+  const hasAccHours = $derived($stats?.data?.jobsStatistics[0]?.totalAccHours != 0);
 
   /* Functions */
   function resetJobSelection() {
@@ -290,20 +298,54 @@
             {/if}
             <tr>
               <th scope="row">Total Jobs</th>
-              <td>{$stats.data.jobsStatistics[0].totalJobs}</td>
+              <td>
+                <span style="cursor: help;" title="{$stats.data.jobsStatistics[0].totalJobs} Jobs">
+                  {formatNumber($stats.data.jobsStatistics[0].totalJobs)} Jobs
+                </span>
+              </td>
             </tr>
             <tr>
-              <th scope="row">Short Jobs</th>
-              <td>{$stats.data.jobsStatistics[0].shortJobs}</td>
+              <th scope="row">        
+                <span class="mr-1">
+                  Short Jobs
+                 <Icon name="info-circle" id="shortjobs-info" style="margin-left:5px; cursor:help;"/>
+                </span>
+                <Tooltip target={`shortjobs-info`} placement="right">
+                  Job duration less than {formatDurationTime(shortDuration)}
+                </Tooltip>
+              </th>
+              <td>
+                <span style="cursor: help;" title="{$stats.data.jobsStatistics[0].shortJobs} Jobs">
+                  {formatNumber($stats.data.jobsStatistics[0].shortJobs)} Jobs
+                </span>
+              </td>
             </tr>
             <tr>
               <th scope="row">Total Walltime</th>
-              <td>{$stats.data.jobsStatistics[0].totalWalltime}</td>
+              <td>
+                <span style="cursor: help;" title="{$stats.data.jobsStatistics[0].totalWalltime} Hours">
+                  {formatNumber($stats.data.jobsStatistics[0].totalWalltime)} Hours
+                </span>
+              </td>
             </tr>
             <tr>
               <th scope="row">Total Core Hours</th>
-              <td>{$stats.data.jobsStatistics[0].totalCoreHours}</td>
+              <td>
+                <span style="cursor: help;" title="{$stats.data.jobsStatistics[0].totalCoreHours} Hours">
+                  {formatNumber($stats.data.jobsStatistics[0].totalCoreHours)} Hours
+                </span>
+              </td>
             </tr>
+            {#if hasAccHours}
+              <tr>
+                <th scope="row">Total Accelerator Hours</th>
+                <td>
+                  <span style="cursor: help;" title="{$stats.data.jobsStatistics[0].totalAccHours} Hours">
+                    {formatNumber($stats.data.jobsStatistics[0].totalAccHours)} Hours
+                  </span>
+                </td>
+              </tr>
+            {/if}
           </tbody>
         </Table>
       </Col>
@@ -316,6 +358,7 @@
             xunit="Runtime"
             ylabel="Number of Jobs"
             yunit="Jobs"
+            height={hasAccHours ? 290 : 250}
             usesBins
             xtime
           />
@@ -330,6 +373,7 @@
             xunit="Nodes"
             ylabel="Number of Jobs"
             yunit="Jobs"
+            height={hasAccHours ? 290 : 250}
           />
         {/key}
       </Col>

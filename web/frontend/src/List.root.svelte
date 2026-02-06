@@ -319,11 +319,11 @@
         <tr>
           <td>
             {#if type == "USER"}
-              <a href="/monitoring/user/{row.id}"
+              <a href="/monitoring/user/{row.id}{fetchRunning ? '?state=running' : ''}"
                 >{scrambleNames ? scramble(row.id) : row.id}</a
               >
             {:else if type == "PROJECT"}
-              <a href="/monitoring/jobs/?project={row.id}"
+              <a href="/monitoring/jobs/?project={row.id}{fetchRunning ? '&state=running' : ''}"
                 >{scrambleNames ? scramble(row.id) : row.id}</a
               >
             {:else}
