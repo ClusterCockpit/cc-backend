@@ -243,6 +243,8 @@ func (m *MemoryStore) HealthCheck(cluster string,
 			continue
 		}
 
+		missingCount = len(missingList)
+		degradedCount = len(degradedList)
 		uniqueList := mergeList(missingList, degradedList)
 		healthyCount = len(expectedMetrics) - len(uniqueList)
 
