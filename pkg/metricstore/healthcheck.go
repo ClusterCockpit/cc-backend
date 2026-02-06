@@ -95,9 +95,7 @@ func (l *Level) getHealthyMetrics(m *MemoryStore, expectedMetrics []string) []st
 			continue
 		}
 
-		if degraded[metricName] {
-			degradedList = append(degradedList, metricName)
-		}
+		degradedList = append(degradedList, metricName)
 	}
 
 	return degradedList

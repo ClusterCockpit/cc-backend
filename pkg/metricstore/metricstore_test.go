@@ -303,7 +303,6 @@ func TestGetHealthyMetrics(t *testing.T) {
 		name            string
 		selector        []string
 		expectedMetrics []string
-		wantMissing     []string
 		wantDegraded    []string
 		wantErr         bool
 	}{
@@ -311,15 +310,13 @@ func TestGetHealthyMetrics(t *testing.T) {
 			name:            "mixed health states",
 			selector:        []string{"testcluster", "testnode"},
 			expectedMetrics: []string{"load", "mem_used", "cpu_user"},
-			wantMissing:     []string{"cpu_user"},
-			wantDegraded:    []string{"mem_used"},
+			wantDegraded:    []string{"mem_used", "cpu_user"},
 			wantErr:         false,
 		},
 		{
 			name:            "node not found",
 			selector:        []string{"testcluster", "nonexistent"},
 			expectedMetrics: []string{"load"},
-			wantMissing:     nil,
 			wantDegraded:    nil,
 			wantErr:         true,
 		},
@@ -327,7 +324,6 @@ func TestGetHealthyMetrics(t *testing.T) {
 			name:            "check only healthy metric",
 			selector:        []string{"testcluster", "testnode"},
 			expectedMetrics: []string{"load"},
-			wantMissing:     []string{},
 			wantDegraded:    []string{},
 			wantErr:         false,
 		},
@@ -335,7 +331,7 @@ func TestGetHealthyMetrics(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			missing, degraded, err := ms.GetHealthyMetrics(tt.selector, tt.expectedMetrics)
+			degraded, err := ms.GetHealthyMetrics(tt.selector, tt.expectedMetrics)
 
 			if (err != nil) != tt.wantErr {
 				t.Errorf("GetHealthyMetrics() error = %v, wantErr %v", err, tt.wantErr)
@@ -344,17 +340,6 @@ func TestGetHealthyMetrics(t *testing.T) {
 
 			if tt.wantErr {
 				return
-			}
-
-			// Check missing list
-			if len(missing) != len(tt.wantMissing) {
-				t.Errorf("GetHealthyMetrics() missing = %v, want %v", missing, tt.wantMissing)
-			} else {
-				for i, m := range tt.wantMissing {
-					if missing[i] != m {
-						t.Errorf("GetHealthyMetrics() missing[%d] = %v, want %v", i, missing[i], m)
-					}
-				}
 			}
 
 			// Check degraded list
