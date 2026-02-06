@@ -29,8 +29,8 @@ const (
 )
 
 type appInfo struct {
-	tag     string
-	strings []string
+	tag      string
+	patterns []*regexp.Regexp
 }
 
 // AppTagger detects applications by matching patterns in job scripts.
@@ -38,8 +38,8 @@ type appInfo struct {
 // configuration when files change. When a job script matches a pattern,
 // the corresponding application tag is automatically applied.
 type AppTagger struct {
-	// apps maps application tags to their matching patterns
-	apps map[string]appInfo
+	// apps holds application patterns in deterministic order
+	apps []appInfo
 	// tagType is the type of tag ("app")
 	tagType string
 	// cfgPath is the path to watch for configuration changes
@@ -48,13 +48,27 @@ type AppTagger struct {
 
 func (t *AppTagger) scanApp(f *os.File, fns string) {
 	scanner := bufio.NewScanner(f)
-	ai := appInfo{tag: strings.TrimSuffix(fns, filepath.Ext(fns)), strings: make([]string, 0)}
+	tag := strings.TrimSuffix(fns, filepath.Ext(fns))
+	ai := appInfo{tag: tag, patterns: make([]*regexp.Regexp, 0)}
 
 	for scanner.Scan() {
-		ai.strings = append(ai.strings, scanner.Text())
+		line := scanner.Text()
+		re, err := regexp.Compile(line)
+		if err != nil {
+			cclog.Errorf("invalid regex pattern '%s' in %s: %v", line, fns, err)
+			continue
+		}
+		ai.patterns = append(ai.patterns, re)
 	}
-	delete(t.apps, ai.tag)
-	t.apps[ai.tag] = ai
+
+	// Remove existing entry for this tag if present
+	for i, a := range t.apps {
+		if a.tag == tag {
+			t.apps = append(t.apps[:i], t.apps[i+1:]...)
+			break
+		}
+	}
+	t.apps = append(t.apps, ai)
 }
 
 // EventMatch checks if a filesystem event should trigger configuration reload.
@@ -65,7 +79,6 @@ func (t *AppTagger) EventMatch(s string) bool {
 
 // EventCallback is triggered when the configuration directory changes.
 // It reloads all application pattern files from the watched directory.
-// FIXME: Only process the file that caused the event
 func (t *AppTagger) EventCallback() {
 	files, err := os.ReadDir(t.cfgPath)
 	if err != nil {
@@ -81,7 +94,9 @@ func (t *AppTagger) EventCallback() {
 			continue
 		}
 		t.scanApp(f, fns)
-		f.Close()
+		if err := f.Close(); err != nil {
+			cclog.Errorf("error closing app file %s: %#v", fns, err)
+		}
 	}
 }
 
@@ -94,7 +109,7 @@ func (t *AppTagger) Register() error {
 		t.cfgPath = defaultConfigPath
 	}
 	t.tagType = tagTypeApp
-	t.apps = make(map[string]appInfo, 0)
+	t.apps = make([]appInfo, 0)
 
 	if !util.CheckFileExists(t.cfgPath) {
 		return fmt.Errorf("configuration path does not exist: %s", t.cfgPath)
@@ -114,7 +129,9 @@ func (t *AppTagger) Register() error {
 			continue
 		}
 		t.scanApp(f, fns)
-		f.Close()
+		if err := f.Close(); err != nil {
+			cclog.Errorf("error closing app file %s: %#v", fns, err)
+		}
 	}
 
 	cclog.Infof("Setup file watch for %s", t.cfgPath)
@@ -139,15 +156,14 @@ func (t *AppTagger) Match(job *schema.Job) {
 	jobscript, ok := metadata["jobScript"]
 	if ok {
 		id := *job.ID
+		jobscriptLower := strings.ToLower(jobscript)
 
 	out:
 		for _, a := range t.apps {
-			tag := a.tag
-			for _, s := range a.strings {
-				matched, _ := regexp.MatchString(s, strings.ToLower(jobscript))
-				if matched {
-					if !r.HasTag(id, t.tagType, tag) {
-						r.AddTagOrCreateDirect(id, t.tagType, tag)
+			for _, re := range a.patterns {
+				if re.MatchString(jobscriptLower) {
+					if !r.HasTag(id, t.tagType, a.tag) {
+						r.AddTagOrCreateDirect(id, t.tagType, a.tag)
 						break out
 					}
 				}
