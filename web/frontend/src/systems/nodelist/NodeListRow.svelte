@@ -5,6 +5,7 @@
   - `cluster String`: The nodes' cluster
   - `nodeData Object`: The node data object including metric data
   - `selectedMetrics [String]`: The array of selected metrics
+  - `globalMetrics [Obj]`: Includes the backend supplied availabilities for cluster and subCluster
 -->
 
 <script>
@@ -24,6 +25,7 @@
     cluster,
     nodeData,
     selectedMetrics,
+    globalMetrics
   } = $props();
 
   /* Var Init*/
@@ -92,6 +94,7 @@
         if (scopedNodeMetric?.data) {
           return {
             disabled: checkMetricDisabled(
+              globalMetrics,
               scopedNodeMetric.data.name,
               cluster,
               nodeData.subCluster,

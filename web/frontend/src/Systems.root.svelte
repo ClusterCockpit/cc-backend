@@ -51,13 +51,6 @@
   /* Const Init */
   const { query: initq } = init();
   const client = getContextClient();
-  const ccconfig = getContext("cc-config");
-  const initialized = getContext("initialized");
-  const globalMetrics = getContext("globalMetrics");
-  const resampleConfig = getContext("resampling") || null;
-
-  const resampleResolutions = resampleConfig ? [...resampleConfig.resolutions] : [];
-  const resampleDefault = resampleConfig ? Math.max(...resampleConfig.resolutions) : 0;
   const stateOptions = ['all', 'allocated', 'idle', 'reserved', 'mixed', 'down', 'unknown', 'notindb'];
   const nowDate = new Date(Date.now());
 
@@ -65,35 +58,55 @@
   let timeoutId = null;
 
   /* State Init */
-  let selectedResolution = $state(resampleConfig ? resampleDefault : 0);
   let hostnameFilter = $state("");
   let hoststateFilter = $state("all");
   let pendingHostnameFilter = $state("");
   let isMetricsSelectionOpen = $state(false);
 
+  /* Derived Init Return */
+  const thisInit = $derived($initq?.data ? true : false);
+
   /* Derived States */
+  const ccconfig = $derived(thisInit ? getContext("cc-config") : null);
+  const globalMetrics = $derived(thisInit ? getContext("globalMetrics") : null);
+  const resampleConfig = $derived(thisInit ? getContext("resampling") : null);
+  const resampleResolutions = $derived(resampleConfig ? [...resampleConfig.resolutions] : []);
+  const resampleDefault = $derived(resampleConfig ? Math.max(...resampleConfig.resolutions) : 0);
+  const displayNodeOverview = $derived((displayType === 'OVERVIEW'));
+
+  const systemMetrics = $derived(globalMetrics ? [...globalMetrics.filter((gm) => gm?.availability.find((av) => av.cluster == cluster))] : []);
+  const systemUnits = $derived.by(() => {
+    const pendingUnits = {};
+    if (thisInit && systemMetrics.length > 0) {
+      for (let sm of systemMetrics) {
+        pendingUnits[sm.name] = (sm?.unit?.prefix ? sm.unit.prefix : "") + (sm?.unit?.base ? sm.unit.base : "")
+      };
+    }
+    return {...pendingUnits};
+  });
+
+  let selectedResolution = $derived(resampleDefault);
   let to = $derived(presetTo ? presetTo : new Date(Date.now()));
   let from = $derived(presetFrom ? presetFrom : new Date(nowDate.setHours(nowDate.getHours() - 4)));
-  const displayNodeOverview = $derived((displayType === 'OVERVIEW'));
-  const systemMetrics = $derived($initialized ? [...globalMetrics.filter((gm) => gm?.availability.find((av) => av.cluster == cluster))] : []);
-  const presetSystemUnits = $derived(loadUnits(systemMetrics));
+
   let selectedMetric = $derived.by(() => {
     let configKey = `nodeOverview_selectedMetric`;
     if (cluster) configKey += `:${cluster}`;
     if (subCluster) configKey += `:${subCluster}`;
 
-    if ($initialized) {
+    if (thisInit) {
       if (ccconfig[configKey]) return ccconfig[configKey]
       else if (systemMetrics.length !== 0) return systemMetrics[0].name
     }
     return ""
   });
+
   let selectedMetrics = $derived.by(() => {
     let configKey = `nodeList_selectedMetrics`;
     if (cluster) configKey += `:${cluster}`;
     if (subCluster) configKey += `:${subCluster}`;
 
-    if ($initialized) {
+    if (thisInit) {
       if (ccconfig[configKey]) return ccconfig[configKey]
       else if (systemMetrics.length >= 3) return [systemMetrics[0].name, systemMetrics[1].name, systemMetrics[2].name]
     }
@@ -108,16 +121,6 @@
   });
 
   /* Functions */
-  function loadUnits(systemMetrics) {
-    let pendingUnits = {};
-    if (systemMetrics.length > 0) {
-      for (let sm of systemMetrics) {
-        pendingUnits[sm.name] = (sm?.unit?.prefix ? sm.unit.prefix : "") + (sm?.unit?.base ? sm.unit.base : "")
-      };
-    };
-    return {...pendingUnits};
-  };
-
   // Wait after input for some time to prevent too many requests
   function updateHostnameFilter() {
     if (timeoutId != null) clearTimeout(timeoutId);
@@ -157,7 +160,7 @@
 
 <!-- ROW1: Tools-->
 <Row cols={{ xs: 2, lg: !displayNodeOverview ? (resampleConfig ? 6 : 5) : 5 }} class="mb-3">
-  {#if $initq?.data}
+  {#if thisInit}
     <!-- List Metric Select Col-->
     {#if !displayNodeOverview}
       <Col>
@@ -234,7 +237,7 @@
           <Input type="select" bind:value={selectedMetric}>
             {#each systemMetrics as metric (metric.name)}
               <option value={metric.name}
-                >{metric.name} {presetSystemUnits[metric.name] ? "("+presetSystemUnits[metric.name]+")" : ""}</option
+                >{metric.name} {systemUnits[metric.name] ? "("+systemUnits[metric.name]+")" : ""}</option
               >
             {:else}
               <option disabled>No available options</option>
@@ -266,10 +269,11 @@
 {:else}
   {#if displayNodeOverview}
     <!-- ROW2-1: Node Overview (Grid Included)-->
-    <NodeOverview {cluster} {ccconfig} {selectedMetric} {from} {to} {hostnameFilter} {hoststateFilter}/>
+    <NodeOverview {cluster} {ccconfig} {selectedMetric} {globalMetrics} {from} {to} {hostnameFilter} {hoststateFilter}/>
   {:else}
     <!-- ROW2-2: Node List (Grid Included)-->
-    <NodeList {cluster} {subCluster} {ccconfig} pendingSelectedMetrics={selectedMetrics} {selectedResolution} {hostnameFilter} {hoststateFilter} {from} {to} {presetSystemUnits}/>
+    <NodeList {cluster} {subCluster} {ccconfig} {globalMetrics}
+      pendingSelectedMetrics={selectedMetrics} {selectedResolution} {hostnameFilter} {hoststateFilter} {from} {to} {systemUnits}/>
   {/if}
 {/if}
 
@@ -279,6 +283,7 @@
     presetMetrics={selectedMetrics}
     {cluster}
     {subCluster}
+    {globalMetrics}
     configName="nodeList_selectedMetrics"
     applyMetrics={(newMetrics) => 
       selectedMetrics = [...newMetrics]

@@ -39,10 +39,6 @@
   } = $props();
 
   /* Const Init */
-  const ccconfig = getContext("cc-config");
-  const initialized = getContext("initialized");
-  const globalMetrics = getContext("globalMetrics");
-  const usePaging = ccconfig?.jobList_usePaging || false;
   const jobInfoColumnWidth = 250;
   const client = getContextClient();
   const query = gql`
@@ -100,11 +96,18 @@
   let headerPaddingTop = $state(0);
   let jobs = $state([]);
   let page = $state(1);
-  let itemsPerPage = $state(usePaging ? (ccconfig?.jobList_jobsPerPage || 10) : 10);
   let triggerMetricRefresh = $state(false);
   let tableWidth = $state(0);
 
   /* Derived */
+  const initialized = $derived(getContext("initialized") || false);
+  const ccconfig = $derived(initialized ? getContext("cc-config") : null);
+  const globalMetrics = $derived(initialized ? getContext("globalMetrics") : null);
+  const clusterInfos = $derived(initialized ? getContext("clusters"): null);
+  const resampleConfig = $derived(initialized ? getContext("resampling") : null);
+  const usePaging = $derived(ccconfig?.jobList_usePaging || false);
+
+  let itemsPerPage = $derived(usePaging ? (ccconfig?.jobList_jobsPerPage || 10) : 10);
   let filter = $derived([...filterBuffer]);
   let paging = $derived({ itemsPerPage, page });
   const plotWidth = $derived.by(() => {
@@ -274,7 +277,7 @@
               style="width: {plotWidth}px; padding-top: {headerPaddingTop}px"
             >
               {metric}
-              {#if $initialized}
+              {#if initialized}
                 ({getUnit(metric)})
               {/if}
             </th>
@@ -292,7 +295,8 @@
           </tr>
         {:else}
           {#each jobs as job (job.id)}
-            <JobListRow {triggerMetricRefresh} {job} {metrics} {plotWidth} {showFootprint} previousSelect={selectedJobs.includes(job.id)}
+            <JobListRow {triggerMetricRefresh} {job} {metrics} {plotWidth} {showFootprint} {globalMetrics} {clusterInfos} {resampleConfig}
+              previousSelect={selectedJobs.includes(job.id)}
               selectJob={(detail) => selectedJobs = [...selectedJobs, detail]}
               unselectJob={(detail) => selectedJobs = selectedJobs.filter(item => item !== detail)}
             />

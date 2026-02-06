@@ -42,8 +42,8 @@
     contains: "Contains",
   }
 
-  const findMaxNumAccels = (clusters) =>
-    clusters.reduce(
+  const findMaxNumAccels = (infos) =>
+    infos.reduce(
       (max, cluster) =>
         Math.max(
           max,
@@ -56,8 +56,8 @@
     );
 
   // Limited to Single-Node Thread Count
-  const findMaxNumHWThreadsPerNode = (clusters) =>
-    clusters.reduce(
+  const findMaxNumHWThreadsPerNode = (infos) =>
+    infos.reduce(
       (max, cluster) =>
         Math.max(
           max,
@@ -92,8 +92,8 @@
   let threadState = $derived(presetNumHWThreads);
   let accState = $derived(presetNumAccelerators);
 
-  const clusters = $derived(getContext("clusters"));
-  const initialized = $derived(getContext("initialized"));
+  const initialized = $derived(getContext("initialized") || false);
+  const clusterInfos = $derived($initialized ? getContext("clusters") : null);
   // Is Selection Active
   const nodesActive = $derived(!(JSON.stringify(nodesState) === JSON.stringify({ from: 1, to: maxNumNodes })));
   const threadActive = $derived(!(JSON.stringify(threadState) === JSON.stringify({ from: 1, to: maxNumHWThreads })));
@@ -109,12 +109,12 @@
   $effect(() => {
     if ($initialized) {
       if (activeCluster != null) {
-        const { subClusters } = clusters.find((c) => c.name == activeCluster);
+        const { subClusters } = clusterInfos.find((c) => c.name == activeCluster);
         maxNumAccelerators = findMaxNumAccels([{ subClusters }]);
         maxNumHWThreads = findMaxNumHWThreadsPerNode([{ subClusters }]);
-      } else if (clusters.length > 0) {
-        maxNumAccelerators = findMaxNumAccels(clusters);
-        maxNumHWThreads = findMaxNumHWThreadsPerNode(clusters);
+      } else if (clusterInfos.length > 0) {
+        maxNumAccelerators = findMaxNumAccels(clusterInfos);
+        maxNumHWThreads = findMaxNumHWThreadsPerNode(clusterInfos);
       }
     }
   });

@@ -49,14 +49,10 @@
 
   /* Const Init */
   const { query: initq } = init();
-  const initialized = getContext("initialized")
-  const globalMetrics = getContext("globalMetrics")
-  const ccconfig = getContext("cc-config");
-  const clusters = getContext("clusters");
+  const client = getContextClient();
   const nowEpoch = Date.now();
   const paging = { itemsPerPage: 50, page: 1 };
   const sorting = { field: "startTime", type: "col", order: "DESC" };
-  const client = getContextClient();
   const nodeMetricsQuery = gql`
     query ($cluster: String!, $nodes: [String!], $from: Time!, $to: Time!) {
       nodeMetrics(cluster: $cluster, nodes: $nodes, from: $from, to: $to) {
@@ -112,14 +108,32 @@
   let from = $state(presetFrom ? presetFrom : new Date(nowEpoch - (4 * 3600 * 1000)));
   // svelte-ignore state_referenced_locally
   let to = $state(presetTo ? presetTo : new Date(nowEpoch));
-  let systemUnits = $state({});
+
+  /* Derived Init Return */
+  const thisInit = $derived($initq?.data ? true : false);
 
   /* Derived */
+  const ccconfig = $derived(thisInit ? getContext("cc-config") : null);
+  const globalMetrics = $derived(thisInit ? getContext("globalMetrics") : null);
+  const clusterInfos = $derived(thisInit ? getContext("clusters") : null);
+
   const filter = $derived([
     { cluster: { eq: cluster } },
     { node: { contains: hostname } },
     { state: ["running"] },
   ]);
+
+  const systemUnits = $derived.by(() => {
+    const pendingUnits = {};
+    if (thisInit) {
+      const systemMetrics = [...globalMetrics.filter((gm) => gm?.availability.find((av) => av.cluster == cluster))]
+      for (let sm of systemMetrics) {
+        pendingUnits[sm.name] = (sm?.unit?.prefix ? sm.unit.prefix : "") + (sm?.unit?.base ? sm.unit.base : "")
+      }
+    }
+    return {...pendingUnits};
+  });
+
   const nodeMetricsData = $derived(queryStore({
       client: client,
       query: nodeMetricsQuery,
@@ -140,20 +154,6 @@
   );
 
   const thisNodeState = $derived($nodeMetricsData?.data?.nodeMetrics[0]?.state ? $nodeMetricsData.data.nodeMetrics[0].state : 'notindb');
-
-  /* Effect */
-  $effect(() => {
-    loadUnits($initialized);
-  });
-
-  /* Functions */
-  function loadUnits(isInitialized) {
-    if (!isInitialized) return
-    const systemMetrics = [...globalMetrics.filter((gm) => gm?.availability.find((av) => av.cluster == cluster))]
-    for (let sm of systemMetrics) {
-      systemUnits[sm.name] = (sm?.unit?.prefix ? sm.unit.prefix : "") + (sm?.unit?.base ? sm.unit.base : "")
-    }
-  }
 </script>
 
 <Row cols={{ xs: 2, lg: 5 }}>
@@ -246,7 +246,7 @@
           <MetricPlot
             metric={item.name}
             timestep={item.metric.timestep}
-            cluster={clusters.find((c) => c.name == cluster)}
+            cluster={clusterInfos.find((c) => c.name == cluster)}
             subCluster={$nodeMetricsData.data.nodeMetrics[0].subCluster}
             series={item.metric.series}
             enableFlip
@@ -277,6 +277,7 @@
           .map((m) => ({
             ...m,
             disabled: checkMetricDisabled(
+              globalMetrics,
               m.name,
               cluster,
               $nodeMetricsData.data.nodeMetrics[0].subCluster,

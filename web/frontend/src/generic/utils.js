@@ -302,19 +302,17 @@ export function stickyHeader(datatableHeaderSelector, updatePading) {
     onDestroy(() => document.removeEventListener("scroll", onscroll));
 }
 
-export function checkMetricDisabled(m, c, s) { // [m]etric, [c]luster, [s]ubcluster
-    const metrics = getContext("globalMetrics");
-    const available = metrics?.find((gm) => gm.name === m)?.availability?.find((av) => av.cluster === c)?.subClusters?.includes(s)
+export function checkMetricDisabled(gm, m, c, s) { // [g]lobal[m]etrics, [m]etric, [c]luster, [s]ubcluster
+    const available = gm?.find((gm) => gm.name === m)?.availability?.find((av) => av.cluster === c)?.subClusters?.includes(s)
     // Return inverse logic
     return !available
 }
 
-export function checkMetricsDisabled(ma, c, s) { // [m]etric[a]rray, [c]luster, [s]ubcluster
+export function checkMetricsDisabled(gm, ma, c, s) { // [g]lobal[m]etrics, [m]etric[a]rray, [c]luster, [s]ubcluster
     let result = {};
-    const metrics = getContext("globalMetrics");
     ma.forEach((m) => {
         // Return named inverse logic: !available
-        result[m] = !(metrics?.find((gm) => gm.name === m)?.availability?.find((av) => av.cluster === c)?.subClusters?.includes(s))
+        result[m] = !(gm?.find((gm) => gm.name === m)?.availability?.find((av) => av.cluster === c)?.subClusters?.includes(s))
     });
     return result
 }

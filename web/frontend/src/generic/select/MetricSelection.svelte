@@ -9,13 +9,12 @@
   - `cluster String?`: The currently selected cluster [Default: null]
   - `subCluster String?`: The currently selected subCluster [Default: null]
   - `footprintSelect Bool?`: Render checkbox for footprint display in upstream component [Default: false]
-  - `preInitialized Bool?`: If the parent component has a dedicated call to init() [Default: false]
   - `configName String`: The config key for the last saved selection (constant)
+  - `globalMetrics [Obj]`: Includes the backend supplied availabilities for cluster and subCluster
   - `applyMetrics Func`: The callback function to apply current selection
 -->
 
 <script>
-  import { getContext } from "svelte";
   import {
     Modal,
     ModalBody,
@@ -35,14 +34,12 @@
     cluster = null,
     subCluster = null,
     footprintSelect = false,
-    preInitialized = false, // Job View is Pre-Init'd: $initialized "alone" store returns false
     configName,
+    globalMetrics,
     applyMetrics
   } = $props();
 
   /* Const Init */
-  const globalMetrics = getContext("globalMetrics");
-  const initialized = getContext("initialized");
   const client = getContextClient();
   const updateConfigurationMutation = ({ name, value }) => {
     return mutationStore({
@@ -58,27 +55,23 @@
 
   /* State Init */
   let pendingShowFootprint = $state(!!showFootprint);
-  let listedMetrics = $state([]);
   let columnHovering = $state(null);
 
   /* Derives States */
-  let pendingMetrics = $derived(presetMetrics);
-  const allMetrics = $derived(loadAvailable(preInitialized || $initialized));
+  const allMetrics = $derived(loadAvailable(globalMetrics));
+  let pendingMetrics = $derived(presetMetrics || []);
+  let listedMetrics = $derived([...presetMetrics, ...allMetrics.difference(new Set(presetMetrics))]); // List (preset) active metrics first, then list inactives
 
   /* Reactive Effects */
   $effect(() => {
     totalMetrics = allMetrics?.size || 0;
   });
 
-  $effect(() => {
-    listedMetrics = [...presetMetrics, ...allMetrics.difference(new Set(presetMetrics))]; // List (preset) active metrics first, then list inactives
-  });
-
   /* Functions */
-  function loadAvailable(init) {
+  function loadAvailable(gms) {
     const availableMetrics = new Set();
-    if (init) {
-      for (let gm of globalMetrics) {
+    if (gms) {
+      for (let gm of gms) {
         if (!cluster) {
           availableMetrics.add(gm.name)
         } else {
@@ -90,7 +83,7 @@
         }
       }
     }
-    return availableMetrics
+    return availableMetrics;
   }
 
   function printAvailability(metric, cluster) {

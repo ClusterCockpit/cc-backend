@@ -31,8 +31,8 @@
   } = $props();
 
   /* Derived */
-  const allTags = $derived(getContext("tags"))
-  const initialized = $derived(getContext("initialized"))
+  const initialized = $derived(getContext("initialized") || false)
+  const allTags = $derived($initialized ? getContext("tags") : [])
 
   /* State Init */
   let searchTerm = $state("");

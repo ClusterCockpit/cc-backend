@@ -9,10 +9,10 @@
   - `hostnameFilter String?`: The active hoststatefilter [Default: ""]
   - `from Date?`: The selected "from" date [Default: null]
   - `to Date?`: The selected "to" date [Default: null]
+  - `globalMetrics [Obj]`: Includes the backend supplied availabilities for cluster and subCluster
 -->
 
  <script>
-  import { getContext } from "svelte";
   import { queryStore, gql, getContextClient } from "@urql/svelte";
   import { Row, Col, Card, CardHeader, CardBody, Spinner, Badge } from "@sveltestrap/sveltestrap";
   import { checkMetricDisabled } from "../generic/utils.js";
@@ -26,11 +26,11 @@
     hostnameFilter = "",
     hoststateFilter = "",
     from = null,
-    to = null
+    to = null,
+    globalMetrics
   } = $props();
 
   /* Const Init */
-  const initialized = getContext("initialized");
   const client = getContextClient();
   // Node State Colors
   const stateColors = {
@@ -87,7 +87,7 @@
     },
   }));
 
-  const mappedData = $derived(handleQueryData($initialized, $nodesQuery?.data));
+  const mappedData = $derived(handleQueryData($nodesQuery?.data));
   const filteredData = $derived(mappedData.filter((h) => {
     if (hostnameFilter) {
       if (hoststateFilter == 'all') return h.host.includes(hostnameFilter)
@@ -99,7 +99,7 @@
   }));
 
   /* Functions */
-  function handleQueryData(isInitialized, queryData) {
+  function handleQueryData(queryData) {
     let rawData = []
     if (queryData) { 
       rawData = queryData.nodeMetrics.filter((h) => {
@@ -120,7 +120,8 @@
         data: h.metrics.filter(
           (m) => m?.name == selectedMetric && m.scope == "node",
         ),
-        disabled: isInitialized ? checkMetricDisabled(selectedMetric, cluster, h.subCluster) : null,
+        // TODO: Move To New Func Variant With Disabled Check on WHole Cluster Level: This never Triggers!
+        disabled: checkMetricDisabled(globalMetrics, selectedMetric, cluster, h.subCluster),
       }))
       .sort((a, b) => a.host.localeCompare(b.host))
     }
@@ -163,6 +164,7 @@
           </div>
           {#if item?.data}
             {#if item.disabled === true}
+              <!-- TODO: Will never be Shown: Overview Single Metric Return Will be Null, see Else Case-->
               <Card body class="mx-3" color="info"
                 >Metric disabled for subcluster <code
                   >{selectedMetric}:{item.subCluster}</code
@@ -182,7 +184,7 @@
                   enableFlip
                 />
               {/key}
-            {:else if item.disabled === null}
+            {:else}
               <Card body class="mx-3" color="info">
                 Global Metric List Not Initialized
                 Can not determine {selectedMetric} availability: Please Reload Page
