@@ -455,6 +455,8 @@ func (r *JobRepository) AddTagOrCreateDirect(jobID int64, tagType string, tagNam
 		}
 	}
 
+	cclog.Infof("Adding tag %s:%s:%s (direct)", tagType, tagName, tagScope)
+
 	if _, err := r.AddTagDirect(jobID, tagID); err != nil {
 		return 0, err
 	}
