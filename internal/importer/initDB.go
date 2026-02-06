@@ -216,7 +216,7 @@ func enrichJobMetadata(job *schema.Job) error {
 				metricEnergy = math.Round(rawEnergy*100.0) / 100.0
 			}
 		} else {
-			cclog.Warnf("Error while collecting energy metric %s for job, DB ID '%v', return '0.0'", fp, job.ID)
+			cclog.Warnf("Error while collecting energy metric %s for job, DB ID '%v', return '0.0'", fp, *job.ID)
 		}
 
 		job.EnergyFootprint[fp] = metricEnergy
@@ -225,7 +225,7 @@ func enrichJobMetadata(job *schema.Job) error {
 
 	job.Energy = (math.Round(totalEnergy*100.0) / 100.0)
 	if job.RawEnergyFootprint, err = json.Marshal(job.EnergyFootprint); err != nil {
-		cclog.Warnf("Error while marshaling energy footprint for job INTO BYTES, DB ID '%v'", job.ID)
+		cclog.Warnf("Error while marshaling energy footprint for job INTO BYTES, DB ID '%v'", *job.ID)
 		return err
 	}
 

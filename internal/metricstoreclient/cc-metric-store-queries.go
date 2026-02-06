@@ -149,7 +149,7 @@ func (ccms *CCMetricStore) buildQueries(
 // Similar to buildQueries but uses full node topology instead of job-allocated resources.
 //
 // The function handles:
-//   - Subcluster topology resolution (either pre-loaded or per-node lookup)
+//   - SubCluster topology resolution (either pre-loaded or per-node lookup)
 //   - Full node hardware thread lists (not job-specific subsets)
 //   - All accelerators on each node
 //   - Metric configuration validation with subcluster filtering

@@ -66,7 +66,7 @@ func TestRegister(t *testing.T) {
 	var tagger AppTagger
 	tagger.cfgPath = appsDir
 	tagger.tagType = tagTypeApp
-	tagger.apps = make(map[string]appInfo, 0)
+	tagger.apps = make([]appInfo, 0)
 
 	files, err := os.ReadDir(appsDir)
 	noErr(t, err)
@@ -97,7 +97,7 @@ func TestMatch(t *testing.T) {
 	var tagger AppTagger
 	tagger.cfgPath = appsDir
 	tagger.tagType = tagTypeApp
-	tagger.apps = make(map[string]appInfo, 0)
+	tagger.apps = make([]appInfo, 0)
 
 	files, err := os.ReadDir(appsDir)
 	noErr(t, err)

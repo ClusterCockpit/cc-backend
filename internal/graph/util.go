@@ -57,13 +57,13 @@ func (r *queryResolver) rooflineHeatmap(
 
 		jobdata, err := metricdispatch.LoadData(job, []string{"flops_any", "mem_bw"}, []schema.MetricScope{schema.MetricScopeNode}, ctx, 0)
 		if err != nil {
-			cclog.Warnf("Error while loading roofline metrics for job %d", job.ID)
+			cclog.Warnf("Error while loading roofline metrics for job %d", *job.ID)
 			return nil, err
 		}
 
 		flops_, membw_ := jobdata["flops_any"], jobdata["mem_bw"]
 		if flops_ == nil && membw_ == nil {
-			cclog.Warnf("rooflineHeatmap(): 'flops_any' or 'mem_bw' missing for job %d", job.ID)
+			cclog.Warnf("rooflineHeatmap(): 'flops_any' or 'mem_bw' missing for job %d", *job.ID)
 			continue
 			// return nil, fmt.Errorf("GRAPH/UTIL > 'flops_any' or 'mem_bw' missing for job %d", job.ID)
 		}

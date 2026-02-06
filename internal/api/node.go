@@ -100,8 +100,8 @@ func (api *RestAPI) updateNodeStates(rw http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	cclog.Infof("Timer updateNodeStates, MemStore HealthCheck: %s", time.Since(startMs))
-	startDb := time.Now()
+	cclog.Debugf("Timer updateNodeStates, MemStore HealthCheck: %s", time.Since(startMs))
+	startDB := time.Now()
 
 	for _, node := range req.Nodes {
 		state := determineState(node.States)
@@ -122,5 +122,5 @@ func (api *RestAPI) updateNodeStates(rw http.ResponseWriter, r *http.Request) {
 		repo.UpdateNodeState(node.Hostname, req.Cluster, &nodeState)
 	}
 
-	cclog.Infof("Timer updateNodeStates, SQLite Inserts: %s", time.Since(startDb))
+	cclog.Debugf("Timer updateNodeStates, SQLite Inserts: %s", time.Since(startDB))
 }
