@@ -82,12 +82,13 @@ func (l *Level) collectMetricStatus(m *MemoryStore, expectedMetrics []string, he
 // Returns:
 //   - missingList: metrics not found in global config or without any buffer
 //   - degradedList: metrics with at least one stale buffer in the subtree
-func (l *Level) getHealthyMetrics(m *MemoryStore, expectedMetrics []string) []string {
+func (l *Level) getHealthyMetrics(m *MemoryStore, expectedMetrics []string) ([]string, []string) {
 	healthy := make(map[string]bool, len(expectedMetrics))
 	degraded := make(map[string]bool)
 
 	l.collectMetricStatus(m, expectedMetrics, healthy, degraded)
 
+	missingList := make([]string, 0)
 	degradedList := make([]string, 0)
 
 	for _, metricName := range expectedMetrics {
@@ -95,10 +96,14 @@ func (l *Level) getHealthyMetrics(m *MemoryStore, expectedMetrics []string) []st
 			continue
 		}
 
-		degradedList = append(degradedList, metricName)
+		if degraded[metricName] {
+			degradedList = append(degradedList, metricName)
+		} else {
+			missingList = append(missingList, metricName)
+		}
 	}
 
-	return degradedList
+	return degradedList, missingList
 }
 
 // GetHealthyMetrics returns missing and degraded metric lists for a node.
@@ -110,14 +115,14 @@ func (l *Level) getHealthyMetrics(m *MemoryStore, expectedMetrics []string) []st
 //
 // Metrics present in expectedMetrics but absent from both returned lists
 // are considered fully healthy.
-func (m *MemoryStore) GetHealthyMetrics(selector []string, expectedMetrics []string) ([]string, error) {
+func (m *MemoryStore) GetHealthyMetrics(selector []string, expectedMetrics []string) ([]string, []string, error) {
 	lvl := m.root.findLevel(selector)
 	if lvl == nil {
-		return nil, fmt.Errorf("[METRICSTORE]> GetHealthyMetrics: host not found: %#v", selector)
+		return nil, nil, fmt.Errorf("[METRICSTORE]> GetHealthyMetrics: host not found: %#v", selector)
 	}
 
-	degradedList := lvl.getHealthyMetrics(m, expectedMetrics)
-	return degradedList, nil
+	degradedList, missingList := lvl.getHealthyMetrics(m, expectedMetrics)
+	return degradedList, missingList, nil
 }
 
 // HealthCheck evaluates multiple nodes against a set of expected metrics
@@ -135,21 +140,23 @@ func (m *MemoryStore) HealthCheck(cluster string,
 	for _, hostname := range nodes {
 		selector := []string{cluster, hostname}
 
-		degradedList, err := m.GetHealthyMetrics(selector, expectedMetrics)
+		degradedList, missingList, err := m.GetHealthyMetrics(selector, expectedMetrics)
 		if err != nil {
 			results[hostname] = schema.MonitoringStateFailed
 			continue
 		}
 
 		degradedCount := len(degradedList)
-		healthyCount := len(expectedMetrics) - degradedCount
+		missingCount := len(missingList)
+
+		healthyCount := len(expectedMetrics) - degradedCount - missingCount
 
 		if degradedCount > 0 {
 			cclog.ComponentDebug("metricstore", "HealthCheck: node", hostname, "degraded metrics:", degradedList)
 		}
 
 		switch {
-		case degradedCount == 0:
+		case degradedCount == 0 && missingCount == 0:
 			results[hostname] = schema.MonitoringStateFull
 		case healthyCount == 0:
 			results[hostname] = schema.MonitoringStateFailed

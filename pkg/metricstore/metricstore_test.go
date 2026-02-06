@@ -304,13 +304,15 @@ func TestGetHealthyMetrics(t *testing.T) {
 		selector        []string
 		expectedMetrics []string
 		wantDegraded    []string
+		wantMissing     []string
 		wantErr         bool
 	}{
 		{
 			name:            "mixed health states",
 			selector:        []string{"testcluster", "testnode"},
 			expectedMetrics: []string{"load", "mem_used", "cpu_user"},
-			wantDegraded:    []string{"mem_used", "cpu_user"},
+			wantDegraded:    []string{"mem_used"},
+			wantMissing:     []string{"cpu_user"},
 			wantErr:         false,
 		},
 		{
@@ -318,6 +320,7 @@ func TestGetHealthyMetrics(t *testing.T) {
 			selector:        []string{"testcluster", "nonexistent"},
 			expectedMetrics: []string{"load"},
 			wantDegraded:    nil,
+			wantMissing:     nil,
 			wantErr:         true,
 		},
 		{
@@ -325,13 +328,14 @@ func TestGetHealthyMetrics(t *testing.T) {
 			selector:        []string{"testcluster", "testnode"},
 			expectedMetrics: []string{"load"},
 			wantDegraded:    []string{},
+			wantMissing:     []string{},
 			wantErr:         false,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			degraded, err := ms.GetHealthyMetrics(tt.selector, tt.expectedMetrics)
+			degraded, missing, err := ms.GetHealthyMetrics(tt.selector, tt.expectedMetrics)
 
 			if (err != nil) != tt.wantErr {
 				t.Errorf("GetHealthyMetrics() error = %v, wantErr %v", err, tt.wantErr)
@@ -349,6 +353,17 @@ func TestGetHealthyMetrics(t *testing.T) {
 				for i, d := range tt.wantDegraded {
 					if degraded[i] != d {
 						t.Errorf("GetHealthyMetrics() degraded[%d] = %v, want %v", i, degraded[i], d)
+					}
+				}
+			}
+
+			// Check missing list
+			if len(missing) != len(tt.wantMissing) {
+				t.Errorf("GetHealthyMetrics() missing = %v, want %v", missing, tt.wantMissing)
+			} else {
+				for i, m := range tt.wantMissing {
+					if missing[i] != m {
+						t.Errorf("GetHealthyMetrics() missing[%d] = %v, want %v", i, missing[i], m)
 					}
 				}
 			}
