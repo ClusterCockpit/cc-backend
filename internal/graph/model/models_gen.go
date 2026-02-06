@@ -71,6 +71,7 @@ type JobFilter struct {
 	Project         *StringInput      `json:"project,omitempty"`
 	JobName         *StringInput      `json:"jobName,omitempty"`
 	Cluster         *StringInput      `json:"cluster,omitempty"`
+	SubCluster      *StringInput      `json:"subCluster,omitempty"`
 	Partition       *StringInput      `json:"partition,omitempty"`
 	Duration        *config.IntRange  `json:"duration,omitempty"`
 	Energy          *FloatRange       `json:"energy,omitempty"`
@@ -186,7 +187,7 @@ type NamedStatsWithScope struct {
 type NodeFilter struct {
 	Hostname       *StringInput           `json:"hostname,omitempty"`
 	Cluster        *StringInput           `json:"cluster,omitempty"`
-	Subcluster     *StringInput           `json:"subcluster,omitempty"`
+	SubCluster     *StringInput           `json:"subCluster,omitempty"`
 	SchedulerState *schema.SchedulerState `json:"schedulerState,omitempty"`
 	HealthState    *string                `json:"healthState,omitempty"`
 	TimeStart      *int                   `json:"timeStart,omitempty"`

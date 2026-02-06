@@ -49,7 +49,7 @@ func RegisterFootprintWorker() {
 					if err != nil {
 						continue
 					}
-					// NOTE: Additional Subcluster Loop Could Allow For Limited List Of Footprint-Metrics Only.
+					// NOTE: Additional SubCluster Loop Could Allow For Limited List Of Footprint-Metrics Only.
 					//       - Chunk-Size Would Then Be 'SubCluster' (Running Jobs, Transactions) as Lists Can Change Within SCs
 					//       - Would Require Review of 'updateFootprint' Usage (Logic Could Possibly Be Included Here Completely)
 					allMetrics := make([]string, 0)
