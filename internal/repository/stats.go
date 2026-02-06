@@ -196,7 +196,7 @@ func (r *JobRepository) buildStatsQuery(
 //   - filter: Filters to apply (time range, cluster, job state, etc.)
 //   - page: Optional pagination (ItemsPerPage: -1 disables pagination)
 //   - sortBy: Optional sort column (totalJobs, totalWalltime, totalCoreHours, etc.)
-//   - groupBy: Required grouping dimension (User, Project, Cluster, or Subcluster)
+//   - groupBy: Required grouping dimension (User, Project, Cluster, or SubCluster)
 //
 // Returns a slice of JobsStatistics, one per group, with:
 //   - ID: The group identifier (username, project name, cluster name, etc.)
@@ -420,7 +420,7 @@ func LoadJobStat(job *schema.Job, metric string, statType string) float64 {
 // Parameters:
 //   - ctx: Context for security checks
 //   - filter: Filters to apply
-//   - groupBy: Grouping dimension (User, Project, Cluster, or Subcluster)
+//   - groupBy: Grouping dimension (User, Project, Cluster, or SubCluster)
 //
 // Returns JobsStatistics with only ID and TotalJobs populated for each group.
 func (r *JobRepository) JobCountGrouped(

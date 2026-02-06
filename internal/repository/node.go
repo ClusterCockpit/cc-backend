@@ -254,8 +254,8 @@ func (r *NodeRepository) QueryNodes(
 		if f.Cluster != nil {
 			query = buildStringCondition("cluster", f.Cluster, query)
 		}
-		if f.Subcluster != nil {
-			query = buildStringCondition("subcluster", f.Subcluster, query)
+		if f.SubCluster != nil {
+			query = buildStringCondition("subcluster", f.SubCluster, query)
 		}
 		if f.Hostname != nil {
 			query = buildStringCondition("hostname", f.Hostname, query)
@@ -322,8 +322,8 @@ func (r *NodeRepository) CountNodes(
 		if f.Cluster != nil {
 			query = buildStringCondition("cluster", f.Cluster, query)
 		}
-		if f.Subcluster != nil {
-			query = buildStringCondition("subcluster", f.Subcluster, query)
+		if f.SubCluster != nil {
+			query = buildStringCondition("subcluster", f.SubCluster, query)
 		}
 		if f.Hostname != nil {
 			query = buildStringCondition("hostname", f.Hostname, query)
@@ -440,8 +440,8 @@ func (r *NodeRepository) CountStates(ctx context.Context, filters []*model.NodeF
 		if f.Cluster != nil {
 			query = buildStringCondition("cluster", f.Cluster, query)
 		}
-		if f.Subcluster != nil {
-			query = buildStringCondition("subcluster", f.Subcluster, query)
+		if f.SubCluster != nil {
+			query = buildStringCondition("subcluster", f.SubCluster, query)
 		}
 		if f.SchedulerState != nil {
 			query = query.Where("node_state = ?", f.SchedulerState)
@@ -504,8 +504,8 @@ func (r *NodeRepository) CountStatesTimed(ctx context.Context, filters []*model.
 		if f.Cluster != nil {
 			query = buildStringCondition("cluster", f.Cluster, query)
 		}
-		if f.Subcluster != nil {
-			query = buildStringCondition("subcluster", f.Subcluster, query)
+		if f.SubCluster != nil {
+			query = buildStringCondition("subcluster", f.SubCluster, query)
 		}
 		if f.SchedulerState != nil {
 			query = query.Where("node_state = ?", f.SchedulerState)
@@ -573,7 +573,7 @@ func (r *NodeRepository) GetNodesForList(
 		queryFilters = append(queryFilters, &model.NodeFilter{Cluster: &model.StringInput{Eq: &cluster}})
 	}
 	if subCluster != "" {
-		queryFilters = append(queryFilters, &model.NodeFilter{Subcluster: &model.StringInput{Eq: &subCluster}})
+		queryFilters = append(queryFilters, &model.NodeFilter{SubCluster: &model.StringInput{Eq: &subCluster}})
 	}
 	if nodeFilter != "" && stateFilter != "notindb" {
 		queryFilters = append(queryFilters, &model.NodeFilter{Hostname: &model.StringInput{Contains: &nodeFilter}})

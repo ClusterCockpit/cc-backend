@@ -2712,7 +2712,7 @@ type TimeRangeOutput {
 input NodeFilter {
   hostname: StringInput
   cluster: StringInput
-  subcluster: StringInput
+  subCluster: StringInput
   schedulerState: SchedulerState
   healthState: MonitoringState
   timeStart: Int
@@ -2727,6 +2727,7 @@ input JobFilter {
   project: StringInput
   jobName: StringInput
   cluster: StringInput
+  subCluster: StringInput
   partition: StringInput
   duration: IntRange
   energy: FloatRange
@@ -13199,7 +13200,7 @@ func (ec *executionContext) unmarshalInputJobFilter(ctx context.Context, obj any
 		asMap[k] = v
 	}
 
-	fieldsInOrder := [...]string{"tags", "dbId", "jobId", "arrayJobId", "user", "project", "jobName", "cluster", "partition", "duration", "energy", "minRunningFor", "numNodes", "numAccelerators", "numHWThreads", "startTime", "state", "metricStats", "shared", "schedule", "node"}
+	fieldsInOrder := [...]string{"tags", "dbId", "jobId", "arrayJobId", "user", "project", "jobName", "cluster", "subCluster", "partition", "duration", "energy", "minRunningFor", "numNodes", "numAccelerators", "numHWThreads", "startTime", "state", "metricStats", "shared", "schedule", "node"}
 	for _, k := range fieldsInOrder {
 		v, ok := asMap[k]
 		if !ok {
@@ -13262,6 +13263,13 @@ func (ec *executionContext) unmarshalInputJobFilter(ctx context.Context, obj any
 				return it, err
 			}
 			it.Cluster = data
+		case "subCluster":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("subCluster"))
+			data, err := ec.unmarshalOStringInput2ᚖgithubᚗcomᚋClusterCockpitᚋccᚑbackendᚋinternalᚋgraphᚋmodelᚐStringInput(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.SubCluster = data
 		case "partition":
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("partition"))
 			data, err := ec.unmarshalOStringInput2ᚖgithubᚗcomᚋClusterCockpitᚋccᚑbackendᚋinternalᚋgraphᚋmodelᚐStringInput(ctx, v)
@@ -13400,7 +13408,7 @@ func (ec *executionContext) unmarshalInputNodeFilter(ctx context.Context, obj an
 		asMap[k] = v
 	}
 
-	fieldsInOrder := [...]string{"hostname", "cluster", "subcluster", "schedulerState", "healthState", "timeStart"}
+	fieldsInOrder := [...]string{"hostname", "cluster", "subCluster", "schedulerState", "healthState", "timeStart"}
 	for _, k := range fieldsInOrder {
 		v, ok := asMap[k]
 		if !ok {
@@ -13421,13 +13429,13 @@ func (ec *executionContext) unmarshalInputNodeFilter(ctx context.Context, obj an
 				return it, err
 			}
 			it.Cluster = data
-		case "subcluster":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("subcluster"))
+		case "subCluster":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("subCluster"))
 			data, err := ec.unmarshalOStringInput2ᚖgithubᚗcomᚋClusterCockpitᚋccᚑbackendᚋinternalᚋgraphᚋmodelᚐStringInput(ctx, v)
 			if err != nil {
 				return it, err
 			}
-			it.Subcluster = data
+			it.SubCluster = data
 		case "schedulerState":
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("schedulerState"))
 			data, err := ec.unmarshalOSchedulerState2ᚖgithubᚗcomᚋClusterCockpitᚋccᚑlibᚋv2ᚋschemaᚐSchedulerState(ctx, v)

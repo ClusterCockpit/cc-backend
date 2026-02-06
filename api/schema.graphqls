@@ -429,7 +429,7 @@ type TimeRangeOutput {
 input NodeFilter {
   hostname: StringInput
   cluster: StringInput
-  subcluster: StringInput
+  subCluster: StringInput
   schedulerState: SchedulerState
   healthState: MonitoringState
   timeStart: Int
@@ -444,6 +444,7 @@ input JobFilter {
   project: StringInput
   jobName: StringInput
   cluster: StringInput
+  subCluster: StringInput
   partition: StringInput
   duration: IntRange
   energy: FloatRange
