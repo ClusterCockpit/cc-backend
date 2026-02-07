@@ -18,7 +18,7 @@ import (
 	cclog "github.com/ClusterCockpit/cc-lib/v2/ccLogger"
 	"github.com/ClusterCockpit/cc-lib/v2/schema"
 	"github.com/coreos/go-oidc/v3/oidc"
-	"github.com/gorilla/mux"
+	"github.com/go-chi/chi/v5"
 	"golang.org/x/oauth2"
 )
 
@@ -86,7 +86,7 @@ func NewOIDC(a *Authentication) *OIDC {
 	return oa
 }
 
-func (oa *OIDC) RegisterEndpoints(r *mux.Router) {
+func (oa *OIDC) RegisterEndpoints(r chi.Router) {
 	r.HandleFunc("/oidc-login", oa.OAuth2Login)
 	r.HandleFunc("/oidc-callback", oa.OAuth2Callback)
 }

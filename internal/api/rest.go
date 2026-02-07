@@ -25,7 +25,7 @@ import (
 	cclog "github.com/ClusterCockpit/cc-lib/v2/ccLogger"
 	"github.com/ClusterCockpit/cc-lib/v2/schema"
 	"github.com/ClusterCockpit/cc-lib/v2/util"
-	"github.com/gorilla/mux"
+	"github.com/go-chi/chi/v5"
 )
 
 // @title                      ClusterCockpit REST API
@@ -73,91 +73,93 @@ func New() *RestAPI {
 
 // MountAPIRoutes registers REST API endpoints for job and cluster management.
 // These routes use JWT token authentication via the X-Auth-Token header.
-func (api *RestAPI) MountAPIRoutes(r *mux.Router) {
-	r.StrictSlash(true)
+func (api *RestAPI) MountAPIRoutes(r chi.Router) {
 	// REST API Uses TokenAuth
 	// User List
-	r.HandleFunc("/users/", api.getUsers).Methods(http.MethodGet)
+	r.Get("/users/", api.getUsers)
 	// Cluster List
-	r.HandleFunc("/clusters/", api.getClusters).Methods(http.MethodGet)
+	r.Get("/clusters/", api.getClusters)
 	// Slurm node state
-	r.HandleFunc("/nodestate/", api.updateNodeStates).Methods(http.MethodPost, http.MethodPut)
+	r.Post("/nodestate/", api.updateNodeStates)
+	r.Put("/nodestate/", api.updateNodeStates)
 	// Job Handler
 	if config.Keys.APISubjects == nil {
 		cclog.Info("Enabling REST start/stop job API")
-		r.HandleFunc("/jobs/start_job/", api.startJob).Methods(http.MethodPost, http.MethodPut)
-		r.HandleFunc("/jobs/stop_job/", api.stopJobByRequest).Methods(http.MethodPost, http.MethodPut)
+		r.Post("/jobs/start_job/", api.startJob)
+		r.Put("/jobs/start_job/", api.startJob)
+		r.Post("/jobs/stop_job/", api.stopJobByRequest)
+		r.Put("/jobs/stop_job/", api.stopJobByRequest)
 	}
-	r.HandleFunc("/jobs/", api.getJobs).Methods(http.MethodGet)
-	r.HandleFunc("/jobs/used_nodes", api.getUsedNodes).Methods(http.MethodGet)
-	r.HandleFunc("/jobs/tag_job/{id}", api.tagJob).Methods(http.MethodPost, http.MethodPatch)
-	r.HandleFunc("/jobs/tag_job/{id}", api.removeTagJob).Methods(http.MethodDelete)
-	r.HandleFunc("/jobs/edit_meta/{id}", api.editMeta).Methods(http.MethodPost, http.MethodPatch)
-	r.HandleFunc("/jobs/metrics/{id}", api.getJobMetrics).Methods(http.MethodGet)
-	r.HandleFunc("/jobs/delete_job/", api.deleteJobByRequest).Methods(http.MethodDelete)
-	r.HandleFunc("/jobs/delete_job/{id}", api.deleteJobByID).Methods(http.MethodDelete)
-	r.HandleFunc("/jobs/delete_job_before/{ts}", api.deleteJobBefore).Methods(http.MethodDelete)
-	r.HandleFunc("/jobs/{id}", api.getJobByID).Methods(http.MethodPost)
-	r.HandleFunc("/jobs/{id}", api.getCompleteJobByID).Methods(http.MethodGet)
+	r.Get("/jobs/", api.getJobs)
+	r.Get("/jobs/used_nodes", api.getUsedNodes)
+	r.Post("/jobs/tag_job/{id}", api.tagJob)
+	r.Patch("/jobs/tag_job/{id}", api.tagJob)
+	r.Delete("/jobs/tag_job/{id}", api.removeTagJob)
+	r.Post("/jobs/edit_meta/{id}", api.editMeta)
+	r.Patch("/jobs/edit_meta/{id}", api.editMeta)
+	r.Get("/jobs/metrics/{id}", api.getJobMetrics)
+	r.Delete("/jobs/delete_job/", api.deleteJobByRequest)
+	r.Delete("/jobs/delete_job/{id}", api.deleteJobByID)
+	r.Delete("/jobs/delete_job_before/{ts}", api.deleteJobBefore)
+	r.Post("/jobs/{id}", api.getJobByID)
+	r.Get("/jobs/{id}", api.getCompleteJobByID)
 
-	r.HandleFunc("/tags/", api.removeTags).Methods(http.MethodDelete)
+	r.Delete("/tags/", api.removeTags)
 
 	if api.MachineStateDir != "" {
-		r.HandleFunc("/machine_state/{cluster}/{host}", api.getMachineState).Methods(http.MethodGet)
-		r.HandleFunc("/machine_state/{cluster}/{host}", api.putMachineState).Methods(http.MethodPut, http.MethodPost)
+		r.Get("/machine_state/{cluster}/{host}", api.getMachineState)
+		r.Put("/machine_state/{cluster}/{host}", api.putMachineState)
+		r.Post("/machine_state/{cluster}/{host}", api.putMachineState)
 	}
 }
 
 // MountUserAPIRoutes registers user-accessible REST API endpoints.
 // These are limited endpoints for regular users with JWT token authentication.
-func (api *RestAPI) MountUserAPIRoutes(r *mux.Router) {
-	r.StrictSlash(true)
+func (api *RestAPI) MountUserAPIRoutes(r chi.Router) {
 	// REST API Uses TokenAuth
-	r.HandleFunc("/jobs/", api.getJobs).Methods(http.MethodGet)
-	r.HandleFunc("/jobs/{id}", api.getJobByID).Methods(http.MethodPost)
-	r.HandleFunc("/jobs/{id}", api.getCompleteJobByID).Methods(http.MethodGet)
-	r.HandleFunc("/jobs/metrics/{id}", api.getJobMetrics).Methods(http.MethodGet)
+	r.Get("/jobs/", api.getJobs)
+	r.Post("/jobs/{id}", api.getJobByID)
+	r.Get("/jobs/{id}", api.getCompleteJobByID)
+	r.Get("/jobs/metrics/{id}", api.getJobMetrics)
 }
 
 // MountMetricStoreAPIRoutes registers metric storage API endpoints.
 // These endpoints handle metric data ingestion and health checks with JWT token authentication.
-func (api *RestAPI) MountMetricStoreAPIRoutes(r *mux.Router) {
+func (api *RestAPI) MountMetricStoreAPIRoutes(r chi.Router) {
 	// REST API Uses TokenAuth
-	// Note: StrictSlash handles trailing slash variations automatically
-	r.HandleFunc("/free", freeMetrics).Methods(http.MethodPost)
-	r.HandleFunc("/write", writeMetrics).Methods(http.MethodPost)
-	r.HandleFunc("/debug", debugMetrics).Methods(http.MethodGet)
-	r.HandleFunc("/healthcheck", api.updateNodeStates).Methods(http.MethodPost)
+	r.Post("/free", freeMetrics)
+	r.Post("/write", writeMetrics)
+	r.Get("/debug", debugMetrics)
+	r.Post("/healthcheck", api.updateNodeStates)
 	// Same endpoints but with trailing slash
-	r.HandleFunc("/free/", freeMetrics).Methods(http.MethodPost)
-	r.HandleFunc("/write/", writeMetrics).Methods(http.MethodPost)
-	r.HandleFunc("/debug/", debugMetrics).Methods(http.MethodGet)
-	r.HandleFunc("/healthcheck/", api.updateNodeStates).Methods(http.MethodPost)
+	r.Post("/free/", freeMetrics)
+	r.Post("/write/", writeMetrics)
+	r.Get("/debug/", debugMetrics)
+	r.Post("/healthcheck/", api.updateNodeStates)
 }
 
 // MountConfigAPIRoutes registers configuration and user management endpoints.
 // These routes use session-based authentication and require admin privileges.
-func (api *RestAPI) MountConfigAPIRoutes(r *mux.Router) {
-	r.StrictSlash(true)
+func (api *RestAPI) MountConfigAPIRoutes(r chi.Router) {
 	// Settings Frontend Uses SessionAuth
 	if api.Authentication != nil {
-		r.HandleFunc("/roles/", api.getRoles).Methods(http.MethodGet)
-		r.HandleFunc("/users/", api.createUser).Methods(http.MethodPost, http.MethodPut)
-		r.HandleFunc("/users/", api.getUsers).Methods(http.MethodGet)
-		r.HandleFunc("/users/", api.deleteUser).Methods(http.MethodDelete)
-		r.HandleFunc("/user/{id}", api.updateUser).Methods(http.MethodPost)
-		r.HandleFunc("/notice/", api.editNotice).Methods(http.MethodPost)
+		r.Get("/roles/", api.getRoles)
+		r.Post("/users/", api.createUser)
+		r.Put("/users/", api.createUser)
+		r.Get("/users/", api.getUsers)
+		r.Delete("/users/", api.deleteUser)
+		r.Post("/user/{id}", api.updateUser)
+		r.Post("/notice/", api.editNotice)
 	}
 }
 
 // MountFrontendAPIRoutes registers frontend-specific API endpoints.
 // These routes support JWT generation and user configuration updates with session authentication.
-func (api *RestAPI) MountFrontendAPIRoutes(r *mux.Router) {
-	r.StrictSlash(true)
+func (api *RestAPI) MountFrontendAPIRoutes(r chi.Router) {
 	// Settings Frontend Uses SessionAuth
 	if api.Authentication != nil {
-		r.HandleFunc("/jwt/", api.getJWT).Methods(http.MethodGet)
-		r.HandleFunc("/configuration/", api.updateConfiguration).Methods(http.MethodPost)
+		r.Get("/jwt/", api.getJWT)
+		r.Post("/configuration/", api.updateConfiguration)
 	}
 }
 
@@ -381,9 +383,8 @@ func (api *RestAPI) putMachineState(rw http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	vars := mux.Vars(r)
-	cluster := vars["cluster"]
-	host := vars["host"]
+	cluster := chi.URLParam(r, "cluster")
+	host := chi.URLParam(r, "host")
 
 	if err := validatePathComponent(cluster, "cluster name"); err != nil {
 		handleError(err, http.StatusBadRequest, rw)
@@ -434,9 +435,8 @@ func (api *RestAPI) getMachineState(rw http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	vars := mux.Vars(r)
-	cluster := vars["cluster"]
-	host := vars["host"]
+	cluster := chi.URLParam(r, "cluster")
+	host := chi.URLParam(r, "host")
 
 	if err := validatePathComponent(cluster, "cluster name"); err != nil {
 		handleError(err, http.StatusBadRequest, rw)

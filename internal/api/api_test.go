@@ -30,7 +30,7 @@ import (
 	ccconf "github.com/ClusterCockpit/cc-lib/v2/ccConfig"
 	cclog "github.com/ClusterCockpit/cc-lib/v2/ccLogger"
 	"github.com/ClusterCockpit/cc-lib/v2/schema"
-	"github.com/gorilla/mux"
+	"github.com/go-chi/chi/v5"
 
 	_ "github.com/mattn/go-sqlite3"
 )
@@ -216,9 +216,7 @@ func TestRestApi(t *testing.T) {
 		return testData, nil
 	}
 
-	r := mux.NewRouter()
-	r.PathPrefix("/api").Subrouter()
-	r.StrictSlash(true)
+	r := chi.NewRouter()
 	restapi.MountAPIRoutes(r)
 
 	var TestJobID int64 = 123
