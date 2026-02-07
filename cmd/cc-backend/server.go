@@ -279,8 +279,8 @@ func (s *Server) init() error {
 		}
 	}
 
-	// Custom 404 handler for unmatched routes
-	s.router.NotFound(func(rw http.ResponseWriter, r *http.Request) {
+	// 404 handler for pages and API routes
+	notFoundHandler := func(rw http.ResponseWriter, r *http.Request) {
 		if strings.HasPrefix(r.URL.Path, "/api/") || strings.HasPrefix(r.URL.Path, "/userapi/") ||
 			strings.HasPrefix(r.URL.Path, "/frontend/") || strings.HasPrefix(r.URL.Path, "/config/") {
 			rw.Header().Set("Content-Type", "application/json")
@@ -291,14 +291,13 @@ func (s *Server) init() error {
 			})
 			return
 		}
+		rw.Header().Set("Content-Type", "text/html; charset=utf-8")
 		rw.WriteHeader(http.StatusNotFound)
-		web.RenderTemplate(rw, "message.tmpl", &web.Page{
-			Title:   "Not Found",
-			MsgType: "alert-warning",
-			Message: "The requested page was not found.",
-			Build:   buildInfo,
+		web.RenderTemplate(rw, "404.tmpl", &web.Page{
+			Title: "Page Not Found",
+			Build: buildInfo,
 		})
-	})
+	}
 
 	if config.Keys.EmbedStaticFiles {
 		if i, err := os.Stat("./var/img"); err == nil {
@@ -307,9 +306,26 @@ func (s *Server) init() error {
 				s.router.Handle("/img/*", http.StripPrefix("/img/", http.FileServer(http.Dir("./var/img"))))
 			}
 		}
-		s.router.Handle("/*", http.StripPrefix("/", web.ServeFiles()))
+		fileServer := http.StripPrefix("/", web.ServeFiles())
+		s.router.Handle("/*", http.HandlerFunc(func(rw http.ResponseWriter, r *http.Request) {
+			if web.StaticFileExists(r.URL.Path) {
+				fileServer.ServeHTTP(rw, r)
+				return
+			}
+			notFoundHandler(rw, r)
+		}))
 	} else {
-		s.router.Handle("/*", http.FileServer(http.Dir(config.Keys.StaticFiles)))
+		staticDir := http.Dir(config.Keys.StaticFiles)
+		fileServer := http.FileServer(staticDir)
+		s.router.Handle("/*", http.HandlerFunc(func(rw http.ResponseWriter, r *http.Request) {
+			f, err := staticDir.Open(r.URL.Path)
+			if err == nil {
+				f.Close()
+				fileServer.ServeHTTP(rw, r)
+				return
+			}
+			notFoundHandler(rw, r)
+		}))
 	}
 
 	return nil
