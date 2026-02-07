@@ -245,6 +245,7 @@ func (s *Server) init() error {
 	s.restAPIHandle.MountAPIRoutes(securedapi)
 	s.restAPIHandle.MountUserAPIRoutes(userapi)
 	s.restAPIHandle.MountConfigAPIRoutes(configapi)
+	s.restAPIHandle.MountLogAPIRoutes(configapi)
 	s.restAPIHandle.MountFrontendAPIRoutes(frontendapi)
 
 	if config.Keys.APISubjects != nil {

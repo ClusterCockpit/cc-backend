@@ -71,6 +71,9 @@ type ProgramConfig struct {
 
 	// If exists, will enable dynamic zoom in frontend metric plots using the configured values
 	EnableResampling *ResampleConfig `json:"resampling"`
+
+	// Systemd unit name for log viewer (default: "clustercockpit")
+	SystemdUnit string `json:"systemd-unit"`
 }
 
 type ResampleConfig struct {
