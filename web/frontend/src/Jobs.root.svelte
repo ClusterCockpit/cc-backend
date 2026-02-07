@@ -36,7 +36,6 @@
 
   /* Const Init */
   const { query: initq } = init();
-  const ccconfig = getContext("cc-config");
   const matchedJobCompareLimit = 500;
 
   /* State Init */
@@ -52,26 +51,36 @@
   let isMetricsSelectionOpen = $state(false);
   let sorting = $state({ field: "startTime", type: "col", order: "DESC" });
 
+  /* Derived Init Return */
+  const thisInit = $derived($initq?.data ? true : false);
+
   /* Derived */
+  const ccconfig = $derived(thisInit ? getContext("cc-config") : null);
+  const globalMetrics = $derived(thisInit ? getContext("globalMetrics") : null);
   let presetProject = $derived(filterPresets?.project ? filterPresets.project : "");
   let selectedCluster = $derived(filterPresets?.cluster ? filterPresets.cluster : null);
   let selectedSubCluster = $derived(filterPresets?.partition ? filterPresets.partition : null);
   let metrics = $derived.by(() => {
-    if (selectedCluster) {
-      if (selectedSubCluster) {
-        return ccconfig[`metricConfig_jobListMetrics:${selectedCluster}:${selectedSubCluster}`] ||
-          ccconfig[`metricConfig_jobListMetrics:${selectedCluster}`] ||
+    if (thisInit && ccconfig) {
+      if (selectedCluster) {
+        if (selectedSubCluster) {
+          return ccconfig[`metricConfig_jobListMetrics:${selectedCluster}:${selectedSubCluster}`] ||
+            ccconfig[`metricConfig_jobListMetrics:${selectedCluster}`] ||
+            ccconfig.metricConfig_jobListMetrics
+        }
+        return ccconfig[`metricConfig_jobListMetrics:${selectedCluster}`] ||
           ccconfig.metricConfig_jobListMetrics
       }
-      return ccconfig[`metricConfig_jobListMetrics:${selectedCluster}`] ||
-        ccconfig.metricConfig_jobListMetrics
+      return ccconfig.metricConfig_jobListMetrics
     }
-    return ccconfig.metricConfig_jobListMetrics
+    return [];
   });
 
-  let showFootprint = $derived(selectedCluster
-    ? !!ccconfig[`jobList_showFootprint:${selectedCluster}`]
-    : !!ccconfig.jobList_showFootprint
+  let showFootprint = $derived((thisInit && ccconfig)
+    ? selectedCluster
+      ? ccconfig[`jobList_showFootprint:${selectedCluster}`]
+      : ccconfig.jobList_showFootprint
+    : {}
   );
 
   /* Functions */
@@ -219,6 +228,7 @@
 <Sorting
   bind:isOpen={isSortingOpen}
   presetSorting={sorting}
+  {globalMetrics}
   applySorting={(newSort) =>
     sorting = {...newSort}
   }
@@ -232,6 +242,7 @@
     subCluster={selectedSubCluster}
     configName="metricConfig_jobListMetrics"
     footprintSelect
+    {globalMetrics}
     applyMetrics={(newMetrics) => 
       metrics = [...newMetrics]
     }

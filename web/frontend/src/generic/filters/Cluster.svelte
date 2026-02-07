@@ -30,11 +30,10 @@
     setFilter
   } = $props();
 
-  /* Const Init */
-  const clusters = getContext("clusters");
-  const initialized = getContext("initialized");
 
   /* Derived */
+  const initialized = $derived(getContext("initialized") || false);
+  const clusterInfos = $derived($initialized ? getContext("clusters") : null);
   let pendingCluster = $derived(presetCluster);
   let pendingPartition = $derived(presetPartition);
 </script>
@@ -56,7 +55,7 @@
           >
             Any Cluster
           </ListGroupItem>
-          {#each clusters as cluster}
+          {#each clusterInfos as cluster}
             <ListGroupItem
               disabled={disableClusterSelection}
               active={pendingCluster == cluster.name}
@@ -80,7 +79,7 @@
         >
           Any Partition
         </ListGroupItem>
-        {#each clusters?.find((c) => c.name == pendingCluster)?.partitions as partition}
+        {#each clusterInfos?.find((c) => c.name == pendingCluster)?.partitions as partition}
           <ListGroupItem
             active={pendingPartition == partition}
             onclick={() => (pendingPartition = partition)}

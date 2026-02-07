@@ -56,12 +56,10 @@
 
   /* Const Init */
   const { query: initq } = init();
-  const ccconfig = getContext("cc-config");
   const client = getContextClient();
   const durationBinOptions = ["1m","10m","1h","6h","12h"];
   const metricBinOptions = [10, 20, 50, 100];
   const matchedJobCompareLimit = 500;
-  const shortDuration = ccconfig.jobList_hideShortRunningJobs; // Always configured
 
   /* State Init */
   // List & Control Vars
@@ -73,7 +71,6 @@
   let isSortingOpen = $state(false);
   let isMetricsSelectionOpen = $state(false);
   let sorting = $state({ field: "startTime", type: "col", order: "DESC" });
-  let selectedHistogramsBuffer = $state({ all: (ccconfig['userView_histogramMetrics'] || []) })
   let jobCompare = $state(null);
   let matchedCompareJobs = $state(0);
   let showCompare = $state(false);
@@ -84,26 +81,48 @@
   let numDurationBins = $state("1h");
   let numMetricBins = $state(10);
 
+  /* Derived Init Return */
+  const thisInit = $derived($initq?.data ? true : false);
+
   /* Derived */
+  const ccconfig = $derived(thisInit ? getContext("cc-config") : null);
+  const globalMetrics = $derived(thisInit ? getContext("globalMetrics") : null);
+  const shortDuration = $derived(ccconfig?.jobList_hideShortRunningJobs);
   let selectedCluster = $derived(filterPresets?.cluster ? filterPresets.cluster : null);
   let selectedSubCluster = $derived(filterPresets?.partition ? filterPresets.partition : null);
   let metrics = $derived.by(() => {
-    if (selectedCluster) {
-      if (selectedSubCluster) {
-        return ccconfig[`metricConfig_jobListMetrics:${selectedCluster}:${selectedSubCluster}`] ||
-          ccconfig[`metricConfig_jobListMetrics:${selectedCluster}`] ||
+    if (thisInit && ccconfig) {
+      if (selectedCluster) {
+        if (selectedSubCluster) {
+          return ccconfig[`metricConfig_jobListMetrics:${selectedCluster}:${selectedSubCluster}`] ||
+            ccconfig[`metricConfig_jobListMetrics:${selectedCluster}`] ||
+            ccconfig.metricConfig_jobListMetrics
+        }
+        return ccconfig[`metricConfig_jobListMetrics:${selectedCluster}`] ||
           ccconfig.metricConfig_jobListMetrics
       }
-      return ccconfig[`metricConfig_jobListMetrics:${selectedCluster}`] ||
-        ccconfig.metricConfig_jobListMetrics
+      return ccconfig.metricConfig_jobListMetrics
     }
-    return ccconfig.metricConfig_jobListMetrics
+    return [];
   });
-  let showFootprint = $derived(filterPresets.cluster
-    ? !!ccconfig[`jobList_showFootprint:${filterPresets.cluster}`]
-    : !!ccconfig.jobList_showFootprint
+
+  let showFootprint = $derived((thisInit && ccconfig)
+    ? filterPresets?.cluster
+      ? ccconfig[`jobList_showFootprint:${filterPresets.cluster}`]
+      : ccconfig.jobList_showFootprint
+    : {}
   );
-  let selectedHistograms = $derived(selectedCluster ? selectedHistogramsBuffer[selectedCluster] : selectedHistogramsBuffer['all']);
+
+  let selectedHistograms = $derived.by(() => {
+    if (thisInit && ccconfig) {
+      if (selectedCluster) {
+        return ccconfig[`userView_histogramMetrics:${selectedCluster}`] // No Fallback; Unspecific lists an include unavailable metrics
+      }
+      return ccconfig.userView_histogramMetrics
+    }
+    return []
+  });
+
   let stats = $derived(
     queryStore({
       client: client,
@@ -159,19 +178,9 @@
     });
 	});
 
-  $effect(() => {
-    if (!selectedHistogramsBuffer[selectedCluster]) {
-      selectedHistogramsBuffer[selectedCluster] = ccconfig[`userView_histogramMetrics:${selectedCluster}`];
-    };
-  });
-
   /* On Mount */
   onMount(() => {
     filterComponent.updateFilters();
-    // Why? -> `$derived(ccconfig[$cluster])` only loads array from last Backend-Query if $cluster changed reactively (without reload)
-    if (filterPresets?.cluster) {
-      selectedHistogramsBuffer[filterPresets.cluster] = ccconfig[`userView_histogramMetrics:${filterPresets.cluster}`];
-    };
   });
 </script>
 
@@ -508,6 +517,7 @@
 <Sorting
   bind:isOpen={isSortingOpen}
   presetSorting={sorting}
+  {globalMetrics}
   applySorting={(newSort) =>
     sorting = {...newSort}
   }
@@ -521,6 +531,7 @@
     subCluster={selectedSubCluster}
     configName="metricConfig_jobListMetrics"
     footprintSelect
+    {globalMetrics}
     applyMetrics={(newMetrics) => 
       metrics = [...newMetrics]
     }
@@ -531,7 +542,8 @@
   bind:isOpen={isHistogramSelectionOpen}
   presetSelectedHistograms={selectedHistograms}
   configName="userView_histogramMetrics"
+  {globalMetrics}
   applyChange={(newSelection) => {
-    selectedHistogramsBuffer[selectedCluster || 'all'] = [...newSelection];
+    selectedHistograms = [...newSelection];
   }}
 />

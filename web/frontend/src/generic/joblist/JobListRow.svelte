@@ -11,11 +11,13 @@
   - `triggerMetricRefresh Bool?`: If changed to true from upstream, will trigger metric query [Default: false]
   - `selectJob Func`: The callback function to select a job for comparison
   - `unselectJob Func`: The callback function to unselect a job from comparison
+  - `globalMetrics [Obj]`: Includes the backend supplied availabilities for cluster and subCluster
+  - `clusterInfos [Obj]`: Includes the backend supplied cluster topology
+  - `resampleConfig [Obj]`: Includes the backend supplied resampling info
 -->
 
 <script>
   import { queryStore, gql, getContextClient } from "@urql/svelte";
-  import { getContext } from "svelte";
   import { Card, Spinner } from "@sveltestrap/sveltestrap";
   import { maxScope, checkMetricDisabled } from "../utils.js";
   import JobInfo from "./JobInfo.svelte";
@@ -33,13 +35,13 @@
     triggerMetricRefresh = false,
     selectJob,
     unselectJob,
+    globalMetrics,
+    clusterInfos,
+    resampleConfig
   } = $props();
 
   /* Const Init */
   const client = getContextClient();
-  const cluster = getContext("clusters");
-  const resampleConfig = getContext("resampling") || null;
-  const resampleDefault = resampleConfig ? Math.max(...resampleConfig.resolutions) : 0;
   const query = gql`
     query ($id: ID!, $metrics: [String!]!, $scopes: [MetricScope!]!, $selectedResolution: Int) {
       jobMetrics(id: $id, metrics: $metrics, scopes: $scopes, resolution: $selectedResolution) {
@@ -73,11 +75,11 @@
   `;
 
   /* State Init */
-  let selectedResolution = $state(resampleDefault);
   let zoomStates = $state({});
   let thresholdStates = $state({});
 
   /* Derived */
+  const resampleDefault = $derived(resampleConfig ? Math.max(...resampleConfig.resolutions) : 0);
   const jobId = $derived(job?.id);
   const scopes = $derived.by(() => {
     if (job.numNodes == 1) {
@@ -87,6 +89,8 @@
       return ["node"];
     };
   });
+
+  let selectedResolution = $derived(resampleDefault);
   let isSelected = $derived(previousSelect);
   let metricsQuery = $derived(queryStore({
       client: client,
@@ -94,6 +98,7 @@
       variables: { id: jobId, metrics, scopes, selectedResolution },
     })
   );
+
   const refinedData = $derived($metricsQuery?.data?.jobMetrics ? sortAndSelectScope($metricsQuery.data.jobMetrics) : []);
 
   /* Effects */
@@ -160,6 +165,7 @@
           return {
             name: jobMetric.data.name,
             disabled: checkMetricDisabled(
+              globalMetrics,
               jobMetric.data.name,
               job.cluster,
               job.subCluster,
@@ -220,7 +226,7 @@
                 series={metric.data.metric.series}
                 statisticsSeries={metric.data.metric.statisticsSeries}
                 metric={metric.data.name}
-                cluster={cluster.find((c) => c.name == job.cluster)}
+                cluster={clusterInfos.find((c) => c.name == job.cluster)}
                 subCluster={job.subCluster}
                 isShared={job.shared != "none"}
                 numhwthreads={job.numHWThreads}

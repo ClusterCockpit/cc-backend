@@ -5,11 +5,12 @@
   - `cluster String`: The nodes' cluster
   - `subCluster String`: The nodes' subCluster [Default: ""]
   - `ccconfig Object?`: The ClusterCockpit Config Context [Default: null]
+  - `globalMetrics [Obj]`: Includes the backend supplied availabilities for cluster and subCluster
   - `pendingSelectedMetrics [String]`: The array of selected metrics [Default []]
   - `selectedResolution Number?`: The selected data resolution [Default: 0]
   - `hostnameFilter String?`: The active hostnamefilter [Default: ""]
   - `hoststateFilter String?`: The active hoststatefilter [Default: ""]
-  - `presetSystemUnits Object`: The object of metric units [Default: null]
+  - `systemUnits Object`: The object of metric units [Default: null]
   - `from Date?`: The selected "from" date [Default: null]
   - `to Date?`: The selected "to" date [Default: null]
 -->
@@ -27,11 +28,12 @@
     cluster,
     subCluster = "",
     ccconfig = null,
+    globalMetrics = null,
     pendingSelectedMetrics = [],
     selectedResolution = 0,
     hostnameFilter = "",
     hoststateFilter = "",
-    presetSystemUnits = null,
+    systemUnits = null,
     from = null,
     to = null
   } = $props();
@@ -236,7 +238,7 @@
               scope="col"
               style="padding-top: {headerPaddingTop}px"
             >
-              {metric} ({presetSystemUnits[metric]})
+              {metric} ({systemUnits[metric]})
             </th>
           {/each}
         </tr>
@@ -250,7 +252,7 @@
           </Row>
         {:else}
           {#each nodes as nodeData (nodeData.host)}
-            <NodeListRow {nodeData} {cluster} {selectedMetrics}/>
+            <NodeListRow {nodeData} {cluster} {selectedMetrics} {globalMetrics}/>
           {:else}
             <tr>
               <td colspan={selectedMetrics.length + 1}> No nodes found </td>
