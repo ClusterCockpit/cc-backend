@@ -152,7 +152,10 @@ func (m *MemoryStore) HealthCheck(cluster string,
 		healthyCount := len(expectedMetrics) - degradedCount - missingCount
 
 		if degradedCount > 0 {
-			cclog.ComponentDebug("metricstore", "HealthCheck: node", hostname, "degraded metrics:", degradedList)
+			cclog.ComponentInfo("metricstore", "HealthCheck: node ", hostname, "degraded metrics:", degradedList)
+		}
+		if missingCount > 0 {
+			cclog.ComponentInfo("metricstore", "HealthCheck: node ", hostname, "missing metrics:", missingList)
 		}
 
 		switch {
