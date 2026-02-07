@@ -106,6 +106,27 @@ func (s *Server) init() error {
 
 	authHandle := auth.GetAuthInstance()
 
+	// Middleware must be defined before routes in chi
+	s.router.Use(func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(rw http.ResponseWriter, r *http.Request) {
+			start := time.Now()
+			ww := middleware.NewWrapResponseWriter(rw, r.ProtoMajor)
+			next.ServeHTTP(ww, r)
+			cclog.Debugf("%s %s (%d, %.02fkb, %dms)",
+				r.Method, r.URL.RequestURI(),
+				ww.Status(), float32(ww.BytesWritten())/1024,
+				time.Since(start).Milliseconds())
+		})
+	})
+	s.router.Use(middleware.Compress(5))
+	s.router.Use(middleware.Recoverer)
+	s.router.Use(cors.Handler(cors.Options{
+		AllowCredentials: true,
+		AllowedHeaders:   []string{"X-Requested-With", "Content-Type", "Authorization", "Origin"},
+		AllowedMethods:   []string{"GET", "POST", "HEAD", "OPTIONS"},
+		AllowedOrigins:   []string{"*"},
+	}))
+
 	s.restAPIHandle = api.New()
 
 	info := map[string]any{}
@@ -198,13 +219,26 @@ func (s *Server) init() error {
 	})
 
 	// API routes (JWT token auth)
-	s.router.Route("/api", func(securedapi chi.Router) {
-		if !config.Keys.DisableAuthentication {
-			securedapi.Use(func(next http.Handler) http.Handler {
-				return authHandle.AuthAPI(next, onFailureResponse)
-			})
-		}
-		s.restAPIHandle.MountAPIRoutes(securedapi)
+	s.router.Route("/api", func(apiRouter chi.Router) {
+		// Main API routes with API auth
+		apiRouter.Group(func(securedapi chi.Router) {
+			if !config.Keys.DisableAuthentication {
+				securedapi.Use(func(next http.Handler) http.Handler {
+					return authHandle.AuthAPI(next, onFailureResponse)
+				})
+			}
+			s.restAPIHandle.MountAPIRoutes(securedapi)
+		})
+
+		// Metric store API routes with separate auth
+		apiRouter.Group(func(metricstoreapi chi.Router) {
+			if !config.Keys.DisableAuthentication {
+				metricstoreapi.Use(func(next http.Handler) http.Handler {
+					return authHandle.AuthMetricStoreAPI(next, onFailureResponse)
+				})
+			}
+			s.restAPIHandle.MountMetricStoreAPIRoutes(metricstoreapi)
+		})
 	})
 
 	// User API routes
@@ -217,8 +251,9 @@ func (s *Server) init() error {
 		s.restAPIHandle.MountUserAPIRoutes(userapi)
 	})
 
-	// Config API routes
-	s.router.Route("/config", func(configapi chi.Router) {
+	// Config API routes (uses Group with full paths to avoid shadowing
+	// the /config page route that is registered in the secured group)
+	s.router.Group(func(configapi chi.Router) {
 		if !config.Keys.DisableAuthentication {
 			configapi.Use(func(next http.Handler) http.Handler {
 				return authHandle.AuthConfigAPI(next, onFailureResponse)
@@ -243,16 +278,6 @@ func (s *Server) init() error {
 			return fmt.Errorf("starting NATS subscriptions: %w", err)
 		}
 	}
-
-	// Metric store API routes (mounted under /api but with different auth)
-	s.router.Route("/api", func(metricstoreapi chi.Router) {
-		if !config.Keys.DisableAuthentication {
-			metricstoreapi.Use(func(next http.Handler) http.Handler {
-				return authHandle.AuthMetricStoreAPI(next, onFailureResponse)
-			})
-		}
-		s.restAPIHandle.MountMetricStoreAPIRoutes(metricstoreapi)
-	})
 
 	// Custom 404 handler for unmatched routes
 	s.router.NotFound(func(rw http.ResponseWriter, r *http.Request) {
@@ -287,15 +312,6 @@ func (s *Server) init() error {
 		s.router.Handle("/*", http.FileServer(http.Dir(config.Keys.StaticFiles)))
 	}
 
-	s.router.Use(middleware.Compress(5))
-	s.router.Use(middleware.Recoverer)
-	s.router.Use(cors.Handler(cors.Options{
-		AllowCredentials: true,
-		AllowedHeaders:   []string{"X-Requested-With", "Content-Type", "Authorization", "Origin"},
-		AllowedMethods:   []string{"GET", "POST", "HEAD", "OPTIONS"},
-		AllowedOrigins:   []string{"*"},
-	}))
-
 	return nil
 }
 
@@ -306,19 +322,6 @@ const (
 )
 
 func (s *Server) Start(ctx context.Context) error {
-	// Add request logging middleware
-	s.router.Use(func(next http.Handler) http.Handler {
-		return http.HandlerFunc(func(rw http.ResponseWriter, r *http.Request) {
-			start := time.Now()
-			ww := middleware.NewWrapResponseWriter(rw, r.ProtoMajor)
-			next.ServeHTTP(ww, r)
-			cclog.Debugf("%s %s (%d, %.02fkb, %dms)",
-				r.Method, r.URL.RequestURI(),
-				ww.Status(), float32(ww.BytesWritten())/1024,
-				time.Since(start).Milliseconds())
-		})
-	})
-
 	// Use configurable timeouts with defaults
 	readTimeout := time.Duration(defaultReadTimeout) * time.Second
 	writeTimeout := time.Duration(defaultWriteTimeout) * time.Second

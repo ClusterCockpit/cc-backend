@@ -140,16 +140,18 @@ func (api *RestAPI) MountMetricStoreAPIRoutes(r chi.Router) {
 
 // MountConfigAPIRoutes registers configuration and user management endpoints.
 // These routes use session-based authentication and require admin privileges.
+// Routes use full paths (including /config prefix) to avoid conflicting with
+// the /config page route when registered via Group instead of Route.
 func (api *RestAPI) MountConfigAPIRoutes(r chi.Router) {
 	// Settings Frontend Uses SessionAuth
 	if api.Authentication != nil {
-		r.Get("/roles/", api.getRoles)
-		r.Post("/users/", api.createUser)
-		r.Put("/users/", api.createUser)
-		r.Get("/users/", api.getUsers)
-		r.Delete("/users/", api.deleteUser)
-		r.Post("/user/{id}", api.updateUser)
-		r.Post("/notice/", api.editNotice)
+		r.Get("/config/roles/", api.getRoles)
+		r.Post("/config/users/", api.createUser)
+		r.Put("/config/users/", api.createUser)
+		r.Get("/config/users/", api.getUsers)
+		r.Delete("/config/users/", api.deleteUser)
+		r.Post("/config/user/{id}", api.updateUser)
+		r.Post("/config/notice/", api.editNotice)
 	}
 }
 
