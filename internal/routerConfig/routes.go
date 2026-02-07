@@ -20,7 +20,7 @@ import (
 	cclog "github.com/ClusterCockpit/cc-lib/v2/ccLogger"
 	"github.com/ClusterCockpit/cc-lib/v2/schema"
 	"github.com/ClusterCockpit/cc-lib/v2/util"
-	"github.com/gorilla/mux"
+	"github.com/go-chi/chi/v5"
 )
 
 type InfoType map[string]interface{}
@@ -96,7 +96,7 @@ func setupConfigRoute(i InfoType, r *http.Request) InfoType {
 }
 
 func setupJobRoute(i InfoType, r *http.Request) InfoType {
-	i["id"] = mux.Vars(r)["id"]
+	i["id"] = chi.URLParam(r, "id")
 	if config.Keys.EmissionConstant != 0 {
 		i["emission"] = config.Keys.EmissionConstant
 	}
@@ -104,7 +104,7 @@ func setupJobRoute(i InfoType, r *http.Request) InfoType {
 }
 
 func setupUserRoute(i InfoType, r *http.Request) InfoType {
-	username := mux.Vars(r)["id"]
+	username := chi.URLParam(r, "id")
 	i["id"] = username
 	i["username"] = username
 	// TODO: If forbidden (== err exists), redirect to error page
@@ -116,33 +116,33 @@ func setupUserRoute(i InfoType, r *http.Request) InfoType {
 }
 
 func setupClusterStatusRoute(i InfoType, r *http.Request) InfoType {
-	vars := mux.Vars(r)
-	i["id"] = vars["cluster"]
-	i["cluster"] = vars["cluster"]
+	cluster := chi.URLParam(r, "cluster")
+	i["id"] = cluster
+	i["cluster"] = cluster
 	i["displayType"] = "DASHBOARD"
 	return i
 }
 
 func setupClusterDetailRoute(i InfoType, r *http.Request) InfoType {
-	vars := mux.Vars(r)
-	i["id"] = vars["cluster"]
-	i["cluster"] = vars["cluster"]
+	cluster := chi.URLParam(r, "cluster")
+	i["id"] = cluster
+	i["cluster"] = cluster
 	i["displayType"] = "DETAILS"
 	return i
 }
 
 func setupDashboardRoute(i InfoType, r *http.Request) InfoType {
-	vars := mux.Vars(r)
-	i["id"] = vars["cluster"]
-	i["cluster"] = vars["cluster"]
+	cluster := chi.URLParam(r, "cluster")
+	i["id"] = cluster
+	i["cluster"] = cluster
 	i["displayType"] = "PUBLIC" // Used in Main Template
 	return i
 }
 
 func setupClusterOverviewRoute(i InfoType, r *http.Request) InfoType {
-	vars := mux.Vars(r)
-	i["id"] = vars["cluster"]
-	i["cluster"] = vars["cluster"]
+	cluster := chi.URLParam(r, "cluster")
+	i["id"] = cluster
+	i["cluster"] = cluster
 	i["displayType"] = "OVERVIEW"
 
 	from, to := r.URL.Query().Get("from"), r.URL.Query().Get("to")
@@ -154,11 +154,12 @@ func setupClusterOverviewRoute(i InfoType, r *http.Request) InfoType {
 }
 
 func setupClusterListRoute(i InfoType, r *http.Request) InfoType {
-	vars := mux.Vars(r)
-	i["id"] = vars["cluster"]
-	i["cluster"] = vars["cluster"]
-	i["sid"] = vars["subcluster"]
-	i["subCluster"] = vars["subcluster"]
+	cluster := chi.URLParam(r, "cluster")
+	subcluster := chi.URLParam(r, "subcluster")
+	i["id"] = cluster
+	i["cluster"] = cluster
+	i["sid"] = subcluster
+	i["subCluster"] = subcluster
 	i["displayType"] = "LIST"
 
 	from, to := r.URL.Query().Get("from"), r.URL.Query().Get("to")
@@ -170,10 +171,11 @@ func setupClusterListRoute(i InfoType, r *http.Request) InfoType {
 }
 
 func setupNodeRoute(i InfoType, r *http.Request) InfoType {
-	vars := mux.Vars(r)
-	i["cluster"] = vars["cluster"]
-	i["hostname"] = vars["hostname"]
-	i["id"] = fmt.Sprintf("%s (%s)", vars["cluster"], vars["hostname"])
+	cluster := chi.URLParam(r, "cluster")
+	hostname := chi.URLParam(r, "hostname")
+	i["cluster"] = cluster
+	i["hostname"] = hostname
+	i["id"] = fmt.Sprintf("%s (%s)", cluster, hostname)
 	from, to := r.URL.Query().Get("from"), r.URL.Query().Get("to")
 	if from != "" && to != "" {
 		i["from"] = from
@@ -183,7 +185,7 @@ func setupNodeRoute(i InfoType, r *http.Request) InfoType {
 }
 
 func setupAnalysisRoute(i InfoType, r *http.Request) InfoType {
-	i["cluster"] = mux.Vars(r)["cluster"]
+	i["cluster"] = chi.URLParam(r, "cluster")
 	return i
 }
 
@@ -395,7 +397,7 @@ func buildFilterPresets(query url.Values) map[string]interface{} {
 	return filterPresets
 }
 
-func SetupRoutes(router *mux.Router, buildInfo web.Build) {
+func SetupRoutes(router chi.Router, buildInfo web.Build) {
 	userCfgRepo := repository.GetUserCfgRepo()
 	for _, route := range routes {
 		route := route
