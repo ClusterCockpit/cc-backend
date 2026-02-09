@@ -119,7 +119,7 @@
 
   const filter = $derived([
     { cluster: { eq: cluster } },
-    { node: { contains: hostname } },
+    { node: { eq: hostname } },
     { state: ["running"] },
   ]);
 

@@ -180,10 +180,6 @@
   // (Re-)query and optionally set new filters; Query will be started reactively.
   export function queryJobs(filters) {
     if (filters != null) {
-      let minRunningFor = ccconfig.jobList_hideShortRunningJobs;
-      if (minRunningFor && minRunningFor > 0) {
-        filters.push({ minRunningFor });
-      }
       filter = [...filters];
     }
   };
