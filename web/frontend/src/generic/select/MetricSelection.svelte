@@ -88,16 +88,19 @@
 
   function printAvailability(metric, cluster) {
     const avail = globalMetrics.find((gm) => gm.name === metric)?.availability
-    if (!cluster) {
-      return avail.map((av) => av.cluster).join(', ')
-    } else {
-      const subAvail = avail.find((av) => av.cluster === cluster)?.subClusters
-      if (subAvail) {
-        return subAvail.join(', ')
+    if (avail) {
+      if (!cluster) {
+        return avail.map((av) => av.cluster).join(', ')
       } else {
-        return `Not available for ${cluster}`
+        const subAvail = avail.find((av) => av.cluster === cluster)?.subClusters
+        if (subAvail) {
+          return subAvail.join(', ')
+        } else {
+          return `Not available for ${cluster}`
+        }
       }
     }
+    return ""
   }
 
   function columnsDragOver(event) {
