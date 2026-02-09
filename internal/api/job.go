@@ -27,7 +27,7 @@ import (
 	"github.com/ClusterCockpit/cc-backend/pkg/archive"
 	cclog "github.com/ClusterCockpit/cc-lib/v2/ccLogger"
 	"github.com/ClusterCockpit/cc-lib/v2/schema"
-	"github.com/gorilla/mux"
+	"github.com/go-chi/chi/v5"
 )
 
 const (
@@ -243,10 +243,10 @@ func (api *RestAPI) getJobs(rw http.ResponseWriter, r *http.Request) {
 // @router      /api/jobs/{id} [get]
 func (api *RestAPI) getCompleteJobByID(rw http.ResponseWriter, r *http.Request) {
 	// Fetch job from db
-	id, ok := mux.Vars(r)["id"]
+	id := chi.URLParam(r, "id")
 	var job *schema.Job
 	var err error
-	if ok {
+	if id != "" {
 		id, e := strconv.ParseInt(id, 10, 64)
 		if e != nil {
 			handleError(fmt.Errorf("integer expected in path for id: %w", e), http.StatusBadRequest, rw)
@@ -336,10 +336,10 @@ func (api *RestAPI) getCompleteJobByID(rw http.ResponseWriter, r *http.Request) 
 // @router      /api/jobs/{id} [post]
 func (api *RestAPI) getJobByID(rw http.ResponseWriter, r *http.Request) {
 	// Fetch job from db
-	id, ok := mux.Vars(r)["id"]
+	id := chi.URLParam(r, "id")
 	var job *schema.Job
 	var err error
-	if ok {
+	if id != "" {
 		id, e := strconv.ParseInt(id, 10, 64)
 		if e != nil {
 			handleError(fmt.Errorf("integer expected in path for id: %w", e), http.StatusBadRequest, rw)
@@ -439,7 +439,7 @@ func (api *RestAPI) getJobByID(rw http.ResponseWriter, r *http.Request) {
 // @security    ApiKeyAuth
 // @router      /api/jobs/edit_meta/{id} [post]
 func (api *RestAPI) editMeta(rw http.ResponseWriter, r *http.Request) {
-	id, err := strconv.ParseInt(mux.Vars(r)["id"], 10, 64)
+	id, err := strconv.ParseInt(chi.URLParam(r, "id"), 10, 64)
 	if err != nil {
 		handleError(fmt.Errorf("parsing job ID failed: %w", err), http.StatusBadRequest, rw)
 		return
@@ -487,7 +487,7 @@ func (api *RestAPI) editMeta(rw http.ResponseWriter, r *http.Request) {
 // @security    ApiKeyAuth
 // @router      /api/jobs/tag_job/{id} [post]
 func (api *RestAPI) tagJob(rw http.ResponseWriter, r *http.Request) {
-	id, err := strconv.ParseInt(mux.Vars(r)["id"], 10, 64)
+	id, err := strconv.ParseInt(chi.URLParam(r, "id"), 10, 64)
 	if err != nil {
 		handleError(fmt.Errorf("parsing job ID failed: %w", err), http.StatusBadRequest, rw)
 		return
@@ -551,7 +551,7 @@ func (api *RestAPI) tagJob(rw http.ResponseWriter, r *http.Request) {
 // @security    ApiKeyAuth
 // @router      /jobs/tag_job/{id} [delete]
 func (api *RestAPI) removeTagJob(rw http.ResponseWriter, r *http.Request) {
-	id, err := strconv.ParseInt(mux.Vars(r)["id"], 10, 64)
+	id, err := strconv.ParseInt(chi.URLParam(r, "id"), 10, 64)
 	if err != nil {
 		handleError(fmt.Errorf("parsing job ID failed: %w", err), http.StatusBadRequest, rw)
 		return
@@ -786,9 +786,9 @@ func (api *RestAPI) stopJobByRequest(rw http.ResponseWriter, r *http.Request) {
 // @router      /api/jobs/delete_job/{id} [delete]
 func (api *RestAPI) deleteJobByID(rw http.ResponseWriter, r *http.Request) {
 	// Fetch job (that will be stopped) from db
-	id, ok := mux.Vars(r)["id"]
+	id := chi.URLParam(r, "id")
 	var err error
-	if ok {
+	if id != "" {
 		id, e := strconv.ParseInt(id, 10, 64)
 		if e != nil {
 			handleError(fmt.Errorf("integer expected in path for id: %w", e), http.StatusBadRequest, rw)
@@ -885,9 +885,9 @@ func (api *RestAPI) deleteJobByRequest(rw http.ResponseWriter, r *http.Request) 
 func (api *RestAPI) deleteJobBefore(rw http.ResponseWriter, r *http.Request) {
 	var cnt int
 	// Fetch job (that will be stopped) from db
-	id, ok := mux.Vars(r)["ts"]
+	id := chi.URLParam(r, "ts")
 	var err error
-	if ok {
+	if id != "" {
 		ts, e := strconv.ParseInt(id, 10, 64)
 		if e != nil {
 			handleError(fmt.Errorf("integer expected in path for ts: %w", e), http.StatusBadRequest, rw)
@@ -976,7 +976,7 @@ func (api *RestAPI) checkAndHandleStopJob(rw http.ResponseWriter, job *schema.Jo
 }
 
 func (api *RestAPI) getJobMetrics(rw http.ResponseWriter, r *http.Request) {
-	id := mux.Vars(r)["id"]
+	id := chi.URLParam(r, "id")
 	metrics := r.URL.Query()["metric"]
 	var scopes []schema.MetricScope
 	for _, scope := range r.URL.Query()["scope"] {

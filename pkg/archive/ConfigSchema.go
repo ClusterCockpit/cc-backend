@@ -57,7 +57,7 @@ var configSchema = `
             "policy": {
               "description": "Retention policy",
               "type": "string",
-              "enum": ["none", "delete", "move"]
+              "enum": ["none", "delete", "move", "parquet"]
             },
             "include-db": {
               "description": "Also remove jobs from database",
@@ -70,6 +70,43 @@ var configSchema = `
             "location": {
               "description": "The target directory for retention. Only applicable for retention move.",
               "type": "string"
+            },
+            "target-kind": {
+              "description": "Target storage kind for parquet retention: file or s3",
+              "type": "string",
+              "enum": ["file", "s3"]
+            },
+            "target-path": {
+              "description": "Target directory path for parquet file storage",
+              "type": "string"
+            },
+            "target-endpoint": {
+              "description": "S3 endpoint URL for parquet target",
+              "type": "string"
+            },
+            "target-bucket": {
+              "description": "S3 bucket name for parquet target",
+              "type": "string"
+            },
+            "target-access-key": {
+              "description": "S3 access key for parquet target",
+              "type": "string"
+            },
+            "target-secret-key": {
+              "description": "S3 secret key for parquet target",
+              "type": "string"
+            },
+            "target-region": {
+              "description": "S3 region for parquet target",
+              "type": "string"
+            },
+            "target-use-path-style": {
+              "description": "Use path-style S3 URLs for parquet target",
+              "type": "boolean"
+            },
+            "max-file-size-mb": {
+              "description": "Maximum parquet file size in MB before splitting",
+              "type": "integer"
             }
           },
           "required": ["policy"]

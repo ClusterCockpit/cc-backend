@@ -23,11 +23,20 @@ const (
 
 // Retention defines the configuration for job retention policies.
 type Retention struct {
-	Policy     string `json:"policy"`
-	Location   string `json:"location"`
-	Age        int    `json:"age"`
-	IncludeDB  bool   `json:"includeDB"`
-	OmitTagged bool   `json:"omitTagged"`
+	Policy            string `json:"policy"`
+	Location          string `json:"location"`
+	Age               int    `json:"age"`
+	IncludeDB         bool   `json:"includeDB"`
+	OmitTagged        bool   `json:"omitTagged"`
+	TargetKind        string `json:"target-kind"`
+	TargetPath        string `json:"target-path"`
+	TargetEndpoint    string `json:"target-endpoint"`
+	TargetBucket      string `json:"target-bucket"`
+	TargetAccessKey   string `json:"target-access-key"`
+	TargetSecretKey   string `json:"target-secret-key"`
+	TargetRegion      string `json:"target-region"`
+	TargetUsePathStyle bool  `json:"target-use-path-style"`
+	MaxFileSizeMB     int    `json:"max-file-size-mb"`
 }
 
 // CronFrequency defines the execution intervals for various background workers.
@@ -87,6 +96,8 @@ func initArchiveServices(config json.RawMessage) {
 			cfg.Retention.IncludeDB,
 			cfg.Retention.Location,
 			cfg.Retention.OmitTagged)
+	case "parquet":
+		RegisterRetentionParquetService(cfg.Retention)
 	}
 
 	if cfg.Compression > 0 {
