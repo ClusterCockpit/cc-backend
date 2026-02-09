@@ -26,7 +26,7 @@ type LdapConfig struct {
 	UserBind        string `json:"user-bind"`
 	UserFilter      string `json:"user-filter"`
 	UserAttr        string `json:"username-attr"`
-	UidAttr         string `json:"uid-attr"`
+	UIDAttr         string `json:"uid-attr"`
 	SyncInterval    string `json:"sync-interval"` // Parsed using time.ParseDuration.
 	SyncDelOldUsers bool   `json:"sync-del-old-users"`
 
@@ -38,7 +38,7 @@ type LdapConfig struct {
 type LdapAuthenticator struct {
 	syncPassword string
 	UserAttr     string
-	UidAttr      string
+	UIDAttr      string
 }
 
 var _ Authenticator = (*LdapAuthenticator)(nil)
@@ -55,10 +55,10 @@ func (la *LdapAuthenticator) Init() error {
 		la.UserAttr = "gecos"
 	}
 
-	if Keys.LdapConfig.UidAttr != "" {
-		la.UidAttr = Keys.LdapConfig.UidAttr
+	if Keys.LdapConfig.UIDAttr != "" {
+		la.UIDAttr = Keys.LdapConfig.UIDAttr
 	} else {
-		la.UidAttr = "uid"
+		la.UIDAttr = "uid"
 	}
 
 	return nil
@@ -88,8 +88,8 @@ func (la *LdapAuthenticator) CanLogin(
 		searchRequest := ldap.NewSearchRequest(
 			lc.UserBase,
 			ldap.ScopeWholeSubtree, ldap.NeverDerefAliases, 0, 0, false,
-			fmt.Sprintf("(&%s(%s=%s))", lc.UserFilter, la.UidAttr, ldap.EscapeFilter(username)),
-			[]string{"dn", la.UidAttr, la.UserAttr}, nil)
+			fmt.Sprintf("(&%s(%s=%s))", lc.UserFilter, la.UIDAttr, ldap.EscapeFilter(username)),
+			[]string{"dn", la.UIDAttr, la.UserAttr}, nil)
 
 		sr, err := l.Search(searchRequest)
 		if err != nil {
@@ -169,7 +169,7 @@ func (la *LdapAuthenticator) Sync() error {
 		lc.UserBase,
 		ldap.ScopeWholeSubtree, ldap.NeverDerefAliases, 0, 0, false,
 		lc.UserFilter,
-		[]string{"dn", la.UidAttr, la.UserAttr}, nil))
+		[]string{"dn", la.UIDAttr, la.UserAttr}, nil))
 	if err != nil {
 		cclog.Warn("LDAP search error")
 		return err
@@ -177,9 +177,9 @@ func (la *LdapAuthenticator) Sync() error {
 
 	newnames := map[string]string{}
 	for _, entry := range ldapResults.Entries {
-		username := entry.GetAttributeValue(la.UidAttr)
+		username := entry.GetAttributeValue(la.UIDAttr)
 		if username == "" {
-			return fmt.Errorf("no attribute '%s'", la.UidAttr)
+			return fmt.Errorf("no attribute '%s'", la.UIDAttr)
 		}
 
 		_, ok := users[username]
