@@ -253,12 +253,15 @@
             forNode
           />
         {:else if item.disabled === true && item.metric}
-          <Card style="margin-left: 2rem;margin-right: 2rem;" body color="info"
-            >Metric disabled for subcluster <code
-              >{item.name}:{$nodeMetricsData.data.nodeMetrics[0]
-                .subCluster}</code
-            ></Card
-          >
+          <Card color="info" class="mx-2">
+            <CardHeader class="mb-0">
+              <b>Disabled Metric</b>
+            </CardHeader>
+            <CardBody>
+              <p>No dataset(s) returned for <b>{item.name}</b></p>
+              <p class="mb-1">Metric has been disabled for subcluster <b>{$nodeMetricsData.data.nodeMetrics[0].subCluster}</b>.</p>
+            </CardBody>
+          </Card>
         {:else}
           <Card color="warning" class="mx-2">
             <CardHeader class="mb-0">

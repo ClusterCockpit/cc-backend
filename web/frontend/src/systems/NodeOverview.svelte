@@ -110,7 +110,7 @@
         };
       });
     };
-    
+
     let pendingMapped = [];
     if (rawData.length > 0) {
       pendingMapped = rawData.map((h) => ({
@@ -120,12 +120,11 @@
         data: h.metrics.filter(
           (m) => m?.name == selectedMetric && m.scope == "node",
         ),
-        // TODO: Move To New Func Variant With Disabled Check on WHole Cluster Level: This never Triggers!
         disabled: checkMetricDisabled(globalMetrics, selectedMetric, cluster, h.subCluster),
       }))
       .sort((a, b) => a.host.localeCompare(b.host))
     }
-    
+
     return pendingMapped;
   }
 </script>
@@ -162,35 +161,32 @@
               </Badge>
             </span>
           </div>
-          {#if item?.data}
-            {#if item.disabled === true}
-              <!-- TODO: Will never be Shown: Overview Single Metric Return Will be Null, see Else Case-->
-              <Card body class="mx-3" color="info"
-                >Metric disabled for subcluster <code
-                  >{selectedMetric}:{item.subCluster}</code
-                ></Card
-              >
-            {:else if item.disabled === false}
-              <!-- "No Data"-Warning included in MetricPlot-Component   -->
-              <!-- #key: X-axis keeps last selected timerange otherwise -->
-              {#key item.data[0].metric.series[0].data.length}
-                <MetricPlot
-                  timestep={item.data[0].metric.timestep}
-                  series={item.data[0].metric.series}
-                  metric={item.data[0].name}
-                  {cluster}
-                  subCluster={item.subCluster}
-                  forNode
-                  enableFlip
-                />
-              {/key}
-            {:else}
-              <Card body class="mx-3" color="info">
-                Global Metric List Not Initialized
-                Can not determine {selectedMetric} availability: Please Reload Page
-              </Card>
-            {/if}
+          {#if item?.disabled}
+            <Card color="info">
+              <CardHeader class="mb-0">
+                <b>Disabled Metric</b>
+              </CardHeader>
+              <CardBody>
+                <p>No dataset(s) returned for <b>{selectedMetric}</b></p>
+                <p class="mb-1">Metric has been disabled for subcluster <b>{item.subCluster}</b>.</p>
+              </CardBody>
+            </Card>
+          {:else if item?.data}
+            <!-- "Empty Series"-Warning included in MetricPlot-Component   -->
+            <!-- #key: X-axis keeps last selected timerange otherwise -->
+            {#key item.data[0].metric.series[0].data.length}
+              <MetricPlot
+                timestep={item.data[0].metric.timestep}
+                series={item.data[0].metric.series}
+                metric={item.data[0].name}
+                {cluster}
+                subCluster={item.subCluster}
+                forNode
+                enableFlip
+              />
+            {/key}
           {:else}
+            <!-- Should Not Appear -->
             <Card color="warning">
               <CardHeader class="mb-0">
                 <b>Missing Metric</b>
@@ -205,10 +201,22 @@
       {/each}
     {/key}
   </Row>
+{:else if hostnameFilter || hoststateFilter != 'all'}
+  <Row class="mx-1">
+    <Card class="px-0">
+      <CardHeader>
+        <b>Empty Filter Return</b>
+      </CardHeader>
+      <CardBody>
+        <p>No datasets returned for <b>{selectedMetric}</b>.</p>
+        <p class="mb-1">Hostname filter and/or host state filter returned no matches.</p>
+      </CardBody>
+    </Card>
+  </Row>
 {:else}
-  <Row>
-    <Card color="warning">
-      <CardHeader class="mb-0">
+  <Row class="mx-1">
+    <Card class="px-0" color="warning">
+      <CardHeader>
         <b>Missing Metric</b>
       </CardHeader>
       <CardBody>
