@@ -294,6 +294,11 @@ func handleOIDCUser(OIDCUser *schema.User) {
 	handleUserSync(OIDCUser, Keys.OpenIDConfig.SyncUserOnLogin, Keys.OpenIDConfig.UpdateUserOnLogin)
 }
 
+// handleLdapUser syncs LDAP user with database
+func handleLdapUser(ldapUser *schema.User) {
+	handleUserSync(ldapUser, Keys.LdapConfig.SyncUserOnLogin, Keys.LdapConfig.UpdateUserOnLogin)
+}
+
 func (auth *Authentication) SaveSession(rw http.ResponseWriter, r *http.Request, user *schema.User) error {
 	session, err := auth.sessionStore.New(r, "session")
 	if err != nil {
