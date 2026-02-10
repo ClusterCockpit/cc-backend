@@ -9,6 +9,7 @@ import (
 	"context"
 	"crypto/rand"
 	"encoding/base64"
+	"fmt"
 	"io"
 	"net/http"
 	"os"
@@ -50,6 +51,7 @@ func setCallbackCookie(w http.ResponseWriter, r *http.Request, name, value strin
 		MaxAge:   int(time.Hour.Seconds()),
 		Secure:   r.TLS != nil,
 		HttpOnly: true,
+		SameSite: http.SameSiteLaxMode,
 	}
 	http.SetCookie(w, c)
 }
@@ -77,8 +79,7 @@ func NewOIDC(a *Authentication) *OIDC {
 		ClientID:     clientID,
 		ClientSecret: clientSecret,
 		Endpoint:     provider.Endpoint(),
-		RedirectURL:  "oidc-callback",
-		Scopes:       []string{oidc.ScopeOpenID, "profile", "email"},
+		Scopes:       []string{oidc.ScopeOpenID, "profile"},
 	}
 
 	oa := &OIDC{provider: provider, client: client, clientID: clientID, authentication: a}
@@ -122,54 +123,93 @@ func (oa *OIDC) OAuth2Callback(rw http.ResponseWriter, r *http.Request) {
 
 	token, err := oa.client.Exchange(ctx, code, oauth2.VerifierOption(codeVerifier))
 	if err != nil {
-		http.Error(rw, "Failed to exchange token: "+err.Error(), http.StatusInternalServerError)
+		cclog.Errorf("token exchange failed: %s", err.Error())
+		http.Error(rw, "Authentication failed during token exchange", http.StatusInternalServerError)
 		return
 	}
 
 	// Get user info from OIDC provider with same timeout
 	userInfo, err := oa.provider.UserInfo(ctx, oauth2.StaticTokenSource(token))
 	if err != nil {
-		http.Error(rw, "Failed to get userinfo: "+err.Error(), http.StatusInternalServerError)
+		cclog.Errorf("failed to get userinfo: %s", err.Error())
+		http.Error(rw, "Failed to retrieve user information", http.StatusInternalServerError)
 		return
 	}
 
-	// // Extract the ID Token from OAuth2 token.
-	// rawIDToken, ok := token.Extra("id_token").(string)
-	// if !ok {
-	// 	http.Error(rw, "Cannot access idToken", http.StatusInternalServerError)
-	// }
-	//
-	// verifier := oa.provider.Verifier(&oidc.Config{ClientID: oa.clientID})
-	// // Parse and verify ID Token payload.
-	// idToken, err := verifier.Verify(context.Background(), rawIDToken)
-	// if err != nil {
-	// 	http.Error(rw, "Failed to extract idToken: "+err.Error(), http.StatusInternalServerError)
-	// }
+	// Verify ID token and nonce to prevent replay attacks
+	rawIDToken, ok := token.Extra("id_token").(string)
+	if !ok {
+		http.Error(rw, "ID token not found in response", http.StatusInternalServerError)
+		return
+	}
+
+	nonceCookie, err := r.Cookie("nonce")
+	if err != nil {
+		http.Error(rw, "nonce cookie not found", http.StatusBadRequest)
+		return
+	}
+
+	verifier := oa.provider.Verifier(&oidc.Config{ClientID: oa.clientID})
+	idToken, err := verifier.Verify(ctx, rawIDToken)
+	if err != nil {
+		cclog.Errorf("ID token verification failed: %s", err.Error())
+		http.Error(rw, "ID token verification failed", http.StatusInternalServerError)
+		return
+	}
+
+	if idToken.Nonce != nonceCookie.Value {
+		http.Error(rw, "Nonce mismatch", http.StatusBadRequest)
+		return
+	}
 
 	projects := make([]string, 0)
 
-	// Extract custom claims
+	// Extract custom claims from userinfo
 	var claims struct {
 		Username string `json:"preferred_username"`
 		Name     string `json:"name"`
-		Profile  struct {
+		// Keycloak realm-level roles
+		RealmAccess struct {
+			Roles []string `json:"roles"`
+		} `json:"realm_access"`
+		// Keycloak client-level roles
+		ResourceAccess struct {
 			Client struct {
 				Roles []string `json:"roles"`
 			} `json:"clustercockpit"`
 		} `json:"resource_access"`
 	}
 	if err := userInfo.Claims(&claims); err != nil {
-		http.Error(rw, "Failed to extract Claims: "+err.Error(), http.StatusInternalServerError)
+		cclog.Errorf("failed to extract claims: %s", err.Error())
+		http.Error(rw, "Failed to extract user claims", http.StatusInternalServerError)
+		return
+	}
+
+	if claims.Username == "" {
+		http.Error(rw, "Username claim missing from OIDC provider", http.StatusBadRequest)
+		return
+	}
+
+	// Merge roles from both client-level and realm-level access
+	oidcRoles := append(claims.ResourceAccess.Client.Roles, claims.RealmAccess.Roles...)
+
+	roleSet := make(map[string]bool)
+	for _, r := range oidcRoles {
+		switch r {
+		case "user":
+			roleSet[schema.GetRoleString(schema.RoleUser)] = true
+		case "admin":
+			roleSet[schema.GetRoleString(schema.RoleAdmin)] = true
+		case "manager":
+			roleSet[schema.GetRoleString(schema.RoleManager)] = true
+		case "support":
+			roleSet[schema.GetRoleString(schema.RoleSupport)] = true
+		}
 	}
 
 	var roles []string
-	for _, r := range claims.Profile.Client.Roles {
-		switch r {
-		case "user":
-			roles = append(roles, schema.GetRoleString(schema.RoleUser))
-		case "admin":
-			roles = append(roles, schema.GetRoleString(schema.RoleAdmin))
-		}
+	for role := range roleSet {
+		roles = append(roles, role)
 	}
 
 	if len(roles) == 0 {
@@ -188,8 +228,12 @@ func (oa *OIDC) OAuth2Callback(rw http.ResponseWriter, r *http.Request) {
 		handleOIDCUser(user)
 	}
 
-	oa.authentication.SaveSession(rw, r, user)
-	cclog.Infof("login successfull: user: %#v (roles: %v, projects: %v)", user.Username, user.Roles, user.Projects)
+	if err := oa.authentication.SaveSession(rw, r, user); err != nil {
+		cclog.Errorf("session save failed for user %q: %s", user.Username, err.Error())
+		http.Error(rw, "Failed to create session", http.StatusInternalServerError)
+		return
+	}
+	cclog.Infof("login successful: user: %#v (roles: %v, projects: %v)", user.Username, user.Roles, user.Projects)
 	userCtx := context.WithValue(r.Context(), repository.ContextUserKey, user)
 	http.RedirectHandler("/", http.StatusTemporaryRedirect).ServeHTTP(rw, r.WithContext(userCtx))
 }
@@ -206,7 +250,24 @@ func (oa *OIDC) OAuth2Login(rw http.ResponseWriter, r *http.Request) {
 	codeVerifier := oauth2.GenerateVerifier()
 	setCallbackCookie(rw, r, "verifier", codeVerifier)
 
+	// Generate nonce for ID token replay protection
+	nonce, err := randString(16)
+	if err != nil {
+		http.Error(rw, "Internal error", http.StatusInternalServerError)
+		return
+	}
+	setCallbackCookie(rw, r, "nonce", nonce)
+
+	// Build redirect URL from the incoming request
+	scheme := "https"
+	if r.TLS == nil && r.Header.Get("X-Forwarded-Proto") != "https" {
+		scheme = "http"
+	}
+	oa.client.RedirectURL = fmt.Sprintf("%s://%s/oidc-callback", scheme, r.Host)
+
 	// Redirect user to consent page to ask for permission
-	url := oa.client.AuthCodeURL(state, oauth2.AccessTypeOffline, oauth2.S256ChallengeOption(codeVerifier))
+	url := oa.client.AuthCodeURL(state, oauth2.AccessTypeOffline,
+		oauth2.S256ChallengeOption(codeVerifier),
+		oidc.Nonce(nonce))
 	http.Redirect(rw, r, url, http.StatusFound)
 }

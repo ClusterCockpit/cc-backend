@@ -251,6 +251,7 @@ func (api *NatsAPI) handleStopJob(payload string) {
 		return
 	}
 
+	isCached := false
 	job, err := api.JobRepository.Find(req.JobID, req.Cluster, req.StartTime)
 	if err != nil {
 		cachedJob, cachedErr := api.JobRepository.FindCached(req.JobID, req.Cluster, req.StartTime)
@@ -260,6 +261,7 @@ func (api *NatsAPI) handleStopJob(payload string) {
 			return
 		}
 		job = cachedJob
+		isCached = true
 	}
 
 	if job.State != schema.JobStateRunning {
@@ -287,16 +289,26 @@ func (api *NatsAPI) handleStopJob(payload string) {
 	api.JobRepository.Mutex.Lock()
 	defer api.JobRepository.Mutex.Unlock()
 
-	if err := api.JobRepository.Stop(*job.ID, job.Duration, job.State, job.MonitoringStatus); err != nil {
-		if err := api.JobRepository.StopCached(*job.ID, job.Duration, job.State, job.MonitoringStatus); err != nil {
-			cclog.Errorf("NATS job stop: jobId %d (id %d) on %s: marking job as '%s' failed: %v",
-				job.JobID, job.ID, job.Cluster, job.State, err)
+	// If the job is still in job_cache, transfer it to the job table first
+	if isCached {
+		newID, err := api.JobRepository.TransferCachedJobToMain(*job.ID)
+		if err != nil {
+			cclog.Errorf("NATS job stop: jobId %d (id %d) on %s: transferring cached job failed: %v",
+				job.JobID, *job.ID, job.Cluster, err)
 			return
 		}
+		cclog.Infof("NATS: transferred cached job to main table: old id %d -> new id %d (jobId=%d)", *job.ID, newID, job.JobID)
+		job.ID = &newID
+	}
+
+	if err := api.JobRepository.Stop(*job.ID, job.Duration, job.State, job.MonitoringStatus); err != nil {
+		cclog.Errorf("NATS job stop: jobId %d (id %d) on %s: marking job as '%s' failed: %v",
+			job.JobID, *job.ID, job.Cluster, job.State, err)
+		return
 	}
 
 	cclog.Infof("NATS: archiving job (dbid: %d): cluster=%s, jobId=%d, user=%s, startTime=%d, duration=%d, state=%s",
-		job.ID, job.Cluster, job.JobID, job.User, job.StartTime, job.Duration, job.State)
+		*job.ID, job.Cluster, job.JobID, job.User, job.StartTime, job.Duration, job.State)
 
 	if job.MonitoringStatus == schema.MonitoringStatusDisabled {
 		return

@@ -71,8 +71,9 @@ func (r *JobRepository) SyncJobs() ([]*schema.Job, error) {
 		jobs = append(jobs, job)
 	}
 
+	// Use INSERT OR IGNORE to skip jobs already transferred by the stop path
 	_, err = r.DB.Exec(
-		"INSERT INTO job (job_id, cluster, subcluster, start_time, hpc_user, project, cluster_partition, array_job_id, num_nodes, num_hwthreads, num_acc, shared, monitoring_status, smt, job_state, duration, walltime, footprint, energy, energy_footprint, resources, meta_data) SELECT job_id, cluster, subcluster, start_time, hpc_user, project, cluster_partition, array_job_id, num_nodes, num_hwthreads, num_acc, shared, monitoring_status, smt, job_state, duration, walltime, footprint, energy, energy_footprint, resources, meta_data FROM job_cache")
+		"INSERT OR IGNORE INTO job (job_id, cluster, subcluster, start_time, hpc_user, project, cluster_partition, array_job_id, num_nodes, num_hwthreads, num_acc, shared, monitoring_status, smt, job_state, duration, walltime, footprint, energy, energy_footprint, resources, meta_data) SELECT job_id, cluster, subcluster, start_time, hpc_user, project, cluster_partition, array_job_id, num_nodes, num_hwthreads, num_acc, shared, monitoring_status, smt, job_state, duration, walltime, footprint, energy, energy_footprint, resources, meta_data FROM job_cache")
 	if err != nil {
 		cclog.Warnf("Error while Job sync: %v", err)
 		return nil, err
@@ -85,6 +86,29 @@ func (r *JobRepository) SyncJobs() ([]*schema.Job, error) {
 	}
 
 	return jobs, nil
+}
+
+// TransferCachedJobToMain moves a job from job_cache to the job table.
+// Caller must hold r.Mutex. Returns the new job table ID.
+func (r *JobRepository) TransferCachedJobToMain(cacheID int64) (int64, error) {
+	res, err := r.DB.Exec(
+		"INSERT INTO job (job_id, cluster, subcluster, start_time, hpc_user, project, cluster_partition, array_job_id, num_nodes, num_hwthreads, num_acc, shared, monitoring_status, smt, job_state, duration, walltime, footprint, energy, energy_footprint, resources, meta_data) SELECT job_id, cluster, subcluster, start_time, hpc_user, project, cluster_partition, array_job_id, num_nodes, num_hwthreads, num_acc, shared, monitoring_status, smt, job_state, duration, walltime, footprint, energy, energy_footprint, resources, meta_data FROM job_cache WHERE id = ?",
+		cacheID)
+	if err != nil {
+		return 0, fmt.Errorf("transferring cached job %d to main table failed: %w", cacheID, err)
+	}
+
+	newID, err := res.LastInsertId()
+	if err != nil {
+		return 0, fmt.Errorf("getting new job ID after transfer failed: %w", err)
+	}
+
+	_, err = r.DB.Exec("DELETE FROM job_cache WHERE id = ?", cacheID)
+	if err != nil {
+		return 0, fmt.Errorf("deleting cached job %d after transfer failed: %w", cacheID, err)
+	}
+
+	return newID, nil
 }
 
 // Start inserts a new job in the table, returning the unique job ID.
@@ -129,20 +153,3 @@ func (r *JobRepository) Stop(
 	return err
 }
 
-func (r *JobRepository) StopCached(
-	jobID int64,
-	duration int32,
-	state schema.JobState,
-	monitoringStatus int32,
-) (err error) {
-	// Note: StopCached updates job_cache table, not the main job table
-	// Cache invalidation happens when job is synced to main table
-	stmt := sq.Update("job_cache").
-		Set("job_state", state).
-		Set("duration", duration).
-		Set("monitoring_status", monitoringStatus).
-		Where("job_cache.id = ?", jobID)
-
-	_, err = stmt.RunWith(r.stmtCache).Exec()
-	return err
-}

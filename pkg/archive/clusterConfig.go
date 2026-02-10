@@ -25,6 +25,7 @@ func initClusterConfig() error {
 	GlobalUserMetricList = []*schema.GlobalMetricListItem{}
 	NodeLists = map[string]map[string]NodeList{}
 	metricLookup := make(map[string]schema.GlobalMetricListItem)
+	userMetricLookup := make(map[string]schema.GlobalMetricListItem)
 
 	for _, c := range ar.GetClusters() {
 
@@ -62,11 +63,12 @@ func initClusterConfig() error {
 
 			if _, ok := metricLookup[mc.Name]; !ok {
 				metricLookup[mc.Name] = schema.GlobalMetricListItem{
-					Name: mc.Name, Scope: mc.Scope, Restrict: mc.Restrict, Unit: mc.Unit, Footprint: mc.Footprint,
+					Name: mc.Name, Scope: mc.Scope, Unit: mc.Unit, Footprint: mc.Footprint,
 				}
 			}
 
 			availability := schema.ClusterSupport{Cluster: cluster.Name}
+			userAvailability := schema.ClusterSupport{Cluster: cluster.Name}
 			scLookup := make(map[string]*schema.SubClusterConfig)
 
 			for _, scc := range mc.SubClusters {
@@ -94,6 +96,7 @@ func initClusterConfig() error {
 					newMetric.Footprint = mc.Footprint
 				}
 
+				isRestricted := mc.Restrict
 				if cfg, ok := scLookup[sc.Name]; ok {
 					if cfg.Remove {
 						continue
@@ -105,9 +108,13 @@ func initClusterConfig() error {
 					newMetric.Footprint = cfg.Footprint
 					newMetric.Energy = cfg.Energy
 					newMetric.LowerIsBetter = cfg.LowerIsBetter
+					isRestricted = cfg.Restrict
 				}
 
 				availability.SubClusters = append(availability.SubClusters, sc.Name)
+				if !isRestricted {
+					userAvailability.SubClusters = append(userAvailability.SubClusters, sc.Name)
+				}
 				sc.MetricConfig = append(sc.MetricConfig, newMetric)
 
 				if newMetric.Footprint != "" {
@@ -124,6 +131,17 @@ func initClusterConfig() error {
 			item := metricLookup[mc.Name]
 			item.Availability = append(item.Availability, availability)
 			metricLookup[mc.Name] = item
+
+			if len(userAvailability.SubClusters) > 0 {
+				userItem, ok := userMetricLookup[mc.Name]
+				if !ok {
+					userItem = schema.GlobalMetricListItem{
+						Name: mc.Name, Scope: mc.Scope, Unit: mc.Unit, Footprint: mc.Footprint,
+					}
+				}
+				userItem.Availability = append(userItem.Availability, userAvailability)
+				userMetricLookup[mc.Name] = userItem
+			}
 		}
 
 		Clusters = append(Clusters, cluster)
@@ -144,9 +162,9 @@ func initClusterConfig() error {
 
 	for _, metric := range metricLookup {
 		GlobalMetricList = append(GlobalMetricList, &metric)
-		if !metric.Restrict {
-			GlobalUserMetricList = append(GlobalUserMetricList, &metric)
-		}
+	}
+	for _, metric := range userMetricLookup {
+		GlobalUserMetricList = append(GlobalUserMetricList, &metric)
 	}
 
 	return nil

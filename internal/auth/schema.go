@@ -92,8 +92,16 @@ var configSchema = `
           "description": "Delete obsolete users in database.",
           "type": "boolean"
         },
+        "uid-attr": {
+          "description": "LDAP attribute used as login username. Default: uid",
+          "type": "string"
+        },
         "sync-user-on-login": {
           "description": "Add non-existent user to DB at login attempt if user exists in Ldap directory",
+          "type": "boolean"
+        },
+        "update-user-on-login": {
+          "description": "Should an existent user attributes in the DB be updated at login attempt with values from LDAP.",
           "type": "boolean"
         }
       },

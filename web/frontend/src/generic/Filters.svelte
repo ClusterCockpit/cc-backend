@@ -6,6 +6,8 @@
   - `filterPresets Object?`: Optional predefined filter values [Default: {}]
   - `disableClusterSelection Bool?`: Is the selection disabled [Default: false]
   - `startTimeQuickSelect Bool?`: Render startTime quick selections [Default: false]
+  - `shortJobQuickSelect Bool?`: Render short job quick selections [Default: false]
+  - `shortJobCutoff Int?`: Time in seconds for jobs to be considered short [Default: null]
   - `matchedJobs Number?`: Number of jobs matching the filter [Default: -2]
   - `showFilter Func`: If the filter component should be rendered in addition to total count info [Default: true]
   - `applyFilters Func`: The callback function to apply current filter selection
@@ -25,6 +27,7 @@
     ButtonGroup,
     ButtonDropdown,
     Icon,
+    Tooltip
   } from "@sveltestrap/sveltestrap";
   import Info from "./filters/InfoBox.svelte";
   import Cluster from "./filters/Cluster.svelte";
@@ -36,6 +39,7 @@
   import Resources from "./filters/Resources.svelte";
   import Energy from "./filters/Energy.svelte";
   import Statistics from "./filters/Stats.svelte";
+  import { formatDurationTime } from "./units.js";
 
   /* Svelte 5 Props */
   let {  
@@ -43,6 +47,8 @@
     filterPresets = {},
     disableClusterSelection = false,
     startTimeQuickSelect = false,
+    shortJobQuickSelect = false,
+    shortJobCutoff = 0,
     matchedJobs = -2,
     showFilter = true,
     applyFilters
@@ -335,6 +341,44 @@
         <DropdownItem onclick={() => (isStatsOpen = true)}>
           <Icon name="bar-chart" onclick={() => (isStatsOpen = true)} /> Statistics
         </DropdownItem>
+        {#if shortJobQuickSelect && shortJobCutoff > 0}
+          <DropdownItem divider />
+          <DropdownItem header>
+            Short Jobs Selection
+            <Icon id="shortjobsfilter-info" style="cursor:help; padding-right: 8px;" size="sm" name="info-circle"/>
+            <Tooltip target={`shortjobsfilter-info`} placement="right">
+              Job duration less than {formatDurationTime(shortJobCutoff)}
+            </Tooltip>
+          </DropdownItem>
+          <DropdownItem
+            onclick={() => {
+              filters.duration = { 
+                moreThan: null,
+                lessThan: shortJobCutoff,
+                from: null,
+                to: null
+              }
+              updateFilters();
+            }}
+          >
+            <Icon name="stopwatch" />
+            Only Short Jobs
+          </DropdownItem>
+          <DropdownItem
+            onclick={() => {
+              filters.duration = { 
+                moreThan: shortJobCutoff,
+                lessThan: null,
+                from: null,
+                to: null
+              }
+              updateFilters();
+            }}
+          >
+            <Icon name="stopwatch" />
+            Exclude Short Jobs
+          </DropdownItem>
+        {/if}
         {#if startTimeQuickSelect}
           <DropdownItem divider />
           <DropdownItem header>Start Time Quick Selection</DropdownItem>

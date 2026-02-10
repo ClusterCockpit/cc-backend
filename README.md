@@ -173,14 +173,14 @@ ln -s <your-existing-job-archive> ./var/job-archive
     Job classification and application detection
   - [`taskmanager`](https://github.com/ClusterCockpit/cc-backend/tree/master/internal/taskmanager)
     Background task management and scheduled jobs
+  - [`metricstoreclient`](https://github.com/ClusterCockpit/cc-backend/tree/master/internal/metricstoreclient)
+    Client for cc-metric-store queries
 - [`pkg/`](https://github.com/ClusterCockpit/cc-backend/tree/master/pkg)
   contains Go packages that can be used by other projects.
   - [`archive`](https://github.com/ClusterCockpit/cc-backend/tree/master/pkg/archive)
-    Job archive backend implementations (filesystem, S3)
+    Job archive backend implementations (filesystem, S3, SQLite)
   - [`metricstore`](https://github.com/ClusterCockpit/cc-backend/tree/master/pkg/metricstore)
     In-memory metric data store with checkpointing and metric loading
-  - [`nats`](https://github.com/ClusterCockpit/cc-backend/tree/master/pkg/nats)
-    NATS client and message handling
 - [`tools/`](https://github.com/ClusterCockpit/cc-backend/tree/master/tools)
   Additional command line helper tools.
   - [`archive-manager`](https://github.com/ClusterCockpit/cc-backend/tree/master/tools/archive-manager)

@@ -170,7 +170,6 @@ All exported functions are safe for concurrent use:
 - `Start()` - Safe to call once
 - `TriggerArchiving()` - Safe from multiple goroutines
 - `Shutdown()` - Safe to call once
-- `WaitForArchiving()` - Deprecated, but safe
 
 Internal state is protected by:
 - Channel synchronization (`archiveChannel`)

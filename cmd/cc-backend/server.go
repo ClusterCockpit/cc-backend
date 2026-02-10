@@ -299,6 +299,10 @@ func (s *Server) init() error {
 		})
 	}
 
+	// Set NotFound on the router so chi uses it for all unmatched routes,
+	// including those under subrouters like /api, /userapi, /frontend, etc.
+	s.router.NotFound(notFoundHandler)
+
 	if config.Keys.EmbedStaticFiles {
 		if i, err := os.Stat("./var/img"); err == nil {
 			if i.IsDir() {
