@@ -139,6 +139,13 @@ func nodeTestSetup(t *testing.T) {
 	}
 	archiveCfg := fmt.Sprintf("{\"kind\": \"file\",\"path\": \"%s\"}", jobarchive)
 
+	if err := ResetConnection(); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() {
+		ResetConnection()
+	})
+
 	Connect(dbfilepath)
 
 	if err := archive.Init(json.RawMessage(archiveCfg)); err != nil {

@@ -6,6 +6,8 @@ package repository
 
 import (
 	"context"
+	"os"
+	"path/filepath"
 	"testing"
 
 	"github.com/ClusterCockpit/cc-backend/internal/graph/model"
@@ -148,8 +150,22 @@ func getContext(tb testing.TB) context.Context {
 func setup(tb testing.TB) *JobRepository {
 	tb.Helper()
 	cclog.Init("warn", true)
-	dbfile := "testdata/job.db"
-	err := MigrateDB(dbfile)
+
+	// Copy test DB to a temp file for test isolation
+	srcData, err := os.ReadFile("testdata/job.db")
+	noErr(tb, err)
+	dbfile := filepath.Join(tb.TempDir(), "job.db")
+	err = os.WriteFile(dbfile, srcData, 0o644)
+	noErr(tb, err)
+
+	// Reset singletons so Connect uses the new temp DB
+	err = ResetConnection()
+	noErr(tb, err)
+	tb.Cleanup(func() {
+		ResetConnection()
+	})
+
+	err = MigrateDB(dbfile)
 	noErr(tb, err)
 	Connect(dbfile)
 	return GetJobRepository()
