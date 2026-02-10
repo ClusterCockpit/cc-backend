@@ -4,8 +4,6 @@
   Properties:
   - `cluster String`: The nodes' cluster
   - `subCluster String`: The nodes' subCluster [Default: ""]
-  - `ccconfig Object?`: The ClusterCockpit Config Context [Default: null]
-  - `globalMetrics [Obj]`: Includes the backend supplied availabilities for cluster and subCluster
   - `pendingSelectedMetrics [String]`: The array of selected metrics [Default []]
   - `selectedResolution Number?`: The selected data resolution [Default: 0]
   - `hostnameFilter String?`: The active hostnamefilter [Default: ""]
@@ -16,7 +14,7 @@
 -->
 
 <script>
-  import { untrack } from "svelte";
+  import { untrack,  getContext } from "svelte";
   import { queryStore, gql, getContextClient, mutationStore } from "@urql/svelte";
   import { Row, Col, Card, Table, Spinner } from "@sveltestrap/sveltestrap";
   import { stickyHeader } from "../generic/utils.js";
@@ -27,8 +25,6 @@
   let {
     cluster,
     subCluster = "",
-    ccconfig = null,
-    globalMetrics = null,
     pendingSelectedMetrics = [],
     selectedResolution = 0,
     hostnameFilter = "",
@@ -99,10 +95,15 @@
   let headerPaddingTop = $state(0);
 
   /* Derived */
+  const initialized = $derived(getContext("initialized") || false);
+  const ccconfig = $derived(initialized ? getContext("cc-config") : null);
+  const globalMetrics = $derived(initialized ? getContext("globalMetrics") : null);
+  const usePaging = $derived(ccconfig ? ccconfig.nodeList_usePaging : false);
+
   let selectedMetrics = $derived(pendingSelectedMetrics);
   let itemsPerPage = $derived(usePaging ? (ccconfig?.nodeList_nodesPerPage || 10) : 10);
-  const usePaging = $derived(ccconfig?.nodeList_usePaging || false);
-  const paging = $derived({ itemsPerPage, page });
+  let paging = $derived({ itemsPerPage, page });
+
   const nodesQuery = $derived(queryStore({
     client: client,
     query: nodeListQuery,
@@ -122,7 +123,7 @@
   }));
 
   const matchedNodes = $derived($nodesQuery?.data?.nodeMetricsList?.totalNodes || 0);
-  
+
   /* Effects */
   $effect(() => {
     if (!usePaging) {

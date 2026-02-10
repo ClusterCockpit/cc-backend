@@ -867,7 +867,8 @@ func (r *queryResolver) NodeMetricsList(ctx context.Context, cluster string, sub
 	}
 
 	nodeMetricsListResult := &model.NodesResultList{
-		Items:       nodeMetricsList,
+		Items: nodeMetricsList,
+		// TotalNodes depends on sum of nodes grouped on latest timestamp, see repo/node.go:357
 		TotalNodes:  &countNodes,
 		HasNextPage: &hasNextPage,
 	}
