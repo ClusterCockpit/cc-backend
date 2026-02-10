@@ -32,7 +32,7 @@
   } from "@urql/svelte";
   import {
     init,
-    checkMetricDisabled,
+    checkMetricAvailability,
   } from "./generic/utils.js";
   import PlotGrid from "./generic/PlotGrid.svelte";
   import MetricPlot from "./generic/plots/MetricPlot.svelte";
@@ -242,17 +242,17 @@
           {item.name}
           {systemUnits[item.name] ? "(" + systemUnits[item.name] + ")" : ""}
         </h4>
-        {#if item.disabled === false && item.metric}
-          <MetricPlot
-            metric={item.name}
-            timestep={item.metric.timestep}
-            cluster={clusterInfos.find((c) => c.name == cluster)}
-            subCluster={$nodeMetricsData.data.nodeMetrics[0].subCluster}
-            series={item.metric.series}
-            enableFlip
-            forNode
-          />
-        {:else if item.disabled === true && item.metric}
+        {#if item.availability == "none"}
+          <Card color="light" class="mx-2">
+            <CardHeader class="mb-0">
+              <b>Metric not configured</b>
+            </CardHeader>
+            <CardBody>
+              <p>No datasets returned for <b>{item.name}</b>.</p>
+              <p class="mb-1">Metric is not configured for cluster <b>{cluster}</b>.</p>
+            </CardBody>
+          </Card>
+        {:else if item.availability == "disabled"}
           <Card color="info" class="mx-2">
             <CardHeader class="mb-0">
               <b>Disabled Metric</b>
@@ -262,6 +262,16 @@
               <p class="mb-1">Metric has been disabled for subcluster <b>{$nodeMetricsData.data.nodeMetrics[0].subCluster}</b>.</p>
             </CardBody>
           </Card>
+        {:else if item?.metric}
+          <MetricPlot
+            metric={item.name}
+            timestep={item.metric.timestep}
+            cluster={clusterInfos.find((c) => c.name == cluster)}
+            subCluster={$nodeMetricsData.data.nodeMetrics[0].subCluster}
+            series={item.metric.series}
+            enableFlip
+            forNode
+          />
         {:else}
           <Card color="warning" class="mx-2">
             <CardHeader class="mb-0">
@@ -279,7 +289,7 @@
         items={$nodeMetricsData.data.nodeMetrics[0].metrics
           .map((m) => ({
             ...m,
-            disabled: checkMetricDisabled(
+            availability: checkMetricAvailability(
               globalMetrics,
               m.name,
               cluster,

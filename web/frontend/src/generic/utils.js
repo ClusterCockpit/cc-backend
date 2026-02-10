@@ -302,20 +302,36 @@ export function stickyHeader(datatableHeaderSelector, updatePading) {
     onDestroy(() => document.removeEventListener("scroll", onscroll));
 }
 
-export function checkMetricDisabled(gm, m, c, s) { // [g]lobal[m]etrics, [m]etric, [c]luster, [s]ubcluster
-    const available = gm?.find((gm) => gm.name === m)?.availability?.find((av) => av.cluster === c)?.subClusters?.includes(s)
-    // Return inverse logic
-    return !available
+export function checkMetricAvailability(gms, m, c, s = "") { // [g]lobal[m]etrics, [m]etric, [c]luster, [s]ubcluster
+    let pendingAvailability = "none"
+    const configured = gms?.find((gm) => gm.name === m)?.availability?.find((av) => av.cluster === c)
+    if (configured) {
+        pendingAvailability = "configured"
+        if (s != "") { 
+            const enabled = configured.subClusters?.includes(s)
+            // Test inverse logic
+            if (!enabled) {
+                pendingAvailability = "disabled"
+            }
+        }
+    }
+    return pendingAvailability;
 }
 
-export function checkMetricsDisabled(gm, ma, c, s) { // [g]lobal[m]etrics, [m]etric[a]rray, [c]luster, [s]ubcluster
-    let result = {};
-    ma.forEach((m) => {
-        // Return named inverse logic: !available
-        result[m] = !(gm?.find((gm) => gm.name === m)?.availability?.find((av) => av.cluster === c)?.subClusters?.includes(s))
-    });
-    return result
-}
+// export function checkMetricDisabled(gm, m, c, s) { // [g]lobal[m]etrics, [m]etric, [c]luster, [s]ubcluster
+//     const available = gm?.find((gm) => gm.name === m)?.availability?.find((av) => av.cluster === c)?.subClusters?.includes(s)
+//     // Return inverse logic
+//     return !available
+// }
+
+// export function checkMetricsDisabled(gm, ma, c, s) { // [g]lobal[m]etrics, [m]etric[a]rray, [c]luster, [s]ubcluster
+//     let aresult = {};
+//     ma.forEach((m) => {
+//         // Return named inverse logic: !available
+//         aresult[m] = !(gm?.find((gm) => gm.name === m)?.availability?.find((av) => av.cluster === c)?.subClusters?.includes(s))
+//     });
+//     return aresult
+// }
 
 export function getStatsItems(presetStats = []) {
     // console.time('stats')

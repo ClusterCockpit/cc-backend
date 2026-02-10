@@ -19,7 +19,7 @@
 <script>
   import { queryStore, gql, getContextClient } from "@urql/svelte";
   import { Card, Spinner } from "@sveltestrap/sveltestrap";
-  import { maxScope, checkMetricDisabled } from "../utils.js";
+  import { maxScope, checkMetricAvailability } from "../utils.js";
   import JobInfo from "./JobInfo.svelte";
   import MetricPlot from "../plots/MetricPlot.svelte";
   import JobFootprint from "../helper/JobFootprint.svelte";
@@ -145,7 +145,7 @@
     metricList.forEach((metricName) => {
       const pendingMetric = {
         name: metricName,
-        disabled: checkMetricDisabled(
+        availability: checkMetricAvailability(
           globalMetrics,
           metricName,
           job.cluster,
@@ -207,7 +207,12 @@
     {/if}
     {#each refinedData as metric, i (metric?.name || i)}
       <td>
-        {#if metric?.disabled}
+        {#if metric?.availability == "none"}
+          <Card body class="mx-2" color="light">
+            <p>No dataset(s) returned for <b>{metrics[i]}</b></p>
+            <p class="mb-1">Metric is not configured for cluster <b>{job.cluster}</b>.</p>
+          </Card>
+        {:else if metric?.availability == "disabled"}
           <Card body class="mx-2" color="info">
             <p>No dataset(s) returned for <b>{metrics[i]}</b></p>
             <p class="mb-1">Metric has been disabled for subcluster <b>{job.subCluster}</b>.</p>
