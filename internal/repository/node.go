@@ -263,14 +263,16 @@ func (r *NodeRepository) QueryNodes(
 		if f.SchedulerState != nil {
 			query = query.Where("node_state = ?", f.SchedulerState)
 			// Requires Additional time_stamp Filter: Else the last (past!) time_stamp with queried state will be returned
+			// TODO: Hardcoded TimeDiff Suboptimal - Use Config Option?
 			now := time.Now().Unix()
-			query = query.Where(sq.Gt{"time_stamp": (now - 60)})
+			query = query.Where(sq.Gt{"time_stamp": (now - 300)})
 		}
 		if f.HealthState != nil {
 			query = query.Where("health_state = ?", f.HealthState)
 			// Requires Additional time_stamp Filter: Else the last (past!) time_stamp with queried state will be returned
+			// TODO: Hardcoded TimeDiff Suboptimal - Use Config Option?
 			now := time.Now().Unix()
-			query = query.Where(sq.Gt{"time_stamp": (now - 60)})
+			query = query.Where(sq.Gt{"time_stamp": (now - 300)})
 		}
 	}
 
@@ -331,14 +333,16 @@ func (r *NodeRepository) CountNodes(
 		if f.SchedulerState != nil {
 			query = query.Where("node_state = ?", f.SchedulerState)
 			// Requires Additional time_stamp Filter: Else the last (past!) time_stamp with queried state will be returned
+			// TODO: Hardcoded TimeDiff Suboptimal - Use Config Option?
 			now := time.Now().Unix()
-			query = query.Where(sq.Gt{"time_stamp": (now - 60)})
+			query = query.Where(sq.Gt{"time_stamp": (now - 300)})
 		}
 		if f.HealthState != nil {
 			query = query.Where("health_state = ?", f.HealthState)
 			// Requires Additional time_stamp Filter: Else the last (past!) time_stamp with queried state will be returned
+			// TODO: Hardcoded TimeDiff Suboptimal - Use Config Option?
 			now := time.Now().Unix()
-			query = query.Where(sq.Gt{"time_stamp": (now - 60)})
+			query = query.Where(sq.Gt{"time_stamp": (now - 300)})
 		}
 	}
 
