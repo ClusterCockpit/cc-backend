@@ -149,7 +149,7 @@ func (ccms *InternalMetricStore) LoadData(
 
 			jobMetric.Series = append(jobMetric.Series, schema.Series{
 				Hostname: query.Hostname,
-				Id:       id,
+				ID:       id,
 				Statistics: schema.MetricStatistics{
 					Avg: float64(res.Avg),
 					Min: float64(res.Min),
@@ -651,7 +651,7 @@ func (ccms *InternalMetricStore) LoadScopedStats(
 
 			scopedJobStats[metric][scope] = append(scopedJobStats[metric][scope], &schema.ScopedStats{
 				Hostname: query.Hostname,
-				Id:       id,
+				ID:       id,
 				Data: &schema.MetricStatistics{
 					Avg: float64(res.Avg),
 					Min: float64(res.Min),
@@ -894,7 +894,7 @@ func (ccms *InternalMetricStore) LoadNodeListData(
 
 			scopeData.Series = append(scopeData.Series, schema.Series{
 				Hostname: query.Hostname,
-				Id:       id,
+				ID:       id,
 				Statistics: schema.MetricStatistics{
 					Avg: float64(res.Avg),
 					Min: float64(res.Min),

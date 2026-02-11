@@ -164,7 +164,7 @@ func (api *RestAPI) createUser(rw http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if len(password) == 0 && role != schema.GetRoleString(schema.RoleApi) {
+	if len(password) == 0 && role != schema.GetRoleString(schema.RoleAPI) {
 		handleError(fmt.Errorf("only API users are allowed to have a blank password (login will be impossible)"), http.StatusBadRequest, rw)
 		return
 	}

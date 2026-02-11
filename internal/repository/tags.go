@@ -644,12 +644,12 @@ func (r *JobRepository) checkScopeAuth(user *schema.User, operation string, scop
 	if user != nil {
 		switch {
 		case operation == "write" && scope == "admin":
-			if user.HasRole(schema.RoleAdmin) || (len(user.Roles) == 1 && user.HasRole(schema.RoleApi)) {
+			if user.HasRole(schema.RoleAdmin) || (len(user.Roles) == 1 && user.HasRole(schema.RoleAPI)) {
 				return true, nil
 			}
 			return false, nil
 		case operation == "write" && scope == "global":
-			if user.HasAnyRole([]schema.Role{schema.RoleAdmin, schema.RoleSupport}) || (len(user.Roles) == 1 && user.HasRole(schema.RoleApi)) {
+			if user.HasAnyRole([]schema.Role{schema.RoleAdmin, schema.RoleSupport}) || (len(user.Roles) == 1 && user.HasRole(schema.RoleAPI)) {
 				return true, nil
 			}
 			return false, nil

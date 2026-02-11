@@ -51,7 +51,7 @@ func DecodeJobStats(r io.Reader, k string) (schema.ScopedJobStats, error) {
 				for _, series := range jobMetric.Series {
 					scopedJobStats[metric][scope] = append(scopedJobStats[metric][scope], &schema.ScopedStats{
 						Hostname: series.Hostname,
-						Id:       series.Id,
+						ID:       series.ID,
 						Data:     &series.Statistics,
 					})
 				}

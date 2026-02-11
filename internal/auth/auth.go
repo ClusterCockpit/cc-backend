@@ -448,13 +448,13 @@ func (auth *Authentication) AuthAPI(
 		if user != nil {
 			switch {
 			case len(user.Roles) == 1:
-				if user.HasRole(schema.RoleApi) {
+				if user.HasRole(schema.RoleAPI) {
 					ctx := context.WithValue(r.Context(), repository.ContextUserKey, user)
 					onsuccess.ServeHTTP(rw, r.WithContext(ctx))
 					return
 				}
 			case len(user.Roles) >= 2:
-				if user.HasAllRoles([]schema.Role{schema.RoleAdmin, schema.RoleApi}) {
+				if user.HasAllRoles([]schema.Role{schema.RoleAdmin, schema.RoleAPI}) {
 					ctx := context.WithValue(r.Context(), repository.ContextUserKey, user)
 					onsuccess.ServeHTTP(rw, r.WithContext(ctx))
 					return
@@ -484,13 +484,13 @@ func (auth *Authentication) AuthUserAPI(
 		if user != nil {
 			switch {
 			case len(user.Roles) == 1:
-				if user.HasRole(schema.RoleApi) {
+				if user.HasRole(schema.RoleAPI) {
 					ctx := context.WithValue(r.Context(), repository.ContextUserKey, user)
 					onsuccess.ServeHTTP(rw, r.WithContext(ctx))
 					return
 				}
 			case len(user.Roles) >= 2:
-				if user.HasRole(schema.RoleApi) && user.HasAnyRole([]schema.Role{schema.RoleUser, schema.RoleManager, schema.RoleSupport, schema.RoleAdmin}) {
+				if user.HasRole(schema.RoleAPI) && user.HasAnyRole([]schema.Role{schema.RoleUser, schema.RoleManager, schema.RoleSupport, schema.RoleAdmin}) {
 					ctx := context.WithValue(r.Context(), repository.ContextUserKey, user)
 					onsuccess.ServeHTTP(rw, r.WithContext(ctx))
 					return
@@ -520,13 +520,13 @@ func (auth *Authentication) AuthMetricStoreAPI(
 		if user != nil {
 			switch {
 			case len(user.Roles) == 1:
-				if user.HasRole(schema.RoleApi) {
+				if user.HasRole(schema.RoleAPI) {
 					ctx := context.WithValue(r.Context(), repository.ContextUserKey, user)
 					onsuccess.ServeHTTP(rw, r.WithContext(ctx))
 					return
 				}
 			case len(user.Roles) >= 2:
-				if user.HasRole(schema.RoleApi) && user.HasAnyRole([]schema.Role{schema.RoleUser, schema.RoleManager, schema.RoleAdmin}) {
+				if user.HasRole(schema.RoleAPI) && user.HasAnyRole([]schema.Role{schema.RoleUser, schema.RoleManager, schema.RoleAdmin}) {
 					ctx := context.WithValue(r.Context(), repository.ContextUserKey, user)
 					onsuccess.ServeHTTP(rw, r.WithContext(ctx))
 					return

@@ -552,7 +552,7 @@ func (r *queryResolver) ScopedJobStats(ctx context.Context, id string, metrics [
 			for _, stat := range stats {
 				mdlStats = append(mdlStats, &model.ScopedStats{
 					Hostname: stat.Hostname,
-					ID:       stat.Id,
+					ID:       stat.ID,
 					Data:     stat.Data,
 				})
 			}

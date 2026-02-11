@@ -1054,8 +1054,8 @@ type GetUsedNodesAPIResponse struct {
 // @router      /api/jobs/used_nodes [get]
 func (api *RestAPI) getUsedNodes(rw http.ResponseWriter, r *http.Request) {
 	if user := repository.GetUserFromContext(r.Context()); user != nil &&
-		!user.HasRole(schema.RoleApi) {
-		handleError(fmt.Errorf("missing role: %v", schema.GetRoleString(schema.RoleApi)), http.StatusForbidden, rw)
+		!user.HasRole(schema.RoleAPI) {
+		handleError(fmt.Errorf("missing role: %v", schema.GetRoleString(schema.RoleAPI)), http.StatusForbidden, rw)
 		return
 	}
 

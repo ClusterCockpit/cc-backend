@@ -36,9 +36,9 @@ type GetClustersAPIResponse struct {
 // @router      /api/clusters/ [get]
 func (api *RestAPI) getClusters(rw http.ResponseWriter, r *http.Request) {
 	if user := repository.GetUserFromContext(r.Context()); user != nil &&
-		!user.HasRole(schema.RoleApi) {
+		!user.HasRole(schema.RoleAPI) {
 
-		handleError(fmt.Errorf("missing role: %v", schema.GetRoleString(schema.RoleApi)), http.StatusForbidden, rw)
+		handleError(fmt.Errorf("missing role: %v", schema.GetRoleString(schema.RoleAPI)), http.StatusForbidden, rw)
 		return
 	}
 
