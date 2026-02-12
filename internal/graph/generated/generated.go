@@ -10245,7 +10245,7 @@ func (ec *executionContext) _Series_id(ctx context.Context, field graphql.Collec
 		field,
 		ec.fieldContext_Series_id,
 		func(ctx context.Context) (any, error) {
-			return obj.Id, nil
+			return obj.ID, nil
 		},
 		nil,
 		ec.marshalOString2ᚖstring,

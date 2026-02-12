@@ -248,7 +248,7 @@ func generateJWT(authHandle *auth.Authentication, username string) error {
 		return fmt.Errorf("getting user '%s': %w", username, err)
 	}
 
-	if !user.HasRole(schema.RoleApi) {
+	if !user.HasRole(schema.RoleAPI) {
 		cclog.Warnf("JWT: User '%s' does not have the role 'api'. REST API endpoints will return error!\n", user.Username)
 	}
 

@@ -71,6 +71,23 @@ type ProgramConfig struct {
 
 	// If exists, will enable dynamic zoom in frontend metric plots using the configured values
 	EnableResampling *ResampleConfig `json:"resampling"`
+
+	// Node state retention configuration
+	NodeStateRetention *NodeStateRetention `json:"nodestate-retention"`
+}
+
+type NodeStateRetention struct {
+	Policy             string `json:"policy"`               // "delete" or "parquet"
+	Age                int    `json:"age"`                  // hours, default 24
+	TargetKind         string `json:"target-kind"`          // "file" or "s3"
+	TargetPath         string `json:"target-path"`
+	TargetEndpoint     string `json:"target-endpoint"`
+	TargetBucket       string `json:"target-bucket"`
+	TargetAccessKey    string `json:"target-access-key"`
+	TargetSecretKey    string `json:"target-secret-key"`
+	TargetRegion       string `json:"target-region"`
+	TargetUsePathStyle bool   `json:"target-use-path-style"`
+	MaxFileSizeMB      int    `json:"max-file-size-mb"`
 }
 
 type ResampleConfig struct {

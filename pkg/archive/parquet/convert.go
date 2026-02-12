@@ -81,7 +81,6 @@ func JobToParquetRow(meta *schema.Job, data *schema.JobData) (*ParquetJobRow, er
 		NumNodes:       meta.NumNodes,
 		NumHWThreads:   meta.NumHWThreads,
 		NumAcc:         meta.NumAcc,
-		Exclusive:      meta.Exclusive,
 		Energy:         meta.Energy,
 		SMT:            meta.SMT,
 		ResourcesJSON:  resourcesJSON,

@@ -451,7 +451,7 @@
 
   {#if filters.startTime.range}
     <Info icon="calendar-range" onclick={() => (isStartTimeOpen = true)}>
-      {startTimeSelectOptions.find((stso) => stso.range === filters.startTime.range).rangeLabel }
+      Job Start: {startTimeSelectOptions.find((stso) => stso.range === filters.startTime.range).rangeLabel }
     </Info>
   {/if}
 

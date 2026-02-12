@@ -15,7 +15,7 @@
  <script>
   import { queryStore, gql, getContextClient } from "@urql/svelte";
   import { Row, Col, Card, CardHeader, CardBody, Spinner, Badge } from "@sveltestrap/sveltestrap";
-  import { checkMetricDisabled } from "../generic/utils.js";
+  import { checkMetricAvailability } from "../generic/utils.js";
   import MetricPlot from "../generic/plots/MetricPlot.svelte";
 
   /* Svelte 5 Props */
@@ -87,6 +87,7 @@
     },
   }));
 
+  const notConfigured = $derived(checkMetricAvailability(globalMetrics, selectedMetric, cluster) == "none");
   const mappedData = $derived(handleQueryData($nodesQuery?.data));
   const filteredData = $derived(mappedData.filter((h) => {
     if (hostnameFilter) {
@@ -120,7 +121,7 @@
         data: h.metrics.filter(
           (m) => m?.name == selectedMetric && m.scope == "node",
         ),
-        disabled: checkMetricDisabled(globalMetrics, selectedMetric, cluster, h.subCluster),
+        availability: checkMetricAvailability(globalMetrics, selectedMetric, cluster, h.subCluster),
       }))
       .sort((a, b) => a.host.localeCompare(b.host))
     }
@@ -161,7 +162,7 @@
               </Badge>
             </span>
           </div>
-          {#if item?.disabled}
+          {#if item?.availability == "disabled"}
             <Card color="info">
               <CardHeader class="mb-0">
                 <b>Disabled Metric</b>
@@ -210,6 +211,18 @@
       <CardBody>
         <p>No datasets returned for <b>{selectedMetric}</b>.</p>
         <p class="mb-1">Hostname filter and/or host state filter returned no matches.</p>
+      </CardBody>
+    </Card>
+  </Row>
+{:else if notConfigured}
+  <Row class="mx-1">
+    <Card class="px-0" color="light">
+      <CardHeader>
+        <b>Metric not configured</b>
+      </CardHeader>
+      <CardBody>
+        <p>No datasets returned for <b>{selectedMetric}</b>.</p>
+        <p class="mb-1">Metric is not configured for cluster <b>{cluster}</b>.</p>
       </CardBody>
     </Card>
   </Row>

@@ -169,9 +169,10 @@ func (r *NodeRepository) AddNode(node *schema.NodeDB) (int64, error) {
 }
 
 const NamedNodeStateInsert string = `
-INSERT INTO node_state (time_stamp, node_state, health_state, cpus_allocated,
-	memory_allocated, gpus_allocated, jobs_running, node_id)
-	VALUES (:time_stamp, :node_state, :health_state, :cpus_allocated, :memory_allocated, :gpus_allocated, :jobs_running, :node_id);`
+INSERT INTO node_state (time_stamp, node_state, health_state, health_metrics,
+	cpus_allocated, memory_allocated, gpus_allocated, jobs_running, node_id)
+	VALUES (:time_stamp, :node_state, :health_state, :health_metrics,
+	:cpus_allocated, :memory_allocated, :gpus_allocated, :jobs_running, :node_id);`
 
 // TODO: Add real Monitoring Health State
 
@@ -224,6 +225,75 @@ func (r *NodeRepository) UpdateNodeState(hostname string, cluster string, nodeSt
 // 	return nil
 // }
 
+// NodeStateWithNode combines a node state row with denormalized node info.
+type NodeStateWithNode struct {
+	ID              int64  `db:"id"`
+	TimeStamp       int64  `db:"time_stamp"`
+	NodeState       string `db:"node_state"`
+	HealthState     string `db:"health_state"`
+	HealthMetrics   string `db:"health_metrics"`
+	CpusAllocated   int    `db:"cpus_allocated"`
+	MemoryAllocated int64  `db:"memory_allocated"`
+	GpusAllocated   int    `db:"gpus_allocated"`
+	JobsRunning     int    `db:"jobs_running"`
+	Hostname        string `db:"hostname"`
+	Cluster         string `db:"cluster"`
+	SubCluster      string `db:"subcluster"`
+}
+
+// FindNodeStatesBefore returns all node_state rows with time_stamp < cutoff,
+// joined with node info for denormalized archiving.
+func (r *NodeRepository) FindNodeStatesBefore(cutoff int64) ([]NodeStateWithNode, error) {
+	rows, err := sq.Select(
+		"node_state.id", "node_state.time_stamp", "node_state.node_state",
+		"node_state.health_state", "node_state.health_metrics",
+		"node_state.cpus_allocated", "node_state.memory_allocated",
+		"node_state.gpus_allocated", "node_state.jobs_running",
+		"node.hostname", "node.cluster", "node.subcluster",
+	).
+		From("node_state").
+		Join("node ON node_state.node_id = node.id").
+		Where(sq.Lt{"node_state.time_stamp": cutoff}).
+		Where("node_state.id NOT IN (SELECT ns2.id FROM node_state ns2 WHERE ns2.time_stamp = (SELECT MAX(ns3.time_stamp) FROM node_state ns3 WHERE ns3.node_id = ns2.node_id))").
+		OrderBy("node_state.time_stamp ASC").
+		RunWith(r.DB).Query()
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var result []NodeStateWithNode
+	for rows.Next() {
+		var ns NodeStateWithNode
+		if err := rows.Scan(&ns.ID, &ns.TimeStamp, &ns.NodeState,
+			&ns.HealthState, &ns.HealthMetrics,
+			&ns.CpusAllocated, &ns.MemoryAllocated,
+			&ns.GpusAllocated, &ns.JobsRunning,
+			&ns.Hostname, &ns.Cluster, &ns.SubCluster); err != nil {
+			return nil, err
+		}
+		result = append(result, ns)
+	}
+	return result, nil
+}
+
+// DeleteNodeStatesBefore removes node_state rows with time_stamp < cutoff,
+// but always preserves the row with the latest timestamp per node_id.
+func (r *NodeRepository) DeleteNodeStatesBefore(cutoff int64) (int64, error) {
+	res, err := r.DB.Exec(
+		`DELETE FROM node_state WHERE time_stamp < ?
+		 AND id NOT IN (
+		   SELECT id FROM node_state ns2
+		   WHERE ns2.time_stamp = (SELECT MAX(ns3.time_stamp) FROM node_state ns3 WHERE ns3.node_id = ns2.node_id)
+		 )`,
+		cutoff,
+	)
+	if err != nil {
+		return 0, err
+	}
+	return res.RowsAffected()
+}
+
 func (r *NodeRepository) DeleteNode(id int64) error {
 	_, err := r.DB.Exec(`DELETE FROM node WHERE node.id = ?`, id)
 	if err != nil {
@@ -263,14 +333,16 @@ func (r *NodeRepository) QueryNodes(
 		if f.SchedulerState != nil {
 			query = query.Where("node_state = ?", f.SchedulerState)
 			// Requires Additional time_stamp Filter: Else the last (past!) time_stamp with queried state will be returned
+			// TODO: Hardcoded TimeDiff Suboptimal - Use Config Option?
 			now := time.Now().Unix()
-			query = query.Where(sq.Gt{"time_stamp": (now - 60)})
+			query = query.Where(sq.Gt{"time_stamp": (now - 300)})
 		}
 		if f.HealthState != nil {
 			query = query.Where("health_state = ?", f.HealthState)
 			// Requires Additional time_stamp Filter: Else the last (past!) time_stamp with queried state will be returned
+			// TODO: Hardcoded TimeDiff Suboptimal - Use Config Option?
 			now := time.Now().Unix()
-			query = query.Where(sq.Gt{"time_stamp": (now - 60)})
+			query = query.Where(sq.Gt{"time_stamp": (now - 300)})
 		}
 	}
 
@@ -331,14 +403,16 @@ func (r *NodeRepository) CountNodes(
 		if f.SchedulerState != nil {
 			query = query.Where("node_state = ?", f.SchedulerState)
 			// Requires Additional time_stamp Filter: Else the last (past!) time_stamp with queried state will be returned
+			// TODO: Hardcoded TimeDiff Suboptimal - Use Config Option?
 			now := time.Now().Unix()
-			query = query.Where(sq.Gt{"time_stamp": (now - 60)})
+			query = query.Where(sq.Gt{"time_stamp": (now - 300)})
 		}
 		if f.HealthState != nil {
 			query = query.Where("health_state = ?", f.HealthState)
 			// Requires Additional time_stamp Filter: Else the last (past!) time_stamp with queried state will be returned
+			// TODO: Hardcoded TimeDiff Suboptimal - Use Config Option?
 			now := time.Now().Unix()
-			query = query.Where(sq.Gt{"time_stamp": (now - 60)})
+			query = query.Where(sq.Gt{"time_stamp": (now - 300)})
 		}
 	}
 

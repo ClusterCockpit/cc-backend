@@ -47,7 +47,6 @@ func makeTestJob(jobID int64) (*schema.Job, *schema.JobData) {
 		Walltime:   7200,
 		NumNodes:   2,
 		NumHWThreads: 16,
-		Exclusive:  1,
 		SMT:        1,
 		Resources: []*schema.Resource{
 			{Hostname: "node001"},

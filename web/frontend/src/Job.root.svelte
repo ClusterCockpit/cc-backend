@@ -30,7 +30,7 @@
   import {
     init,
     groupByScope,
-    checkMetricDisabled,
+    checkMetricAvailability,
   } from "./generic/utils.js";
   import Metric from "./job/Metric.svelte";
   import MetricSelection from "./generic/select/MetricSelection.svelte";
@@ -151,17 +151,17 @@
           }
           return names;
         }, []);
-
+      // 
       return metricNames.filter(
         (metric) =>
           !metrics.some((jm) => jm.name == metric) &&
           selectedMetrics.includes(metric) && 
-          !checkMetricDisabled(
+          (checkMetricAvailability(
             globalMetrics,
             metric,
             thisJob.cluster,
             thisJob.subCluster,
-          ),
+          ) == "configured")
       );
     } else {
       return []
@@ -212,7 +212,7 @@
     inputMetrics.map((metric) => ({
       metric: metric,
       data: grouped.find((group) => group[0].name == metric),
-      disabled: checkMetricDisabled(
+      availability: checkMetricAvailability(
         globalMetrics,
         metric,
         thisJob.cluster,
@@ -333,7 +333,17 @@
     {:else if thisJob && $jobMetrics?.data?.scopedJobStats}
       <!-- Note: Ignore '#snippet' Error in IDE -->
       {#snippet gridContent(item)}
-        {#if item?.disabled}
+        {#if item.availability == "none"}
+          <Card color="light" class="mt-2">
+            <CardHeader class="mb-0">
+              <b>Metric not configured</b>
+            </CardHeader>
+            <CardBody>
+              <p>No datasets returned for <b>{item.metric}</b>.</p>
+              <p class="mb-1">Metric is not configured for cluster <b>{thisJob.cluster}</b>.</p>
+            </CardBody>
+          </Card>
+        {:else if item.availability == "disabled"}
           <Card color="info" class="mt-2">
             <CardHeader class="mb-0">
               <b>Disabled Metric</b>

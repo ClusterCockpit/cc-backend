@@ -16,7 +16,7 @@
   } from "@urql/svelte";
   import uPlot from "uplot";
   import { Card, CardBody, Spinner } from "@sveltestrap/sveltestrap";
-  import { maxScope, checkMetricDisabled, scramble, scrambleNames } from "../../generic/utils.js";
+  import { maxScope, checkMetricAvailability, scramble, scrambleNames } from "../../generic/utils.js";
   import MetricPlot from "../../generic/plots/MetricPlot.svelte";
   import NodeInfo from "./NodeInfo.svelte";
 
@@ -73,7 +73,7 @@
 
   const extendedLegendData = $derived($nodeJobsData?.data ? buildExtendedLegend() : null);
   const refinedData = $derived(nodeData?.metrics ? sortAndSelectScope(selectedMetrics, nodeData.metrics) : []);
-  const dataHealth = $derived(refinedData.filter((rd) => rd.disabled === false).map((enabled) => (enabled?.data?.metric?.series?.length > 0)));
+  const dataHealth = $derived(refinedData.filter((rd) => rd.availability == "configured").map((enabled) => (enabled?.data?.metric?.series?.length > 0)));
 
   /* Functions */
   function sortAndSelectScope(metricList = [], nodeMetrics = []) {
@@ -81,7 +81,7 @@
     metricList.forEach((metricName) => {
       const pendingMetric = {
         name: metricName,
-        disabled: checkMetricDisabled(
+        availability: checkMetricAvailability(
           globalMetrics,
           metricName,
           cluster,
@@ -130,23 +130,6 @@
     return pendingExtendedLegendData;
   }
 
-  /* Inspect */
-  // $inspect(selectedMetrics).with((type, selectedMetrics) => {
-  //   console.log(type, 'selectedMetrics', selectedMetrics)
-	// });
-
-  // $inspect(nodeData).with((type, nodeData) => {
-  //   console.log(type, 'nodeData', nodeData)
-	// });
-
-  // $inspect(refinedData).with((type, refinedData) => {
-  //   console.log(type, 'refinedData', refinedData)
-	// });
-
-  // $inspect(dataHealth).with((type, dataHealth) => {
-  //   console.log(type, 'dataHealth', dataHealth)
-	// });
-
 </script>
 
 <tr>
@@ -168,19 +151,25 @@
     {/if}
   </td>
   {#each refinedData as metricData, i (metricData?.data?.name || i)}
-    <td>
-      {#if metricData?.disabled}
-        <Card body class="mx-2" color="info">
-          <p>No dataset(s) returned for <b>{selectedMetrics[i]}</b></p>
-          <p class="mb-1">Metric has been disabled for subcluster <b>{nodeData.subCluster}</b>.</p>
-        </Card>
-      {:else if !metricData?.data}
-        <Card body class="mx-2" color="warning">
-          <p>No dataset(s) returned for <b>{selectedMetrics[i]}</b></p>
-          <p class="mb-1">Metric was not found in metric store for cluster <b>{cluster}</b>.</p>
-        </Card>
-      {:else if !!metricData.data?.metric.statisticsSeries}
-        <!-- "No Data"-Warning included in MetricPlot-Component -->
+    {#key metricData}
+      <td>
+        {#if metricData?.availability == "none"}
+          <Card body class="mx-2" color="light">
+            <p>No dataset(s) returned for <b>{selectedMetrics[i]}</b></p>
+            <p class="mb-1">Metric is not configured for cluster <b>{cluster}</b>.</p>
+          </Card>
+        {:else if metricData?.availability == "disabled"}
+          <Card body class="mx-2" color="info">
+            <p>No dataset(s) returned for <b>{selectedMetrics[i]}</b></p>
+            <p class="mb-1">Metric has been disabled for subcluster <b>{nodeData.subCluster}</b>.</p>
+          </Card>
+        {:else if !metricData?.data}
+          <Card body class="mx-2" color="warning">
+            <p>No dataset(s) returned for <b>{selectedMetrics[i]}</b></p>
+            <p class="mb-1">Metric or host was not found in metric store for cluster <b>{cluster}</b>.</p>
+          </Card>
+        {:else if !!metricData.data?.metric.statisticsSeries}
+          <!-- "No Data"-Warning included in MetricPlot-Component -->
           <MetricPlot
             {cluster}
             subCluster={nodeData.subCluster}
@@ -194,8 +183,7 @@
             {plotSync}
             forNode
           />
-        <div class="my-2"></div>
-        {#key extendedLegendData}
+          <div class="my-2"></div>
           <MetricPlot
             {cluster}
             subCluster={nodeData.subCluster}
@@ -208,8 +196,7 @@
             {plotSync}
             forNode
           />
-        {/key}
-      {:else}
+        {:else}
           <MetricPlot
             {cluster}
             subCluster={nodeData.subCluster}
@@ -220,7 +207,8 @@
             height={375}
             forNode
           />
-      {/if}
-    </td>
+        {/if}
+      </td>
+    {/key}
   {/each}
 </tr>

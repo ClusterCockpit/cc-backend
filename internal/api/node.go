@@ -80,7 +80,7 @@ func (api *RestAPI) updateNodeStates(rw http.ResponseWriter, r *http.Request) {
 	ms := metricstore.GetMemoryStore()
 
 	m := make(map[string][]string)
-	healthStates := make(map[string]schema.MonitoringState)
+	healthResults := make(map[string]metricstore.HealthCheckResult)
 
 	startMs := time.Now()
 
@@ -94,8 +94,8 @@ func (api *RestAPI) updateNodeStates(rw http.ResponseWriter, r *http.Request) {
 		if sc != "" {
 			metricList := archive.GetMetricConfigSubCluster(req.Cluster, sc)
 			metricNames := metricListToNames(metricList)
-			if states, err := ms.HealthCheck(req.Cluster, nl, metricNames); err == nil {
-				maps.Copy(healthStates, states)
+			if results, err := ms.HealthCheck(req.Cluster, nl, metricNames); err == nil {
+				maps.Copy(healthResults, results)
 			}
 		}
 	}
@@ -106,8 +106,10 @@ func (api *RestAPI) updateNodeStates(rw http.ResponseWriter, r *http.Request) {
 	for _, node := range req.Nodes {
 		state := determineState(node.States)
 		healthState := schema.MonitoringStateFailed
-		if hs, ok := healthStates[node.Hostname]; ok {
-			healthState = hs
+		var healthMetrics string
+		if result, ok := healthResults[node.Hostname]; ok {
+			healthState = result.State
+			healthMetrics = result.HealthMetrics
 		}
 		nodeState := schema.NodeStateDB{
 			TimeStamp:       requestReceived,
@@ -116,10 +118,14 @@ func (api *RestAPI) updateNodeStates(rw http.ResponseWriter, r *http.Request) {
 			MemoryAllocated: node.MemoryAllocated,
 			GpusAllocated:   node.GpusAllocated,
 			HealthState:     healthState,
+			HealthMetrics:   healthMetrics,
 			JobsRunning:     node.JobsRunning,
 		}
 
-		repo.UpdateNodeState(node.Hostname, req.Cluster, &nodeState)
+		if err := repo.UpdateNodeState(node.Hostname, req.Cluster, &nodeState); err != nil {
+			cclog.Errorf("updateNodeStates: updating node state for %s on %s failed: %v",
+				node.Hostname, req.Cluster, err)
+		}
 	}
 
 	cclog.Debugf("Timer updateNodeStates, SQLite Inserts: %s", time.Since(startDB))

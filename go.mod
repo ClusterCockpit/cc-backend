@@ -9,7 +9,7 @@ tool (
 
 require (
 	github.com/99designs/gqlgen v0.17.85
-	github.com/ClusterCockpit/cc-lib/v2 v2.2.2
+	github.com/ClusterCockpit/cc-lib/v2 v2.4.0
 	github.com/Masterminds/squirrel v1.5.4
 	github.com/aws/aws-sdk-go-v2 v1.41.1
 	github.com/aws/aws-sdk-go-v2/config v1.32.6

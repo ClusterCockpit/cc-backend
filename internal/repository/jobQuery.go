@@ -150,7 +150,7 @@ func SecurityCheckWithUser(user *schema.User, query sq.SelectBuilder) (sq.Select
 	}
 
 	switch {
-	case len(user.Roles) == 1 && user.HasRole(schema.RoleApi):
+	case len(user.Roles) == 1 && user.HasRole(schema.RoleAPI):
 		return query, nil
 	case user.HasAnyRole([]schema.Role{schema.RoleAdmin, schema.RoleSupport}):
 		return query, nil

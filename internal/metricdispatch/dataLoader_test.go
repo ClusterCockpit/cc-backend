@@ -21,7 +21,7 @@ func TestDeepCopy(t *testing.T) {
 				Series: []schema.Series{
 					{
 						Hostname: "node001",
-						Id:       &nodeId,
+						ID:       &nodeId,
 						Data:     []schema.Float{1.0, 2.0, 3.0},
 						Statistics: schema.MetricStatistics{
 							Min: 1.0,

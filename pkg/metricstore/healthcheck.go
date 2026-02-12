@@ -6,6 +6,7 @@
 package metricstore
 
 import (
+	"encoding/json"
 	"fmt"
 	"time"
 
@@ -17,6 +18,13 @@ import (
 type HealthCheckResponse struct {
 	Status schema.MonitoringState
 	Error  error
+}
+
+// HealthCheckResult holds the monitoring state and raw JSON health metrics
+// for a single node as determined by HealthCheck.
+type HealthCheckResult struct {
+	State         schema.MonitoringState
+	HealthMetrics string // JSON: {"missing":[...],"degraded":[...]}
 }
 
 // MaxMissingDataPoints is the threshold for stale data detection.
@@ -134,15 +142,15 @@ func (m *MemoryStore) GetHealthyMetrics(selector []string, expectedMetrics []str
 //   - MonitoringStateFailed: node not found, or no healthy metrics at all
 func (m *MemoryStore) HealthCheck(cluster string,
 	nodes []string, expectedMetrics []string,
-) (map[string]schema.MonitoringState, error) {
-	results := make(map[string]schema.MonitoringState, len(nodes))
+) (map[string]HealthCheckResult, error) {
+	results := make(map[string]HealthCheckResult, len(nodes))
 
 	for _, hostname := range nodes {
 		selector := []string{cluster, hostname}
 
 		degradedList, missingList, err := m.GetHealthyMetrics(selector, expectedMetrics)
 		if err != nil {
-			results[hostname] = schema.MonitoringStateFailed
+			results[hostname] = HealthCheckResult{State: schema.MonitoringStateFailed}
 			continue
 		}
 
@@ -158,13 +166,24 @@ func (m *MemoryStore) HealthCheck(cluster string,
 			cclog.ComponentInfo("metricstore", "HealthCheck: node ", hostname, "missing metrics:", missingList)
 		}
 
+		var state schema.MonitoringState
 		switch {
 		case degradedCount == 0 && missingCount == 0:
-			results[hostname] = schema.MonitoringStateFull
+			state = schema.MonitoringStateFull
 		case healthyCount == 0:
-			results[hostname] = schema.MonitoringStateFailed
+			state = schema.MonitoringStateFailed
 		default:
-			results[hostname] = schema.MonitoringStatePartial
+			state = schema.MonitoringStatePartial
+		}
+
+		hm, _ := json.Marshal(map[string][]string{
+			"missing":  missingList,
+			"degraded": degradedList,
+		})
+
+		results[hostname] = HealthCheckResult{
+			State:         state,
+			HealthMetrics: string(hm),
 		}
 	}
 
