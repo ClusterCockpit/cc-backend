@@ -254,7 +254,7 @@ func (r *NodeRepository) FindNodeStatesBefore(cutoff int64) ([]NodeStateWithNode
 		From("node_state").
 		Join("node ON node_state.node_id = node.id").
 		Where(sq.Lt{"node_state.time_stamp": cutoff}).
-		Where("node_state.id NOT IN (SELECT MAX(id) FROM node_state GROUP BY node_id)").
+		Where("node_state.id NOT IN (SELECT ns2.id FROM node_state ns2 WHERE ns2.time_stamp = (SELECT MAX(ns3.time_stamp) FROM node_state ns3 WHERE ns3.node_id = ns2.node_id))").
 		OrderBy("node_state.time_stamp ASC").
 		RunWith(r.DB).Query()
 	if err != nil {
@@ -278,10 +278,14 @@ func (r *NodeRepository) FindNodeStatesBefore(cutoff int64) ([]NodeStateWithNode
 }
 
 // DeleteNodeStatesBefore removes node_state rows with time_stamp < cutoff,
-// but always preserves the latest row per node_id.
+// but always preserves the row with the latest timestamp per node_id.
 func (r *NodeRepository) DeleteNodeStatesBefore(cutoff int64) (int64, error) {
 	res, err := r.DB.Exec(
-		`DELETE FROM node_state WHERE time_stamp < ? AND id NOT IN (SELECT MAX(id) FROM node_state GROUP BY node_id)`,
+		`DELETE FROM node_state WHERE time_stamp < ?
+		 AND id NOT IN (
+		   SELECT id FROM node_state ns2
+		   WHERE ns2.time_stamp = (SELECT MAX(ns3.time_stamp) FROM node_state ns3 WHERE ns3.node_id = ns2.node_id)
+		 )`,
 		cutoff,
 	)
 	if err != nil {
