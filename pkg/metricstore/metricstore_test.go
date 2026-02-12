@@ -253,8 +253,8 @@ func TestHealthCheck(t *testing.T) {
 
 				// Check status
 				if wantStatus, ok := tt.wantStates[node]; ok {
-					if state != wantStatus {
-						t.Errorf("HealthCheck() node %s status = %v, want %v", node, state, wantStatus)
+					if state.State != wantStatus {
+						t.Errorf("HealthCheck() node %s status = %v, want %v", node, state.State, wantStatus)
 					}
 				}
 			}

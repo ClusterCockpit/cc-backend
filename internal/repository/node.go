@@ -169,9 +169,10 @@ func (r *NodeRepository) AddNode(node *schema.NodeDB) (int64, error) {
 }
 
 const NamedNodeStateInsert string = `
-INSERT INTO node_state (time_stamp, node_state, health_state, cpus_allocated,
-	memory_allocated, gpus_allocated, jobs_running, node_id)
-	VALUES (:time_stamp, :node_state, :health_state, :cpus_allocated, :memory_allocated, :gpus_allocated, :jobs_running, :node_id);`
+INSERT INTO node_state (time_stamp, node_state, health_state, health_metrics,
+	cpus_allocated, memory_allocated, gpus_allocated, jobs_running, node_id)
+	VALUES (:time_stamp, :node_state, :health_state, :health_metrics,
+	:cpus_allocated, :memory_allocated, :gpus_allocated, :jobs_running, :node_id);`
 
 // TODO: Add real Monitoring Health State
 
