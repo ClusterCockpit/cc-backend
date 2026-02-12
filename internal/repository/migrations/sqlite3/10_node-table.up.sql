@@ -23,6 +23,7 @@ CREATE TABLE "node_state" (
     CHECK (health_state IN (
         'full', 'partial', 'failed'
     )),
+    health_metrics TEXT,          -- JSON array of strings
     node_id INTEGER,
     FOREIGN KEY (node_id) REFERENCES node (id)
 );
