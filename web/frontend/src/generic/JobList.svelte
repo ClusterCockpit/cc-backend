@@ -305,7 +305,7 @@
         {#if $jobsStore.fetching || !$jobsStore.data}
           <tr>
             <td colspan={metrics.length + 1}>
-              <div style="text-align:center;">
+              <div style="text-align:center; margin-top: 1rem;">
                 <Spinner secondary />
               </div>
             </td>
