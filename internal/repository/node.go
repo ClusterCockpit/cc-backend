@@ -225,6 +225,71 @@ func (r *NodeRepository) UpdateNodeState(hostname string, cluster string, nodeSt
 // 	return nil
 // }
 
+// NodeStateWithNode combines a node state row with denormalized node info.
+type NodeStateWithNode struct {
+	ID              int64  `db:"id"`
+	TimeStamp       int64  `db:"time_stamp"`
+	NodeState       string `db:"node_state"`
+	HealthState     string `db:"health_state"`
+	HealthMetrics   string `db:"health_metrics"`
+	CpusAllocated   int    `db:"cpus_allocated"`
+	MemoryAllocated int64  `db:"memory_allocated"`
+	GpusAllocated   int    `db:"gpus_allocated"`
+	JobsRunning     int    `db:"jobs_running"`
+	Hostname        string `db:"hostname"`
+	Cluster         string `db:"cluster"`
+	SubCluster      string `db:"subcluster"`
+}
+
+// FindNodeStatesBefore returns all node_state rows with time_stamp < cutoff,
+// joined with node info for denormalized archiving.
+func (r *NodeRepository) FindNodeStatesBefore(cutoff int64) ([]NodeStateWithNode, error) {
+	rows, err := sq.Select(
+		"node_state.id", "node_state.time_stamp", "node_state.node_state",
+		"node_state.health_state", "node_state.health_metrics",
+		"node_state.cpus_allocated", "node_state.memory_allocated",
+		"node_state.gpus_allocated", "node_state.jobs_running",
+		"node.hostname", "node.cluster", "node.subcluster",
+	).
+		From("node_state").
+		Join("node ON node_state.node_id = node.id").
+		Where(sq.Lt{"node_state.time_stamp": cutoff}).
+		Where("node_state.id NOT IN (SELECT MAX(id) FROM node_state GROUP BY node_id)").
+		OrderBy("node_state.time_stamp ASC").
+		RunWith(r.DB).Query()
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var result []NodeStateWithNode
+	for rows.Next() {
+		var ns NodeStateWithNode
+		if err := rows.Scan(&ns.ID, &ns.TimeStamp, &ns.NodeState,
+			&ns.HealthState, &ns.HealthMetrics,
+			&ns.CpusAllocated, &ns.MemoryAllocated,
+			&ns.GpusAllocated, &ns.JobsRunning,
+			&ns.Hostname, &ns.Cluster, &ns.SubCluster); err != nil {
+			return nil, err
+		}
+		result = append(result, ns)
+	}
+	return result, nil
+}
+
+// DeleteNodeStatesBefore removes node_state rows with time_stamp < cutoff,
+// but always preserves the latest row per node_id.
+func (r *NodeRepository) DeleteNodeStatesBefore(cutoff int64) (int64, error) {
+	res, err := r.DB.Exec(
+		`DELETE FROM node_state WHERE time_stamp < ? AND id NOT IN (SELECT MAX(id) FROM node_state GROUP BY node_id)`,
+		cutoff,
+	)
+	if err != nil {
+		return 0, err
+	}
+	return res.RowsAffected()
+}
+
 func (r *NodeRepository) DeleteNode(id int64) error {
 	_, err := r.DB.Exec(`DELETE FROM node WHERE node.id = ?`, id)
 	if err != nil {

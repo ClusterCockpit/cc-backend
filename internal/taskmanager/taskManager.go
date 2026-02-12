@@ -144,7 +144,28 @@ func Start(cronCfg, archiveConfig json.RawMessage) {
 	RegisterUpdateDurationWorker()
 	RegisterCommitJobService()
 
+	if config.Keys.NodeStateRetention != nil && config.Keys.NodeStateRetention.Policy != "" {
+		initNodeStateRetention()
+	}
+
 	s.Start()
+}
+
+func initNodeStateRetention() {
+	cfg := config.Keys.NodeStateRetention
+	age := cfg.Age
+	if age <= 0 {
+		age = 24
+	}
+
+	switch cfg.Policy {
+	case "delete":
+		RegisterNodeStateRetentionDeleteService(age)
+	case "parquet":
+		RegisterNodeStateRetentionParquetService(cfg)
+	default:
+		cclog.Warnf("Unknown nodestate-retention policy: %s", cfg.Policy)
+	}
 }
 
 // Shutdown stops the task manager and its scheduler.
