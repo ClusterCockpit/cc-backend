@@ -23,6 +23,7 @@ import (
 
 	"github.com/ClusterCockpit/cc-backend/internal/config"
 	"github.com/ClusterCockpit/cc-backend/pkg/archive"
+	pqarchive "github.com/ClusterCockpit/cc-backend/pkg/archive/parquet"
 	ccconf "github.com/ClusterCockpit/cc-lib/v2/ccConfig"
 	cclog "github.com/ClusterCockpit/cc-lib/v2/ccLogger"
 )
@@ -372,10 +373,207 @@ func importArchive(srcBackend, dstBackend archive.ArchiveBackend, srcConfig stri
 	return finalImported, finalFailed, nil
 }
 
+// parseSourceConfig parses the common kind/path/s3 fields from a config JSON string.
+type sourceConfig struct {
+	Kind         string `json:"kind"`
+	Path         string `json:"path"`
+	Endpoint     string `json:"endpoint"`
+	Bucket       string `json:"bucket"`
+	AccessKey    string `json:"accessKey"`
+	SecretKey    string `json:"secretKey"`
+	Region       string `json:"region"`
+	UsePathStyle bool   `json:"usePathStyle"`
+}
+
+// createParquetTarget creates a ParquetTarget from a parsed config.
+func createParquetTarget(cfg sourceConfig) (pqarchive.ParquetTarget, error) {
+	switch cfg.Kind {
+	case "s3":
+		return pqarchive.NewS3Target(pqarchive.S3TargetConfig{
+			Endpoint:     cfg.Endpoint,
+			Bucket:       cfg.Bucket,
+			AccessKey:    cfg.AccessKey,
+			SecretKey:    cfg.SecretKey,
+			Region:       cfg.Region,
+			UsePathStyle: cfg.UsePathStyle,
+		})
+	default:
+		return pqarchive.NewFileTarget(cfg.Path)
+	}
+}
+
+// createParquetSource creates a ParquetSource from a parsed config.
+func createParquetSource(cfg sourceConfig) (pqarchive.ParquetSource, error) {
+	switch cfg.Kind {
+	case "s3":
+		return pqarchive.NewS3ParquetSource(pqarchive.S3TargetConfig{
+			Endpoint:     cfg.Endpoint,
+			Bucket:       cfg.Bucket,
+			AccessKey:    cfg.AccessKey,
+			SecretKey:    cfg.SecretKey,
+			Region:       cfg.Region,
+			UsePathStyle: cfg.UsePathStyle,
+		})
+	default:
+		if cfg.Path == "" {
+			return nil, fmt.Errorf("file source: path is required")
+		}
+		return pqarchive.NewFileParquetSource(cfg.Path), nil
+	}
+}
+
+// convertJSONToParquet converts a JSON archive backend to parquet format.
+func convertJSONToParquet(srcBackend archive.ArchiveBackend, dstCfg sourceConfig, maxSizeMB int) error {
+	target, err := createParquetTarget(dstCfg)
+	if err != nil {
+		return fmt.Errorf("create parquet target: %w", err)
+	}
+
+	cw := pqarchive.NewClusterAwareParquetWriter(target, maxSizeMB)
+
+	// Transfer cluster configs
+	for _, clusterName := range srcBackend.GetClusters() {
+		clusterCfg, err := srcBackend.LoadClusterCfg(clusterName)
+		if err != nil {
+			cclog.Warnf("Convert: load cluster config %q: %v", clusterName, err)
+			continue
+		}
+		cw.SetClusterConfig(clusterName, clusterCfg)
+	}
+
+	converted := 0
+	failed := 0
+	startTime := time.Now()
+
+	for job := range srcBackend.Iter(true) {
+		if job.Meta == nil {
+			cclog.Warn("Skipping job with nil metadata")
+			failed++
+			continue
+		}
+		if job.Data == nil {
+			cclog.Warnf("Job %d has no metric data, skipping", job.Meta.JobID)
+			failed++
+			continue
+		}
+
+		row, err := pqarchive.JobToParquetRow(job.Meta, job.Data)
+		if err != nil {
+			cclog.Warnf("Convert job %d: %v", job.Meta.JobID, err)
+			failed++
+			continue
+		}
+		if err := cw.AddJob(*row); err != nil {
+			cclog.Errorf("Add job %d to writer: %v", job.Meta.JobID, err)
+			failed++
+			continue
+		}
+		converted++
+
+		if converted%1000 == 0 {
+			cclog.Infof("Converted %d jobs so far...", converted)
+		}
+	}
+
+	if err := cw.Close(); err != nil {
+		return fmt.Errorf("close parquet writer: %w", err)
+	}
+
+	elapsed := time.Since(startTime)
+	cclog.Infof("JSON->Parquet conversion completed in %s: %d jobs converted, %d failed",
+		formatDuration(elapsed), converted, failed)
+	return nil
+}
+
+// convertParquetToJSON converts a parquet archive to a JSON archive backend.
+func convertParquetToJSON(srcCfg sourceConfig, dstBackend archive.ArchiveBackend) error {
+	src, err := createParquetSource(srcCfg)
+	if err != nil {
+		return fmt.Errorf("create parquet source: %w", err)
+	}
+
+	clusters, err := src.GetClusters()
+	if err != nil {
+		return fmt.Errorf("list clusters: %w", err)
+	}
+
+	converted := 0
+	failed := 0
+	skipped := 0
+	startTime := time.Now()
+
+	for _, cluster := range clusters {
+		// Transfer cluster config
+		clusterCfg, err := src.ReadClusterConfig(cluster)
+		if err != nil {
+			cclog.Warnf("Convert: read cluster config %q: %v", cluster, err)
+		} else {
+			if err := dstBackend.StoreClusterCfg(cluster, clusterCfg); err != nil {
+				cclog.Warnf("Convert: store cluster config %q: %v", cluster, err)
+			} else {
+				cclog.Infof("Imported cluster config for %s", cluster)
+			}
+		}
+
+		// Read and convert parquet files
+		files, err := src.ListParquetFiles(cluster)
+		if err != nil {
+			cclog.Errorf("Convert: list parquet files for %q: %v", cluster, err)
+			continue
+		}
+
+		for _, file := range files {
+			data, err := src.ReadFile(file)
+			if err != nil {
+				cclog.Errorf("Convert: read file %q: %v", file, err)
+				failed++
+				continue
+			}
+
+			rows, err := pqarchive.ReadParquetFile(data)
+			if err != nil {
+				cclog.Errorf("Convert: parse parquet file %q: %v", file, err)
+				failed++
+				continue
+			}
+
+			cclog.Infof("Processing %s: %d jobs", file, len(rows))
+
+			for _, row := range rows {
+				meta, jobData, err := pqarchive.ParquetRowToJob(&row)
+				if err != nil {
+					cclog.Warnf("Convert row to job: %v", err)
+					failed++
+					continue
+				}
+
+				if dstBackend.Exists(meta) {
+					skipped++
+					continue
+				}
+
+				if err := dstBackend.ImportJob(meta, jobData); err != nil {
+					cclog.Warnf("Import job %d: %v", meta.JobID, err)
+					failed++
+					continue
+				}
+				converted++
+			}
+		}
+	}
+
+	elapsed := time.Since(startTime)
+	cclog.Infof("Parquet->JSON conversion completed in %s: %d jobs converted, %d skipped, %d failed",
+		formatDuration(elapsed), converted, skipped, failed)
+	return nil
+}
+
 func main() {
 	var srcPath, flagConfigFile, flagLogLevel, flagRemoveCluster, flagRemoveAfter, flagRemoveBefore string
 	var flagSrcConfig, flagDstConfig string
-	var flagLogDateTime, flagValidate, flagImport bool
+	var flagLogDateTime, flagValidate, flagImport, flagConvert bool
+	var flagFormat string
+	var flagMaxFileSize int
 
 	flag.StringVar(&srcPath, "s", "./var/job-archive", "Specify the source job archive path. Default is ./var/job-archive")
 	flag.BoolVar(&flagLogDateTime, "logdate", false, "Set this flag to add date and time to log messages")
@@ -386,6 +584,9 @@ func main() {
 	flag.StringVar(&flagRemoveAfter, "remove-after", "", "Remove all jobs with start time after date (Format: 2006-Jan-04)")
 	flag.BoolVar(&flagValidate, "validate", false, "Set this flag to validate a job archive against the json schema")
 	flag.BoolVar(&flagImport, "import", false, "Import jobs from source archive to destination archive")
+	flag.BoolVar(&flagConvert, "convert", false, "Convert archive between JSON and Parquet formats")
+	flag.StringVar(&flagFormat, "format", "json", "Output format for conversion: 'json' or 'parquet'")
+	flag.IntVar(&flagMaxFileSize, "max-file-size", 512, "Max parquet file size in MB (only for parquet output)")
 	flag.StringVar(&flagSrcConfig, "src-config", "", "Source archive backend configuration (JSON), e.g. '{\"kind\":\"file\",\"path\":\"./archive\"}'")
 	flag.StringVar(&flagDstConfig, "dst-config", "", "Destination archive backend configuration (JSON), e.g. '{\"kind\":\"sqlite\",\"dbPath\":\"./archive.db\"}'")
 	flag.Parse()
@@ -426,6 +627,49 @@ func main() {
 		}
 
 		cclog.Infof("Import finished successfully: %d jobs imported", imported)
+		os.Exit(0)
+	}
+
+	// Handle convert mode
+	if flagConvert {
+		if flagSrcConfig == "" || flagDstConfig == "" {
+			cclog.Fatal("Both --src-config and --dst-config must be specified for convert mode")
+		}
+
+		var srcCfg, dstCfg sourceConfig
+		if err := json.Unmarshal([]byte(flagSrcConfig), &srcCfg); err != nil {
+			cclog.Fatalf("Failed to parse source config: %s", err.Error())
+		}
+		if err := json.Unmarshal([]byte(flagDstConfig), &dstCfg); err != nil {
+			cclog.Fatalf("Failed to parse destination config: %s", err.Error())
+		}
+
+		switch flagFormat {
+		case "parquet":
+			// JSON archive -> Parquet: source is an archive backend
+			cclog.Info("Convert mode: JSON -> Parquet")
+			srcBackend, err := archive.InitBackend(json.RawMessage(flagSrcConfig))
+			if err != nil {
+				cclog.Fatalf("Failed to initialize source backend: %s", err.Error())
+			}
+			if err := convertJSONToParquet(srcBackend, dstCfg, flagMaxFileSize); err != nil {
+				cclog.Fatalf("Conversion failed: %s", err.Error())
+			}
+		case "json":
+			// Parquet -> JSON archive: destination is an archive backend
+			cclog.Info("Convert mode: Parquet -> JSON")
+			dstBackend, err := archive.InitBackend(json.RawMessage(flagDstConfig))
+			if err != nil {
+				cclog.Fatalf("Failed to initialize destination backend: %s", err.Error())
+			}
+			if err := convertParquetToJSON(srcCfg, dstBackend); err != nil {
+				cclog.Fatalf("Conversion failed: %s", err.Error())
+			}
+		default:
+			cclog.Fatalf("Unknown format %q: must be 'json' or 'parquet'", flagFormat)
+		}
+
+		cclog.Info("Conversion finished successfully")
 		os.Exit(0)
 	}
 

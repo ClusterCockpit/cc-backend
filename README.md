@@ -184,7 +184,8 @@ ln -s <your-existing-job-archive> ./var/job-archive
 - [`tools/`](https://github.com/ClusterCockpit/cc-backend/tree/master/tools)
   Additional command line helper tools.
   - [`archive-manager`](https://github.com/ClusterCockpit/cc-backend/tree/master/tools/archive-manager)
-    Commands for getting infos about an existing job archive.
+    Commands for getting infos about an existing job archive, importing jobs
+    between archive backends, and converting archives between JSON and Parquet formats.
   - [`archive-migration`](https://github.com/ClusterCockpit/cc-backend/tree/master/tools/archive-migration)
     Tool for migrating job archives between formats.
   - [`convert-pem-pubkey`](https://github.com/ClusterCockpit/cc-backend/tree/master/tools/convert-pem-pubkey)
