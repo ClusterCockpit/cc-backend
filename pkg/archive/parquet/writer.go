@@ -7,10 +7,13 @@ package parquet
 
 import (
 	"bytes"
+	"encoding/json"
 	"fmt"
+	"path"
 	"time"
 
 	cclog "github.com/ClusterCockpit/cc-lib/v2/ccLogger"
+	"github.com/ClusterCockpit/cc-lib/v2/schema"
 	pq "github.com/parquet-go/parquet-go"
 )
 
@@ -110,4 +113,69 @@ func estimateRowSize(row *ParquetJobRow) int64 {
 	size += int64(len(row.EnergyFootJSON))
 	size += int64(len(row.MetricDataGz))
 	return size
+}
+
+// prefixedTarget wraps a ParquetTarget and prepends a path prefix to all file names.
+type prefixedTarget struct {
+	inner  ParquetTarget
+	prefix string
+}
+
+func (pt *prefixedTarget) WriteFile(name string, data []byte) error {
+	return pt.inner.WriteFile(path.Join(pt.prefix, name), data)
+}
+
+// ClusterAwareParquetWriter organizes Parquet output by cluster.
+// Each cluster gets its own subdirectory with a cluster.json config file.
+type ClusterAwareParquetWriter struct {
+	target       ParquetTarget
+	maxSizeMB    int
+	writers      map[string]*ParquetWriter
+	clusterCfgs  map[string]*schema.Cluster
+}
+
+// NewClusterAwareParquetWriter creates a writer that routes jobs to per-cluster ParquetWriters.
+func NewClusterAwareParquetWriter(target ParquetTarget, maxSizeMB int) *ClusterAwareParquetWriter {
+	return &ClusterAwareParquetWriter{
+		target:      target,
+		maxSizeMB:   maxSizeMB,
+		writers:     make(map[string]*ParquetWriter),
+		clusterCfgs: make(map[string]*schema.Cluster),
+	}
+}
+
+// SetClusterConfig stores a cluster configuration to be written as cluster.json on Close.
+func (cw *ClusterAwareParquetWriter) SetClusterConfig(name string, cfg *schema.Cluster) {
+	cw.clusterCfgs[name] = cfg
+}
+
+// AddJob routes the job row to the appropriate per-cluster writer.
+func (cw *ClusterAwareParquetWriter) AddJob(row ParquetJobRow) error {
+	cluster := row.Cluster
+	pw, ok := cw.writers[cluster]
+	if !ok {
+		pw = NewParquetWriter(&prefixedTarget{inner: cw.target, prefix: cluster}, cw.maxSizeMB)
+		cw.writers[cluster] = pw
+	}
+	return pw.AddJob(row)
+}
+
+// Close writes cluster.json files and flushes all per-cluster writers.
+func (cw *ClusterAwareParquetWriter) Close() error {
+	for name, cfg := range cw.clusterCfgs {
+		data, err := json.MarshalIndent(cfg, "", "  ")
+		if err != nil {
+			return fmt.Errorf("marshal cluster config %q: %w", name, err)
+		}
+		if err := cw.target.WriteFile(path.Join(name, "cluster.json"), data); err != nil {
+			return fmt.Errorf("write cluster.json for %q: %w", name, err)
+		}
+	}
+
+	for cluster, pw := range cw.writers {
+		if err := pw.Close(); err != nil {
+			return fmt.Errorf("close writer for cluster %q: %w", cluster, err)
+		}
+	}
+	return nil
 }
