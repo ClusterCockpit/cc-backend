@@ -152,12 +152,21 @@
   });
 
   $effect(() => {
-    // Triggers (Except Paging)
+    // Update NodeListRows metrics only: Keep ordered nodes on page 1
     from, to
     pendingSelectedMetrics, selectedResolution
+    // Continous Scroll: Paging if parameters change: Existing entries will not match new selections
+    if (!usePaging) {
+      nodes = [];
+      page = 1;
+    }
+  });
+
+  $effect(() => {
+    // Update NodeListRows metrics only: Keep ordered nodes on page 1
     hostnameFilter, hoststateFilter
     // Continous Scroll: Paging if parameters change: Existing entries will not match new selections
-    // Nodes Array Reset in HandleNodes func
+    nodes = [];
     if (!usePaging) {
       page = 1;
     }
@@ -255,9 +264,11 @@
           {#each nodes as nodeData (nodeData.host)}
             <NodeListRow {nodeData} {cluster} {selectedMetrics} {globalMetrics} nodeDataFetching={$nodesStore.fetching}/>
           {:else}
-            <tr>
-              <td colspan={selectedMetrics.length + 1}> No nodes found </td>
-            </tr>
+            {#if !$nodesStore.fetching}
+              <tr>
+                <td colspan={selectedMetrics.length + 1}> No nodes found </td>
+              </tr>
+            {/if}
           {/each}
         {/if}
         {#if $nodesStore.fetching || !$nodesStore.data}
