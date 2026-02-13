@@ -51,6 +51,8 @@
 
   /* Derived */
   // Not at least one returned, selected metric: NodeHealth warning
+  const fetchInfo = $derived(dataHealth.includes('fetching'));
+  // Not at least one returned, selected metric: NodeHealth warning
   const healthWarn = $derived(!dataHealth.includes(true));
   // At least one non-returned selected metric: Metric config error?
   const metricWarn = $derived(dataHealth.includes(false));
@@ -84,10 +86,17 @@
     <Row cols={{xs: 1, lg: 2}}>
       <Col class="mb-2 mb-lg-0">
         <InputGroup size="sm">
-          {#if healthWarn}
+          {#if fetchInfo}
+            <InputGroupText class="flex-grow-1 flex-lg-grow-0">
+              <Icon name="arrow-clockwise" style="padding-right: 0.5rem;"/>
+            </InputGroupText>
+            <Button class="flex-grow-1" color="dark" outline disabled>
+              Fetching
+            </Button>
+          {:else if healthWarn}
             <InputGroupText class="flex-grow-1 flex-lg-grow-0">
               <Icon name="exclamation-circle" style="padding-right: 0.5rem;"/>
-              <span>Jobs</span>
+              <span>Info</span>
             </InputGroupText>
             <Button class="flex-grow-1" color="danger" disabled>
               No Metrics
@@ -95,7 +104,7 @@
           {:else if metricWarn}
             <InputGroupText class="flex-grow-1 flex-lg-grow-0">
               <Icon name="info-circle" style="padding-right: 0.5rem;"/>
-              <span>Jobs</span>
+              <span>Info</span>
             </InputGroupText>
             <Button class="flex-grow-1" color="warning" disabled>
               Missing Metric
