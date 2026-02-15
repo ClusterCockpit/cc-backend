@@ -139,6 +139,13 @@ func nodeTestSetup(t *testing.T) {
 	}
 	archiveCfg := fmt.Sprintf("{\"kind\": \"file\",\"path\": \"%s\"}", jobarchive)
 
+	if err := ResetConnection(); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() {
+		ResetConnection()
+	})
+
 	Connect(dbfilepath)
 
 	if err := archive.Init(json.RawMessage(archiveCfg)); err != nil {
@@ -149,8 +156,12 @@ func nodeTestSetup(t *testing.T) {
 func TestUpdateNodeState(t *testing.T) {
 	nodeTestSetup(t)
 
+	repo := GetNodeRepository()
+	now := time.Now().Unix()
+
 	nodeState := schema.NodeStateDB{
-		TimeStamp: time.Now().Unix(), NodeState: "allocated",
+		TimeStamp:       now,
+		NodeState:       "allocated",
 		CpusAllocated:   72,
 		MemoryAllocated: 480,
 		GpusAllocated:   0,
@@ -158,18 +169,152 @@ func TestUpdateNodeState(t *testing.T) {
 		JobsRunning:     1,
 	}
 
-	repo := GetNodeRepository()
 	err := repo.UpdateNodeState("host124", "testcluster", &nodeState)
 	if err != nil {
-		return
+		t.Fatal(err)
 	}
 
 	node, err := repo.GetNode("host124", "testcluster", false)
 	if err != nil {
-		return
+		t.Fatal(err)
 	}
 
 	if node.NodeState != "allocated" {
 		t.Errorf("wrong node state\ngot: %s \nwant: allocated ", node.NodeState)
 	}
+
+	t.Run("FindBeforeEmpty", func(t *testing.T) {
+		// Only the current-timestamp row exists, so nothing should be found before now
+		rows, err := repo.FindNodeStatesBefore(now)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if len(rows) != 0 {
+			t.Errorf("expected 0 rows, got %d", len(rows))
+		}
+	})
+
+	t.Run("DeleteOldRows", func(t *testing.T) {
+		// Insert 2 more old rows for host124
+		for i, ts := range []int64{now - 7200, now - 3600} {
+			ns := schema.NodeStateDB{
+				TimeStamp:       ts,
+				NodeState:       "allocated",
+				HealthState:     schema.MonitoringStateFull,
+				CpusAllocated:   72,
+				MemoryAllocated: 480,
+				JobsRunning:     i,
+			}
+			if err := repo.UpdateNodeState("host124", "testcluster", &ns); err != nil {
+				t.Fatal(err)
+			}
+		}
+
+		// Delete rows older than 30 minutes
+		cutoff := now - 1800
+		cnt, err := repo.DeleteNodeStatesBefore(cutoff)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		// Should delete the 2 old rows
+		if cnt != 2 {
+			t.Errorf("expected 2 deleted rows, got %d", cnt)
+		}
+
+		// Latest row should still exist
+		node, err := repo.GetNode("host124", "testcluster", false)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if node.NodeState != "allocated" {
+			t.Errorf("expected node state 'allocated', got %s", node.NodeState)
+		}
+	})
+
+	t.Run("PreservesLatestPerNode", func(t *testing.T) {
+		// Insert a single old row for host125 — it's the latest per node so it must survive
+		ns := schema.NodeStateDB{
+			TimeStamp:       now - 7200,
+			NodeState:       "idle",
+			HealthState:     schema.MonitoringStateFull,
+			CpusAllocated:   0,
+			MemoryAllocated: 0,
+			JobsRunning:     0,
+		}
+		if err := repo.UpdateNodeState("host125", "testcluster", &ns); err != nil {
+			t.Fatal(err)
+		}
+
+		// Delete everything older than now — the latest per node should be preserved
+		_, err := repo.DeleteNodeStatesBefore(now)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		// The latest row for host125 must still exist
+		node, err := repo.GetNode("host125", "testcluster", false)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if node.NodeState != "idle" {
+			t.Errorf("expected node state 'idle', got %s", node.NodeState)
+		}
+
+		// Verify exactly 1 row remains for host125
+		var countAfter int
+		if err := repo.DB.QueryRow(
+			"SELECT COUNT(*) FROM node_state WHERE node_id = (SELECT id FROM node WHERE hostname = 'host125')").
+			Scan(&countAfter); err != nil {
+			t.Fatal(err)
+		}
+		if countAfter != 1 {
+			t.Errorf("expected 1 row remaining for host125, got %d", countAfter)
+		}
+	})
+
+	t.Run("FindBeforeWithJoin", func(t *testing.T) {
+		// Insert old and current rows for host123
+		for _, ts := range []int64{now - 7200, now} {
+			ns := schema.NodeStateDB{
+				TimeStamp:       ts,
+				NodeState:       "allocated",
+				HealthState:     schema.MonitoringStateFull,
+				CpusAllocated:   8,
+				MemoryAllocated: 1024,
+				GpusAllocated:   1,
+				JobsRunning:     1,
+			}
+			if err := repo.UpdateNodeState("host123", "testcluster", &ns); err != nil {
+				t.Fatal(err)
+			}
+		}
+
+		// Find rows older than 30 minutes, excluding latest per node
+		cutoff := now - 1800
+		rows, err := repo.FindNodeStatesBefore(cutoff)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		// Should find the old host123 row
+		found := false
+		for _, row := range rows {
+			if row.Hostname == "host123" && row.TimeStamp == now-7200 {
+				found = true
+				if row.Cluster != "testcluster" {
+					t.Errorf("expected cluster 'testcluster', got %s", row.Cluster)
+				}
+				if row.SubCluster != "sc1" {
+					t.Errorf("expected subcluster 'sc1', got %s", row.SubCluster)
+				}
+				if row.CpusAllocated != 8 {
+					t.Errorf("expected cpus_allocated 8, got %d", row.CpusAllocated)
+				}
+			}
+		}
+		if !found {
+			t.Errorf("expected to find old host123 row among %d results", len(rows))
+		}
+	})
 }

@@ -22,7 +22,7 @@ make
 make frontend
 
 # Build only the backend (requires frontend to be built first)
-go build -ldflags='-s -X main.date=$(date +"%Y-%m-%d:T%H:%M:%S") -X main.version=1.4.4 -X main.commit=$(git rev-parse --short HEAD)' ./cmd/cc-backend
+go build -ldflags='-s -X main.date=$(date +"%Y-%m-%d:T%H:%M:%S") -X main.version=1.5.0 -X main.commit=$(git rev-parse --short HEAD)' ./cmd/cc-backend
 ```
 
 ### Testing
@@ -41,7 +41,7 @@ go test ./internal/repository
 ### Code Generation
 
 ```bash
-# Regenerate GraphQL schema and resolvers (after modifying api/*.graphqls)
+# Regenerate GraphQL schema and resolvers (after modifying api/schema.graphqls)
 make graphql
 
 # Regenerate Swagger/OpenAPI docs (after modifying API comments)
@@ -90,7 +90,7 @@ The backend follows a layered architecture with clear separation of concerns:
   - Transaction support for batch operations
 - **internal/api**: REST API endpoints (Swagger/OpenAPI documented)
 - **internal/graph**: GraphQL API (uses gqlgen)
-  - Schema in `api/*.graphqls`
+  - Schema in `api/schema.graphqls`
   - Generated code in `internal/graph/generated/`
   - Resolvers in `internal/graph/schema.resolvers.go`
 - **internal/auth**: Authentication layer
@@ -108,7 +108,8 @@ The backend follows a layered architecture with clear separation of concerns:
   - File system backend (default)
   - S3 backend
   - SQLite backend (experimental)
-- **pkg/nats**: NATS client and message decoding utilities
+  - **parquet** sub-package: Parquet format support (schema, reader, writer, conversion)
+- **internal/metricstoreclient**: Client for cc-metric-store queries
 
 ### Frontend Structure
 
@@ -138,7 +139,7 @@ recommended). Configuration is per-cluster in `config.json`.
 3. The first authenticator that returns true performs the actual `Login`
 4. JWT tokens are used for API authentication
 
-**Database Migrations**: SQL migrations in `internal/repository/migrations/` are
+**Database Migrations**: SQL migrations in `internal/repository/migrations/sqlite3/` are
 applied automatically on startup. Version tracking in `version` table.
 
 **Scopes**: Metrics can be collected at different scopes:
@@ -173,7 +174,7 @@ applied automatically on startup. Version tracking in `version` table.
 
 **GraphQL** (gqlgen):
 
-- Schema: `api/*.graphqls`
+- Schema: `api/schema.graphqls`
 - Config: `gqlgen.yml`
 - Generated code: `internal/graph/generated/`
 - Custom resolvers: `internal/graph/schema.resolvers.go`
@@ -182,7 +183,7 @@ applied automatically on startup. Version tracking in `version` table.
 **Swagger/OpenAPI**:
 
 - Annotations in `internal/api/*.go`
-- Generated docs: `api/docs.go`, `api/swagger.yaml`
+- Generated docs: `internal/api/docs.go`, `api/swagger.yaml`
 - Run `make swagger` after API changes
 
 ## Testing Conventions
@@ -196,7 +197,7 @@ applied automatically on startup. Version tracking in `version` table.
 
 ### Adding a new GraphQL field
 
-1. Edit schema in `api/*.graphqls`
+1. Edit schema in `api/schema.graphqls`
 2. Run `make graphql`
 3. Implement resolver in `internal/graph/schema.resolvers.go`
 
@@ -215,7 +216,7 @@ applied automatically on startup. Version tracking in `version` table.
 
 ### Modifying database schema
 
-1. Create new migration in `internal/repository/migrations/`
+1. Create new migration in `internal/repository/migrations/sqlite3/`
 2. Increment `repository.Version`
 3. Test with fresh database and existing database
 

@@ -552,7 +552,7 @@ func (r *queryResolver) ScopedJobStats(ctx context.Context, id string, metrics [
 			for _, stat := range stats {
 				mdlStats = append(mdlStats, &model.ScopedStats{
 					Hostname: stat.Hostname,
-					ID:       stat.Id,
+					ID:       stat.ID,
 					Data:     stat.Data,
 				})
 			}
@@ -824,6 +824,7 @@ func (r *queryResolver) NodeMetricsList(ctx context.Context, cluster string, sub
 	}
 
 	nodeRepo := repository.GetNodeRepository()
+	// nodes -> array hostname
 	nodes, stateMap, countNodes, hasNextPage, nerr := nodeRepo.GetNodesForList(ctx, cluster, subCluster, stateFilter, nodeFilter, page)
 	if nerr != nil {
 		return nil, errors.New("could not retrieve node list required for resolving NodeMetricsList")
@@ -835,6 +836,7 @@ func (r *queryResolver) NodeMetricsList(ctx context.Context, cluster string, sub
 		}
 	}
 
+	// data -> map hostname:jobdata
 	data, err := metricdispatch.LoadNodeListData(cluster, subCluster, nodes, metrics, scopes, *resolution, from, to, ctx)
 	if err != nil {
 		cclog.Warn("error while loading node data (Resolver.NodeMetricsList")
@@ -842,18 +844,18 @@ func (r *queryResolver) NodeMetricsList(ctx context.Context, cluster string, sub
 	}
 
 	nodeMetricsList := make([]*model.NodeMetrics, 0, len(data))
-	for hostname, metrics := range data {
+	for _, hostname := range nodes {
 		host := &model.NodeMetrics{
 			Host:    hostname,
 			State:   stateMap[hostname],
-			Metrics: make([]*model.JobMetricWithName, 0, len(metrics)*len(scopes)),
+			Metrics: make([]*model.JobMetricWithName, 0),
 		}
 		host.SubCluster, err = archive.GetSubClusterByNode(cluster, hostname)
 		if err != nil {
 			cclog.Warnf("error in nodeMetrics resolver: %s", err)
 		}
 
-		for metric, scopedMetrics := range metrics {
+		for metric, scopedMetrics := range data[hostname] {
 			for scope, scopedMetric := range scopedMetrics {
 				host.Metrics = append(host.Metrics, &model.JobMetricWithName{
 					Name:   metric,
@@ -867,7 +869,8 @@ func (r *queryResolver) NodeMetricsList(ctx context.Context, cluster string, sub
 	}
 
 	nodeMetricsListResult := &model.NodesResultList{
-		Items:       nodeMetricsList,
+		Items: nodeMetricsList,
+		// TotalNodes depends on sum of nodes grouped on latest timestamp, see repo/node.go:357
 		TotalNodes:  &countNodes,
 		HasNextPage: &hasNextPage,
 	}

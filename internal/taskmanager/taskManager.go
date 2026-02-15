@@ -23,11 +23,20 @@ const (
 
 // Retention defines the configuration for job retention policies.
 type Retention struct {
-	Policy     string `json:"policy"`
-	Location   string `json:"location"`
-	Age        int    `json:"age"`
-	IncludeDB  bool   `json:"includeDB"`
-	OmitTagged bool   `json:"omitTagged"`
+	Policy             string `json:"policy"`
+	Format             string `json:"format"`
+	Age                int    `json:"age"`
+	IncludeDB          bool   `json:"includeDB"`
+	OmitTagged         bool   `json:"omitTagged"`
+	TargetKind         string `json:"target-kind"`
+	TargetPath         string `json:"target-path"`
+	TargetEndpoint     string `json:"target-endpoint"`
+	TargetBucket       string `json:"target-bucket"`
+	TargetAccessKey    string `json:"target-access-key"`
+	TargetSecretKey    string `json:"target-secret-key"`
+	TargetRegion       string `json:"target-region"`
+	TargetUsePathStyle bool   `json:"target-use-path-style"`
+	MaxFileSizeMB      int    `json:"max-file-size-mb"`
 }
 
 // CronFrequency defines the execution intervals for various background workers.
@@ -77,16 +86,11 @@ func initArchiveServices(config json.RawMessage) {
 
 	switch cfg.Retention.Policy {
 	case "delete":
-		RegisterRetentionDeleteService(
-			cfg.Retention.Age,
-			cfg.Retention.IncludeDB,
-			cfg.Retention.OmitTagged)
+		RegisterRetentionDeleteService(cfg.Retention)
+	case "copy":
+		RegisterRetentionCopyService(cfg.Retention)
 	case "move":
-		RegisterRetentionMoveService(
-			cfg.Retention.Age,
-			cfg.Retention.IncludeDB,
-			cfg.Retention.Location,
-			cfg.Retention.OmitTagged)
+		RegisterRetentionMoveService(cfg.Retention)
 	}
 
 	if cfg.Compression > 0 {
@@ -133,7 +137,28 @@ func Start(cronCfg, archiveConfig json.RawMessage) {
 	RegisterUpdateDurationWorker()
 	RegisterCommitJobService()
 
+	if config.Keys.NodeStateRetention != nil && config.Keys.NodeStateRetention.Policy != "" {
+		initNodeStateRetention()
+	}
+
 	s.Start()
+}
+
+func initNodeStateRetention() {
+	cfg := config.Keys.NodeStateRetention
+	age := cfg.Age
+	if age <= 0 {
+		age = 24
+	}
+
+	switch cfg.Policy {
+	case "delete":
+		RegisterNodeStateRetentionDeleteService(age)
+	case "parquet":
+		RegisterNodeStateRetentionParquetService(cfg)
+	default:
+		cclog.Warnf("Unknown nodestate-retention policy: %s", cfg.Policy)
+	}
 }
 
 // Shutdown stops the task manager and its scheduler.

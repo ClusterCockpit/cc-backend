@@ -219,9 +219,11 @@
     <Filters
       bind:this={filterComponent}
       {filterPresets}
+      startTimeQuickSelect
+      shortJobQuickSelect={(filterBuffer.length > 0)}
+      shortJobCutoff={ccconfig?.jobList_hideShortRunningJobs}
       showFilter={!showCompare}
       matchedJobs={showCompare? matchedCompareJobs: matchedListJobs}
-      startTimeQuickSelect
       applyFilters={(detail) => {
         jobFilters = [...detail.filters, { user: { eq: user.username } }];
         selectedCluster = jobFilters[0]?.cluster

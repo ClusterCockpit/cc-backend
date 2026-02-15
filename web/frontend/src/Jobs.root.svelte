@@ -142,6 +142,9 @@
     <Filters
       bind:this={filterComponent}
       {filterPresets}
+      startTimeQuickSelect
+      shortJobQuickSelect={(filterBuffer.length > 0)}
+      shortJobCutoff={ccconfig?.jobList_hideShortRunningJobs}
       showFilter={!showCompare}
       matchedJobs={showCompare? matchedCompareJobs: matchedListJobs}
       applyFilters={(detail) => {

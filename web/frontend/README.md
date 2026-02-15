@@ -1,11 +1,11 @@
 # cc-frontend
 
-[![Build](https://github.com/ClusterCockpit/cc-svelte-datatable/actions/workflows/build.yml/badge.svg)](https://github.com/ClusterCockpit/cc-svelte-datatable/actions/workflows/build.yml)
+[![Build](https://github.com/ClusterCockpit/cc-backend/actions/workflows/test.yml/badge.svg)](https://github.com/ClusterCockpit/cc-backend/actions/workflows/test.yml)
 
-A frontend for [ClusterCockpit](https://github.com/ClusterCockpit/ClusterCockpit) and [cc-backend](https://github.com/ClusterCockpit/cc-backend). Backend specific configuration can de done using the constants defined in the `intro` section in `./rollup.config.js`.
+A frontend for [ClusterCockpit](https://github.com/ClusterCockpit/ClusterCockpit) and [cc-backend](https://github.com/ClusterCockpit/cc-backend). Backend specific configuration can be done using the constants defined in the `intro` section in `./rollup.config.mjs`.
 
 Builds on:
-* [Svelte](https://svelte.dev/)
+* [Svelte 5](https://svelte.dev/)
 * [SvelteStrap](https://sveltestrap.js.org/)
 * [Bootstrap 5](https://getbootstrap.com/)
 * [urql](https://github.com/FormidableLabs/urql)

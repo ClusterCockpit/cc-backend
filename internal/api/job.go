@@ -27,7 +27,7 @@ import (
 	"github.com/ClusterCockpit/cc-backend/pkg/archive"
 	cclog "github.com/ClusterCockpit/cc-lib/v2/ccLogger"
 	"github.com/ClusterCockpit/cc-lib/v2/schema"
-	"github.com/gorilla/mux"
+	"github.com/go-chi/chi/v5"
 )
 
 const (
@@ -243,10 +243,10 @@ func (api *RestAPI) getJobs(rw http.ResponseWriter, r *http.Request) {
 // @router      /api/jobs/{id} [get]
 func (api *RestAPI) getCompleteJobByID(rw http.ResponseWriter, r *http.Request) {
 	// Fetch job from db
-	id, ok := mux.Vars(r)["id"]
+	id := chi.URLParam(r, "id")
 	var job *schema.Job
 	var err error
-	if ok {
+	if id != "" {
 		id, e := strconv.ParseInt(id, 10, 64)
 		if e != nil {
 			handleError(fmt.Errorf("integer expected in path for id: %w", e), http.StatusBadRequest, rw)
@@ -336,10 +336,10 @@ func (api *RestAPI) getCompleteJobByID(rw http.ResponseWriter, r *http.Request) 
 // @router      /api/jobs/{id} [post]
 func (api *RestAPI) getJobByID(rw http.ResponseWriter, r *http.Request) {
 	// Fetch job from db
-	id, ok := mux.Vars(r)["id"]
+	id := chi.URLParam(r, "id")
 	var job *schema.Job
 	var err error
-	if ok {
+	if id != "" {
 		id, e := strconv.ParseInt(id, 10, 64)
 		if e != nil {
 			handleError(fmt.Errorf("integer expected in path for id: %w", e), http.StatusBadRequest, rw)
@@ -439,7 +439,7 @@ func (api *RestAPI) getJobByID(rw http.ResponseWriter, r *http.Request) {
 // @security    ApiKeyAuth
 // @router      /api/jobs/edit_meta/{id} [post]
 func (api *RestAPI) editMeta(rw http.ResponseWriter, r *http.Request) {
-	id, err := strconv.ParseInt(mux.Vars(r)["id"], 10, 64)
+	id, err := strconv.ParseInt(chi.URLParam(r, "id"), 10, 64)
 	if err != nil {
 		handleError(fmt.Errorf("parsing job ID failed: %w", err), http.StatusBadRequest, rw)
 		return
@@ -487,7 +487,7 @@ func (api *RestAPI) editMeta(rw http.ResponseWriter, r *http.Request) {
 // @security    ApiKeyAuth
 // @router      /api/jobs/tag_job/{id} [post]
 func (api *RestAPI) tagJob(rw http.ResponseWriter, r *http.Request) {
-	id, err := strconv.ParseInt(mux.Vars(r)["id"], 10, 64)
+	id, err := strconv.ParseInt(chi.URLParam(r, "id"), 10, 64)
 	if err != nil {
 		handleError(fmt.Errorf("parsing job ID failed: %w", err), http.StatusBadRequest, rw)
 		return
@@ -551,7 +551,7 @@ func (api *RestAPI) tagJob(rw http.ResponseWriter, r *http.Request) {
 // @security    ApiKeyAuth
 // @router      /jobs/tag_job/{id} [delete]
 func (api *RestAPI) removeTagJob(rw http.ResponseWriter, r *http.Request) {
-	id, err := strconv.ParseInt(mux.Vars(r)["id"], 10, 64)
+	id, err := strconv.ParseInt(chi.URLParam(r, "id"), 10, 64)
 	if err != nil {
 		handleError(fmt.Errorf("parsing job ID failed: %w", err), http.StatusBadRequest, rw)
 		return
@@ -754,6 +754,7 @@ func (api *RestAPI) stopJobByRequest(rw http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	isCached := false
 	job, err = api.JobRepository.Find(req.JobID, req.Cluster, req.StartTime)
 	if err != nil {
 		// Try cached jobs if not found in main repository
@@ -764,9 +765,10 @@ func (api *RestAPI) stopJobByRequest(rw http.ResponseWriter, r *http.Request) {
 			return
 		}
 		job = cachedJob
+		isCached = true
 	}
 
-	api.checkAndHandleStopJob(rw, job, req)
+	api.checkAndHandleStopJob(rw, job, req, isCached)
 }
 
 // deleteJobByID godoc
@@ -786,9 +788,9 @@ func (api *RestAPI) stopJobByRequest(rw http.ResponseWriter, r *http.Request) {
 // @router      /api/jobs/delete_job/{id} [delete]
 func (api *RestAPI) deleteJobByID(rw http.ResponseWriter, r *http.Request) {
 	// Fetch job (that will be stopped) from db
-	id, ok := mux.Vars(r)["id"]
+	id := chi.URLParam(r, "id")
 	var err error
-	if ok {
+	if id != "" {
 		id, e := strconv.ParseInt(id, 10, 64)
 		if e != nil {
 			handleError(fmt.Errorf("integer expected in path for id: %w", e), http.StatusBadRequest, rw)
@@ -885,9 +887,9 @@ func (api *RestAPI) deleteJobByRequest(rw http.ResponseWriter, r *http.Request) 
 func (api *RestAPI) deleteJobBefore(rw http.ResponseWriter, r *http.Request) {
 	var cnt int
 	// Fetch job (that will be stopped) from db
-	id, ok := mux.Vars(r)["ts"]
+	id := chi.URLParam(r, "ts")
 	var err error
-	if ok {
+	if id != "" {
 		ts, e := strconv.ParseInt(id, 10, 64)
 		if e != nil {
 			handleError(fmt.Errorf("integer expected in path for ts: %w", e), http.StatusBadRequest, rw)
@@ -923,7 +925,7 @@ func (api *RestAPI) deleteJobBefore(rw http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func (api *RestAPI) checkAndHandleStopJob(rw http.ResponseWriter, job *schema.Job, req StopJobAPIRequest) {
+func (api *RestAPI) checkAndHandleStopJob(rw http.ResponseWriter, job *schema.Job, req StopJobAPIRequest, isCached bool) {
 	// Sanity checks
 	if job.State != schema.JobStateRunning {
 		handleError(fmt.Errorf("jobId %d (id %d) on %s : job has already been stopped (state is: %s)", job.JobID, *job.ID, job.Cluster, job.State), http.StatusUnprocessableEntity, rw)
@@ -948,11 +950,21 @@ func (api *RestAPI) checkAndHandleStopJob(rw http.ResponseWriter, job *schema.Jo
 	api.JobRepository.Mutex.Lock()
 	defer api.JobRepository.Mutex.Unlock()
 
-	if err := api.JobRepository.Stop(*job.ID, job.Duration, job.State, job.MonitoringStatus); err != nil {
-		if err := api.JobRepository.StopCached(*job.ID, job.Duration, job.State, job.MonitoringStatus); err != nil {
-			handleError(fmt.Errorf("jobId %d (id %d) on %s : marking job as '%s' (duration: %d) in DB failed: %w", job.JobID, *job.ID, job.Cluster, job.State, job.Duration, err), http.StatusInternalServerError, rw)
+	// If the job is still in job_cache, transfer it to the job table first
+	// so that job.ID always points to the job table for downstream code
+	if isCached {
+		newID, err := api.JobRepository.TransferCachedJobToMain(*job.ID)
+		if err != nil {
+			handleError(fmt.Errorf("jobId %d (id %d) on %s : transferring cached job failed: %w", job.JobID, *job.ID, job.Cluster, err), http.StatusInternalServerError, rw)
 			return
 		}
+		cclog.Infof("transferred cached job to main table: old id %d -> new id %d (jobId=%d)", *job.ID, newID, job.JobID)
+		job.ID = &newID
+	}
+
+	if err := api.JobRepository.Stop(*job.ID, job.Duration, job.State, job.MonitoringStatus); err != nil {
+		handleError(fmt.Errorf("jobId %d (id %d) on %s : marking job as '%s' (duration: %d) in DB failed: %w", job.JobID, *job.ID, job.Cluster, job.State, job.Duration, err), http.StatusInternalServerError, rw)
+		return
 	}
 
 	cclog.Infof("archiving job... (dbid: %d): cluster=%s, jobId=%d, user=%s, startTime=%d, duration=%d, state=%s", *job.ID, job.Cluster, job.JobID, job.User, job.StartTime, job.Duration, job.State)
@@ -976,7 +988,7 @@ func (api *RestAPI) checkAndHandleStopJob(rw http.ResponseWriter, job *schema.Jo
 }
 
 func (api *RestAPI) getJobMetrics(rw http.ResponseWriter, r *http.Request) {
-	id := mux.Vars(r)["id"]
+	id := chi.URLParam(r, "id")
 	metrics := r.URL.Query()["metric"]
 	var scopes []schema.MetricScope
 	for _, scope := range r.URL.Query()["scope"] {
@@ -1042,8 +1054,8 @@ type GetUsedNodesAPIResponse struct {
 // @router      /api/jobs/used_nodes [get]
 func (api *RestAPI) getUsedNodes(rw http.ResponseWriter, r *http.Request) {
 	if user := repository.GetUserFromContext(r.Context()); user != nil &&
-		!user.HasRole(schema.RoleApi) {
-		handleError(fmt.Errorf("missing role: %v", schema.GetRoleString(schema.RoleApi)), http.StatusForbidden, rw)
+		!user.HasRole(schema.RoleAPI) {
+		handleError(fmt.Errorf("missing role: %v", schema.GetRoleString(schema.RoleAPI)), http.StatusForbidden, rw)
 		return
 	}
 

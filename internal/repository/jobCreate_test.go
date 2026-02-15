@@ -331,58 +331,60 @@ func TestStop(t *testing.T) {
 	})
 }
 
-func TestStopCached(t *testing.T) {
+func TestTransferCachedJobToMain(t *testing.T) {
 	r := setup(t)
 
-	t.Run("successful stop cached job", func(t *testing.T) {
+	t.Run("successful transfer from cache to main", func(t *testing.T) {
 		// Insert a job in job_cache
 		job := createTestJob(999009, "testcluster")
-		id, err := r.Start(job)
+		cacheID, err := r.Start(job)
 		require.NoError(t, err)
 
-		// Stop the cached job
-		duration := int32(3600)
-		state := schema.JobStateCompleted
-		monitoringStatus := int32(schema.MonitoringStatusArchivingSuccessful)
+		// Transfer the cached job to the main table
+		r.Mutex.Lock()
+		newID, err := r.TransferCachedJobToMain(cacheID)
+		r.Mutex.Unlock()
+		require.NoError(t, err, "TransferCachedJobToMain should succeed")
+		assert.NotEqual(t, cacheID, newID, "New ID should differ from cache ID")
 
-		err = r.StopCached(id, duration, state, monitoringStatus)
-		require.NoError(t, err, "StopCached should succeed")
-
-		// Verify job was updated in job_cache table
-		var retrievedDuration int32
-		var retrievedState string
-		var retrievedMonStatus int32
-		err = r.DB.QueryRow(`SELECT duration, job_state, monitoring_status FROM job_cache WHERE id = ?`, id).Scan(
-			&retrievedDuration, &retrievedState, &retrievedMonStatus)
+		// Verify job exists in job table
+		var count int
+		err = r.DB.QueryRow(`SELECT COUNT(*) FROM job WHERE id = ?`, newID).Scan(&count)
 		require.NoError(t, err)
-		assert.Equal(t, duration, retrievedDuration)
-		assert.Equal(t, string(state), retrievedState)
-		assert.Equal(t, monitoringStatus, retrievedMonStatus)
+		assert.Equal(t, 1, count, "Job should exist in main table")
+
+		// Verify job was removed from job_cache
+		err = r.DB.QueryRow(`SELECT COUNT(*) FROM job_cache WHERE id = ?`, cacheID).Scan(&count)
+		require.NoError(t, err)
+		assert.Equal(t, 0, count, "Job should be removed from cache")
 
 		// Clean up
-		_, err = r.DB.Exec("DELETE FROM job_cache WHERE id = ?", id)
+		_, err = r.DB.Exec("DELETE FROM job WHERE id = ?", newID)
 		require.NoError(t, err)
 	})
 
-	t.Run("stop cached job does not affect job table", func(t *testing.T) {
+	t.Run("transfer preserves job data", func(t *testing.T) {
 		// Insert a job in job_cache
 		job := createTestJob(999010, "testcluster")
-		id, err := r.Start(job)
+		cacheID, err := r.Start(job)
 		require.NoError(t, err)
 
-		// Stop the cached job
-		err = r.StopCached(id, 3600, schema.JobStateCompleted, int32(schema.MonitoringStatusArchivingSuccessful))
+		// Transfer the cached job
+		r.Mutex.Lock()
+		newID, err := r.TransferCachedJobToMain(cacheID)
+		r.Mutex.Unlock()
 		require.NoError(t, err)
 
-		// Verify job table was not affected
-		var count int
-		err = r.DB.QueryRow(`SELECT COUNT(*) FROM job WHERE job_id = ? AND cluster = ?`,
-			job.JobID, job.Cluster).Scan(&count)
+		// Verify the transferred job has the correct data
+		var jobID int64
+		var cluster string
+		err = r.DB.QueryRow(`SELECT job_id, cluster FROM job WHERE id = ?`, newID).Scan(&jobID, &cluster)
 		require.NoError(t, err)
-		assert.Equal(t, 0, count, "Job table should not be affected by StopCached")
+		assert.Equal(t, job.JobID, jobID)
+		assert.Equal(t, job.Cluster, cluster)
 
 		// Clean up
-		_, err = r.DB.Exec("DELETE FROM job_cache WHERE id = ?", id)
+		_, err = r.DB.Exec("DELETE FROM job WHERE id = ?", newID)
 		require.NoError(t, err)
 	})
 }

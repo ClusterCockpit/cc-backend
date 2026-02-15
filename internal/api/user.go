@@ -13,7 +13,7 @@ import (
 	"github.com/ClusterCockpit/cc-backend/internal/repository"
 	cclog "github.com/ClusterCockpit/cc-lib/v2/ccLogger"
 	"github.com/ClusterCockpit/cc-lib/v2/schema"
-	"github.com/gorilla/mux"
+	"github.com/go-chi/chi/v5"
 )
 
 type APIReturnedUser struct {
@@ -91,7 +91,7 @@ func (api *RestAPI) updateUser(rw http.ResponseWriter, r *http.Request) {
 
 	// Handle role updates
 	if newrole != "" {
-		if err := repository.GetUserRepository().AddRole(r.Context(), mux.Vars(r)["id"], newrole); err != nil {
+		if err := repository.GetUserRepository().AddRole(r.Context(), chi.URLParam(r, "id"), newrole); err != nil {
 			handleError(fmt.Errorf("adding role failed: %w", err), http.StatusUnprocessableEntity, rw)
 			return
 		}
@@ -99,7 +99,7 @@ func (api *RestAPI) updateUser(rw http.ResponseWriter, r *http.Request) {
 			cclog.Errorf("Failed to encode response: %v", err)
 		}
 	} else if delrole != "" {
-		if err := repository.GetUserRepository().RemoveRole(r.Context(), mux.Vars(r)["id"], delrole); err != nil {
+		if err := repository.GetUserRepository().RemoveRole(r.Context(), chi.URLParam(r, "id"), delrole); err != nil {
 			handleError(fmt.Errorf("removing role failed: %w", err), http.StatusUnprocessableEntity, rw)
 			return
 		}
@@ -107,7 +107,7 @@ func (api *RestAPI) updateUser(rw http.ResponseWriter, r *http.Request) {
 			cclog.Errorf("Failed to encode response: %v", err)
 		}
 	} else if newproj != "" {
-		if err := repository.GetUserRepository().AddProject(r.Context(), mux.Vars(r)["id"], newproj); err != nil {
+		if err := repository.GetUserRepository().AddProject(r.Context(), chi.URLParam(r, "id"), newproj); err != nil {
 			handleError(fmt.Errorf("adding project failed: %w", err), http.StatusUnprocessableEntity, rw)
 			return
 		}
@@ -115,7 +115,7 @@ func (api *RestAPI) updateUser(rw http.ResponseWriter, r *http.Request) {
 			cclog.Errorf("Failed to encode response: %v", err)
 		}
 	} else if delproj != "" {
-		if err := repository.GetUserRepository().RemoveProject(r.Context(), mux.Vars(r)["id"], delproj); err != nil {
+		if err := repository.GetUserRepository().RemoveProject(r.Context(), chi.URLParam(r, "id"), delproj); err != nil {
 			handleError(fmt.Errorf("removing project failed: %w", err), http.StatusUnprocessableEntity, rw)
 			return
 		}
@@ -164,7 +164,7 @@ func (api *RestAPI) createUser(rw http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if len(password) == 0 && role != schema.GetRoleString(schema.RoleApi) {
+	if len(password) == 0 && role != schema.GetRoleString(schema.RoleAPI) {
 		handleError(fmt.Errorf("only API users are allowed to have a blank password (login will be impossible)"), http.StatusBadRequest, rw)
 		return
 	}

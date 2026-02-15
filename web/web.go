@@ -186,6 +186,16 @@ func ServeFiles() http.Handler {
 	return http.FileServer(http.FS(publicFiles))
 }
 
+// StaticFileExists checks whether a static file exists in the embedded frontend FS.
+func StaticFileExists(path string) bool {
+	path = strings.TrimPrefix(path, "/")
+	if path == "" {
+		return false
+	}
+	_, err := fs.Stat(frontendFiles, "frontend/public/"+path)
+	return err == nil
+}
+
 //go:embed templates/*
 var templateFiles embed.FS
 
@@ -201,6 +211,10 @@ func init() {
 			return nil
 		}
 
+		if path == "templates/404.tmpl" {
+			templates[strings.TrimPrefix(path, "templates/")] = template.Must(template.ParseFS(templateFiles, path))
+			return nil
+		}
 		if path == "templates/login.tmpl" {
 			if util.CheckFileExists("./var/login.tmpl") {
 				cclog.Info("overwrite login.tmpl with local file")

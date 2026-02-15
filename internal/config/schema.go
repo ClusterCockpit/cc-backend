@@ -130,6 +130,59 @@ var configSchema = `
         }
       },
       "required": ["subject-job-event", "subject-node-state"]
+    },
+    "nodestate-retention": {
+      "description": "Node state retention configuration for cleaning up old node_state rows.",
+      "type": "object",
+      "properties": {
+        "policy": {
+          "description": "Retention policy: 'delete' to remove old rows, 'parquet' to archive then delete.",
+          "type": "string",
+          "enum": ["delete", "parquet"]
+        },
+        "age": {
+          "description": "Retention age in hours (default: 24).",
+          "type": "integer"
+        },
+        "target-kind": {
+          "description": "Target kind for parquet archiving: 'file' or 's3'.",
+          "type": "string",
+          "enum": ["file", "s3"]
+        },
+        "target-path": {
+          "description": "Filesystem path for parquet file target.",
+          "type": "string"
+        },
+        "target-endpoint": {
+          "description": "S3 endpoint URL.",
+          "type": "string"
+        },
+        "target-bucket": {
+          "description": "S3 bucket name.",
+          "type": "string"
+        },
+        "target-access-key": {
+          "description": "S3 access key.",
+          "type": "string"
+        },
+        "target-secret-key": {
+          "description": "S3 secret key.",
+          "type": "string"
+        },
+        "target-region": {
+          "description": "S3 region.",
+          "type": "string"
+        },
+        "target-use-path-style": {
+          "description": "Use path-style S3 addressing.",
+          "type": "boolean"
+        },
+        "max-file-size-mb": {
+          "description": "Maximum parquet file size in MB (default: 128).",
+          "type": "integer"
+        }
+      },
+      "required": ["policy"]
     }
   }
 }`

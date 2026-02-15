@@ -14,8 +14,8 @@
 <script module>
   export const startTimeSelectOptions = [
     { range: "", rangeLabel: "No Selection"},
-    { range: "last6h", rangeLabel: "Last 6hrs"},
-    { range: "last24h", rangeLabel: "Last 24hrs"},
+    { range: "last6h", rangeLabel: "Last 6 hrs"},
+    { range: "last24h", rangeLabel: "Last 24 hrs"},
     { range: "last7d", rangeLabel: "Last 7 days"},
     { range: "last30d", rangeLabel: "Last 30 days"}
   ];

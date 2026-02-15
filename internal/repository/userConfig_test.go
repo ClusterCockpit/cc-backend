@@ -31,8 +31,25 @@ func setupUserTest(t *testing.T) *UserCfgRepo {
 }`
 
 	cclog.Init("info", true)
-	dbfilepath := "testdata/job.db"
-	err := MigrateDB(dbfilepath)
+
+	// Copy test DB to a temp file for test isolation
+	srcData, err := os.ReadFile("testdata/job.db")
+	if err != nil {
+		t.Fatal(err)
+	}
+	dbfilepath := filepath.Join(t.TempDir(), "job.db")
+	if err := os.WriteFile(dbfilepath, srcData, 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := ResetConnection(); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() {
+		ResetConnection()
+	})
+
+	err = MigrateDB(dbfilepath)
 	if err != nil {
 		t.Fatal(err)
 	}

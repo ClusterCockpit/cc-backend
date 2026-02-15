@@ -35,6 +35,7 @@
 
   /* Const Init */
   const ccconfig = getContext("cc-config");
+  const globalMetrics = getContext("globalMetrics");
   const client = getContextClient();
 
   /* State Init */
@@ -139,6 +140,7 @@
 
 <HistogramSelection
   {cluster}
+  {globalMetrics}
   bind:isOpen={isHistogramSelectionOpen}
   presetSelectedHistograms={selectedHistograms}
   configName="statusView_selectedHistograms"

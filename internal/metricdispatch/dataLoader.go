@@ -499,7 +499,7 @@ func copyJobMetric(src *schema.JobMetric) *schema.JobMetric {
 func copySeries(src *schema.Series) schema.Series {
 	dst := schema.Series{
 		Hostname:   src.Hostname,
-		Id:         src.Id,
+		ID:         src.ID,
 		Statistics: src.Statistics,
 		Data:       make([]schema.Float, len(src.Data)),
 	}
