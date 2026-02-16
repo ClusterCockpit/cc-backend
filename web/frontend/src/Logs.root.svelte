@@ -68,7 +68,16 @@
   }
 
   function levelName(priority) {
-    const names = ["EMERG", "ALERT", "CRIT", "ERR", "WARN", "NOTICE", "INFO", "DEBUG"];
+    const names = [
+      "EMERG",
+      "ALERT",
+      "CRIT",
+      "ERR",
+      "WARN",
+      "NOTICE",
+      "INFO",
+      "DEBUG",
+    ];
     return names[priority] || "UNKNOWN";
   }
 
@@ -89,7 +98,7 @@
       if (level) params.set("level", level);
       if (search.trim()) params.set("search", search.trim());
 
-      const resp = await fetch(`/config/logs/?${params.toString()}`);
+      const resp = await fetch(`/frontend/logs/?${params.toString()}`);
       if (!resp.ok) {
         const body = await resp.json();
         throw new Error(body.error || `HTTP ${resp.status}`);
@@ -167,11 +176,18 @@
             type="text"
             placeholder="Search..."
             bind:value={search}
-            onkeydown={(e) => { if (e.key === "Enter") fetchLogs(); }}
+            onkeydown={(e) => {
+              if (e.key === "Enter") fetchLogs();
+            }}
           />
         </InputGroup>
 
-        <Button size="sm" color="primary" onclick={fetchLogs} disabled={loading}>
+        <Button
+          size="sm"
+          color="primary"
+          onclick={fetchLogs}
+          disabled={loading}
+        >
           {#if loading}
             <Spinner size="sm" />
           {:else}
@@ -212,12 +228,22 @@
             {#each entries as entry}
               <tr>
                 <td class="text-nowrap">{formatTimestamp(entry.timestamp)}</td>
-                <td><Badge color={levelColor(entry.priority)}>{levelName(entry.priority)}</Badge></td>
-                <td style="white-space: pre-wrap; word-break: break-all;">{entry.message}</td>
+                <td
+                  ><Badge color={levelColor(entry.priority)}
+                    >{levelName(entry.priority)}</Badge
+                  ></td
+                >
+                <td style="white-space: pre-wrap; word-break: break-all;"
+                  >{entry.message}</td
+                >
               </tr>
             {:else}
               {#if !loading && !error}
-                <tr><td colspan="3" class="text-center text-muted py-3">No log entries found</td></tr>
+                <tr
+                  ><td colspan="3" class="text-center text-muted py-3"
+                    >No log entries found</td
+                  ></tr
+                >
               {/if}
             {/each}
           </tbody>
