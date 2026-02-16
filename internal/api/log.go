@@ -12,12 +12,12 @@ import (
 	"os/exec"
 	"regexp"
 	"strconv"
+	"strings"
 
 	"github.com/ClusterCockpit/cc-backend/internal/config"
 	"github.com/ClusterCockpit/cc-backend/internal/repository"
 	cclog "github.com/ClusterCockpit/cc-lib/v2/ccLogger"
 	"github.com/ClusterCockpit/cc-lib/v2/schema"
-	"github.com/gorilla/mux"
 )
 
 type LogEntry struct {
@@ -60,15 +60,15 @@ func (api *RestAPI) getJournalLog(rw http.ResponseWriter, r *http.Request) {
 
 	unit := config.Keys.SystemdUnit
 	if unit == "" {
-		unit = "clustercockpit"
+		unit = "clustercockpit.service"
 	}
 
 	args := []string{
 		"--output=json",
 		"--no-pager",
-		fmt.Sprintf("-n %d", lines),
-		fmt.Sprintf("--since=%s", since),
-		fmt.Sprintf("-u %s", unit),
+		"-n", fmt.Sprintf("%d", lines),
+		"--since", since,
+		"-u", unit,
 	}
 
 	if level := r.URL.Query().Get("level"); level != "" {
@@ -77,7 +77,7 @@ func (api *RestAPI) getJournalLog(rw http.ResponseWriter, r *http.Request) {
 			handleError(fmt.Errorf("invalid 'level' parameter (must be 0-7)"), http.StatusBadRequest, rw)
 			return
 		}
-		args = append(args, fmt.Sprintf("--priority=%d", n))
+		args = append(args, "--priority", fmt.Sprintf("%d", n))
 	}
 
 	if search := r.URL.Query().Get("search"); search != "" {
@@ -85,9 +85,10 @@ func (api *RestAPI) getJournalLog(rw http.ResponseWriter, r *http.Request) {
 			handleError(fmt.Errorf("invalid 'search' parameter"), http.StatusBadRequest, rw)
 			return
 		}
-		args = append(args, fmt.Sprintf("--grep=%s", search))
+		args = append(args, "--grep", search)
 	}
 
+	cclog.Debugf("calling journalctl with %s", strings.Join(args, " "))
 	cmd := exec.CommandContext(r.Context(), "journalctl", args...)
 	stdout, err := cmd.StdoutPipe()
 	if err != nil {
@@ -105,6 +106,7 @@ func (api *RestAPI) getJournalLog(rw http.ResponseWriter, r *http.Request) {
 	for scanner.Scan() {
 		var raw map[string]any
 		if err := json.Unmarshal(scanner.Bytes(), &raw); err != nil {
+			cclog.Debugf("error unmarshal log output: %v", err)
 			continue
 		}
 
@@ -160,8 +162,4 @@ func (api *RestAPI) getJournalLog(rw http.ResponseWriter, r *http.Request) {
 	if err := json.NewEncoder(rw).Encode(entries); err != nil {
 		cclog.Errorf("Failed to encode log entries: %v", err)
 	}
-}
-
-func (api *RestAPI) MountLogAPIRoutes(r *mux.Router) {
-	r.HandleFunc("/logs/", api.getJournalLog).Methods(http.MethodGet)
 }
