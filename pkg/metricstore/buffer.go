@@ -237,9 +237,10 @@ func (b *buffer) free(t int64) (delme bool, n int) {
 		n += m
 		if delme {
 			b.prev.next = nil
-			if cap(b.prev.data) == BufferCap {
-				bufferPool.Put(b.prev)
+			if cap(b.prev.data) != BufferCap {
+				b.prev.data = make([]schema.Float, 0, BufferCap)
 			}
+			bufferPool.Put(b.prev)
 			b.prev = nil
 		}
 	}
