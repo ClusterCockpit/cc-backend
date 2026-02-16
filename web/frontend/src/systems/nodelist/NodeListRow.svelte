@@ -4,6 +4,7 @@
   Properties:
   - `cluster String`: The nodes' cluster
   - `nodeData Object`: The node data object including metric data
+  - `nodeDataFetching Bool`: Whether the metric query still runs
   - `selectedMetrics [String]`: The array of selected metrics
   - `globalMetrics [Obj]`: Includes the backend supplied availabilities for cluster and subCluster
 -->
@@ -24,6 +25,7 @@
   let {
     cluster,
     nodeData,
+    nodeDataFetching,
     selectedMetrics,
     globalMetrics
   } = $props();
@@ -73,7 +75,7 @@
 
   const extendedLegendData = $derived($nodeJobsData?.data ? buildExtendedLegend() : null);
   const refinedData = $derived(nodeData?.metrics ? sortAndSelectScope(selectedMetrics, nodeData.metrics) : []);
-  const dataHealth = $derived(refinedData.filter((rd) => rd.availability == "configured").map((enabled) => (enabled?.data?.metric?.series?.length > 0)));
+  const dataHealth = $derived(refinedData.filter((rd) => rd.availability == "configured").map((enabled) => (nodeDataFetching ? 'fetching' : enabled?.data?.metric?.series?.length > 0)));
 
   /* Functions */
   function sortAndSelectScope(metricList = [], nodeMetrics = []) {
@@ -153,7 +155,11 @@
   {#each refinedData as metricData, i (metricData?.data?.name || i)}
     {#key metricData}
       <td>
-        {#if metricData?.availability == "none"}
+        {#if !metricData?.data && nodeDataFetching}
+          <div style="text-align:center; margin-top: 1rem;">
+            <Spinner secondary />
+          </div>
+        {:else if metricData?.availability == "none"}
           <Card body class="mx-2" color="light">
             <p>No dataset(s) returned for <b>{selectedMetrics[i]}</b></p>
             <p class="mb-1">Metric is not configured for cluster <b>{cluster}</b>.</p>

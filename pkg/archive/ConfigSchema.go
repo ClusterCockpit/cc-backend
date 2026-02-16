@@ -57,7 +57,12 @@ var configSchema = `
             "policy": {
               "description": "Retention policy",
               "type": "string",
-              "enum": ["none", "delete", "move", "parquet"]
+              "enum": ["none", "delete", "copy", "move"]
+            },
+            "format": {
+              "description": "Output format for copy/move policies",
+              "type": "string",
+              "enum": ["json", "parquet"]
             },
             "include-db": {
               "description": "Also remove jobs from database",
@@ -67,41 +72,37 @@ var configSchema = `
               "description": "Act on jobs with startTime older than age (in days)",
               "type": "integer"
             },
-            "location": {
-              "description": "The target directory for retention. Only applicable for retention move.",
-              "type": "string"
-            },
             "target-kind": {
-              "description": "Target storage kind for parquet retention: file or s3",
+              "description": "Target storage kind: file or s3",
               "type": "string",
               "enum": ["file", "s3"]
             },
             "target-path": {
-              "description": "Target directory path for parquet file storage",
+              "description": "Target directory path for file storage",
               "type": "string"
             },
             "target-endpoint": {
-              "description": "S3 endpoint URL for parquet target",
+              "description": "S3 endpoint URL for target",
               "type": "string"
             },
             "target-bucket": {
-              "description": "S3 bucket name for parquet target",
+              "description": "S3 bucket name for target",
               "type": "string"
             },
             "target-access-key": {
-              "description": "S3 access key for parquet target",
+              "description": "S3 access key for target",
               "type": "string"
             },
             "target-secret-key": {
-              "description": "S3 secret key for parquet target",
+              "description": "S3 secret key for target",
               "type": "string"
             },
             "target-region": {
-              "description": "S3 region for parquet target",
+              "description": "S3 region for target",
               "type": "string"
             },
             "target-use-path-style": {
-              "description": "Use path-style S3 URLs for parquet target",
+              "description": "Use path-style S3 URLs for target",
               "type": "boolean"
             },
             "max-file-size-mb": {

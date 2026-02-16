@@ -12,7 +12,7 @@ NotifyAccess=all
 Restart=on-failure
 RestartSec=30
 TimeoutStopSec=100
-ExecStart=/opt/monitoring/cc-backend/cc-backend --config ./config.json
+ExecStart=/opt/monitoring/cc-backend/cc-backend --config ./config.json --server
 
 [Install]
 WantedBy=multi-user.target

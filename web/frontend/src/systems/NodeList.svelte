@@ -104,7 +104,7 @@
   let itemsPerPage = $derived(usePaging ? (ccconfig?.nodeList_nodesPerPage || 10) : 10);
   let paging = $derived({ itemsPerPage, page });
 
-  const nodesQuery = $derived(queryStore({
+  const nodesStore = $derived(queryStore({
     client: client,
     query: nodeListQuery,
     variables: {
@@ -122,7 +122,7 @@
     requestPolicy: "network-only", // Resolution queries are cached, but how to access them? For now: reload on every change
   }));
 
-  const matchedNodes = $derived($nodesQuery?.data?.nodeMetricsList?.totalNodes || 0);
+  const matchedNodes = $derived($nodesStore?.data?.nodeMetricsList?.totalNodes || 0);
 
   /* Effects */
   $effect(() => {
@@ -135,7 +135,7 @@
         } = document.documentElement;
 
         // Add 100 px offset to trigger load earlier
-        if (scrollTop + clientHeight >= scrollHeight - 100  && $nodesQuery?.data?.nodeMetricsList?.hasNextPage) {
+        if (scrollTop + clientHeight >= scrollHeight - 100  && $nodesStore?.data?.nodeMetricsList?.hasNextPage) {
           page += 1
         };
       });
@@ -143,21 +143,30 @@
   });
 
   $effect(() => {
-    if ($nodesQuery?.data) {
+    if ($nodesStore?.data) {
       untrack(() => {
-        handleNodes($nodesQuery?.data?.nodeMetricsList?.items);
+        handleNodes($nodesStore?.data?.nodeMetricsList?.items);
       });
       selectedMetrics = [...pendingSelectedMetrics]; // Trigger Rerender in NodeListRow Only After Data is Fetched
     };
   });
 
   $effect(() => {
-    // Triggers (Except Paging)
+    // Update NodeListRows metrics only: Keep ordered nodes on page 1
     from, to
     pendingSelectedMetrics, selectedResolution
+    // Continous Scroll: Paging if parameters change: Existing entries will not match new selections
+    if (!usePaging) {
+      nodes = [];
+      page = 1;
+    }
+  });
+
+  $effect(() => {
+    // Update NodeListRows metrics only: Keep ordered nodes on page 1
     hostnameFilter, hoststateFilter
     // Continous Scroll: Paging if parameters change: Existing entries will not match new selections
-    // Nodes Array Reset in HandleNodes func
+    nodes = [];
     if (!usePaging) {
       page = 1;
     }
@@ -228,7 +237,7 @@
             style="padding-top: {headerPaddingTop}px;"
           >
             {cluster} Node Info
-            {#if $nodesQuery.fetching}
+            {#if $nodesStore.fetching}
               <Spinner size="sm" style="margin-left:10px;" secondary />
             {/if}
           </th>
@@ -245,22 +254,24 @@
         </tr>
       </thead>
       <tbody>
-        {#if $nodesQuery.error}
+        {#if $nodesStore.error}
           <Row>
             <Col>
-              <Card body color="danger">{$nodesQuery.error.message}</Card>
+              <Card body color="danger">{$nodesStore.error.message}</Card>
             </Col>
           </Row>
         {:else}
           {#each nodes as nodeData (nodeData.host)}
-            <NodeListRow {nodeData} {cluster} {selectedMetrics} {globalMetrics}/>
+            <NodeListRow {nodeData} {cluster} {selectedMetrics} {globalMetrics} nodeDataFetching={$nodesStore.fetching}/>
           {:else}
-            <tr>
-              <td colspan={selectedMetrics.length + 1}> No nodes found </td>
-            </tr>
+            {#if !$nodesStore.fetching}
+              <tr>
+                <td colspan={selectedMetrics.length + 1}> No nodes found </td>
+              </tr>
+            {/if}
           {/each}
         {/if}
-        {#if $nodesQuery.fetching || !$nodesQuery.data}
+        {#if $nodesStore.fetching || !$nodesStore.data}
           <tr>
             <td colspan={pendingSelectedMetrics.length + 1}>
               <div style="text-align:center;">

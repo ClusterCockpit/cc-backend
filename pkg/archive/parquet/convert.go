@@ -93,6 +93,91 @@ func JobToParquetRow(meta *schema.Job, data *schema.JobData) (*ParquetJobRow, er
 	}, nil
 }
 
+// ParquetRowToJob converts a ParquetJobRow back into job metadata and metric data.
+// This is the reverse of JobToParquetRow.
+func ParquetRowToJob(row *ParquetJobRow) (*schema.Job, *schema.JobData, error) {
+	meta := &schema.Job{
+		JobID:        row.JobID,
+		Cluster:      row.Cluster,
+		SubCluster:   row.SubCluster,
+		Partition:    row.Partition,
+		Project:      row.Project,
+		User:         row.User,
+		State:        schema.JobState(row.State),
+		StartTime:    row.StartTime,
+		Duration:     row.Duration,
+		Walltime:     row.Walltime,
+		NumNodes:     row.NumNodes,
+		NumHWThreads: row.NumHWThreads,
+		NumAcc:       row.NumAcc,
+		Energy:       row.Energy,
+		SMT:          row.SMT,
+	}
+
+	if len(row.ResourcesJSON) > 0 {
+		if err := json.Unmarshal(row.ResourcesJSON, &meta.Resources); err != nil {
+			return nil, nil, fmt.Errorf("unmarshal resources: %w", err)
+		}
+	}
+
+	if len(row.StatisticsJSON) > 0 {
+		if err := json.Unmarshal(row.StatisticsJSON, &meta.Statistics); err != nil {
+			return nil, nil, fmt.Errorf("unmarshal statistics: %w", err)
+		}
+	}
+
+	if len(row.TagsJSON) > 0 {
+		if err := json.Unmarshal(row.TagsJSON, &meta.Tags); err != nil {
+			return nil, nil, fmt.Errorf("unmarshal tags: %w", err)
+		}
+	}
+
+	if len(row.MetaDataJSON) > 0 {
+		if err := json.Unmarshal(row.MetaDataJSON, &meta.MetaData); err != nil {
+			return nil, nil, fmt.Errorf("unmarshal metadata: %w", err)
+		}
+	}
+
+	if len(row.FootprintJSON) > 0 {
+		if err := json.Unmarshal(row.FootprintJSON, &meta.Footprint); err != nil {
+			return nil, nil, fmt.Errorf("unmarshal footprint: %w", err)
+		}
+	}
+
+	if len(row.EnergyFootJSON) > 0 {
+		if err := json.Unmarshal(row.EnergyFootJSON, &meta.EnergyFootprint); err != nil {
+			return nil, nil, fmt.Errorf("unmarshal energy footprint: %w", err)
+		}
+	}
+
+	data, err := decompressJobData(row.MetricDataGz)
+	if err != nil {
+		return nil, nil, fmt.Errorf("decompress metric data: %w", err)
+	}
+
+	return meta, data, nil
+}
+
+func decompressJobData(data []byte) (*schema.JobData, error) {
+	gz, err := gzip.NewReader(bytes.NewReader(data))
+	if err != nil {
+		return nil, err
+	}
+	defer gz.Close()
+
+	var buf bytes.Buffer
+	if _, err := buf.ReadFrom(gz); err != nil {
+		return nil, err
+	}
+
+	var jobData schema.JobData
+	if err := json.Unmarshal(buf.Bytes(), &jobData); err != nil {
+		return nil, err
+	}
+
+	return &jobData, nil
+}
+
 func compressJobData(data *schema.JobData) ([]byte, error) {
 	jsonBytes, err := json.Marshal(data)
 	if err != nil {

@@ -135,6 +135,16 @@
       listOptions: true,
       menu: "Info",
     },
+    {
+      title: "Logs",
+      // svelte-ignore state_referenced_locally
+      requiredRole: roles.admin,
+      href: "/monitoring/logs",
+      icon: "journal-text",
+      perCluster: false,
+      listOptions: false,
+      menu: "Info",
+    },
   ];
 
   /* State Init */

@@ -72,14 +72,17 @@ type ProgramConfig struct {
 	// If exists, will enable dynamic zoom in frontend metric plots using the configured values
 	EnableResampling *ResampleConfig `json:"resampling"`
 
+	// Systemd unit name for log viewer (default: "clustercockpit")
+	SystemdUnit string `json:"systemd-unit"`
+
 	// Node state retention configuration
 	NodeStateRetention *NodeStateRetention `json:"nodestate-retention"`
 }
 
 type NodeStateRetention struct {
-	Policy             string `json:"policy"`               // "delete" or "parquet"
-	Age                int    `json:"age"`                  // hours, default 24
-	TargetKind         string `json:"target-kind"`          // "file" or "s3"
+	Policy             string `json:"policy"`      // "delete" or "parquet"
+	Age                int    `json:"age"`         // hours, default 24
+	TargetKind         string `json:"target-kind"` // "file" or "s3"
 	TargetPath         string `json:"target-path"`
 	TargetEndpoint     string `json:"target-endpoint"`
 	TargetBucket       string `json:"target-bucket"`

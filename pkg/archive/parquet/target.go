@@ -36,7 +36,11 @@ func NewFileTarget(path string) (*FileTarget, error) {
 }
 
 func (ft *FileTarget) WriteFile(name string, data []byte) error {
-	return os.WriteFile(filepath.Join(ft.path, name), data, 0o640)
+	fullPath := filepath.Join(ft.path, name)
+	if err := os.MkdirAll(filepath.Dir(fullPath), 0o750); err != nil {
+		return fmt.Errorf("create parent directory: %w", err)
+	}
+	return os.WriteFile(fullPath, data, 0o640)
 }
 
 // S3TargetConfig holds the configuration for an S3 parquet target.

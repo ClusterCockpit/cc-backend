@@ -10,6 +10,9 @@ import (
 	"compress/gzip"
 	"encoding/json"
 	"io"
+	"os"
+	"path/filepath"
+	"strings"
 	"sync"
 	"testing"
 
@@ -221,4 +224,138 @@ func TestFileTarget(t *testing.T) {
 
 	// Verify file exists and has correct content
 	// (using the target itself is sufficient; we just check no error)
+}
+
+func TestFileTargetSubdirectories(t *testing.T) {
+	dir := t.TempDir()
+	ft, err := NewFileTarget(dir)
+	if err != nil {
+		t.Fatalf("NewFileTarget: %v", err)
+	}
+
+	testData := []byte("test data in subdir")
+	if err := ft.WriteFile("fritz/cc-archive-2025-01-20-001.parquet", testData); err != nil {
+		t.Fatalf("WriteFile with subdir: %v", err)
+	}
+
+	// Verify file was created in subdirectory
+	content, err := os.ReadFile(filepath.Join(dir, "fritz", "cc-archive-2025-01-20-001.parquet"))
+	if err != nil {
+		t.Fatalf("read file in subdir: %v", err)
+	}
+	if !bytes.Equal(content, testData) {
+		t.Error("file content mismatch")
+	}
+}
+
+func makeTestJobForCluster(jobID int64, cluster string) (*schema.Job, *schema.JobData) {
+	meta, data := makeTestJob(jobID)
+	meta.Cluster = cluster
+	return meta, data
+}
+
+func TestClusterAwareParquetWriter(t *testing.T) {
+	target := newMemTarget()
+	cw := NewClusterAwareParquetWriter(target, 512)
+
+	// Set cluster configs
+	cw.SetClusterConfig("fritz", &schema.Cluster{Name: "fritz"})
+	cw.SetClusterConfig("alex", &schema.Cluster{Name: "alex"})
+
+	// Add jobs from different clusters
+	for i := int64(0); i < 3; i++ {
+		meta, data := makeTestJobForCluster(i, "fritz")
+		row, err := JobToParquetRow(meta, data)
+		if err != nil {
+			t.Fatalf("convert fritz job %d: %v", i, err)
+		}
+		if err := cw.AddJob(*row); err != nil {
+			t.Fatalf("add fritz job %d: %v", i, err)
+		}
+	}
+
+	for i := int64(10); i < 12; i++ {
+		meta, data := makeTestJobForCluster(i, "alex")
+		row, err := JobToParquetRow(meta, data)
+		if err != nil {
+			t.Fatalf("convert alex job %d: %v", i, err)
+		}
+		if err := cw.AddJob(*row); err != nil {
+			t.Fatalf("add alex job %d: %v", i, err)
+		}
+	}
+
+	if err := cw.Close(); err != nil {
+		t.Fatalf("close: %v", err)
+	}
+
+	target.mu.Lock()
+	defer target.mu.Unlock()
+
+	// Check cluster.json files were written
+	if _, ok := target.files["fritz/cluster.json"]; !ok {
+		t.Error("missing fritz/cluster.json")
+	}
+	if _, ok := target.files["alex/cluster.json"]; !ok {
+		t.Error("missing alex/cluster.json")
+	}
+
+	// Verify cluster.json content
+	var clusterCfg schema.Cluster
+	if err := json.Unmarshal(target.files["fritz/cluster.json"], &clusterCfg); err != nil {
+		t.Fatalf("unmarshal fritz cluster.json: %v", err)
+	}
+	if clusterCfg.Name != "fritz" {
+		t.Errorf("fritz cluster name = %q, want %q", clusterCfg.Name, "fritz")
+	}
+
+	// Check parquet files are in cluster subdirectories
+	fritzParquets := 0
+	alexParquets := 0
+	for name := range target.files {
+		if strings.HasPrefix(name, "fritz/") && strings.HasSuffix(name, ".parquet") {
+			fritzParquets++
+		}
+		if strings.HasPrefix(name, "alex/") && strings.HasSuffix(name, ".parquet") {
+			alexParquets++
+		}
+	}
+	if fritzParquets == 0 {
+		t.Error("no parquet files in fritz/")
+	}
+	if alexParquets == 0 {
+		t.Error("no parquet files in alex/")
+	}
+
+	// Verify parquet files are readable and have correct row counts
+	for name, data := range target.files {
+		if !strings.HasSuffix(name, ".parquet") {
+			continue
+		}
+		file := bytes.NewReader(data)
+		pf, err := pq.OpenFile(file, int64(len(data)))
+		if err != nil {
+			t.Errorf("open parquet %s: %v", name, err)
+			continue
+		}
+		if strings.HasPrefix(name, "fritz/") && pf.NumRows() != 3 {
+			t.Errorf("fritz parquet rows = %d, want 3", pf.NumRows())
+		}
+		if strings.HasPrefix(name, "alex/") && pf.NumRows() != 2 {
+			t.Errorf("alex parquet rows = %d, want 2", pf.NumRows())
+		}
+	}
+}
+
+func TestClusterAwareParquetWriterEmpty(t *testing.T) {
+	target := newMemTarget()
+	cw := NewClusterAwareParquetWriter(target, 512)
+
+	if err := cw.Close(); err != nil {
+		t.Fatalf("close empty writer: %v", err)
+	}
+
+	if len(target.files) != 0 {
+		t.Errorf("expected no files for empty writer, got %d", len(target.files))
+	}
 }

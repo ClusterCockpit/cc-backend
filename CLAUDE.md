@@ -108,6 +108,7 @@ The backend follows a layered architecture with clear separation of concerns:
   - File system backend (default)
   - S3 backend
   - SQLite backend (experimental)
+  - **parquet** sub-package: Parquet format support (schema, reader, writer, conversion)
 - **internal/metricstoreclient**: Client for cc-metric-store queries
 
 ### Frontend Structure
