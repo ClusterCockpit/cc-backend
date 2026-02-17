@@ -23,7 +23,7 @@ import (
 	"github.com/go-chi/chi/v5"
 )
 
-type InfoType map[string]interface{}
+type InfoType map[string]any
 
 type Route struct {
 	Route    string
@@ -193,7 +193,7 @@ func setupAnalysisRoute(i InfoType, r *http.Request) InfoType {
 func setupTaglistRoute(i InfoType, r *http.Request) InfoType {
 	jobRepo := repository.GetJobRepository()
 	tags, counts, err := jobRepo.CountTags(repository.GetUserFromContext(r.Context()))
-	tagMap := make(map[string][]map[string]interface{})
+	tagMap := make(map[string][]map[string]any)
 	if err != nil {
 		cclog.Warnf("GetTags failed: %s", err.Error())
 		i["tagmap"] = tagMap
@@ -204,7 +204,7 @@ func setupTaglistRoute(i InfoType, r *http.Request) InfoType {
 	// Uses tag.ID as second Map-Key component to differentiate tags with identical names
 	if userAuthlevel >= 4 { // Support+ : Show tags for all scopes, regardless of count
 		for _, tag := range tags {
-			tagItem := map[string]interface{}{
+			tagItem := map[string]any{
 				"id":    tag.ID,
 				"name":  tag.Name,
 				"scope": tag.Scope,
@@ -216,7 +216,7 @@ func setupTaglistRoute(i InfoType, r *http.Request) InfoType {
 		for _, tag := range tags {
 			tagCount := counts[fmt.Sprint(tag.Type, tag.Name, tag.ID)]
 			if ((tag.Scope == "global" || tag.Scope == "admin") && tagCount >= 1) || (tag.Scope != "global" && tag.Scope != "admin") {
-				tagItem := map[string]interface{}{
+				tagItem := map[string]any{
 					"id":    tag.ID,
 					"name":  tag.Name,
 					"scope": tag.Scope,
@@ -232,8 +232,8 @@ func setupTaglistRoute(i InfoType, r *http.Request) InfoType {
 }
 
 // FIXME: Lots of redundant code. Needs refactoring
-func buildFilterPresets(query url.Values) map[string]interface{} {
-	filterPresets := map[string]interface{}{}
+func buildFilterPresets(query url.Values) map[string]any {
+	filterPresets := map[string]any{}
 
 	if query.Get("cluster") != "" {
 		filterPresets["cluster"] = query.Get("cluster")
@@ -377,14 +377,14 @@ func buildFilterPresets(query url.Values) map[string]interface{} {
 		}
 	}
 	if len(query["stat"]) != 0 {
-		statList := make([]map[string]interface{}, 0)
+		statList := make([]map[string]any, 0)
 		for _, statEntry := range query["stat"] {
 			parts := strings.Split(statEntry, "-")
 			if len(parts) == 3 { // Metric Footprint Stat Field, from - to
 				a, e1 := strconv.ParseInt(parts[1], 10, 64)
 				b, e2 := strconv.ParseInt(parts[2], 10, 64)
 				if e1 == nil && e2 == nil {
-					statEntry := map[string]interface{}{
+					statEntry := map[string]any{
 						"field": parts[0],
 						"from":  a,
 						"to":    b,
@@ -401,7 +401,6 @@ func buildFilterPresets(query url.Values) map[string]interface{} {
 func SetupRoutes(router chi.Router, buildInfo web.Build) {
 	userCfgRepo := repository.GetUserCfgRepo()
 	for _, route := range routes {
-		route := route
 		router.HandleFunc(route.Route, func(rw http.ResponseWriter, r *http.Request) {
 			conf, err := userCfgRepo.GetUIConfig(repository.GetUserFromContext(r.Context()))
 			if err != nil {
@@ -410,7 +409,7 @@ func SetupRoutes(router chi.Router, buildInfo web.Build) {
 			}
 
 			title := route.Title
-			infos := route.Setup(map[string]interface{}{}, r)
+			infos := route.Setup(map[string]any{}, r)
 			if id, ok := infos["id"]; ok {
 				title = strings.Replace(route.Title, "<ID>", id.(string), 1)
 				if sid, ok := infos["sid"]; ok { // 2nd ID element

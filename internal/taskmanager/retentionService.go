@@ -45,13 +45,13 @@ func createTargetBackend(cfg Retention) (archive.ArchiveBackend, error) {
 
 	switch cfg.TargetKind {
 	case "s3":
-		raw, err = json.Marshal(map[string]interface{}{
-			"kind":          "s3",
-			"endpoint":      cfg.TargetEndpoint,
-			"bucket":        cfg.TargetBucket,
-			"access-key":    cfg.TargetAccessKey,
-			"secret-key":    cfg.TargetSecretKey,
-			"region":        cfg.TargetRegion,
+		raw, err = json.Marshal(map[string]any{
+			"kind":           "s3",
+			"endpoint":       cfg.TargetEndpoint,
+			"bucket":         cfg.TargetBucket,
+			"access-key":     cfg.TargetAccessKey,
+			"secret-key":     cfg.TargetSecretKey,
+			"region":         cfg.TargetRegion,
 			"use-path-style": cfg.TargetUsePathStyle,
 		})
 	default:

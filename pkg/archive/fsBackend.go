@@ -16,6 +16,7 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"slices"
 	"strconv"
 	"strings"
 	"sync"
@@ -692,13 +693,7 @@ func (fsa *FsArchive) StoreClusterCfg(name string, config *schema.Cluster) error
 	}
 
 	// Update clusters list if new
-	found := false
-	for _, c := range fsa.clusters {
-		if c == name {
-			found = true
-			break
-		}
-	}
+	found := slices.Contains(fsa.clusters, name)
 	if !found {
 		fsa.clusters = append(fsa.clusters, name)
 	}

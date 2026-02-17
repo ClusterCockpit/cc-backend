@@ -38,7 +38,7 @@ import (
 func HandleImportFlag(flag string) error {
 	r := repository.GetJobRepository()
 
-	for _, pair := range strings.Split(flag, ",") {
+	for pair := range strings.SplitSeq(flag, ",") {
 		files := strings.Split(pair, ":")
 		if len(files) != 2 {
 			return fmt.Errorf("REPOSITORY/INIT > invalid import flag format")

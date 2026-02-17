@@ -62,7 +62,7 @@ func (r *JobRepository) TransactionEnd(t *Transaction) error {
 func (r *JobRepository) TransactionAddNamed(
 	t *Transaction,
 	query string,
-	args ...interface{},
+	args ...any,
 ) (int64, error) {
 	if t.tx == nil {
 		return 0, fmt.Errorf("transaction is nil or already completed")
@@ -82,7 +82,7 @@ func (r *JobRepository) TransactionAddNamed(
 }
 
 // TransactionAdd executes a query within the transaction.
-func (r *JobRepository) TransactionAdd(t *Transaction, query string, args ...interface{}) (int64, error) {
+func (r *JobRepository) TransactionAdd(t *Transaction, query string, args ...any) (int64, error) {
 	if t.tx == nil {
 		return 0, fmt.Errorf("transaction is nil or already completed")
 	}
