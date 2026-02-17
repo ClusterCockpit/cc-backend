@@ -23,6 +23,7 @@
   } from "@sveltestrap/sveltestrap";
 
   import StatusDash from "./dashdetails/StatusDash.svelte";
+  import HealthDash from "./dashdetails/HealthDash.svelte";
   import UsageDash from "./dashdetails/UsageDash.svelte";
   import StatisticsDash from "./dashdetails/StatisticsDash.svelte";
 
@@ -65,7 +66,13 @@
     <TabContent>
       <TabPane tabId="status-dash" tab="Status" active>
         <CardBody>
-          <StatusDash clusters={$initq.data.clusters} {presetCluster} {useCbColors} useAltColors></StatusDash>
+          <StatusDash clusters={$initq.data.clusters} {presetCluster}></StatusDash>
+        </CardBody>
+      </TabPane>
+
+      <TabPane tabId="health-dash" tab="Metric Status">
+        <CardBody>
+          <HealthDash {presetCluster}></HealthDash>
         </CardBody>
       </TabPane>
 
