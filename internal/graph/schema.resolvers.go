@@ -318,18 +318,39 @@ func (r *nodeResolver) SchedulerState(ctx context.Context, obj *schema.Node) (sc
 	if obj.NodeState != "" {
 		return obj.NodeState, nil
 	} else {
-		return "", fmt.Errorf("no SchedulerState (NodeState) on Object")
+		return "", fmt.Errorf("resolver: no SchedulerState (NodeState) on node object")
 	}
 }
 
 // HealthState is the resolver for the healthState field.
 func (r *nodeResolver) HealthState(ctx context.Context, obj *schema.Node) (string, error) {
-	panic(fmt.Errorf("not implemented: HealthState - healthState"))
+	if obj.HealthState != "" {
+		return string(obj.HealthState), nil
+	} else {
+		return "", fmt.Errorf("resolver: no HealthState (NodeState) on node object")
+	}
 }
 
 // MetaData is the resolver for the metaData field.
 func (r *nodeResolver) MetaData(ctx context.Context, obj *schema.Node) (any, error) {
-	panic(fmt.Errorf("not implemented: MetaData - metaData"))
+	if obj.MetaData != nil {
+		return obj.MetaData, nil
+	} else {
+		cclog.Debug("resolver: no MetaData (NodeState) on node object")
+		emptyMeta := make(map[string]string, 0)
+		return emptyMeta, nil
+	}
+}
+
+// HealthData is the resolver for the healthData field.
+func (r *nodeResolver) HealthData(ctx context.Context, obj *schema.Node) (any, error) {
+	if obj.HealthData != nil {
+		return obj.HealthData, nil
+	} else {
+		cclog.Debug("resolver: no HealthData (NodeState) on node object")
+		emptyHealth := make(map[string][]string, 0)
+		return emptyHealth, nil
+	}
 }
 
 // Clusters is the resolver for the clusters field.
@@ -394,6 +415,15 @@ func (r *queryResolver) Node(ctx context.Context, id string) (*schema.Node, erro
 func (r *queryResolver) Nodes(ctx context.Context, filter []*model.NodeFilter, order *model.OrderByInput) (*model.NodeStateResultList, error) {
 	repo := repository.GetNodeRepository()
 	nodes, err := repo.QueryNodes(ctx, filter, nil, order) // Ignore Paging, Order Unused
+	count := len(nodes)
+	return &model.NodeStateResultList{Items: nodes, Count: &count}, err
+}
+
+// NodesWithMeta is the resolver for the nodesWithMeta field.
+func (r *queryResolver) NodesWithMeta(ctx context.Context, filter []*model.NodeFilter, order *model.OrderByInput) (*model.NodeStateResultList, error) {
+	// Why Extra Handler? -> graphql.CollectAllFields(ctx) only returns toplevel fields (i.e.: items, count), and not subfields like item.metaData
+	repo := repository.GetNodeRepository()
+	nodes, err := repo.QueryNodesWithMeta(ctx, filter, nil, order) // Ignore Paging, Order Unused
 	count := len(nodes)
 	return &model.NodeStateResultList{Items: nodes, Count: &count}, err
 }

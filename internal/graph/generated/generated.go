@@ -287,6 +287,7 @@ type ComplexityRoot struct {
 		Cluster         func(childComplexity int) int
 		CpusAllocated   func(childComplexity int) int
 		GpusAllocated   func(childComplexity int) int
+		HealthData      func(childComplexity int) int
 		HealthState     func(childComplexity int) int
 		Hostname        func(childComplexity int) int
 		ID              func(childComplexity int) int
@@ -347,6 +348,7 @@ type ComplexityRoot struct {
 		NodeStates      func(childComplexity int, filter []*model.NodeFilter) int
 		NodeStatesTimed func(childComplexity int, filter []*model.NodeFilter, typeArg string) int
 		Nodes           func(childComplexity int, filter []*model.NodeFilter, order *model.OrderByInput) int
+		NodesWithMeta   func(childComplexity int, filter []*model.NodeFilter, order *model.OrderByInput) int
 		RooflineHeatmap func(childComplexity int, filter []*model.JobFilter, rows int, cols int, minX float64, minY float64, maxX float64, maxY float64) int
 		ScopedJobStats  func(childComplexity int, id string, metrics []string, scopes []schema.MetricScope) int
 		Tags            func(childComplexity int) int
@@ -369,7 +371,7 @@ type ComplexityRoot struct {
 	Series struct {
 		Data       func(childComplexity int) int
 		Hostname   func(childComplexity int) int
-		Id         func(childComplexity int) int
+		ID         func(childComplexity int) int
 		Statistics func(childComplexity int) int
 	}
 
@@ -476,6 +478,7 @@ type NodeResolver interface {
 	SchedulerState(ctx context.Context, obj *schema.Node) (schema.SchedulerState, error)
 	HealthState(ctx context.Context, obj *schema.Node) (string, error)
 	MetaData(ctx context.Context, obj *schema.Node) (any, error)
+	HealthData(ctx context.Context, obj *schema.Node) (any, error)
 }
 type QueryResolver interface {
 	Clusters(ctx context.Context) ([]*schema.Cluster, error)
@@ -485,6 +488,7 @@ type QueryResolver interface {
 	AllocatedNodes(ctx context.Context, cluster string) ([]*model.Count, error)
 	Node(ctx context.Context, id string) (*schema.Node, error)
 	Nodes(ctx context.Context, filter []*model.NodeFilter, order *model.OrderByInput) (*model.NodeStateResultList, error)
+	NodesWithMeta(ctx context.Context, filter []*model.NodeFilter, order *model.OrderByInput) (*model.NodeStateResultList, error)
 	NodeStates(ctx context.Context, filter []*model.NodeFilter) ([]*model.NodeStates, error)
 	NodeStatesTimed(ctx context.Context, filter []*model.NodeFilter, typeArg string) ([]*model.NodeStatesTimed, error)
 	Job(ctx context.Context, id string) (*schema.Job, error)
@@ -1452,6 +1456,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.Node.GpusAllocated(childComplexity), true
+	case "Node.healthData":
+		if e.complexity.Node.HealthData == nil {
+			break
+		}
+
+		return e.complexity.Node.HealthData(childComplexity), true
 	case "Node.healthState":
 		if e.complexity.Node.HealthState == nil {
 			break
@@ -1785,6 +1795,17 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.Query.Nodes(childComplexity, args["filter"].([]*model.NodeFilter), args["order"].(*model.OrderByInput)), true
+	case "Query.nodesWithMeta":
+		if e.complexity.Query.NodesWithMeta == nil {
+			break
+		}
+
+		args, err := ec.field_Query_nodesWithMeta_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Query.NodesWithMeta(childComplexity, args["filter"].([]*model.NodeFilter), args["order"].(*model.OrderByInput)), true
 	case "Query.rooflineHeatmap":
 		if e.complexity.Query.RooflineHeatmap == nil {
 			break
@@ -1882,11 +1903,11 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 
 		return e.complexity.Series.Hostname(childComplexity), true
 	case "Series.id":
-		if e.complexity.Series.Id == nil {
+		if e.complexity.Series.ID == nil {
 			break
 		}
 
-		return e.complexity.Series.Id(childComplexity), true
+		return e.complexity.Series.ID(childComplexity), true
 	case "Series.statistics":
 		if e.complexity.Series.Statistics == nil {
 			break
@@ -2302,6 +2323,7 @@ type Node {
   schedulerState: SchedulerState!
   healthState: MonitoringState!
   metaData: Any
+  healthData: Any
 }
 
 type NodeStates {
@@ -2611,6 +2633,7 @@ type Query {
   ## Node Queries New
   node(id: ID!): Node
   nodes(filter: [NodeFilter!], order: OrderByInput): NodeStateResultList!
+  nodesWithMeta(filter: [NodeFilter!], order: OrderByInput): NodeStateResultList!
   nodeStates(filter: [NodeFilter!]): [NodeStates!]!
   nodeStatesTimed(filter: [NodeFilter!], type: String!): [NodeStatesTimed!]!
 
@@ -3265,6 +3288,22 @@ func (ec *executionContext) field_Query_node_args(ctx context.Context, rawArgs m
 		return nil, err
 	}
 	args["id"] = arg0
+	return args, nil
+}
+
+func (ec *executionContext) field_Query_nodesWithMeta_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "filter", ec.unmarshalONodeFilter2ᚕᚖgithubᚗcomᚋClusterCockpitᚋccᚑbackendᚋinternalᚋgraphᚋmodelᚐNodeFilterᚄ)
+	if err != nil {
+		return nil, err
+	}
+	args["filter"] = arg0
+	arg1, err := graphql.ProcessArgField(ctx, rawArgs, "order", ec.unmarshalOOrderByInput2ᚖgithubᚗcomᚋClusterCockpitᚋccᚑbackendᚋinternalᚋgraphᚋmodelᚐOrderByInput)
+	if err != nil {
+		return nil, err
+	}
+	args["order"] = arg1
 	return args, nil
 }
 
@@ -8258,6 +8297,35 @@ func (ec *executionContext) fieldContext_Node_metaData(_ context.Context, field 
 	return fc, nil
 }
 
+func (ec *executionContext) _Node_healthData(ctx context.Context, field graphql.CollectedField, obj *schema.Node) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Node_healthData,
+		func(ctx context.Context) (any, error) {
+			return ec.resolvers.Node().HealthData(ctx, obj)
+		},
+		nil,
+		ec.marshalOAny2interface,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_Node_healthData(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Node",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Any does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
 func (ec *executionContext) _NodeMetrics_host(ctx context.Context, field graphql.CollectedField, obj *model.NodeMetrics) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -8428,6 +8496,8 @@ func (ec *executionContext) fieldContext_NodeStateResultList_items(_ context.Con
 				return ec.fieldContext_Node_healthState(ctx, field)
 			case "metaData":
 				return ec.fieldContext_Node_metaData(ctx, field)
+			case "healthData":
+				return ec.fieldContext_Node_healthData(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type Node", field.Name)
 		},
@@ -9053,6 +9123,8 @@ func (ec *executionContext) fieldContext_Query_node(ctx context.Context, field g
 				return ec.fieldContext_Node_healthState(ctx, field)
 			case "metaData":
 				return ec.fieldContext_Node_metaData(ctx, field)
+			case "healthData":
+				return ec.fieldContext_Node_healthData(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type Node", field.Name)
 		},
@@ -9112,6 +9184,53 @@ func (ec *executionContext) fieldContext_Query_nodes(ctx context.Context, field 
 	}()
 	ctx = graphql.WithFieldContext(ctx, fc)
 	if fc.Args, err = ec.field_Query_nodes_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Query_nodesWithMeta(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Query_nodesWithMeta,
+		func(ctx context.Context) (any, error) {
+			fc := graphql.GetFieldContext(ctx)
+			return ec.resolvers.Query().NodesWithMeta(ctx, fc.Args["filter"].([]*model.NodeFilter), fc.Args["order"].(*model.OrderByInput))
+		},
+		nil,
+		ec.marshalNNodeStateResultList2ᚖgithubᚗcomᚋClusterCockpitᚋccᚑbackendᚋinternalᚋgraphᚋmodelᚐNodeStateResultList,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_Query_nodesWithMeta(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Query",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "items":
+				return ec.fieldContext_NodeStateResultList_items(ctx, field)
+			case "count":
+				return ec.fieldContext_NodeStateResultList_count(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type NodeStateResultList", field.Name)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Query_nodesWithMeta_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
 		ec.Error(ctx, err)
 		return fc, err
 	}
@@ -15745,6 +15864,39 @@ func (ec *executionContext) _Node(ctx context.Context, sel ast.SelectionSet, obj
 			}
 
 			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+		case "healthData":
+			field := field
+
+			innerFunc := func(ctx context.Context, _ *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Node_healthData(ctx, field, obj)
+				return res
+			}
+
+			if field.Deferrable != nil {
+				dfs, ok := deferred[field.Deferrable.Label]
+				di := 0
+				if ok {
+					dfs.AddField(field)
+					di = len(dfs.Values) - 1
+				} else {
+					dfs = graphql.NewFieldSet([]graphql.CollectedField{field})
+					deferred[field.Deferrable.Label] = dfs
+				}
+				dfs.Concurrently(di, func(ctx context.Context) graphql.Marshaler {
+					return innerFunc(ctx, dfs)
+				})
+
+				// don't run the out.Concurrently() call below
+				out.Values[i] = graphql.Null
+				continue
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
 		default:
 			panic("unknown field " + strconv.Quote(field.Name))
 		}
@@ -16160,6 +16312,28 @@ func (ec *executionContext) _Query(ctx context.Context, sel ast.SelectionSet) gr
 					}
 				}()
 				res = ec._Query_nodes(ctx, field)
+				if res == graphql.Null {
+					atomic.AddUint32(&fs.Invalids, 1)
+				}
+				return res
+			}
+
+			rrm := func(ctx context.Context) graphql.Marshaler {
+				return ec.OperationContext.RootResolverMiddleware(ctx,
+					func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return rrm(innerCtx) })
+		case "nodesWithMeta":
+			field := field
+
+			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Query_nodesWithMeta(ctx, field)
 				if res == graphql.Null {
 					atomic.AddUint32(&fs.Invalids, 1)
 				}
