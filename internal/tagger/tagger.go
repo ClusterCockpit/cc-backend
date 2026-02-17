@@ -51,10 +51,14 @@ func newTagger() {
 	jobTagger.stopTaggers = append(jobTagger.stopTaggers, &JobClassTagger{})
 
 	for _, tagger := range jobTagger.startTaggers {
-		tagger.Register()
+		if err := tagger.Register(); err != nil {
+			cclog.Errorf("failed to register start tagger: %s", err)
+		}
 	}
 	for _, tagger := range jobTagger.stopTaggers {
-		tagger.Register()
+		if err := tagger.Register(); err != nil {
+			cclog.Errorf("failed to register stop tagger: %s", err)
+		}
 	}
 }
 
