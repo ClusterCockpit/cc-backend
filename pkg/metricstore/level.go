@@ -189,9 +189,10 @@ func (l *Level) free(t int64) (int, error) {
 			delme, m := b.free(t)
 			n += m
 			if delme {
-				if cap(b.data) == BufferCap {
-					bufferPool.Put(b)
+				if cap(b.data) != BufferCap {
+					b.data = make([]schema.Float, 0, BufferCap)
 				}
+				bufferPool.Put(b)
 				l.metrics[i] = nil
 			}
 		}

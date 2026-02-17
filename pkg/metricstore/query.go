@@ -42,6 +42,13 @@ type InternalMetricStore struct{}
 
 var MetricStoreHandle *InternalMetricStore
 
+// HealthCheck delegates to the internal MemoryStore's HealthCheck.
+func (ccms *InternalMetricStore) HealthCheck(cluster string,
+	nodes []string, metrics []string,
+) (map[string]HealthCheckResult, error) {
+	return GetMemoryStore().HealthCheck(cluster, nodes, metrics)
+}
+
 // TestLoadDataCallback allows tests to override LoadData behavior for testing purposes.
 // When set to a non-nil function, LoadData will call this function instead of the default implementation.
 var TestLoadDataCallback func(job *schema.Job, metrics []string, scopes []schema.MetricScope, ctx context.Context, resolution int) (schema.JobData, error)

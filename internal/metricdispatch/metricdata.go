@@ -52,6 +52,11 @@ type MetricDataRepository interface {
 		resolution int,
 		from, to time.Time,
 		ctx context.Context) (map[string]schema.JobData, error)
+
+	// HealthCheck evaluates the monitoring state for a set of nodes against expected metrics.
+	HealthCheck(cluster string,
+		nodes []string,
+		metrics []string) (map[string]metricstore.HealthCheckResult, error)
 }
 
 type CCMetricStoreConfig struct {
@@ -109,4 +114,10 @@ func GetMetricDataRepo(cluster string, subcluster string) (MetricDataRepository,
 	}
 
 	return repo, nil
+}
+
+// GetHealthCheckRepo returns the MetricDataRepository for performing health checks on a cluster.
+// It uses the same fallback logic as GetMetricDataRepo: cluster → wildcard → internal.
+func GetHealthCheckRepo(cluster string) (MetricDataRepository, error) {
+	return GetMetricDataRepo(cluster, "")
 }

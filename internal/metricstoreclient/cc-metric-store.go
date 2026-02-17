@@ -63,6 +63,7 @@ import (
 	"time"
 
 	"github.com/ClusterCockpit/cc-backend/pkg/archive"
+	"github.com/ClusterCockpit/cc-backend/pkg/metricstore"
 	cclog "github.com/ClusterCockpit/cc-lib/v2/ccLogger"
 	"github.com/ClusterCockpit/cc-lib/v2/schema"
 )
@@ -651,6 +652,54 @@ func (ccms *CCMetricStore) LoadNodeListData(
 	}
 
 	return data, nil
+}
+
+// HealthCheck queries the external cc-metric-store's health check endpoint.
+// It sends a HealthCheckReq as the request body to /api/healthcheck and
+// returns the per-node health check results.
+func (ccms *CCMetricStore) HealthCheck(cluster string,
+	nodes []string, metrics []string,
+) (map[string]metricstore.HealthCheckResult, error) {
+	req := metricstore.HealthCheckReq{
+		Cluster:     cluster,
+		Nodes:       nodes,
+		MetricNames: metrics,
+	}
+
+	buf := &bytes.Buffer{}
+	if err := json.NewEncoder(buf).Encode(req); err != nil {
+		cclog.Errorf("Error while encoding health check request body: %s", err.Error())
+		return nil, err
+	}
+
+	endpoint := fmt.Sprintf("%s/api/healthcheck", ccms.url)
+	httpReq, err := http.NewRequest(http.MethodGet, endpoint, buf)
+	if err != nil {
+		cclog.Errorf("Error while building health check request: %s", err.Error())
+		return nil, err
+	}
+	if ccms.jwt != "" {
+		httpReq.Header.Add("Authorization", fmt.Sprintf("Bearer %s", ccms.jwt))
+	}
+
+	res, err := ccms.client.Do(httpReq)
+	if err != nil {
+		cclog.Errorf("Error while performing health check request: %s", err.Error())
+		return nil, err
+	}
+	defer res.Body.Close()
+
+	if res.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("'%s': HTTP Status: %s", endpoint, res.Status)
+	}
+
+	var results map[string]metricstore.HealthCheckResult
+	if err := json.NewDecoder(bufio.NewReader(res.Body)).Decode(&results); err != nil {
+		cclog.Errorf("Error while decoding health check response: %s", err.Error())
+		return nil, err
+	}
+
+	return results, nil
 }
 
 // sanitizeStats replaces NaN values in statistics with 0 to enable JSON marshaling.
