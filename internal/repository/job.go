@@ -844,6 +844,8 @@ func (r *JobRepository) FindJobsBetween(startTimeBegin int64, startTimeEnd int64
 		query = query.Where("NOT EXISTS (SELECT 1 FROM jobtag WHERE jobtag.job_id = job.id)")
 	}
 
+	query = query.OrderBy("job.cluster ASC", "job.subcluster ASC", "job.project ASC", "job.start_time ASC")
+
 	rows, err := query.RunWith(r.stmtCache).Query()
 	if err != nil {
 		cclog.Errorf("Error while running FindJobsBetween query: %v", err)
