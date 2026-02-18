@@ -15,7 +15,6 @@
     CardBody,
     Table,
     Progress,
-    Icon,
     Spinner
   } from "@sveltestrap/sveltestrap";
   import {
@@ -27,22 +26,18 @@
   import Refresher from "../../generic/helper/Refresher.svelte";
   import TimeSelection from "../../generic/select/TimeSelection.svelte";
   import Roofline from "../../generic/plots/Roofline.svelte";
-  import Pie, { colors } from "../../generic/plots/Pie.svelte";
   import Stacked from "../../generic/plots/Stacked.svelte";
 
   /* Svelte 5 Props */
   let {
     clusters,
     presetCluster,
-    useCbColors = false,
-    useAltColors = false,
   } = $props();
 
   /* Const Init */
   const client = getContextClient();
 
   /* State Init */
-  let pieWidth = $state(0);
   let from = $state(new Date(Date.now() - 5 * 60 * 1000));
   let to = $state(new Date(Date.now()));
   let stackedFrom = $state(Math.floor(Date.now() / 1000) - 14400);
@@ -163,11 +158,6 @@
             schedulerState
           }
         }
-        # Get Current States fir Pie Charts
-        nodeStates(filter: $nodeFilter) {
-          state
-          count
-        }
         # totalNodes includes multiples if shared jobs
         jobsStatistics(
           filter: $jobFilter
@@ -195,18 +185,6 @@
     },
     requestPolicy: "network-only"
   }));
-
-  const refinedStateData = $derived.by(() => {
-    return $statusQuery?.data?.nodeStates.
-      filter((e) => ['allocated', 'reserved', 'idle', 'mixed','down', 'unknown'].includes(e.state)).
-      sort((a, b) => b.count - a.count)
-  });
-
-  const refinedHealthData = $derived.by(() => {
-    return $statusQuery?.data?.nodeStates.
-      filter((e) => ['full', 'partial', 'failed'].includes(e.state)).
-      sort((a, b) => b.count - a.count)
-  });
 
   /* Effects */
   $effect(() => {
@@ -367,19 +345,6 @@
     return result
   }
 
-  function legendColors(targetIdx) {
-    // Reuses first color if targetIdx overflows
-    let c;
-      if (useCbColors) {
-        c = [...colors['colorblind']];
-      } else if (useAltColors) {
-        c = [...colors['alternative']];
-      } else {
-        c = [...colors['default']];
-      }
-    return  c[(c.length + targetIdx) % c.length];
-  }
-
 </script>
 
 <!-- Refresher and space for other options -->
@@ -408,7 +373,7 @@
 
 <hr/>
 
-<!-- Node Stack Charts Dev-->
+<!-- Node Stack Charts -->
 {#if $statesTimed.fetching}
   <Row cols={1} class="text-center mt-3">
     <Col>
@@ -456,109 +421,6 @@
           />
         {/key}
       </div>
-    </Col>
-  </Row>
-{/if}
-
-<hr/>
-
-<!-- Node Health Pis, later Charts -->
-{#if $statusQuery.fetching}
-  <Row cols={1} class="text-center mt-3">
-    <Col>
-      <Spinner />
-    </Col>
-  </Row>
-{:else if $statusQuery.error}
-  <Row cols={1} class="text-center mt-3">
-    <Col>  
-      <Card body color="danger">Status Query (States): {$statesTimed.error.message}</Card>
-    </Col>
-  </Row>
-{:else if $statusQuery?.data?.nodeStates}
-  <Row cols={{ lg: 4, md: 2 , sm: 1}} class="mb-3 justify-content-center">
-    <Col class="px-3 mt-2 mt-lg-0">
-      <div bind:clientWidth={pieWidth}>
-        {#key refinedStateData}
-          <h4 class="text-center">
-            Current {cluster.charAt(0).toUpperCase() + cluster.slice(1)} Node States
-          </h4>
-          <Pie
-            canvasId="hpcpie-slurm"
-            size={pieWidth * 0.55}
-            sliceLabel="Nodes"
-            quantities={refinedStateData.map(
-              (sd) => sd.count,
-            )}
-            entities={refinedStateData.map(
-              (sd) => sd.state,
-            )}
-            fixColors={refinedStateData.map(
-              (sd) => colors['nodeStates'][sd.state],
-            )}
-          />
-        {/key}
-      </div>
-    </Col>
-    <Col class="px-4 py-2">
-      {#key refinedStateData}
-        <Table>
-          <tr class="mb-2">
-            <th></th>
-            <th>Current State</th>
-            <th>Nodes</th>
-          </tr>
-          {#each refinedStateData as sd, i}
-            <tr>
-              <td><Icon name="circle-fill" style="color: {colors['nodeStates'][sd.state]};"/></td>
-              <td>{sd.state}</td>
-              <td>{sd.count}</td>
-            </tr>
-          {/each}
-        </Table>
-      {/key}
-    </Col>
-
-    <Col class="px-3 mt-2 mt-lg-0">
-      <div bind:clientWidth={pieWidth}>
-        {#key refinedHealthData}
-          <h4 class="text-center">
-            Current {cluster.charAt(0).toUpperCase() + cluster.slice(1)} Node Health
-          </h4>
-          <Pie
-            canvasId="hpcpie-health"
-            size={pieWidth * 0.55}
-            sliceLabel="Nodes"
-            quantities={refinedHealthData.map(
-              (hd) => hd.count,
-            )}
-            entities={refinedHealthData.map(
-              (hd) => hd.state,
-            )}
-            fixColors={refinedHealthData.map(
-              (hd) => colors['healthStates'][hd.state],
-            )}
-          />
-        {/key}
-      </div>
-    </Col>
-    <Col class="px-4 py-2">
-      {#key refinedHealthData}
-        <Table>
-          <tr class="mb-2">
-            <th></th>
-            <th>Current Health</th>
-            <th>Nodes</th>
-          </tr>
-          {#each refinedHealthData as hd, i}
-            <tr>
-              <td><Icon name="circle-fill"style="color: {colors['healthStates'][hd.state]};" /></td>
-              <td>{hd.state}</td>
-              <td>{hd.count}</td>
-            </tr>
-          {/each}
-        </Table>
-      {/key}
     </Col>
   </Row>
 {/if}

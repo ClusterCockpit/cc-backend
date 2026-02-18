@@ -189,7 +189,7 @@ func TestTransactionAddNamed(t *testing.T) {
 		tx := &Transaction{tx: nil}
 
 		_, err := r.TransactionAddNamed(tx, "INSERT INTO tag (tag_type, tag_name, tag_scope) VALUES (:type, :name, :scope)",
-			map[string]interface{}{"type": "test", "name": "test", "scope": "global"})
+			map[string]any{"type": "test", "name": "test", "scope": "global"})
 		assert.Error(t, err, "Should error on nil transaction")
 		assert.Contains(t, err.Error(), "transaction is nil or already completed")
 	})
@@ -204,7 +204,7 @@ func TestTransactionMultipleOperations(t *testing.T) {
 		defer tx.Rollback()
 
 		// Insert multiple tags
-		for i := 0; i < 5; i++ {
+		for i := range 5 {
 			_, err = r.TransactionAdd(tx,
 				"INSERT INTO tag (tag_type, tag_name, tag_scope) VALUES (?, ?, ?)",
 				"test_type", "test_multi_"+string(rune('a'+i)), "global")
@@ -230,7 +230,7 @@ func TestTransactionMultipleOperations(t *testing.T) {
 		require.NoError(t, err)
 
 		// Insert multiple tags
-		for i := 0; i < 3; i++ {
+		for i := range 3 {
 			_, err = r.TransactionAdd(tx,
 				"INSERT INTO tag (tag_type, tag_name, tag_scope) VALUES (?, ?, ?)",
 				"test_type", "test_rollback_"+string(rune('a'+i)), "global")

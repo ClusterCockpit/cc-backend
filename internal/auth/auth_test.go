@@ -49,7 +49,7 @@ func TestRateLimiterBehavior(t *testing.T) {
 	limiter := getIPUserLimiter(ip, username)
 
 	// Should allow first 5 attempts
-	for i := 0; i < 5; i++ {
+	for i := range 5 {
 		if !limiter.Allow() {
 			t.Errorf("Request %d should be allowed within rate limit", i+1)
 		}

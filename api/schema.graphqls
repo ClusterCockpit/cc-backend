@@ -19,6 +19,7 @@ type Node {
   schedulerState: SchedulerState!
   healthState: MonitoringState!
   metaData: Any
+  healthData: Any
 }
 
 type NodeStates {
@@ -328,6 +329,7 @@ type Query {
   ## Node Queries New
   node(id: ID!): Node
   nodes(filter: [NodeFilter!], order: OrderByInput): NodeStateResultList!
+  nodesWithMeta(filter: [NodeFilter!], order: OrderByInput): NodeStateResultList!
   nodeStates(filter: [NodeFilter!]): [NodeStates!]!
   nodeStatesTimed(filter: [NodeFilter!], type: String!): [NodeStatesTimed!]!
 
