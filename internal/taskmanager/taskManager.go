@@ -154,8 +154,8 @@ func initNodeStateRetention() {
 	switch cfg.Policy {
 	case "delete":
 		RegisterNodeStateRetentionDeleteService(age)
-	case "parquet":
-		RegisterNodeStateRetentionParquetService(cfg)
+	case "move":
+		RegisterNodeStateRetentionMoveService(cfg)
 	default:
 		cclog.Warnf("Unknown nodestate-retention policy: %s", cfg.Policy)
 	}
