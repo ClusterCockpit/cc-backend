@@ -9,7 +9,7 @@ tool (
 
 require (
 	github.com/99designs/gqlgen v0.17.86
-	github.com/ClusterCockpit/cc-lib/v2 v2.5.0
+	github.com/ClusterCockpit/cc-lib/v2 v2.5.1
 	github.com/Masterminds/squirrel v1.5.4
 	github.com/aws/aws-sdk-go-v2 v1.41.1
 	github.com/aws/aws-sdk-go-v2/config v1.32.8
@@ -100,8 +100,8 @@ require (
 	github.com/parquet-go/jsonlite v1.4.0 // indirect
 	github.com/pierrec/lz4/v4 v4.1.25 // indirect
 	github.com/pmezard/go-difflib v1.0.1-0.20181226105442-5d4384ee4fb2 // indirect
-	github.com/prometheus/common v0.67.5 // indirect
 	github.com/robfig/cron/v3 v3.0.1 // indirect
+	github.com/rogpeppe/go-internal v1.10.0 // indirect
 	github.com/russross/blackfriday/v2 v2.1.0 // indirect
 	github.com/sosodev/duration v1.3.1 // indirect
 	github.com/stmcginnis/gofish v0.21.1 // indirect
