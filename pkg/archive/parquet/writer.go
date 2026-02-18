@@ -87,7 +87,7 @@ func writeParquetBytes(rows []ParquetJobRow) ([]byte, error) {
 	var buf bytes.Buffer
 
 	writer := pq.NewGenericWriter[ParquetJobRow](&buf,
-		pq.Compression(&pq.Snappy),
+		pq.Compression(&pq.Zstd),
 	)
 
 	if _, err := writer.Write(rows); err != nil {

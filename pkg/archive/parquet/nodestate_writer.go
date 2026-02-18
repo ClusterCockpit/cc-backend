@@ -83,7 +83,7 @@ func writeNodeStateParquetBytes(rows []ParquetNodeStateRow) ([]byte, error) {
 	var buf bytes.Buffer
 
 	writer := pq.NewGenericWriter[ParquetNodeStateRow](&buf,
-		pq.Compression(&pq.Snappy),
+		pq.Compression(&pq.Zstd),
 	)
 
 	if _, err := writer.Write(rows); err != nil {
