@@ -80,7 +80,7 @@ type ProgramConfig struct {
 }
 
 type NodeStateRetention struct {
-	Policy             string `json:"policy"`      // "delete" or "parquet"
+	Policy             string `json:"policy"`      // "delete" or "move"
 	Age                int    `json:"age"`         // hours, default 24
 	TargetKind         string `json:"target-kind"` // "file" or "s3"
 	TargetPath         string `json:"target-path"`
