@@ -84,6 +84,12 @@ func writeNodeStateParquetBytes(rows []ParquetNodeStateRow) ([]byte, error) {
 
 	writer := pq.NewGenericWriter[ParquetNodeStateRow](&buf,
 		pq.Compression(&pq.Zstd),
+		pq.SortingWriterConfig(pq.SortingColumns(
+			pq.Ascending("cluster"),
+			pq.Ascending("subcluster"),
+			pq.Ascending("hostname"),
+			pq.Ascending("time_stamp"),
+		)),
 	)
 
 	if _, err := writer.Write(rows); err != nil {
