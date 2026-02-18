@@ -77,24 +77,18 @@ var configSchema = `
       "type": "integer"
     },
     "emission-constant": {
-      "description": ".",
+      "description": "Energy mix CO2 emission constant [g/kWh]. If set, displays estimated CO2 emission for jobs.",
       "type": "integer"
     },
-    "cron-frequency": {
-      "description": "Frequency of cron job workers.",
-      "type": "object",
-      "properties": {
-        "duration-worker": {
-          "description": "Duration Update Worker [Defaults to '5m']",
-          "type": "string"
-        },
-        "footprint-worker": {
-          "description": "Metric-Footprint Update Worker [Defaults to '10m']",
-          "type": "string"
-        }
-      }
+    "machine-state-dir": {
+      "description": "Where to store MachineState files.",
+      "type": "string"
     },
-    "enable-resampling": {
+    "systemd-unit": {
+      "description": "Systemd unit name for log viewer (default: 'clustercockpit').",
+      "type": "string"
+    },
+    "resampling": {
       "description": "Enable dynamic zoom in frontend metric plots.",
       "type": "object",
       "properties": {
@@ -136,9 +130,9 @@ var configSchema = `
       "type": "object",
       "properties": {
         "policy": {
-          "description": "Retention policy: 'delete' to remove old rows, 'parquet' to archive then delete.",
+          "description": "Retention policy: 'delete' to remove old rows, 'move' to archive to Parquet then delete.",
           "type": "string",
-          "enum": ["delete", "parquet"]
+          "enum": ["delete", "move"]
         },
         "age": {
           "description": "Retention age in hours (default: 24).",
