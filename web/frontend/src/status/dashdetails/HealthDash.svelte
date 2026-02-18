@@ -289,7 +289,7 @@
                     : ''}"
                 />
               </th>              
-              <th style="width: 7.5%; min-width: 100px; max-width:10%;" onclick={() => sortBy('schedulerState')}>
+              <th style="width: 8.5%; min-width: 100px; max-width:10%;" onclick={() => sortBy('schedulerState')}>
                 Scheduler State
                 <Icon
                   name="caret-{healthTableSorting['schedulerState'].dir}{healthTableSorting['schedulerState']
