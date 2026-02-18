@@ -276,11 +276,11 @@
   <Row>
     <Col>
       <Card>
-        <Table hover>
+        <Table hover responsive>
           <thead>
             <!-- Header Row 1: Titles and Sorting -->
             <tr>
-              <th style="width:10%; max-width:12.5%;" onclick={() => sortBy('hostname')}>
+              <th style="width: 7.5%; min-width: 100px; max-width:10%;" onclick={() => sortBy('hostname')}>
                 Host
                 <Icon
                   name="caret-{healthTableSorting['hostname'].dir}{healthTableSorting['hostname']
@@ -289,7 +289,7 @@
                     : ''}"
                 />
               </th>              
-              <th style="width:10%; max-width:12.5%;" onclick={() => sortBy('schedulerState')}>
+              <th style="width: 7.5%; min-width: 100px; max-width:10%;" onclick={() => sortBy('schedulerState')}>
                 Scheduler State
                 <Icon
                   name="caret-{healthTableSorting['schedulerState'].dir}{healthTableSorting['schedulerState']
@@ -298,7 +298,7 @@
                     : ''}"
                 />
               </th>
-              <th style="width:10%; max-width:12.5%;" onclick={() => sortBy('healthState')}>
+              <th style="width: 7.5%; min-width: 100px; max-width:10%;" onclick={() => sortBy('healthState')}>
                 Health State
                 <Icon
                   name="caret-{healthTableSorting['healthState'].dir}{healthTableSorting['healthState']
@@ -343,17 +343,17 @@
           <tbody>
             {#each filteredTableData as host (host.hostname)}
               <tr>
-                <th><b><a href="/monitoring/node/{cluster}/{host.hostname}" target="_blank">{host.hostname}</a></b></th>
+                <th scope="row"><b><a href="/monitoring/node/{cluster}/{host.hostname}" target="_blank">{host.hostname}</a></b></th>
                 <td>{host.schedulerState}</td>
                 <td>{host.healthState}</td>
-                <td>
+                <td style="max-width: 250px;">
                   {#each Object.keys(host.healthData) as hkey}
                     <p>
                       <b>{hkey}</b>: {host.healthData[hkey]}
                     </p>
                   {/each}
                 </td>
-                <td>
+                <td style="max-width: 250px;">
                   {#each Object.keys(host.metaData) as mkey}
                     <p>
                       <b>{mkey}</b>: {host.metaData[mkey]}
