@@ -50,6 +50,7 @@
 
   /* State Init */
   let pieWidth = $state(0);
+  let querySorting = $state({ field: "startTime", type: "col", order: "DESC" })
   let tableHostFilter = $state("");
   let tableStateFilter = $state(stateOptions[0]);
   let tableHealthFilter = $state(healthOptions[0]);
@@ -93,7 +94,7 @@
     `,
     variables: {
       nodeFilter: { cluster: { eq: cluster }},
-      sorting: { field: "startTime", type: "col", order: "DESC" },
+      sorting: querySorting,
     },
     requestPolicy: "network-only"
   }));
@@ -163,7 +164,7 @@
     <Refresher
       initially={120}
       onRefresh={(interval) => {
-        sorting = { field: "startTime", type: "col", order: "DESC" }
+        querySorting = { field: "startTime", type: "col", order: "DESC" };
       }}
     />
   </Col>
