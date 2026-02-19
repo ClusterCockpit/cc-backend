@@ -211,6 +211,7 @@
             timestep={metricData.data.metric.timestep}
             series={metricData.data.metric.series}
             height={375}
+            {plotSync}
             forNode
           />
         {/if}
