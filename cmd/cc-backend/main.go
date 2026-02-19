@@ -279,8 +279,6 @@ func initSubsystems() error {
 		return fmt.Errorf("initializing archive: %w", err)
 	}
 
-	// Note: metricstore.Init() is called later in runServer() with proper configuration
-
 	// Handle database re-initialization
 	if flagReinitDB {
 		if err := importer.InitDB(); err != nil {

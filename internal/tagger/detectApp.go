@@ -174,7 +174,9 @@ func (t *AppTagger) Match(job *schema.Job) {
 			for _, re := range a.patterns {
 				if re.MatchString(jobscriptLower) {
 					if !r.HasTag(id, t.tagType, a.tag) {
-						r.AddTagOrCreateDirect(id, t.tagType, a.tag)
+						if _, err := r.AddTagOrCreateDirect(id, t.tagType, a.tag); err != nil {
+							cclog.Errorf("AppTagger: failed to add tag '%s' to job %d: %v", a.tag, id, err)
+						}
 					}
 					break out
 				}
