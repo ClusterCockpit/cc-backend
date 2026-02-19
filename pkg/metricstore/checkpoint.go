@@ -98,9 +98,7 @@ func Checkpointing(wg *sync.WaitGroup, ctx context.Context) {
 	if Keys.Checkpoints.FileFormat == "json" {
 		ms := GetMemoryStore()
 
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
+		wg.Go(func() {
 			d, err := time.ParseDuration(Keys.Checkpoints.Interval)
 			if err != nil {
 				cclog.Fatalf("[METRICSTORE]> invalid checkpoint interval '%s': %s", Keys.Checkpoints.Interval, err.Error())
@@ -136,12 +134,9 @@ func Checkpointing(wg *sync.WaitGroup, ctx context.Context) {
 					}
 				}
 			}
-		}()
+		})
 	} else {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
-
+		wg.Go(func() {
 			select {
 			case <-ctx.Done():
 				return
@@ -160,7 +155,7 @@ func Checkpointing(wg *sync.WaitGroup, ctx context.Context) {
 					GetAvroStore().ToCheckpoint(Keys.Checkpoints.RootDir, false)
 				}
 			}
-		}()
+		})
 	}
 }
 
