@@ -52,7 +52,10 @@ func (t *AppTagger) scanApp(f *os.File, fns string) {
 	ai := appInfo{tag: tag, patterns: make([]*regexp.Regexp, 0)}
 
 	for scanner.Scan() {
-		line := scanner.Text()
+		line := strings.TrimSpace(scanner.Text())
+		if line == "" {
+			continue
+		}
 		re, err := regexp.Compile(line)
 		if err != nil {
 			cclog.Errorf("invalid regex pattern '%s' in %s: %v", line, fns, err)
@@ -68,6 +71,8 @@ func (t *AppTagger) scanApp(f *os.File, fns string) {
 			break
 		}
 	}
+
+	cclog.Infof("AppTagger loaded %d patterns for %s", len(ai.patterns), tag)
 	t.apps = append(t.apps, ai)
 }
 
@@ -86,6 +91,9 @@ func (t *AppTagger) EventCallback() {
 	}
 
 	for _, fn := range files {
+		if fn.IsDir() {
+			continue
+		}
 		fns := fn.Name()
 		cclog.Debugf("Process: %s", fns)
 		f, err := os.Open(filepath.Join(t.cfgPath, fns))
@@ -121,6 +129,9 @@ func (t *AppTagger) Register() error {
 	}
 
 	for _, fn := range files {
+		if fn.IsDir() {
+			continue
+		}
 		fns := fn.Name()
 		cclog.Debugf("Process: %s", fns)
 		f, err := os.Open(filepath.Join(t.cfgPath, fns))
@@ -164,8 +175,8 @@ func (t *AppTagger) Match(job *schema.Job) {
 				if re.MatchString(jobscriptLower) {
 					if !r.HasTag(id, t.tagType, a.tag) {
 						r.AddTagOrCreateDirect(id, t.tagType, a.tag)
-						break out
 					}
+					break out
 				}
 			}
 		}
