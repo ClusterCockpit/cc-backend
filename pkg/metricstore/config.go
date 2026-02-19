@@ -54,7 +54,6 @@ import (
 const (
 	DefaultMaxWorkers                 = 10
 	DefaultBufferCapacity             = 512
-	DefaultGCTriggerInterval          = 100
 	DefaultAvroWorkers                = 4
 	DefaultCheckpointBufferMin        = 3
 	DefaultAvroCheckpointInterval     = time.Minute

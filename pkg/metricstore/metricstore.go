@@ -151,6 +151,12 @@ func Init(rawConfig json.RawMessage, metrics map[string]MetricConfig, wg *sync.W
 
 	restoreFrom := startupTime.Add(-d)
 	cclog.Infof("[METRICSTORE]> Loading checkpoints newer than %s\n", restoreFrom.Format(time.RFC3339))
+
+	// Lower GC target during loading to prevent excessive heap growth.
+	// During checkpoint loading the heap grows rapidly, causing the GC to
+	// double its target repeatedly. A lower percentage keeps it tighter.
+	oldGCPercent := debug.SetGCPercent(20)
+
 	files, err := ms.FromCheckpointFiles(Keys.Checkpoints.RootDir, restoreFrom.Unix())
 	loadedData := ms.SizeInBytes() / 1024 / 1024 // In MB
 	if err != nil {
@@ -159,13 +165,10 @@ func Init(rawConfig json.RawMessage, metrics map[string]MetricConfig, wg *sync.W
 		cclog.Infof("[METRICSTORE]> Checkpoints loaded (%d files, %d MB, that took %fs)\n", files, loadedData, time.Since(startupTime).Seconds())
 	}
 
-	// Try to use less memory by forcing a GC run here and then
-	// lowering the target percentage. The default of 100 means
-	// that only once the ratio of new allocations execeds the
-	// previously active heap, a GC is triggered.
-	// Forcing a GC here will set the "previously active heap"
-	// to a minumum.
-	// runtime.GC()
+	// Restore GC target and force a collection to set a tight baseline
+	// for the "previously active heap" size, reducing long-term memory waste.
+	debug.SetGCPercent(oldGCPercent)
+	runtime.GC()
 
 	ctx, shutdown := context.WithCancel(context.Background())
 
