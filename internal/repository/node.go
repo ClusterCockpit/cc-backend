@@ -274,7 +274,7 @@ type NodeStateWithNode struct {
 func (r *NodeRepository) FindNodeStatesBefore(cutoff int64) ([]NodeStateWithNode, error) {
 	rows, err := sq.Select(
 		"node_state.id", "node_state.time_stamp", "node_state.node_state",
-		"node_state.health_state", "node_state.health_metrics",
+		"node_state.health_state", "COALESCE(node_state.health_metrics, '')",
 		"node_state.cpus_allocated", "node_state.memory_allocated",
 		"node_state.gpus_allocated", "node_state.jobs_running",
 		"node.hostname", "node.cluster", "node.subcluster",
