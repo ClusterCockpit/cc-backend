@@ -489,6 +489,34 @@ func TestSyncJobs(t *testing.T) {
 		require.NoError(t, err)
 	})
 
+	t.Run("sync returns job table IDs not cache IDs", func(t *testing.T) {
+		// Ensure cache is empty first
+		_, err := r.DB.Exec("DELETE FROM job_cache")
+		require.NoError(t, err)
+
+		// Insert a job into job_cache
+		job := createTestJob(999015, "testcluster")
+		cacheID, err := r.Start(job)
+		require.NoError(t, err)
+
+		// Sync jobs
+		jobs, err := r.SyncJobs()
+		require.NoError(t, err)
+		require.Equal(t, 1, len(jobs))
+
+		// The returned ID must refer to the job table, not job_cache
+		var jobTableID int64
+		err = r.DB.QueryRow("SELECT id FROM job WHERE job_id = ? AND cluster = ? AND start_time = ?",
+			jobs[0].JobID, jobs[0].Cluster, jobs[0].StartTime).Scan(&jobTableID)
+		require.NoError(t, err)
+		assert.Equal(t, jobTableID, *jobs[0].ID,
+			"returned ID should match the job table row, not the cache ID (%d)", cacheID)
+
+		// Clean up
+		_, err = r.DB.Exec("DELETE FROM job WHERE job_id = ? AND cluster = ?", job.JobID, job.Cluster)
+		require.NoError(t, err)
+	})
+
 	t.Run("sync with empty cache returns empty list", func(t *testing.T) {
 		// Ensure cache is empty
 		_, err := r.DB.Exec("DELETE FROM job_cache")

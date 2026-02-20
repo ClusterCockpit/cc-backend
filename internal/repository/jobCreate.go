@@ -85,6 +85,22 @@ func (r *JobRepository) SyncJobs() ([]*schema.Job, error) {
 		return nil, err
 	}
 
+	// Resolve correct job.id from the job table. The IDs read from job_cache
+	// are from a different auto-increment sequence and must not be used to
+	// query the job table.
+	for _, job := range jobs {
+		var newID int64
+		if err := sq.Select("job.id").From("job").
+			Where("job.job_id = ? AND job.cluster = ? AND job.start_time = ?",
+				job.JobID, job.Cluster, job.StartTime).
+			RunWith(r.stmtCache).QueryRow().Scan(&newID); err != nil {
+			cclog.Warnf("SyncJobs: could not resolve job table id for job %d on %s: %v",
+				job.JobID, job.Cluster, err)
+			continue
+		}
+		job.ID = &newID
+	}
+
 	return jobs, nil
 }
 
