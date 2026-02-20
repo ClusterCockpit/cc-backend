@@ -19,6 +19,14 @@ import (
 	"github.com/ClusterCockpit/cc-lib/v2/util"
 )
 
+func metadataKeys(m map[string]string) []string {
+	keys := make([]string, 0, len(m))
+	for k := range m {
+		keys = append(keys, k)
+	}
+	return keys
+}
+
 const (
 	// defaultConfigPath is the default path for application tagging configuration
 	defaultConfigPath = "./var/tagger/apps"
@@ -158,29 +166,54 @@ func (t *AppTagger) Register() error {
 // Only the first matching application is tagged.
 func (t *AppTagger) Match(job *schema.Job) {
 	r := repository.GetJobRepository()
+
+	if len(t.apps) == 0 {
+		cclog.Warn("AppTagger: no app patterns loaded, skipping match")
+		return
+	}
+
 	metadata, err := r.FetchMetadata(job)
 	if err != nil {
-		cclog.Infof("Cannot fetch metadata for job: %d on %s", job.JobID, job.Cluster)
+		cclog.Infof("AppTagger: cannot fetch metadata for job %d on %s: %v", job.JobID, job.Cluster, err)
+		return
+	}
+
+	if metadata == nil {
+		cclog.Infof("AppTagger: metadata is nil for job %d on %s", job.JobID, job.Cluster)
 		return
 	}
 
 	jobscript, ok := metadata["jobScript"]
-	if ok {
-		id := *job.ID
-		jobscriptLower := strings.ToLower(jobscript)
+	if !ok {
+		cclog.Infof("AppTagger: no 'jobScript' key in metadata for job %d on %s (keys: %v)",
+			job.JobID, job.Cluster, metadataKeys(metadata))
+		return
+	}
 
-	out:
-		for _, a := range t.apps {
-			for _, re := range a.patterns {
-				if re.MatchString(jobscriptLower) {
-					if !r.HasTag(id, t.tagType, a.tag) {
-						r.AddTagOrCreateDirect(id, t.tagType, a.tag)
+	if len(jobscript) == 0 {
+		cclog.Infof("AppTagger: empty jobScript for job %d on %s", job.JobID, job.Cluster)
+		return
+	}
+
+	id := *job.ID
+	jobscriptLower := strings.ToLower(jobscript)
+	cclog.Debugf("AppTagger: matching job %d (script length: %d) against %d apps", id, len(jobscriptLower), len(t.apps))
+
+	for _, a := range t.apps {
+		for _, re := range a.patterns {
+			if re.MatchString(jobscriptLower) {
+				if r.HasTag(id, t.tagType, a.tag) {
+					cclog.Debugf("AppTagger: job %d already has tag %s:%s, skipping", id, t.tagType, a.tag)
+				} else {
+					cclog.Infof("AppTagger: pattern '%s' matched for app '%s' on job %d", re.String(), a.tag, id)
+					if _, err := r.AddTagOrCreateDirect(id, t.tagType, a.tag); err != nil {
+						cclog.Errorf("AppTagger: failed to add tag '%s' to job %d: %v", a.tag, id, err)
 					}
-					break out
 				}
+				return
 			}
 		}
-	} else {
-		cclog.Infof("Cannot extract job script for job: %d on %s", job.JobID, job.Cluster)
 	}
+
+	cclog.Debugf("AppTagger: no pattern matched for job %d on %s", id, job.Cluster)
 }

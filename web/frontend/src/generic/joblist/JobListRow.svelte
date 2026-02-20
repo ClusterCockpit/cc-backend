@@ -20,6 +20,7 @@
   import { queryStore, gql, getContextClient } from "@urql/svelte";
   import { Card, Spinner } from "@sveltestrap/sveltestrap";
   import { maxScope, checkMetricAvailability } from "../utils.js";
+  import uPlot from "uplot";
   import JobInfo from "./JobInfo.svelte";
   import MetricPlot from "../plots/MetricPlot.svelte";
   import JobFootprint from "../helper/JobFootprint.svelte";
@@ -74,13 +75,17 @@
     }
   `;
 
+  /* Var Init*/
+  // svelte-ignore state_referenced_locally
+  let plotSync = uPlot.sync(`jobMetricStack-${job.cluster}-${job.id}`);
+
   /* State Init */
   let zoomStates = $state({});
   let thresholdStates = $state({});
 
   /* Derived */
   const resampleDefault = $derived(resampleConfig ? Math.max(...resampleConfig.resolutions) : 0);
-  const jobId = $derived(job?.id);
+  const jobId = $derived(job.id);
   const scopes = $derived.by(() => {
     if (job.numNodes == 1) {
       if (job.numAcc >= 1) return ["core", "accelerator"];
@@ -233,6 +238,7 @@
             numaccs={job.numAcc}
             zoomState={zoomStates[metric.data.name] || null}
             thresholdState={thresholdStates[metric.data.name] || null}
+            {plotSync}
           />
         {:else}
           <Card body class="mx-2" color="warning">
