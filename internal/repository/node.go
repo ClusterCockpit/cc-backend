@@ -274,7 +274,7 @@ type NodeStateWithNode struct {
 func (r *NodeRepository) FindNodeStatesBefore(cutoff int64) ([]NodeStateWithNode, error) {
 	rows, err := sq.Select(
 		"node_state.id", "node_state.time_stamp", "node_state.node_state",
-		"node_state.health_state", "COALESCE(node_state.health_metrics, '')",
+		"node_state.health_state", "node_state.health_metrics",
 		"node_state.cpus_allocated", "node_state.memory_allocated",
 		"node_state.gpus_allocated", "node_state.jobs_running",
 		"node.hostname", "node.cluster", "node.subcluster",
@@ -293,13 +293,15 @@ func (r *NodeRepository) FindNodeStatesBefore(cutoff int64) ([]NodeStateWithNode
 	var result []NodeStateWithNode
 	for rows.Next() {
 		var ns NodeStateWithNode
+		var healthMetrics sql.NullString
 		if err := rows.Scan(&ns.ID, &ns.TimeStamp, &ns.NodeState,
-			&ns.HealthState, &ns.HealthMetrics,
+			&ns.HealthState, &healthMetrics,
 			&ns.CpusAllocated, &ns.MemoryAllocated,
 			&ns.GpusAllocated, &ns.JobsRunning,
 			&ns.Hostname, &ns.Cluster, &ns.SubCluster); err != nil {
 			return nil, err
 		}
+		ns.HealthMetrics = healthMetrics.String
 		result = append(result, ns)
 	}
 	return result, nil
