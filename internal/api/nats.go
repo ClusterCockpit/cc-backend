@@ -211,7 +211,14 @@ func (api *NatsAPI) handleStartJob(payload string) {
 		}
 	}
 
-	id, err := api.JobRepository.Start(&req)
+	// When tags are present, insert directly into the job table so that the
+	// returned ID can be used with AddTagOrCreate (which queries the job table).
+	var id int64
+	if len(req.Tags) > 0 {
+		id, err = api.JobRepository.StartDirect(&req)
+	} else {
+		id, err = api.JobRepository.Start(&req)
+	}
 	if err != nil {
 		cclog.Errorf("NATS start job: insert into database failed: %v", err)
 		return

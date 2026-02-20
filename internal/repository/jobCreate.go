@@ -30,6 +30,27 @@ const NamedJobInsert string = `INSERT INTO job (
   :shared, :monitoring_status, :smt, :job_state, :start_time, :duration, :walltime, :footprint,  :energy, :energy_footprint, :resources, :meta_data
 );`
 
+// InsertJobDirect inserts a job directly into the job table (not job_cache).
+// Use this when the returned ID will be used for operations on the job table
+// (e.g., adding tags), or for imported jobs that are already completed.
+func (r *JobRepository) InsertJobDirect(job *schema.Job) (int64, error) {
+	r.Mutex.Lock()
+	defer r.Mutex.Unlock()
+
+	res, err := r.DB.NamedExec(NamedJobInsert, job)
+	if err != nil {
+		cclog.Warn("Error while NamedJobInsert (direct)")
+		return 0, err
+	}
+	id, err := res.LastInsertId()
+	if err != nil {
+		cclog.Warn("Error while getting last insert ID (direct)")
+		return 0, err
+	}
+
+	return id, nil
+}
+
 func (r *JobRepository) InsertJob(job *schema.Job) (int64, error) {
 	r.Mutex.Lock()
 	defer r.Mutex.Unlock()
@@ -146,6 +167,28 @@ func (r *JobRepository) Start(job *schema.Job) (id int64, err error) {
 	}
 
 	return r.InsertJob(job)
+}
+
+// StartDirect inserts a new job directly into the job table (not job_cache).
+// Use this when the returned ID will immediately be used for job table
+// operations such as adding tags.
+func (r *JobRepository) StartDirect(job *schema.Job) (id int64, err error) {
+	job.RawFootprint, err = json.Marshal(job.Footprint)
+	if err != nil {
+		return -1, fmt.Errorf("REPOSITORY/JOB > encoding footprint field failed: %w", err)
+	}
+
+	job.RawResources, err = json.Marshal(job.Resources)
+	if err != nil {
+		return -1, fmt.Errorf("REPOSITORY/JOB > encoding resources field failed: %w", err)
+	}
+
+	job.RawMetaData, err = json.Marshal(job.MetaData)
+	if err != nil {
+		return -1, fmt.Errorf("REPOSITORY/JOB > encoding metaData field failed: %w", err)
+	}
+
+	return r.InsertJobDirect(job)
 }
 
 // Stop updates the job with the database id jobId using the provided arguments.
