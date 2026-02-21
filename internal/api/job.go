@@ -755,16 +755,15 @@ func (api *RestAPI) stopJobByRequest(rw http.ResponseWriter, r *http.Request) {
 	}
 
 	isCached := false
-	job, err = api.JobRepository.Find(req.JobID, req.Cluster, req.StartTime)
+	job, err = api.JobRepository.FindCached(req.JobID, req.Cluster, req.StartTime)
 	if err != nil {
-		// Try cached jobs if not found in main repository
-		cachedJob, cachedErr := api.JobRepository.FindCached(req.JobID, req.Cluster, req.StartTime)
-		if cachedErr != nil {
-			// Combine both errors for better debugging
-			handleError(fmt.Errorf("finding job failed: %w (cached lookup also failed: %v)", err, cachedErr), http.StatusNotFound, rw)
+		// Not in cache, try main job table
+		job, err = api.JobRepository.Find(req.JobID, req.Cluster, req.StartTime)
+		if err != nil {
+			handleError(fmt.Errorf("finding job failed: %w", err), http.StatusNotFound, rw)
 			return
 		}
-		job = cachedJob
+	} else {
 		isCached = true
 	}
 
