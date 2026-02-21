@@ -8,6 +8,11 @@
     "api-allowed-ips": ["*"],
     "short-running-jobs-duration": 300,
     "enable-job-taggers": true,
+    "nodestate-retention": {
+      "policy": "move",
+      "target-kind": "file",
+      "target-path": "./var/nodestate-archive"
+    },
     "resampling": {
       "minimum-points": 600,
       "trigger": 180,
@@ -92,4 +97,3 @@
   },
   "ui-file": "ui-config.json"
 }
-

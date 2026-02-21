@@ -143,7 +143,7 @@ func TestHealthCheck(t *testing.T) {
 	// Setup test data for node003 - some metrics missing (no buffer)
 	node003 := ms.root.findLevelOrCreate([]string{"testcluster", "node003"}, len(metrics))
 	// Only create buffers for first two metrics
-	for i := 0; i < 2; i++ {
+	for i := range 2 {
 		node003.metrics[i] = newBuffer(startTime, 10)
 		for ts := startTime; ts <= now; ts += 10 {
 			node003.metrics[i].write(ts, schema.Float(float64(i+1)))

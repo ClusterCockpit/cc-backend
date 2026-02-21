@@ -12,6 +12,13 @@
       "max-age": "2000h"
     }
   },
+  "metric-store-external": [
+    {
+      "scope": "fritz",
+      "url": "http://0.0.0.0:8082",
+      "token": "eyJhbGciOiJFZERTQSIsInR5cCI6IkpXVCJ9.eyJleHAiOjE3NzU3Nzg4NDQsImlhdCI6MTc2ODU3ODg0NCwicm9sZXMiOlsiYWRtaW4iLCJhcGkiXSwic3ViIjoiZGVtbyJ9._SDEW9WaUVXSBFmWqGhyIZXLoqoDU8F1hkfh4cXKIqF4yw7w50IUpfUBtwUFUOnoviFKoi563f6RAMC7XxeLDA"
+    }
+  ],
   "metric-store": {
     "checkpoints": {
       "interval": "12h"

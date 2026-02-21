@@ -489,6 +489,34 @@ func TestSyncJobs(t *testing.T) {
 		require.NoError(t, err)
 	})
 
+	t.Run("sync returns job table IDs not cache IDs", func(t *testing.T) {
+		// Ensure cache is empty first
+		_, err := r.DB.Exec("DELETE FROM job_cache")
+		require.NoError(t, err)
+
+		// Insert a job into job_cache
+		job := createTestJob(999015, "testcluster")
+		cacheID, err := r.Start(job)
+		require.NoError(t, err)
+
+		// Sync jobs
+		jobs, err := r.SyncJobs()
+		require.NoError(t, err)
+		require.Equal(t, 1, len(jobs))
+
+		// The returned ID must refer to the job table, not job_cache
+		var jobTableID int64
+		err = r.DB.QueryRow("SELECT id FROM job WHERE job_id = ? AND cluster = ? AND start_time = ?",
+			jobs[0].JobID, jobs[0].Cluster, jobs[0].StartTime).Scan(&jobTableID)
+		require.NoError(t, err)
+		assert.Equal(t, jobTableID, *jobs[0].ID,
+			"returned ID should match the job table row, not the cache ID (%d)", cacheID)
+
+		// Clean up
+		_, err = r.DB.Exec("DELETE FROM job WHERE job_id = ? AND cluster = ?", job.JobID, job.Cluster)
+		require.NoError(t, err)
+	})
+
 	t.Run("sync with empty cache returns empty list", func(t *testing.T) {
 		// Ensure cache is empty
 		_, err := r.DB.Exec("DELETE FROM job_cache")
@@ -498,5 +526,82 @@ func TestSyncJobs(t *testing.T) {
 		jobs, err := r.SyncJobs()
 		require.NoError(t, err)
 		assert.Equal(t, 0, len(jobs), "Should return empty list when cache is empty")
+	})
+}
+
+func TestInsertJobDirect(t *testing.T) {
+	r := setup(t)
+
+	t.Run("inserts into job table not cache", func(t *testing.T) {
+		job := createTestJob(999020, "testcluster")
+		job.RawResources, _ = json.Marshal(job.Resources)
+		job.RawFootprint, _ = json.Marshal(job.Footprint)
+		job.RawMetaData, _ = json.Marshal(job.MetaData)
+
+		id, err := r.InsertJobDirect(job)
+		require.NoError(t, err, "InsertJobDirect should succeed")
+		assert.Greater(t, id, int64(0), "Should return valid insert ID")
+
+		// Verify job is in job table
+		var count int
+		err = r.DB.QueryRow("SELECT COUNT(*) FROM job WHERE id = ?", id).Scan(&count)
+		require.NoError(t, err)
+		assert.Equal(t, 1, count, "Job should be in job table")
+
+		// Verify job is NOT in job_cache
+		err = r.DB.QueryRow("SELECT COUNT(*) FROM job_cache WHERE job_id = ? AND cluster = ?",
+			job.JobID, job.Cluster).Scan(&count)
+		require.NoError(t, err)
+		assert.Equal(t, 0, count, "Job should NOT be in job_cache")
+
+		// Clean up
+		_, err = r.DB.Exec("DELETE FROM job WHERE id = ?", id)
+		require.NoError(t, err)
+	})
+
+	t.Run("returned ID works for tag operations", func(t *testing.T) {
+		job := createTestJob(999021, "testcluster")
+		job.RawResources, _ = json.Marshal(job.Resources)
+		job.RawFootprint, _ = json.Marshal(job.Footprint)
+		job.RawMetaData, _ = json.Marshal(job.MetaData)
+
+		id, err := r.InsertJobDirect(job)
+		require.NoError(t, err)
+
+		// Adding a tag using the returned ID should succeed (FK constraint on jobtag)
+		err = r.ImportTag(id, "test_type", "test_name", "global")
+		require.NoError(t, err, "ImportTag should succeed with direct insert ID")
+
+		// Clean up
+		_, err = r.DB.Exec("DELETE FROM jobtag WHERE job_id = ?", id)
+		require.NoError(t, err)
+		_, err = r.DB.Exec("DELETE FROM job WHERE id = ?", id)
+		require.NoError(t, err)
+	})
+}
+
+func TestStartDirect(t *testing.T) {
+	r := setup(t)
+
+	t.Run("inserts into job table with JSON encoding", func(t *testing.T) {
+		job := createTestJob(999022, "testcluster")
+
+		id, err := r.StartDirect(job)
+		require.NoError(t, err, "StartDirect should succeed")
+		assert.Greater(t, id, int64(0))
+
+		// Verify job is in job table with encoded JSON
+		var rawResources []byte
+		err = r.DB.QueryRow("SELECT resources FROM job WHERE id = ?", id).Scan(&rawResources)
+		require.NoError(t, err)
+
+		var resources []*schema.Resource
+		err = json.Unmarshal(rawResources, &resources)
+		require.NoError(t, err, "Resources should be valid JSON")
+		assert.Equal(t, "node01", resources[0].Hostname)
+
+		// Clean up
+		_, err = r.DB.Exec("DELETE FROM job WHERE id = ?", id)
+		require.NoError(t, err)
 	})
 }

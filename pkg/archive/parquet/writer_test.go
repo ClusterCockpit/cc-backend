@@ -39,18 +39,18 @@ func (m *memTarget) WriteFile(name string, data []byte) error {
 
 func makeTestJob(jobID int64) (*schema.Job, *schema.JobData) {
 	meta := &schema.Job{
-		JobID:      jobID,
-		Cluster:    "testcluster",
-		SubCluster: "sc0",
-		Project:    "testproject",
-		User:       "testuser",
-		State:      schema.JobStateCompleted,
-		StartTime:  1700000000,
-		Duration:   3600,
-		Walltime:   7200,
-		NumNodes:   2,
+		JobID:        jobID,
+		Cluster:      "testcluster",
+		SubCluster:   "sc0",
+		Project:      "testproject",
+		User:         "testuser",
+		State:        schema.JobStateCompleted,
+		StartTime:    1700000000,
+		Duration:     3600,
+		Walltime:     7200,
+		NumNodes:     2,
 		NumHWThreads: 16,
-		SMT:        1,
+		SMT:          1,
 		Resources: []*schema.Resource{
 			{Hostname: "node001"},
 			{Hostname: "node002"},
@@ -141,7 +141,7 @@ func TestParquetWriterSingleBatch(t *testing.T) {
 	target := newMemTarget()
 	pw := NewParquetWriter(target, 512)
 
-	for i := int64(0); i < 5; i++ {
+	for i := range int64(5) {
 		meta, data := makeTestJob(i)
 		row, err := JobToParquetRow(meta, data)
 		if err != nil {
@@ -179,7 +179,7 @@ func TestParquetWriterBatching(t *testing.T) {
 	pw := NewParquetWriter(target, 0) // 0 MB means every job triggers a flush
 	pw.maxSizeBytes = 1               // Force flush after every row
 
-	for i := int64(0); i < 3; i++ {
+	for i := range int64(3) {
 		meta, data := makeTestJob(i)
 		row, err := JobToParquetRow(meta, data)
 		if err != nil {
@@ -263,7 +263,7 @@ func TestClusterAwareParquetWriter(t *testing.T) {
 	cw.SetClusterConfig("alex", &schema.Cluster{Name: "alex"})
 
 	// Add jobs from different clusters
-	for i := int64(0); i < 3; i++ {
+	for i := range int64(3) {
 		meta, data := makeTestJobForCluster(i, "fritz")
 		row, err := JobToParquetRow(meta, data)
 		if err != nil {

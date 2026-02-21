@@ -126,7 +126,7 @@ func (r *UserRepository) AddUser(user *schema.User) error {
 	projectsJson, _ := json.Marshal(user.Projects)
 
 	cols := []string{"username", "roles", "projects"}
-	vals := []interface{}{user.Username, string(rolesJson), string(projectsJson)}
+	vals := []any{user.Username, string(rolesJson), string(projectsJson)}
 
 	if user.Name != "" {
 		cols = append(cols, "name")
@@ -392,7 +392,7 @@ func (r *UserRepository) RemoveProject(ctx context.Context, username string, pro
 	}
 
 	if exists {
-		var result interface{}
+		var result any
 		if len(newprojects) == 0 {
 			result = "[]"
 		} else {

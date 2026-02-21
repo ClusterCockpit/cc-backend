@@ -9,6 +9,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"strings"
 
 	"github.com/ClusterCockpit/cc-backend/internal/repository"
 	cclog "github.com/ClusterCockpit/cc-lib/v2/ccLogger"
@@ -80,11 +81,12 @@ func extractNameFromClaims(claims jwt.MapClaims) string {
 				return ""
 			}
 
-			name := fmt.Sprintf("%v", vals[0])
+			var name strings.Builder
+			name.WriteString(fmt.Sprintf("%v", vals[0]))
 			for i := 1; i < len(vals); i++ {
-				name += fmt.Sprintf(" %v", vals[i])
+				name.WriteString(fmt.Sprintf(" %v", vals[i]))
 			}
-			return name
+			return name.String()
 		}
 	}
 

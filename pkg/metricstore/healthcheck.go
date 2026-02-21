@@ -133,6 +133,12 @@ func (m *MemoryStore) GetHealthyMetrics(selector []string, expectedMetrics []str
 	return degradedList, missingList, nil
 }
 
+type HealthCheckReq struct {
+	Cluster     string   `json:"cluster" example:"fritz"`
+	Nodes       []string `json:"nodes"`
+	MetricNames []string `json:"metric-names"`
+}
+
 // HealthCheck evaluates multiple nodes against a set of expected metrics
 // and returns a monitoring state per node.
 //

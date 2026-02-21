@@ -12,6 +12,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/ClusterCockpit/cc-backend/internal/metricdispatch"
 	"github.com/ClusterCockpit/cc-backend/internal/repository"
 	"github.com/ClusterCockpit/cc-backend/pkg/archive"
 	"github.com/ClusterCockpit/cc-backend/pkg/metricstore"
@@ -77,25 +78,37 @@ func (api *RestAPI) updateNodeStates(rw http.ResponseWriter, r *http.Request) {
 	}
 	requestReceived := time.Now().Unix()
 	repo := repository.GetNodeRepository()
-	ms := metricstore.GetMemoryStore()
 
 	m := make(map[string][]string)
+	metricNames := make(map[string][]string)
 	healthResults := make(map[string]metricstore.HealthCheckResult)
 
 	startMs := time.Now()
 
+	// Step 1: Build nodeList and metricList per subcluster
 	for _, node := range req.Nodes {
 		if sc, err := archive.GetSubClusterByNode(req.Cluster, node.Hostname); err == nil {
 			m[sc] = append(m[sc], node.Hostname)
 		}
 	}
 
-	for sc, nl := range m {
+	for sc := range m {
 		if sc != "" {
 			metricList := archive.GetMetricConfigSubCluster(req.Cluster, sc)
-			metricNames := metricListToNames(metricList)
-			if results, err := ms.HealthCheck(req.Cluster, nl, metricNames); err == nil {
-				maps.Copy(healthResults, results)
+			metricNames[sc] = metricListToNames(metricList)
+		}
+	}
+
+	// Step 2: Determine which metric store to query and perform health check
+	healthRepo, err := metricdispatch.GetHealthCheckRepo(req.Cluster)
+	if err != nil {
+		cclog.Warnf("updateNodeStates: no metric store for cluster %s, skipping health check: %v", req.Cluster, err)
+	} else {
+		for sc, nl := range m {
+			if sc != "" {
+				if results, err := healthRepo.HealthCheck(req.Cluster, nl, metricNames[sc]); err == nil {
+					maps.Copy(healthResults, results)
+				}
 			}
 		}
 	}

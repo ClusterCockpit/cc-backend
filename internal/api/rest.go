@@ -158,6 +158,7 @@ func (api *RestAPI) MountConfigAPIRoutes(r chi.Router) {
 // MountFrontendAPIRoutes registers frontend-specific API endpoints.
 // These routes support JWT generation and user configuration updates with session authentication.
 func (api *RestAPI) MountFrontendAPIRoutes(r chi.Router) {
+	r.Get("/logs/", api.getJournalLog)
 	// Settings Frontend Uses SessionAuth
 	if api.Authentication != nil {
 		r.Get("/jwt/", api.getJWT)

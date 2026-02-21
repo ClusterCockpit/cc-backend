@@ -9,6 +9,7 @@ import (
 	"context"
 	"slices"
 	"strconv"
+	"strings"
 	"sync"
 
 	cclog "github.com/ClusterCockpit/cc-lib/v2/ccLogger"
@@ -44,11 +45,11 @@ func DataStaging(wg *sync.WaitGroup, ctx context.Context) {
 							continue
 						}
 
-						metricName := ""
+						var metricName strings.Builder
 						for _, selectorName := range val.Selector {
-							metricName += selectorName + SelectorDelimiter
+							metricName.WriteString(selectorName + SelectorDelimiter)
 						}
-						metricName += val.MetricName
+						metricName.WriteString(val.MetricName)
 
 						var selector []string
 						selector = append(selector, val.Cluster, val.Node, strconv.FormatInt(freq, 10))
@@ -62,7 +63,7 @@ func DataStaging(wg *sync.WaitGroup, ctx context.Context) {
 						}
 
 						if avroLevel != nil {
-							avroLevel.addMetric(metricName, val.Value, val.Timestamp, int(freq))
+							avroLevel.addMetric(metricName.String(), val.Value, val.Timestamp, int(freq))
 						}
 					default:
 						// No more messages, exit
@@ -82,13 +83,13 @@ func DataStaging(wg *sync.WaitGroup, ctx context.Context) {
 					continue
 				}
 
-				metricName := ""
+				var metricName strings.Builder
 
 				for _, selectorName := range val.Selector {
-					metricName += selectorName + SelectorDelimiter
+					metricName.WriteString(selectorName + SelectorDelimiter)
 				}
 
-				metricName += val.MetricName
+				metricName.WriteString(val.MetricName)
 
 				// Create a new selector for the Avro level
 				// The selector is a slice of strings that represents the path to the
@@ -109,7 +110,7 @@ func DataStaging(wg *sync.WaitGroup, ctx context.Context) {
 				}
 
 				if avroLevel != nil {
-					avroLevel.addMetric(metricName, val.Value, val.Timestamp, int(freq))
+					avroLevel.addMetric(metricName.String(), val.Value, val.Timestamp, int(freq))
 				}
 			}
 		}
