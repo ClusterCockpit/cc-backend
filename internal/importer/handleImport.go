@@ -102,7 +102,7 @@ func HandleImportFlag(flag string) error {
 			return err
 		}
 
-		id, err := r.InsertJob(&job)
+		id, err := r.InsertJobDirect(&job)
 		if err != nil {
 			cclog.Warn("Error while job db insert")
 			return err
