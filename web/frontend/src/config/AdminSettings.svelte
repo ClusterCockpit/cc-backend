@@ -15,6 +15,7 @@
   import ShowUsers from "./admin/ShowUsers.svelte";
   import Options from "./admin/Options.svelte";
   import NoticeEdit from "./admin/NoticeEdit.svelte";
+  import RunTaggers from "./admin/RunTaggers.svelte";
 
   /* Svelte 5 Props */
   let {
@@ -70,4 +71,5 @@
   </Col>
   <Options config={ccconfig} {clusterNames}/>
   <NoticeEdit {ncontent}/>
+  <RunTaggers />
 </Row>
