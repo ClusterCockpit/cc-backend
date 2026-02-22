@@ -1,0 +1,22 @@
+{
+  "name": "Memory bandwidth bound",
+  "tag": "memorybound",
+  "parameters": ["membound_bw_threshold_factor", "job_min_duration_seconds"],
+  "metrics": ["mem_bw"],
+  "requirements": [
+    "job.shared == \"none\"",
+    "job.duration > job_min_duration_seconds"
+  ],
+  "variables": [
+    {
+      "name": "mem_bw_threshold",
+      "expr": "mem_bw.limits.peak * membound_bw_threshold_factor"
+    },
+    {
+      "name": "mem_bw_pct",
+      "expr": "mem_bw.avg / mem_bw.limits.peak * 100.0"
+    }
+  ],
+  "rule": "mem_bw.avg > mem_bw_threshold",
+  "hint": "This job is memory bandwidth bound: memory bandwidth {{.mem_bw.avg}} GB/s ({{.mem_bw_pct}}% of peak) is within {{.membound_bw_threshold_factor}} of peak bandwidth. Consider improving data reuse or compute intensity."
+}

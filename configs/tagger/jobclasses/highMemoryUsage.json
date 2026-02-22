@@ -1,0 +1,25 @@
+{
+  "name": "High memory usage",
+  "tag": "highmemory",
+  "parameters": [
+    "highmemoryusage_threshold_factor",
+    "job_min_duration_seconds"
+  ],
+  "metrics": ["mem_used"],
+  "requirements": [
+    "job.shared == \"none\"",
+    "job.duration > job_min_duration_seconds"
+  ],
+  "variables": [
+    {
+      "name": "memory_threshold",
+      "expr": "mem_used.limits.peak * highmemoryusage_threshold_factor"
+    },
+    {
+      "name": "memory_usage_pct",
+      "expr": "mem_used.max / mem_used.limits.peak * 100.0"
+    }
+  ],
+  "rule": "mem_used.max > memory_threshold",
+  "hint": "This job used high memory: peak memory usage {{.mem_used.max}} GB ({{.memory_usage_pct}}% of {{.mem_used.limits.peak}} GB node capacity), exceeding the {{.highmemoryusage_threshold_factor}} utilization threshold. Risk of out-of-memory conditions."
+}
