@@ -6,6 +6,8 @@ github.com/Azure/go-ntlmssp v0.1.0 h1:DjFo6YtWzNqNvQdrwEyr/e4nhU3vRiwenz5QX7sFz+
 github.com/Azure/go-ntlmssp v0.1.0/go.mod h1:NYqdhxd/8aAct/s4qSYZEerdPuH1liG2/X9DiVTbhpk=
 github.com/ClusterCockpit/cc-lib/v2 v2.5.1 h1:s6M9tyPDty+4zTdQGJYKpGJM9Nz7N6ITMdjPvNSLX5g=
 github.com/ClusterCockpit/cc-lib/v2 v2.5.1/go.mod h1:DZ8OIHPUZJpWqErLITt0B8P6/Q7CBW2IQSQ5YiFFaG0=
+github.com/ClusterCockpit/cc-lib/v2 v2.6.0 h1:Q7zvRAVhfYA9PDB18pfY9A/6Ws4oWpnv8+P9MBRUDzg=
+github.com/ClusterCockpit/cc-lib/v2 v2.6.0/go.mod h1:DZ8OIHPUZJpWqErLITt0B8P6/Q7CBW2IQSQ5YiFFaG0=
 github.com/DATA-DOG/go-sqlmock v1.5.2 h1:OcvFkGmslmlZibjAjaHm3L//6LiuBgolP7OputlJIzU=
 github.com/DATA-DOG/go-sqlmock v1.5.2/go.mod h1:88MAG/4G7SMwSE3CeA0ZKzrT5CiOU3OJ+JlNzwDqpNU=
 github.com/KyleBanks/depth v1.2.1 h1:5h8fQADFrWtarTdtDudMmGsC7GPbOAu6RVB3ffsVFHc=
