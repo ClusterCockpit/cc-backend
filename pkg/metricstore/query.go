@@ -93,6 +93,12 @@ func (ccms *InternalMetricStore) LoadData(
 		return nil, err
 	}
 
+	// Verify assignment is correct - log any inconsistencies for debugging
+	if len(queries) != len(assignedScope) {
+		cclog.Errorf("Critical error: queries and assignedScope have different lengths after buildQueries: %d vs %d",
+			len(queries), len(assignedScope))
+	}
+
 	req := APIQueryRequest{
 		Cluster:   job.Cluster,
 		From:      job.StartTime,
@@ -110,9 +116,24 @@ func (ccms *InternalMetricStore) LoadData(
 
 	var errors []string
 	jobData := make(schema.JobData)
+
+	// Add safety check for potential index out of range errors
+	if len(resBody.Results) != len(req.Queries) || len(assignedScope) != len(req.Queries) {
+		cclog.Warnf("Mismatch in query results count: queries=%d, results=%d, assignedScope=%d",
+			len(req.Queries), len(resBody.Results), len(assignedScope))
+		if len(resBody.Results) > len(req.Queries) {
+			resBody.Results = resBody.Results[:len(req.Queries)]
+		}
+		if len(assignedScope) > len(req.Queries) {
+			assignedScope = assignedScope[:len(req.Queries)]
+		}
+	}
+
 	for i, row := range resBody.Results {
-		if len(row) == 0 {
-			// No Data Found For Metric, Logged in FetchData to Warn
+		// Safety check to prevent index out of range errors
+		if i >= len(req.Queries) || i >= len(assignedScope) {
+			cclog.Warnf("Index out of range prevented: i=%d, queries=%d, assignedScope=%d",
+				i, len(req.Queries), len(assignedScope))
 			continue
 		}
 
@@ -120,6 +141,12 @@ func (ccms *InternalMetricStore) LoadData(
 		metric := query.Metric
 		scope := assignedScope[i]
 		mc := archive.GetMetricConfig(job.Cluster, metric)
+
+		if mc == nil {
+			cclog.Warnf("Metric config not found for %s on cluster %s", metric, job.Cluster)
+			continue
+		}
+
 		if _, ok := jobData[metric]; !ok {
 			jobData[metric] = make(map[schema.MetricScope]*schema.JobMetric)
 		}
@@ -148,8 +175,15 @@ func (ccms *InternalMetricStore) LoadData(
 
 			id := (*string)(nil)
 			if query.Type != nil {
-				id = new(string)
-				*id = query.TypeIds[ndx]
+				// Check if ndx is within the bounds of TypeIds slice
+				if ndx < len(query.TypeIds) {
+					id = new(string)
+					*id = query.TypeIds[ndx]
+				} else {
+					// Log the error but continue processing
+					cclog.Warnf("TypeIds index out of range: %d with length %d for metric %s on host %s",
+						ndx, len(query.TypeIds), query.Metric, query.Hostname)
+				}
 			}
 
 			sanitizeStats(&res)
@@ -650,8 +684,15 @@ func (ccms *InternalMetricStore) LoadScopedStats(
 
 			id := (*string)(nil)
 			if query.Type != nil {
-				id = new(string)
-				*id = query.TypeIds[ndx]
+				// Check if ndx is within the bounds of TypeIds slice
+				if ndx < len(query.TypeIds) {
+					id = new(string)
+					*id = query.TypeIds[ndx]
+				} else {
+					// Log the error but continue processing
+					cclog.Warnf("TypeIds index out of range: %d with length %d for metric %s on host %s",
+						ndx, len(query.TypeIds), query.Metric, query.Hostname)
+				}
 			}
 
 			sanitizeStats(&res)
@@ -823,6 +864,12 @@ func (ccms *InternalMetricStore) LoadNodeListData(
 		return nil, err
 	}
 
+	// Verify assignment is correct - log any inconsistencies for debugging
+	if len(queries) != len(assignedScope) {
+		cclog.Errorf("Critical error: queries and assignedScope have different lengths after buildNodeQueries: %d vs %d",
+			len(queries), len(assignedScope))
+	}
+
 	req := APIQueryRequest{
 		Cluster:   cluster,
 		Queries:   queries,
@@ -840,14 +887,36 @@ func (ccms *InternalMetricStore) LoadNodeListData(
 
 	var errors []string
 	data := make(map[string]schema.JobData)
+
+	// Add safety check for index out of range issues
+	if len(resBody.Results) != len(req.Queries) || len(assignedScope) != len(req.Queries) {
+		cclog.Warnf("Mismatch in query results count: queries=%d, results=%d, assignedScope=%d",
+			len(req.Queries), len(resBody.Results), len(assignedScope))
+		if len(resBody.Results) > len(req.Queries) {
+			resBody.Results = resBody.Results[:len(req.Queries)]
+		}
+		if len(assignedScope) > len(req.Queries) {
+			assignedScope = assignedScope[:len(req.Queries)]
+		}
+	}
+
 	for i, row := range resBody.Results {
-		if len(row) == 0 {
-			// No Data Found For Metric, Logged in FetchData to Warn
+		// Safety check to prevent index out of range errors
+		if i >= len(req.Queries) || i >= len(assignedScope) {
+			cclog.Warnf("Index out of range prevented: i=%d, queries=%d, assignedScope=%d",
+				i, len(req.Queries), len(assignedScope))
 			continue
 		}
+
 		var query APIQuery
 		if resBody.Queries != nil {
-			query = resBody.Queries[i]
+			if i < len(resBody.Queries) {
+				query = resBody.Queries[i]
+			} else {
+				cclog.Warnf("Index out of range prevented for resBody.Queries: i=%d, len=%d",
+					i, len(resBody.Queries))
+				continue
+			}
 		} else {
 			query = req.Queries[i]
 		}
@@ -855,6 +924,10 @@ func (ccms *InternalMetricStore) LoadNodeListData(
 		metric := query.Metric
 		scope := assignedScope[i]
 		mc := archive.GetMetricConfig(cluster, metric)
+		if mc == nil {
+			cclog.Warnf("Metric config not found for %s on cluster %s", metric, cluster)
+			continue
+		}
 
 		res := mc.Timestep
 		if len(row) > 0 {
@@ -893,8 +966,15 @@ func (ccms *InternalMetricStore) LoadNodeListData(
 
 			id := (*string)(nil)
 			if query.Type != nil {
-				id = new(string)
-				*id = query.TypeIds[ndx]
+				// Check if ndx is within the bounds of TypeIds slice
+				if ndx < len(query.TypeIds) {
+					id = new(string)
+					*id = query.TypeIds[ndx]
+				} else {
+					// Log the error but continue processing
+					cclog.Warnf("TypeIds index out of range: %d with length %d for metric %s on host %s",
+						ndx, len(query.TypeIds), query.Metric, query.Hostname)
+				}
 			}
 
 			sanitizeStats(&res)
