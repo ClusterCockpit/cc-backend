@@ -26,8 +26,8 @@ type Retention struct {
 	Policy             string `json:"policy"`
 	Format             string `json:"format"`
 	Age                int    `json:"age"`
-	IncludeDB          bool   `json:"includeDB"`
-	OmitTagged         bool   `json:"omitTagged"`
+	IncludeDB          bool   `json:"include-db"`
+	OmitTagged         string `json:"omit-tagged"`
 	TargetKind         string `json:"target-kind"`
 	TargetPath         string `json:"target-path"`
 	TargetEndpoint     string `json:"target-endpoint"`

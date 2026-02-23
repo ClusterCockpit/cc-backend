@@ -149,7 +149,7 @@ func transferJobsParquet(jobs []*schema.Job, src archive.ArchiveBackend, target 
 }
 
 // cleanupAfterTransfer removes jobs from archive and optionally from DB.
-func cleanupAfterTransfer(jobs []*schema.Job, startTime int64, includeDB bool, omitTagged bool) {
+func cleanupAfterTransfer(jobs []*schema.Job, startTime int64, includeDB bool, omitTagged string) {
 	archive.GetHandle().CleanUp(jobs)
 
 	if includeDB {

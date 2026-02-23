@@ -32,15 +32,6 @@
 
   /* Const Init */
   const client = getContextClient();
-  const stateOptions = [
-    "all",
-    "allocated",
-    "idle",
-    "down",
-    "mixed",
-    "reserved",
-    "unknown",
-  ];
   const healthOptions = [
     "all",
     "full",
@@ -52,12 +43,10 @@
   let pieWidth = $state(0);
   let querySorting = $state({ field: "startTime", type: "col", order: "DESC" })
   let tableHostFilter = $state("");
-  let tableStateFilter = $state(stateOptions[0]);
   let tableHealthFilter = $state(healthOptions[0]);
   let healthTableSorting = $state(
     {
-      schedulerState: { dir: "down", active: true },
-      healthState:  { dir: "down", active: false },
+      healthState:  { dir: "up", active: true },
       hostname:  { dir: "down", active: false },
     }
   );
@@ -79,9 +68,7 @@
             hostname
             cluster
             subCluster
-            schedulerState
             healthState
-            metaData
             healthData
           }
         }
@@ -102,7 +89,7 @@
   let healthTableData = $derived.by(() => {
     if ($statusQuery?.data) {
       return [...$statusQuery.data.nodes.items].sort((n1, n2) => {
-        return n1['schedulerState'].localeCompare(n2['schedulerState'])
+        return n1['healthState'].localeCompare(n2['healthState'])
       });
     } else {
       return [];
@@ -114,19 +101,10 @@
     if (tableHostFilter != "") {
           pendingTableData = pendingTableData.filter((e) => e.hostname.includes(tableHostFilter))
     }
-    if (tableStateFilter != "all") {
-          pendingTableData = pendingTableData.filter((e) => e.schedulerState.includes(tableStateFilter))
-    }
     if (tableHealthFilter != "all") {
           pendingTableData = pendingTableData.filter((e) => e.healthState.includes(tableHealthFilter))
     }
     return pendingTableData
-  });
-
-  const refinedStateData = $derived.by(() => {
-    return $statusQuery?.data?.nodeStates.
-      filter((e) => ['allocated', 'reserved', 'idle', 'mixed','down', 'unknown'].includes(e.state)).
-      sort((a, b) => b.count - a.count)
   });
 
   const refinedHealthData = $derived.by(() => {
@@ -296,7 +274,7 @@
           <thead>
             <!-- Header Row 1: Titles and Sorting -->
             <tr>
-              <th style="width: 9%; min-width: 100px; max-width:10%;" onclick={() => sortBy('hostname')}>
+              <th style="width: 10%; min-width: 100px; max-width:12%;" onclick={() => sortBy('hostname')}>
                 Hosts ({filteredTableData.length})
                 <Icon
                   name="caret-{healthTableSorting['hostname'].dir}{healthTableSorting['hostname']
@@ -304,17 +282,8 @@
                     ? '-fill'
                     : ''}"
                 />
-              </th>              
-              <th style="width: 9%; min-width: 100px; max-width:10%;" onclick={() => sortBy('schedulerState')}>
-                Scheduler State
-                <Icon
-                  name="caret-{healthTableSorting['schedulerState'].dir}{healthTableSorting['schedulerState']
-                    .active
-                    ? '-fill'
-                    : ''}"
-                />
               </th>
-              <th style="width: 9%; min-width: 100px; max-width:10%;" onclick={() => sortBy('healthState')}>
+              <th style="width: 10%; min-width: 100px; max-width:12%;" onclick={() => sortBy('healthState')}>
                 Health State
                 <Icon
                   name="caret-{healthTableSorting['healthState'].dir}{healthTableSorting['healthState']
@@ -324,7 +293,6 @@
                 />
               </th>
               <th>Metric Availability</th>
-              <th>Meta Information</th>
             </tr>
             <!-- Header Row 2: Filters -->
             <tr>
@@ -337,30 +305,12 @@
                 </InputGroup>
               </th>
               <th>
-                <InputGroup size="sm">
-                  <Input type="select" bind:value={tableStateFilter}>
-                    {#each stateOptions as so}
-                      <option value={so}>{so}</option>
-                    {/each}
-                  </Input>
-                  <InputGroupText>
-                    <Icon name="search"></Icon>
-                  </InputGroupText>
-                </InputGroup>
-              </th>
-              <th>
-                <InputGroup size="sm">
-                  <Input type="select" bind:value={tableHealthFilter}>
+                  <Input size="sm" type="select" bind:value={tableHealthFilter}>
                     {#each healthOptions as ho}
                       <option value={ho}>{ho}</option>
                     {/each}
                   </Input>
-                  <InputGroupText>
-                    <Icon name="search"></Icon>
-                  </InputGroupText>
-                </InputGroup>
               </th>
-              <th></th>
               <th></th>
             </tr>
           </thead>
@@ -368,19 +318,11 @@
             {#each filteredTableData as host (host.hostname)}
               <tr>
                 <th scope="row"><b><a href="/monitoring/node/{cluster}/{host.hostname}" target="_blank">{host.hostname}</a></b></th>
-                <td>{host.schedulerState}</td>
                 <td>{host.healthState}</td>
-                <td style="max-width: 250px;">
+                <td style="max-width: 76%;">
                   {#each Object.keys(host.healthData) as hkey}
                     <p>
                       <b>{hkey}</b>: {host.healthData[hkey]}
-                    </p>
-                  {/each}
-                </td>
-                <td style="max-width: 250px;">
-                  {#each Object.keys(host.metaData) as mkey}
-                    <p>
-                      <b>{mkey}</b>: {host.metaData[mkey]}
                     </p>
                   {/each}
                 </td>

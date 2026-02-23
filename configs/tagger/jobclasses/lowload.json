@@ -3,8 +3,7 @@
   "tag": "lowload",
   "parameters": [
     "lowcpuload_threshold_factor",
-    "job_min_duration_seconds",
-    "sampling_interval_seconds"
+    "job_min_duration_seconds"
   ],
   "metrics": ["cpu_load"],
   "requirements": [
@@ -15,12 +14,8 @@
     {
       "name": "load_threshold",
       "expr": "job.numCores * lowcpuload_threshold_factor"
-    },
-    {
-      "name": "load_perc",
-      "expr": "1.0 - (cpu_load.avg / cpu_load.limits.peak)"
     }
   ],
-  "rule": "cpu_load.avg < cpu_load.limits.caution",
-  "hint": "This job was detected as lowload because the average cpu load {{.cpu_load}} falls below the threshold {{.cpu_load.limits.caution}}."
+  "rule": "cpu_load.avg < load_threshold",
+  "hint": "This job was detected as low CPU load: average cpu load {{.cpu_load.avg}} is below the threshold {{.load_threshold}} ({{.lowcpuload_threshold_factor}} \u00d7 {{.job.numCores}} allocated cores)."
 }

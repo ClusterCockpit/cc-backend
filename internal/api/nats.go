@@ -259,15 +259,15 @@ func (api *NatsAPI) handleStopJob(payload string) {
 	}
 
 	isCached := false
-	job, err := api.JobRepository.Find(req.JobID, req.Cluster, req.StartTime)
+	job, err := api.JobRepository.FindCached(req.JobID, req.Cluster, req.StartTime)
 	if err != nil {
-		cachedJob, cachedErr := api.JobRepository.FindCached(req.JobID, req.Cluster, req.StartTime)
-		if cachedErr != nil {
-			cclog.Errorf("NATS job stop: finding job failed: %v (cached lookup also failed: %v)",
-				err, cachedErr)
+		// Not in cache, try main job table
+		job, err = api.JobRepository.Find(req.JobID, req.Cluster, req.StartTime)
+		if err != nil {
+			cclog.Errorf("NATS job stop: finding job failed: %v", err)
 			return
 		}
-		job = cachedJob
+	} else {
 		isCached = true
 	}
 
