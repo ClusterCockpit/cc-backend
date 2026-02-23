@@ -89,7 +89,7 @@ For release specific notes visit the [ClusterCockpit Documentation](https://clus
 - **Job tagger option**: Enable automatic job tagging via configuration flag
 - **Application detection**: Automatic detection of applications (MATLAB, GROMACS, etc.)
 - **Job classification**: Automatic detection of pathological jobs
-- **omitTagged flag**: Option to exclude tagged jobs from retention/cleanup operations
+- **omit-tagged**: Option to exclude tagged jobs from retention/cleanup operations (`none`, `all`, or `user`)
 - **Admin UI trigger**: Taggers can be run on-demand from the admin web interface
   without restarting the backend
 
