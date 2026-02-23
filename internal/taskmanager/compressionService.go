@@ -28,10 +28,10 @@ func RegisterCompressionService(compressOlderThan int) {
 				lastTime := ar.CompressLast(startTime)
 				if startTime == lastTime {
 					cclog.Info("Compression Service - Complete archive run")
-					jobs, err = jobRepo.FindJobsBetween(0, startTime, false)
+					jobs, err = jobRepo.FindJobsBetween(0, startTime, "none")
 
 				} else {
-					jobs, err = jobRepo.FindJobsBetween(lastTime, startTime, false)
+					jobs, err = jobRepo.FindJobsBetween(lastTime, startTime, "none")
 				}
 
 				if err != nil {
