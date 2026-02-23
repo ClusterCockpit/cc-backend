@@ -1,5 +1,5 @@
 {
-  "name": "Low ressource utilization",
+  "name": "Low resource utilization",
   "tag": "lowutilization",
   "parameters": ["job_min_duration_seconds"],
   "metrics": ["flops_any", "mem_bw"],
@@ -9,14 +9,14 @@
   ],
   "variables": [
     {
-      "name": "mem_bw_perc",
-      "expr": "1.0 - (mem_bw.avg / mem_bw.limits.peak)"
+      "name": "mem_bw_pct",
+      "expr": "mem_bw.avg / mem_bw.limits.peak * 100.0"
     },
     {
-      "name": "flops_any_perc",
-      "expr": "1.0 - (flops_any.avg / flops_any.limits.peak)"
+      "name": "flops_any_pct",
+      "expr": "flops_any.avg / flops_any.limits.peak * 100.0"
     }
   ],
   "rule": "flops_any.avg < flops_any.limits.alert && mem_bw.avg < mem_bw.limits.alert",
-  "hint": "This job was detected as low utilization because the average flop rate {{.flops_any.avg}} falls below the threshold {{.flops_any.limits.alert}}."
+  "hint": "This job shows low resource utilization: FLOP rate {{.flops_any.avg}} GF/s ({{.flops_any_pct}}% of peak) and memory bandwidth {{.mem_bw.avg}} GB/s ({{.mem_bw_pct}}% of peak) are both below their alert thresholds."
 }

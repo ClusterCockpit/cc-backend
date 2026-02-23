@@ -78,7 +78,7 @@ func TestFindJobsBetween(t *testing.T) {
 
 	// 1. Find a job to use (Find all jobs)
 	// We use a large time range to ensure we get something if it exists
-	jobs, err := r.FindJobsBetween(0, 9999999999, false)
+	jobs, err := r.FindJobsBetween(0, 9999999999, "none")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -88,21 +88,21 @@ func TestFindJobsBetween(t *testing.T) {
 
 	targetJob := jobs[0]
 
-	// 2. Create a tag
-	tagName := fmt.Sprintf("testtag_%d", time.Now().UnixNano())
-	tagID, err := r.CreateTag("testtype", tagName, "global")
+	// 2. Create an auto-tagger tag (type "app")
+	appTagName := fmt.Sprintf("apptag_%d", time.Now().UnixNano())
+	appTagID, err := r.CreateTag("app", appTagName, "global")
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	// 3. Link Tag (Manually to avoid archive dependency side-effects in unit test)
-	_, err = r.DB.Exec("INSERT INTO jobtag (job_id, tag_id) VALUES (?, ?)", *targetJob.ID, tagID)
+	// 3. Link auto-tagger tag to job
+	_, err = r.DB.Exec("INSERT INTO jobtag (job_id, tag_id) VALUES (?, ?)", *targetJob.ID, appTagID)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	// 4. Search with omitTagged = false (Should find the job)
-	jobsFound, err := r.FindJobsBetween(0, 9999999999, false)
+	// 4. Search with omitTagged = "none" (Should find the job)
+	jobsFound, err := r.FindJobsBetween(0, 9999999999, "none")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -115,18 +115,58 @@ func TestFindJobsBetween(t *testing.T) {
 		}
 	}
 	if !found {
-		t.Errorf("Target job %d should be found when omitTagged=false", *targetJob.ID)
+		t.Errorf("Target job %d should be found when omitTagged=none", *targetJob.ID)
 	}
 
-	// 5. Search with omitTagged = true (Should NOT find the job)
-	jobsFiltered, err := r.FindJobsBetween(0, 9999999999, true)
+	// 5. Search with omitTagged = "all" (Should NOT find the job — it has a tag)
+	jobsFiltered, err := r.FindJobsBetween(0, 9999999999, "all")
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	for _, j := range jobsFiltered {
 		if *j.ID == *targetJob.ID {
-			t.Errorf("Target job %d should NOT be found when omitTagged=true", *targetJob.ID)
+			t.Errorf("Target job %d should NOT be found when omitTagged=all", *targetJob.ID)
+		}
+	}
+
+	// 6. Search with omitTagged = "user": auto-tagger tag ("app") should NOT exclude the job
+	jobsUserFilter, err := r.FindJobsBetween(0, 9999999999, "user")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	found = false
+	for _, j := range jobsUserFilter {
+		if *j.ID == *targetJob.ID {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Errorf("Target job %d should be found when omitTagged=user (only has auto-tagger tag)", *targetJob.ID)
+	}
+
+	// 7. Add a user-created tag (type "testtype") to the same job
+	userTagName := fmt.Sprintf("usertag_%d", time.Now().UnixNano())
+	userTagID, err := r.CreateTag("testtype", userTagName, "global")
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = r.DB.Exec("INSERT INTO jobtag (job_id, tag_id) VALUES (?, ?)", *targetJob.ID, userTagID)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// 8. Now omitTagged = "user" should exclude the job (has a user-created tag)
+	jobsUserFilter2, err := r.FindJobsBetween(0, 9999999999, "user")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	for _, j := range jobsUserFilter2 {
+		if *j.ID == *targetJob.ID {
+			t.Errorf("Target job %d should NOT be found when omitTagged=user (has user-created tag)", *targetJob.ID)
 		}
 	}
 }

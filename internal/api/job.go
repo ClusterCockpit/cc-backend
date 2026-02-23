@@ -697,7 +697,15 @@ func (api *RestAPI) startJob(rw http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	id, err := api.JobRepository.Start(&req)
+	// When tags are present, insert directly into the job table so that the
+	// returned ID can be used with AddTagOrCreate (which queries the job table).
+	// Jobs without tags use the cache path as before.
+	var id int64
+	if len(req.Tags) > 0 {
+		id, err = api.JobRepository.StartDirect(&req)
+	} else {
+		id, err = api.JobRepository.Start(&req)
+	}
 	if err != nil {
 		handleError(fmt.Errorf("insert into database failed: %w", err), http.StatusInternalServerError, rw)
 		return
@@ -755,16 +763,15 @@ func (api *RestAPI) stopJobByRequest(rw http.ResponseWriter, r *http.Request) {
 	}
 
 	isCached := false
-	job, err = api.JobRepository.Find(req.JobID, req.Cluster, req.StartTime)
+	job, err = api.JobRepository.FindCached(req.JobID, req.Cluster, req.StartTime)
 	if err != nil {
-		// Try cached jobs if not found in main repository
-		cachedJob, cachedErr := api.JobRepository.FindCached(req.JobID, req.Cluster, req.StartTime)
-		if cachedErr != nil {
-			// Combine both errors for better debugging
-			handleError(fmt.Errorf("finding job failed: %w (cached lookup also failed: %v)", err, cachedErr), http.StatusNotFound, rw)
+		// Not in cache, try main job table
+		job, err = api.JobRepository.Find(req.JobID, req.Cluster, req.StartTime)
+		if err != nil {
+			handleError(fmt.Errorf("finding job failed: %w", err), http.StatusNotFound, rw)
 			return
 		}
-		job = cachedJob
+	} else {
 		isCached = true
 	}
 
@@ -897,11 +904,13 @@ func (api *RestAPI) deleteJobBefore(rw http.ResponseWriter, r *http.Request) {
 		}
 
 		// Check for omit-tagged query parameter
-		omitTagged := false
+		omitTagged := "none"
 		if omitTaggedStr := r.URL.Query().Get("omit-tagged"); omitTaggedStr != "" {
-			omitTagged, e = strconv.ParseBool(omitTaggedStr)
-			if e != nil {
-				handleError(fmt.Errorf("boolean expected for omit-tagged parameter: %w", e), http.StatusBadRequest, rw)
+			switch omitTaggedStr {
+			case "none", "all", "user":
+				omitTagged = omitTaggedStr
+			default:
+				handleError(fmt.Errorf("omit-tagged must be one of: none, all, user"), http.StatusBadRequest, rw)
 				return
 			}
 		}

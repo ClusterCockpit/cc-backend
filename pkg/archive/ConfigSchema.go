@@ -68,6 +68,11 @@ var configSchema = `
               "description": "Also remove jobs from database",
               "type": "boolean"
             },
+            "omit-tagged": {
+              "description": "Omit tagged jobs from retention: none = include all, all = omit any tagged job, user = omit jobs with user-created tags (auto-tagger types 'app'/'jobClass' are not considered user tags)",
+              "type": "string",
+              "enum": ["none", "all", "user"]
+            },
             "age": {
               "description": "Act on jobs with startTime older than age (in days)",
               "type": "integer"

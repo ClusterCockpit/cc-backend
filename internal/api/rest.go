@@ -22,6 +22,7 @@ import (
 	"github.com/ClusterCockpit/cc-backend/internal/auth"
 	"github.com/ClusterCockpit/cc-backend/internal/config"
 	"github.com/ClusterCockpit/cc-backend/internal/repository"
+	"github.com/ClusterCockpit/cc-backend/internal/tagger"
 	cclog "github.com/ClusterCockpit/cc-lib/v2/ccLogger"
 	"github.com/ClusterCockpit/cc-lib/v2/schema"
 	"github.com/ClusterCockpit/cc-lib/v2/util"
@@ -152,6 +153,8 @@ func (api *RestAPI) MountConfigAPIRoutes(r chi.Router) {
 		r.Delete("/config/users/", api.deleteUser)
 		r.Post("/config/user/{id}", api.updateUser)
 		r.Post("/config/notice/", api.editNotice)
+		r.Get("/config/taggers/", api.getTaggers)
+		r.Post("/config/taggers/run/", api.runTagger)
 	}
 }
 
@@ -264,6 +267,42 @@ func (api *RestAPI) editNotice(rw http.ResponseWriter, r *http.Request) {
 		msg = []byte("Empty Notice Content Success")
 	}
 	if _, err := rw.Write(msg); err != nil {
+		cclog.Errorf("Failed to write response: %v", err)
+	}
+}
+
+func (api *RestAPI) getTaggers(rw http.ResponseWriter, r *http.Request) {
+	if user := repository.GetUserFromContext(r.Context()); !user.HasRole(schema.RoleAdmin) {
+		handleError(fmt.Errorf("only admins are allowed to list taggers"), http.StatusForbidden, rw)
+		return
+	}
+
+	rw.Header().Set("Content-Type", "application/json")
+	if err := json.NewEncoder(rw).Encode(tagger.ListTaggers()); err != nil {
+		cclog.Errorf("Failed to encode tagger list: %v", err)
+	}
+}
+
+func (api *RestAPI) runTagger(rw http.ResponseWriter, r *http.Request) {
+	if user := repository.GetUserFromContext(r.Context()); !user.HasRole(schema.RoleAdmin) {
+		handleError(fmt.Errorf("only admins are allowed to run taggers"), http.StatusForbidden, rw)
+		return
+	}
+
+	name := r.FormValue("name")
+	if name == "" {
+		handleError(fmt.Errorf("missing required parameter: name"), http.StatusBadRequest, rw)
+		return
+	}
+
+	if err := tagger.RunTaggerByName(name); err != nil {
+		handleError(err, http.StatusConflict, rw)
+		return
+	}
+
+	rw.Header().Set("Content-Type", "text/plain")
+	rw.WriteHeader(http.StatusOK)
+	if _, err := rw.Write([]byte(fmt.Sprintf("Tagger %s started", name))); err != nil {
 		cclog.Errorf("Failed to write response: %v", err)
 	}
 }

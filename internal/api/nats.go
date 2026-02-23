@@ -211,7 +211,14 @@ func (api *NatsAPI) handleStartJob(payload string) {
 		}
 	}
 
-	id, err := api.JobRepository.Start(&req)
+	// When tags are present, insert directly into the job table so that the
+	// returned ID can be used with AddTagOrCreate (which queries the job table).
+	var id int64
+	if len(req.Tags) > 0 {
+		id, err = api.JobRepository.StartDirect(&req)
+	} else {
+		id, err = api.JobRepository.Start(&req)
+	}
 	if err != nil {
 		cclog.Errorf("NATS start job: insert into database failed: %v", err)
 		return
@@ -252,15 +259,15 @@ func (api *NatsAPI) handleStopJob(payload string) {
 	}
 
 	isCached := false
-	job, err := api.JobRepository.Find(req.JobID, req.Cluster, req.StartTime)
+	job, err := api.JobRepository.FindCached(req.JobID, req.Cluster, req.StartTime)
 	if err != nil {
-		cachedJob, cachedErr := api.JobRepository.FindCached(req.JobID, req.Cluster, req.StartTime)
-		if cachedErr != nil {
-			cclog.Errorf("NATS job stop: finding job failed: %v (cached lookup also failed: %v)",
-				err, cachedErr)
+		// Not in cache, try main job table
+		job, err = api.JobRepository.Find(req.JobID, req.Cluster, req.StartTime)
+		if err != nil {
+			cclog.Errorf("NATS job stop: finding job failed: %v", err)
 			return
 		}
-		job = cachedJob
+	} else {
 		isCached = true
 	}
 

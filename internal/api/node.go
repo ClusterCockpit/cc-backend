@@ -113,8 +113,6 @@ func (api *RestAPI) updateNodeStates(rw http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	fmt.Printf("Result: %#v\n", healthResults)
-
 	cclog.Debugf("Timer updateNodeStates, MemStore HealthCheck: %s", time.Since(startMs))
 	startDB := time.Now()
 

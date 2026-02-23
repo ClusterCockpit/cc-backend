@@ -32,12 +32,28 @@
 
   /* Const Init */
   const client = getContextClient();
+  const stateOptions = [
+    "all",
+    "allocated",
+    "idle",
+    "down",
+    "mixed",
+    "reserved",
+    "unknown",
+  ];
+  const healthOptions = [
+    "all",
+    "full",
+    "partial",
+    "failed",
+  ];
 
   /* State Init */
   let pieWidth = $state(0);
+  let querySorting = $state({ field: "startTime", type: "col", order: "DESC" })
   let tableHostFilter = $state("");
-  let tableStateFilter = $state("");
-  let tableHealthFilter = $state("");
+  let tableStateFilter = $state(stateOptions[0]);
+  let tableHealthFilter = $state(healthOptions[0]);
   let healthTableSorting = $state(
     {
       schedulerState: { dir: "down", active: true },
@@ -78,7 +94,7 @@
     `,
     variables: {
       nodeFilter: { cluster: { eq: cluster }},
-      sorting: { field: "startTime", type: "col", order: "DESC" },
+      sorting: querySorting,
     },
     requestPolicy: "network-only"
   }));
@@ -98,10 +114,10 @@
     if (tableHostFilter != "") {
           pendingTableData = pendingTableData.filter((e) => e.hostname.includes(tableHostFilter))
     }
-    if (tableStateFilter != "") {
+    if (tableStateFilter != "all") {
           pendingTableData = pendingTableData.filter((e) => e.schedulerState.includes(tableStateFilter))
     }
-    if (tableHealthFilter != "") {
+    if (tableHealthFilter != "all") {
           pendingTableData = pendingTableData.filter((e) => e.healthState.includes(tableHealthFilter))
     }
     return pendingTableData
@@ -148,7 +164,7 @@
     <Refresher
       initially={120}
       onRefresh={(interval) => {
-        sorting = { field: "startTime", type: "col", order: "DESC" }
+        querySorting = { field: "startTime", type: "col", order: "DESC" };
       }}
     />
   </Col>
@@ -280,8 +296,8 @@
           <thead>
             <!-- Header Row 1: Titles and Sorting -->
             <tr>
-              <th style="width: 7.5%; min-width: 100px; max-width:10%;" onclick={() => sortBy('hostname')}>
-                Host
+              <th style="width: 9%; min-width: 100px; max-width:10%;" onclick={() => sortBy('hostname')}>
+                Hosts ({filteredTableData.length})
                 <Icon
                   name="caret-{healthTableSorting['hostname'].dir}{healthTableSorting['hostname']
                     .active
@@ -289,7 +305,7 @@
                     : ''}"
                 />
               </th>              
-              <th style="width: 8.5%; min-width: 100px; max-width:10%;" onclick={() => sortBy('schedulerState')}>
+              <th style="width: 9%; min-width: 100px; max-width:10%;" onclick={() => sortBy('schedulerState')}>
                 Scheduler State
                 <Icon
                   name="caret-{healthTableSorting['schedulerState'].dir}{healthTableSorting['schedulerState']
@@ -298,7 +314,7 @@
                     : ''}"
                 />
               </th>
-              <th style="width: 7.5%; min-width: 100px; max-width:10%;" onclick={() => sortBy('healthState')}>
+              <th style="width: 9%; min-width: 100px; max-width:10%;" onclick={() => sortBy('healthState')}>
                 Health State
                 <Icon
                   name="caret-{healthTableSorting['healthState'].dir}{healthTableSorting['healthState']
@@ -322,7 +338,11 @@
               </th>
               <th>
                 <InputGroup size="sm">
-                  <Input type="text" bind:value={tableStateFilter}/>
+                  <Input type="select" bind:value={tableStateFilter}>
+                    {#each stateOptions as so}
+                      <option value={so}>{so}</option>
+                    {/each}
+                  </Input>
                   <InputGroupText>
                     <Icon name="search"></Icon>
                   </InputGroupText>
@@ -330,7 +350,11 @@
               </th>
               <th>
                 <InputGroup size="sm">
-                  <Input type="text" bind:value={tableHealthFilter}/>
+                  <Input type="select" bind:value={tableHealthFilter}>
+                    {#each healthOptions as ho}
+                      <option value={ho}>{ho}</option>
+                    {/each}
+                  </Input>
                   <InputGroupText>
                     <Icon name="search"></Icon>
                   </InputGroupText>
