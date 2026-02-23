@@ -14,7 +14,7 @@
 //	├─ RetentionInMemory: How long to keep data in RAM
 //	├─ MemoryCap: Memory limit in bytes (triggers forceFree)
 //	├─ Checkpoints: Persistence configuration
-//	│  ├─ FileFormat: "avro" or "json"
+//	│  ├─ FileFormat: "binary" or "json"
 //	│  ├─ Interval: How often to save (e.g., "1h")
 //	│  └─ RootDir: Checkpoint storage path
 //	├─ Cleanup: Long-term storage configuration
@@ -54,16 +54,13 @@ import (
 const (
 	DefaultMaxWorkers                 = 10
 	DefaultBufferCapacity             = 512
-	DefaultAvroWorkers                = 4
-	DefaultCheckpointBufferMin        = 3
-	DefaultAvroCheckpointInterval     = time.Minute
 	DefaultMemoryUsageTrackerInterval = 1 * time.Hour
 )
 
 // Checkpoints configures periodic persistence of in-memory metric data.
 //
 // Fields:
-//   - FileFormat: "avro" (default, binary, compact) or "json" (human-readable, slower)
+//   - FileFormat: "binary" (default, fast loading) or "json" (human-readable)
 //   - Interval:   Duration string (e.g., "1h", "30m") between checkpoint saves
 //   - RootDir:    Filesystem path for checkpoint files (created if missing)
 type Checkpoints struct {
@@ -143,7 +140,7 @@ type MetricStoreConfig struct {
 // Accessed by Init(), Checkpointing(), and other lifecycle functions.
 var Keys MetricStoreConfig = MetricStoreConfig{
 	Checkpoints: Checkpoints{
-		FileFormat: "avro",
+		FileFormat: "binary",
 		RootDir:    "./var/checkpoints",
 	},
 	Cleanup: &Cleanup{

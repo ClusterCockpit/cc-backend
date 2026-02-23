@@ -244,17 +244,6 @@ func DecodeLine(dec *lineprotocol.Decoder,
 
 		time := t.Unix()
 
-		if Keys.Checkpoints.FileFormat != "json" {
-			LineProtocolMessages <- &AvroStruct{
-				MetricName: string(metricBuf),
-				Cluster:    cluster,
-				Node:       host,
-				Selector:   append([]string{}, selector...),
-				Value:      metric.Value,
-				Timestamp:  time,
-			}
-		}
-
 		if err := ms.WriteToLevel(lvl, selector, time, []Metric{metric}); err != nil {
 			return err
 		}

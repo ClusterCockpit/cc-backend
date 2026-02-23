@@ -18,8 +18,9 @@ const configSchema = `{
       "type": "object",
       "properties": {
         "file-format": {
-          "description": "Specify the format for checkpoint files. There are 2 variants: 'avro' and 'json'. If nothing is specified, 'avro' is default.",
-          "type": "string"
+          "description": "Specify the format for checkpoint files: 'binary' (default, fast loading) or 'json' (human-readable).",
+          "type": "string",
+          "enum": ["binary", "json"]
         },
         "interval": {
           "description": "Interval at which the metrics should be checkpointed.",

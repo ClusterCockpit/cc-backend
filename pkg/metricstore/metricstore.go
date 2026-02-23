@@ -8,7 +8,7 @@
 //
 // The package organizes metrics in a tree structure (cluster → host → component) and
 // provides concurrent read/write access to metric data with configurable aggregation strategies.
-// Background goroutines handle periodic checkpointing (JSON or Avro format), archiving old data,
+// Background goroutines handle periodic checkpointing (binary or JSON format), archiving old data,
 // and enforcing retention policies.
 //
 // Key features:
@@ -175,7 +175,6 @@ func Init(rawConfig json.RawMessage, metrics map[string]MetricConfig, wg *sync.W
 	Retention(wg, ctx)
 	Checkpointing(wg, ctx)
 	CleanUp(wg, ctx)
-	DataStaging(wg, ctx)
 	MemoryUsageTracker(wg, ctx)
 
 	// Note: Signal handling has been removed from this function.
@@ -279,22 +278,10 @@ func Shutdown() {
 		shutdownFunc()
 	}
 
-	if Keys.Checkpoints.FileFormat != "json" {
-		close(LineProtocolMessages)
-	}
-
 	cclog.Infof("[METRICSTORE]> Writing to '%s'...\n", Keys.Checkpoints.RootDir)
-	var files int
-	var err error
-
 	ms := GetMemoryStore()
 
-	if Keys.Checkpoints.FileFormat == "json" {
-		files, err = ms.ToCheckpoint(Keys.Checkpoints.RootDir, lastCheckpoint.Unix(), time.Now().Unix())
-	} else {
-		files, err = GetAvroStore().ToCheckpoint(Keys.Checkpoints.RootDir, true)
-	}
-
+	files, err := ms.ToCheckpoint(Keys.Checkpoints.RootDir, lastCheckpoint.Unix(), time.Now().Unix())
 	if err != nil {
 		cclog.Errorf("[METRICSTORE]> Writing checkpoint failed: %s\n", err.Error())
 	}
