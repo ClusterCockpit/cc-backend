@@ -369,13 +369,11 @@ func runServer(ctx context.Context) error {
 	errChan := make(chan error, 1)
 
 	// Start HTTP server
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
+	wg.Go(func() {
 		if err := srv.Start(ctx); err != nil {
 			errChan <- err
 		}
-	}()
+	})
 
 	// Handle shutdown signals
 	wg.Add(1)

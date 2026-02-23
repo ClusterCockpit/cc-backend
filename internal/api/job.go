@@ -904,11 +904,13 @@ func (api *RestAPI) deleteJobBefore(rw http.ResponseWriter, r *http.Request) {
 		}
 
 		// Check for omit-tagged query parameter
-		omitTagged := false
+		omitTagged := "none"
 		if omitTaggedStr := r.URL.Query().Get("omit-tagged"); omitTaggedStr != "" {
-			omitTagged, e = strconv.ParseBool(omitTaggedStr)
-			if e != nil {
-				handleError(fmt.Errorf("boolean expected for omit-tagged parameter: %w", e), http.StatusBadRequest, rw)
+			switch omitTaggedStr {
+			case "none", "all", "user":
+				omitTagged = omitTaggedStr
+			default:
+				handleError(fmt.Errorf("omit-tagged must be one of: none, all, user"), http.StatusBadRequest, rw)
 				return
 			}
 		}

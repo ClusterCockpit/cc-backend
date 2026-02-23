@@ -392,15 +392,19 @@ func (r *JobRepository) FetchEnergyFootprint(job *schema.Job) (map[string]float6
 //
 // Parameters:
 //   - startTime: Unix timestamp, jobs with start_time < this value will be deleted
-//   - omitTagged: If true, skip jobs that have associated tags (jobtag entries)
+//   - omitTagged: "none" = delete all jobs, "all" = skip any tagged jobs,
+//     "user" = skip jobs with user-created tags (not auto-tagger types "app"/"jobClass")
 //
 // Returns the count of deleted jobs or an error if the operation fails.
-func (r *JobRepository) DeleteJobsBefore(startTime int64, omitTagged bool) (int, error) {
+func (r *JobRepository) DeleteJobsBefore(startTime int64, omitTagged string) (int, error) {
 	var cnt int
 	q := sq.Select("count(*)").From("job").Where("job.start_time < ?", startTime)
 
-	if omitTagged {
+	switch omitTagged {
+	case "all":
 		q = q.Where("NOT EXISTS (SELECT 1 FROM jobtag WHERE jobtag.job_id = job.id)")
+	case "user":
+		q = q.Where("NOT EXISTS (SELECT 1 FROM jobtag JOIN tag ON tag.id = jobtag.tag_id WHERE jobtag.job_id = job.id AND tag.tag_type NOT IN ('app', 'jobClass'))")
 	}
 
 	if err := q.RunWith(r.DB).QueryRow().Scan(&cnt); err != nil {
@@ -413,8 +417,11 @@ func (r *JobRepository) DeleteJobsBefore(startTime int64, omitTagged bool) (int,
 		var jobIds []int64
 		selectQuery := sq.Select("id").From("job").Where("job.start_time < ?", startTime)
 
-		if omitTagged {
+		switch omitTagged {
+		case "all":
 			selectQuery = selectQuery.Where("NOT EXISTS (SELECT 1 FROM jobtag WHERE jobtag.job_id = job.id)")
+		case "user":
+			selectQuery = selectQuery.Where("NOT EXISTS (SELECT 1 FROM jobtag JOIN tag ON tag.id = jobtag.tag_id WHERE jobtag.job_id = job.id AND tag.tag_type NOT IN ('app', 'jobClass'))")
 		}
 
 		rows, err := selectQuery.RunWith(r.DB).Query()
@@ -436,8 +443,11 @@ func (r *JobRepository) DeleteJobsBefore(startTime int64, omitTagged bool) (int,
 
 	qd := sq.Delete("job").Where("job.start_time < ?", startTime)
 
-	if omitTagged {
+	switch omitTagged {
+	case "all":
 		qd = qd.Where("NOT EXISTS (SELECT 1 FROM jobtag WHERE jobtag.job_id = job.id)")
+	case "user":
+		qd = qd.Where("NOT EXISTS (SELECT 1 FROM jobtag JOIN tag ON tag.id = jobtag.tag_id WHERE jobtag.job_id = job.id AND tag.tag_type NOT IN ('app', 'jobClass'))")
 	}
 	_, err := qd.RunWith(r.DB).Exec()
 
@@ -822,10 +832,11 @@ func (r *JobRepository) UpdateDuration() error {
 // Parameters:
 //   - startTimeBegin: Unix timestamp for range start (use 0 for unbounded start)
 //   - startTimeEnd: Unix timestamp for range end
-//   - omitTagged: If true, exclude jobs with associated tags
+//   - omitTagged: "none" = include all jobs, "all" = exclude any tagged jobs,
+//     "user" = exclude jobs with user-created tags (not auto-tagger types "app"/"jobClass")
 //
 // Returns a slice of jobs or an error if the time range is invalid or query fails.
-func (r *JobRepository) FindJobsBetween(startTimeBegin int64, startTimeEnd int64, omitTagged bool) ([]*schema.Job, error) {
+func (r *JobRepository) FindJobsBetween(startTimeBegin int64, startTimeEnd int64, omitTagged string) ([]*schema.Job, error) {
 	var query sq.SelectBuilder
 
 	if startTimeBegin == startTimeEnd || startTimeBegin > startTimeEnd {
@@ -840,8 +851,11 @@ func (r *JobRepository) FindJobsBetween(startTimeBegin int64, startTimeEnd int64
 		query = sq.Select(jobColumns...).From("job").Where("job.start_time BETWEEN ? AND ?", startTimeBegin, startTimeEnd)
 	}
 
-	if omitTagged {
+	switch omitTagged {
+	case "all":
 		query = query.Where("NOT EXISTS (SELECT 1 FROM jobtag WHERE jobtag.job_id = job.id)")
+	case "user":
+		query = query.Where("NOT EXISTS (SELECT 1 FROM jobtag JOIN tag ON tag.id = jobtag.tag_id WHERE jobtag.job_id = job.id AND tag.tag_type NOT IN ('app', 'jobClass'))")
 	}
 
 	query = query.OrderBy("job.cluster ASC", "job.subcluster ASC", "job.project ASC", "job.start_time ASC")
