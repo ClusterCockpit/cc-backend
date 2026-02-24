@@ -107,6 +107,12 @@
     return pendingTableData
   });
 
+  const refinedStateData = $derived.by(() => {
+    return $statusQuery?.data?.nodeStates.
+      filter((e) => ['allocated', 'reserved', 'idle', 'mixed','down', 'unknown'].includes(e.state)).
+      sort((a, b) => b.count - a.count)
+  });
+
   const refinedHealthData = $derived.by(() => {
     return $statusQuery?.data?.nodeStates.
       filter((e) => ['full', 'partial', 'failed'].includes(e.state)).
