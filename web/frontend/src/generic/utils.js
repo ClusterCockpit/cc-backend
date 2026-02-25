@@ -60,6 +60,7 @@ export function init(extraInitQuery = "") {
                 topology {
                     node
                     socket
+                    memoryDomain
                     core
                     accelerators { id }
                 }
@@ -238,7 +239,7 @@ export function groupByScope(jobMetrics) {
 const scopeGranularity = {
     node: 10,
     socket: 5,
-    memorydomain: 4,
+    memoryDomain: 4,
     core: 3,
     hwthread: 2,
     accelerator: 1

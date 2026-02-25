@@ -190,6 +190,8 @@ func (t *JobClassTagger) EventCallback() {
 		cclog.Fatal(err)
 	}
 
+	t.rules = make(map[string]ruleInfo)
+
 	parametersFile := filepath.Join(t.cfgPath, parametersFileName)
 	if util.CheckFileExists(parametersFile) {
 		cclog.Info("Merge parameters")
@@ -301,16 +303,20 @@ func (t *JobClassTagger) Register() error {
 //   - Shared parameters defined in parameters.json
 //   - Computed variables from the rule definition
 //
-// Rules are evaluated in arbitrary order. If multiple rules match, only the first
-// encountered match is applied (FIXME: this should handle multiple matches).
+// Rules are evaluated in arbitrary order. Multiple rules can match and apply
+// their tags to the same job. Hint messages from all matching rules are collected
+// and stored as a combined message in the job metadata.
 func (t *JobClassTagger) Match(job *schema.Job) {
 	jobStats, err := t.getStatistics(job)
 	metricsList := t.getMetricConfig(job.Cluster, job.SubCluster)
-	cclog.Infof("Enter  match rule with %d rules for job %d", len(t.rules), job.JobID)
+	cclog.Infof("Enter match rule with %d rules for job %d", len(t.rules), job.JobID)
 	if err != nil {
-		cclog.Errorf("job classification failed for job  %d: %#v", job.JobID, err)
+		cclog.Errorf("job classification failed for job %d: %#v", job.JobID, err)
 		return
 	}
+
+	id := *job.ID
+	var messages []string
 
 	for tag, ri := range t.rules {
 		env := make(map[string]any)
@@ -329,11 +335,13 @@ func (t *JobClassTagger) Match(job *schema.Job) {
 		}
 
 		// add metrics to env
+		skipRule := false
 		for _, m := range ri.metrics {
 			stats, ok := jobStats[m]
 			if !ok {
-				cclog.Errorf("job classification failed for job %d: missing metric '%s'", job.JobID, m)
-				return
+				cclog.Errorf("job classification: missing metric '%s' for rule %s on job %d", m, tag, job.JobID)
+				skipRule = true
+				break
 			}
 			env[m] = map[string]any{
 				"min": stats.Min,
@@ -347,44 +355,55 @@ func (t *JobClassTagger) Match(job *schema.Job) {
 				},
 			}
 		}
+		if skipRule {
+			continue
+		}
 
 		// check rule requirements apply
+		requirementsMet := true
 		for _, r := range ri.requirements {
 			ok, err := expr.Run(r, env)
 			if err != nil {
 				cclog.Errorf("error running requirement for rule %s: %#v", tag, err)
-				return
+				requirementsMet = false
+				break
 			}
 			if !ok.(bool) {
 				cclog.Infof("requirement for rule %s not met", tag)
-				return
+				requirementsMet = false
+				break
 			}
 		}
+		if !requirementsMet {
+			continue
+		}
 
-		// validate rule expression
+		// evaluate rule variables
+		varError := false
 		for _, v := range ri.variables {
 			value, err := expr.Run(v.expr, env)
 			if err != nil {
-				cclog.Errorf("error running rule %s: %#v", tag, err)
-				return
+				cclog.Errorf("error evaluating variable %s for rule %s: %#v", v.name, tag, err)
+				varError = true
+				break
 			}
 			env[v.name] = value
 		}
-
-		// dump.P(env)
+		if varError {
+			continue
+		}
 
 		match, err := expr.Run(ri.rule, env)
 		if err != nil {
 			cclog.Errorf("error running rule %s: %#v", tag, err)
-			return
+			continue
 		}
 		if match.(bool) {
 			cclog.Info("Rule matches!")
-			id := *job.ID
 			if !t.repo.HasTag(id, t.tagType, tag) {
-				_, err := t.repo.AddTagOrCreateDirect(id, t.tagType, tag)
-				if err != nil {
-					return
+				if _, err := t.repo.AddTagOrCreateDirect(id, t.tagType, tag); err != nil {
+					cclog.Errorf("failed to add tag '%s' to job %d: %v", tag, id, err)
+					continue
 				}
 			}
 
@@ -392,17 +411,18 @@ func (t *JobClassTagger) Match(job *schema.Job) {
 			var msg bytes.Buffer
 			if err := ri.hint.Execute(&msg, env); err != nil {
 				cclog.Errorf("Template error: %s", err.Error())
-				return
+				continue
 			}
-
-			// FIXME: Handle case where multiple tags apply
-			// FIXME: Handle case where multiple tags apply
-			err = t.repo.UpdateMetadata(job, "message", msg.String())
-			if err != nil {
-				return
-			}
+			messages = append(messages, msg.String())
 		} else {
 			cclog.Info("Rule does not match!")
+		}
+	}
+
+	if len(messages) > 0 {
+		combined := strings.Join(messages, "\n")
+		if err := t.repo.UpdateMetadata(job, "message", combined); err != nil {
+			cclog.Errorf("failed to update metadata for job %d: %v", *job.ID, err)
 		}
 	}
 }

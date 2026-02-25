@@ -98,6 +98,8 @@ func (t *AppTagger) EventCallback() {
 		cclog.Fatal(err)
 	}
 
+	t.apps = make([]appInfo, 0)
+
 	for _, fn := range files {
 		if fn.IsDir() {
 			continue
@@ -163,7 +165,7 @@ func (t *AppTagger) Register() error {
 // It fetches the job metadata, extracts the job script, and matches it against
 // all configured application patterns using regular expressions.
 // If a match is found, the corresponding application tag is added to the job.
-// Only the first matching application is tagged.
+// Multiple application tags can be applied if patterns for different apps match.
 func (t *AppTagger) Match(job *schema.Job) {
 	r := repository.GetJobRepository()
 
@@ -199,6 +201,7 @@ func (t *AppTagger) Match(job *schema.Job) {
 	jobscriptLower := strings.ToLower(jobscript)
 	cclog.Debugf("AppTagger: matching job %d (script length: %d) against %d apps", id, len(jobscriptLower), len(t.apps))
 
+	matched := false
 	for _, a := range t.apps {
 		for _, re := range a.patterns {
 			if re.MatchString(jobscriptLower) {
@@ -210,10 +213,13 @@ func (t *AppTagger) Match(job *schema.Job) {
 						cclog.Errorf("AppTagger: failed to add tag '%s' to job %d: %v", a.tag, id, err)
 					}
 				}
-				return
+				matched = true
+				break // matched this app, move to next app
 			}
 		}
 	}
 
-	cclog.Debugf("AppTagger: no pattern matched for job %d on %s", id, job.Cluster)
+	if !matched {
+		cclog.Debugf("AppTagger: no pattern matched for job %d on %s", id, job.Cluster)
+	}
 }

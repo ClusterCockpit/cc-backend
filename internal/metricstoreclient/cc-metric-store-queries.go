@@ -70,14 +70,15 @@ func (ccms *CCMetricStore) buildQueries(
 	scopes []schema.MetricScope,
 	resolution int,
 ) ([]APIQuery, []schema.MetricScope, error) {
+	// Initialize both slices together
 	queries := make([]APIQuery, 0, len(metrics)*len(scopes)*len(job.Resources))
-	assignedScope := []schema.MetricScope{}
+	assignedScope := make([]schema.MetricScope, 0, len(metrics)*len(scopes)*len(job.Resources))
 
-	subcluster, scerr := archive.GetSubCluster(job.Cluster, job.SubCluster)
-	if scerr != nil {
-		return nil, nil, scerr
+	topology, err := ccms.getTopology(job.Cluster, job.SubCluster)
+	if err != nil {
+		cclog.Errorf("could not load cluster %s subCluster %s topology: %s", job.Cluster, job.SubCluster, err.Error())
+		return nil, nil, err
 	}
-	topology := subcluster.Topology
 
 	for _, metric := range metrics {
 		remoteName := metric
@@ -128,7 +129,7 @@ func (ccms *CCMetricStore) buildQueries(
 				hostQueries, hostScopes := buildScopeQueries(
 					nativeScope, requestedScope,
 					remoteName, host.Hostname,
-					&topology, hwthreads, host.Accelerators,
+					topology, hwthreads, host.Accelerators,
 					resolution,
 				)
 
@@ -163,19 +164,9 @@ func (ccms *CCMetricStore) buildNodeQueries(
 	scopes []schema.MetricScope,
 	resolution int,
 ) ([]APIQuery, []schema.MetricScope, error) {
+	// Initialize both slices together
 	queries := make([]APIQuery, 0, len(metrics)*len(scopes)*len(nodes))
-	assignedScope := []schema.MetricScope{}
-
-	// Get Topol before loop if subCluster given
-	var subClusterTopol *schema.SubCluster
-	var scterr error
-	if subCluster != "" {
-		subClusterTopol, scterr = archive.GetSubCluster(cluster, subCluster)
-		if scterr != nil {
-			cclog.Errorf("could not load cluster %s subCluster %s topology: %s", cluster, subCluster, scterr.Error())
-			return nil, nil, scterr
-		}
-	}
+	assignedScope := make([]schema.MetricScope, 0, len(metrics)*len(scopes)*len(nodes))
 
 	for _, metric := range metrics {
 		remoteName := metric
@@ -215,22 +206,22 @@ func (ccms *CCMetricStore) buildNodeQueries(
 			handledScopes = append(handledScopes, scope)
 
 			for _, hostname := range nodes {
+				var topology *schema.Topology
+				var err error
 
 				// If no subCluster given, get it by node
 				if subCluster == "" {
-					subClusterName, scnerr := archive.GetSubClusterByNode(cluster, hostname)
-					if scnerr != nil {
-						return nil, nil, scnerr
-					}
-					subClusterTopol, scterr = archive.GetSubCluster(cluster, subClusterName)
-					if scterr != nil {
-						return nil, nil, scterr
-					}
+					topology, err = ccms.getTopologyByNode(cluster, hostname)
+				} else {
+					topology, err = ccms.getTopology(cluster, subCluster)
+				}
+
+				if err != nil {
+					return nil, nil, err
 				}
 
 				// Always full node hwthread id list, no partial queries expected -> Use "topology.Node" directly where applicable
 				// Always full accelerator id list, no partial queries expected -> Use "acceleratorIds" directly where applicable
-				topology := subClusterTopol.Topology
 				acceleratorIds := topology.GetAcceleratorIDs()
 
 				// Moved check here if metric matches hardware specs
@@ -241,7 +232,7 @@ func (ccms *CCMetricStore) buildNodeQueries(
 				nodeQueries, nodeScopes := buildScopeQueries(
 					nativeScope, requestedScope,
 					remoteName, hostname,
-					&topology, topology.Node, acceleratorIds,
+					topology, topology.Node, acceleratorIds,
 					resolution,
 				)
 
@@ -278,7 +269,6 @@ func buildScopeQueries(
 	// Accelerator -> Accelerator (Use "accelerator" scope if requested scope is lower than node)
 	if nativeScope == schema.MetricScopeAccelerator && scope.LT(schema.MetricScopeNode) {
 		if scope != schema.MetricScopeAccelerator {
-			// Skip all other caught cases
 			return queries, scopes
 		}
 
@@ -448,6 +438,31 @@ func buildScopeQueries(
 			Resolution: resolution,
 		})
 		scopes = append(scopes, scope)
+		return queries, scopes
+	}
+
+	// MemoryDomain -> Socket
+	if nativeScope == schema.MetricScopeMemoryDomain && scope == schema.MetricScopeSocket {
+		memDomains, _ := topology.GetMemoryDomainsFromHWThreads(hwthreads)
+		socketToDomains, err := topology.GetMemoryDomainsBySocket(memDomains)
+		if err != nil {
+			cclog.Errorf("Error mapping memory domains to sockets, return unchanged: %v", err)
+			return queries, scopes
+		}
+
+		// Create a query for each socket
+		for _, domains := range socketToDomains {
+			queries = append(queries, APIQuery{
+				Metric:     metric,
+				Hostname:   hostname,
+				Aggregate:  true,
+				Type:       &memoryDomainString,
+				TypeIds:    intToStringSlice(domains),
+				Resolution: resolution,
+			})
+			// Add scope for each query, not just once
+			scopes = append(scopes, scope)
+		}
 		return queries, scopes
 	}
 

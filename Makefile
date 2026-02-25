@@ -84,4 +84,4 @@ $(VAR):
 
 $(SVELTE_TARGETS): $(SVELTE_SRC)
 	$(info ===>  BUILD frontend)
-	cd web/frontend && npm install && npm run build
+	cd web/frontend && npm ci && npm run build
