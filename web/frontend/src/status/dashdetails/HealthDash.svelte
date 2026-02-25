@@ -6,6 +6,7 @@
 -->
 
  <script>
+  import { onMount } from "svelte";
   import {
     Row,
     Col,
@@ -139,6 +140,9 @@
     healthTableSorting = {...healthTableSorting};
     healthTableData = [...pendingHealthData];
   }
+
+  /* On Mount */
+  onMount(() => sortBy('healthState'));
 
 </script>
 
