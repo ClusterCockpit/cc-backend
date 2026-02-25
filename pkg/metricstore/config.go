@@ -144,7 +144,7 @@ type MetricStoreConfig struct {
 // Accessed by Init(), Checkpointing(), and other lifecycle functions.
 var Keys MetricStoreConfig = MetricStoreConfig{
 	Checkpoints: Checkpoints{
-		FileFormat: "avro",
+		FileFormat: "json",
 		RootDir:    "./var/checkpoints",
 	},
 	Cleanup: &Cleanup{
