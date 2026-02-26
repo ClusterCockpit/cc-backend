@@ -244,8 +244,8 @@ func DecodeLine(dec *lineprotocol.Decoder,
 
 		time := t.Unix()
 
-		if Keys.Checkpoints.FileFormat != "json" {
-			LineProtocolMessages <- &AvroStruct{
+		if Keys.Checkpoints.FileFormat == "wal" {
+			WALMessages <- &WALMessage{
 				MetricName: string(metricBuf),
 				Cluster:    cluster,
 				Node:       host,

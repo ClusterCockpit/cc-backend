@@ -14,7 +14,7 @@
 //	├─ RetentionInMemory: How long to keep data in RAM
 //	├─ MemoryCap: Memory limit in bytes (triggers forceFree)
 //	├─ Checkpoints: Persistence configuration
-//	│  ├─ FileFormat: "avro" or "json"
+//	│  ├─ FileFormat: "json" or "wal"
 //	│  ├─ Interval: How often to save (e.g., "1h")
 //	│  └─ RootDir: Checkpoint storage path
 //	├─ Cleanup: Long-term storage configuration
@@ -55,16 +55,13 @@ const (
 	DefaultMaxWorkers                 = 10
 	DefaultBufferCapacity             = 512
 	DefaultGCTriggerInterval          = 100
-	DefaultAvroWorkers                = 4
-	DefaultCheckpointBufferMin        = 3
-	DefaultAvroCheckpointInterval     = time.Minute
 	DefaultMemoryUsageTrackerInterval = 1 * time.Hour
 )
 
 // Checkpoints configures periodic persistence of in-memory metric data.
 //
 // Fields:
-//   - FileFormat: "avro" (default, binary, compact) or "json" (human-readable, slower)
+//   - FileFormat: "json" (human-readable, periodic) or "wal" (binary snapshot + WAL, crash-safe)
 //   - Interval:   Duration string (e.g., "1h", "30m") between checkpoint saves
 //   - RootDir:    Filesystem path for checkpoint files (created if missing)
 type Checkpoints struct {

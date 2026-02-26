@@ -6,15 +6,15 @@
 // This file implements checkpoint persistence for the in-memory metric store.
 //
 // Checkpoints enable graceful restarts by periodically saving in-memory metric
-// data to disk in either JSON or Avro format. The checkpoint system:
+// data to disk in JSON or binary format. The checkpoint system:
 //
 // Key Features:
 //   - Periodic background checkpointing via the Checkpointing() worker
-//   - Two formats: JSON (human-readable) and Avro (compact, efficient)
+//   - Two format families: JSON (human-readable) and WAL+binary (compact, crash-safe)
 //   - Parallel checkpoint creation and loading using worker pools
-//   - Hierarchical file organization: checkpoint_dir/cluster/host/timestamp.{json|avro}
+//   - Hierarchical file organization: checkpoint_dir/cluster/host/timestamp.{json|bin}
+//   - WAL file: checkpoint_dir/cluster/host/current.wal (append-only, per-entry)
 //   - Only saves unarchived data (archived data is already persisted elsewhere)
-//   - Automatic format detection and fallback during loading
 //   - GC optimization during loading to prevent excessive heap growth
 //
 // Checkpoint Workflow:
@@ -27,8 +27,9 @@
 //	checkpoints/
 //	  cluster1/
 //	    host001/
-//	      1234567890.json  (timestamp = checkpoint start time)
-//	      1234567950.json
+//	      1234567890.json  (JSON format: full subtree snapshot)
+//	      1234567890.bin   (binary format: full subtree snapshot)
+//	      current.wal      (WAL format: append-only per-entry log)
 //	    host002/
 //	      ...
 package metricstore
@@ -52,7 +53,6 @@ import (
 
 	cclog "github.com/ClusterCockpit/cc-lib/v2/ccLogger"
 	"github.com/ClusterCockpit/cc-lib/v2/schema"
-	"github.com/linkedin/goavro/v2"
 )
 
 const (
@@ -86,47 +86,58 @@ var (
 
 // Checkpointing starts a background worker that periodically saves metric data to disk.
 //
-// The behavior depends on the configured file format:
-//   - JSON: Periodic checkpointing based on Keys.Checkpoints.Interval
-//   - Avro: Initial delay + periodic checkpointing at DefaultAvroCheckpointInterval
-//
-// The worker respects context cancellation and signals completion via the WaitGroup.
+// Format behaviour:
+//   - "json": Periodic checkpointing based on Keys.Checkpoints.Interval
+//   - "wal":  Periodic binary snapshots + WAL rotation at Keys.Checkpoints.Interval
 func Checkpointing(wg *sync.WaitGroup, ctx context.Context) {
 	lastCheckpointMu.Lock()
 	lastCheckpoint = time.Now()
 	lastCheckpointMu.Unlock()
 
-	if Keys.Checkpoints.FileFormat == "json" {
-		ms := GetMemoryStore()
+	ms := GetMemoryStore()
 
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
-			d, err := time.ParseDuration(Keys.Checkpoints.Interval)
-			if err != nil {
-				cclog.Fatalf("[METRICSTORE]> invalid checkpoint interval '%s': %s", Keys.Checkpoints.Interval, err.Error())
-			}
-			if d <= 0 {
-				cclog.Warnf("[METRICSTORE]> checkpoint interval is zero or negative (%s), checkpointing disabled", d)
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+
+		d, err := time.ParseDuration(Keys.Checkpoints.Interval)
+		if err != nil {
+			cclog.Fatalf("[METRICSTORE]> invalid checkpoint interval '%s': %s", Keys.Checkpoints.Interval, err.Error())
+		}
+		if d <= 0 {
+			cclog.Warnf("[METRICSTORE]> checkpoint interval is zero or negative (%s), checkpointing disabled", d)
+			return
+		}
+
+		ticker := time.NewTicker(d)
+		defer ticker.Stop()
+
+		for {
+			select {
+			case <-ctx.Done():
 				return
-			}
+			case <-ticker.C:
+				lastCheckpointMu.Lock()
+				from := lastCheckpoint
+				lastCheckpointMu.Unlock()
 
-			ticker := time.NewTicker(d)
-			defer ticker.Stop()
+				now := time.Now()
+				cclog.Infof("[METRICSTORE]> start checkpointing (starting at %s)...", from.Format(time.RFC3339))
 
-			for {
-				select {
-				case <-ctx.Done():
-					return
-				case <-ticker.C:
-					lastCheckpointMu.Lock()
-					from := lastCheckpoint
-					lastCheckpointMu.Unlock()
-
-					cclog.Infof("[METRICSTORE]> start checkpointing (starting at %s)...", from.Format(time.RFC3339))
-					now := time.Now()
-					n, err := ms.ToCheckpoint(Keys.Checkpoints.RootDir,
-						from.Unix(), now.Unix())
+				if Keys.Checkpoints.FileFormat == "wal" {
+					n, hostDirs, err := ms.ToCheckpointWAL(Keys.Checkpoints.RootDir, from.Unix(), now.Unix())
+					if err != nil {
+						cclog.Errorf("[METRICSTORE]> binary checkpointing failed: %s", err.Error())
+					} else {
+						cclog.Infof("[METRICSTORE]> done: %d binary snapshot files created", n)
+						lastCheckpointMu.Lock()
+						lastCheckpoint = now
+						lastCheckpointMu.Unlock()
+						// Rotate WAL files for successfully checkpointed hosts.
+						RotateWALFiles(hostDirs)
+					}
+				} else {
+					n, err := ms.ToCheckpoint(Keys.Checkpoints.RootDir, from.Unix(), now.Unix())
 					if err != nil {
 						cclog.Errorf("[METRICSTORE]> checkpointing failed: %s", err.Error())
 					} else {
@@ -137,32 +148,8 @@ func Checkpointing(wg *sync.WaitGroup, ctx context.Context) {
 					}
 				}
 			}
-		}()
-	} else {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
-
-			select {
-			case <-ctx.Done():
-				return
-			case <-time.After(time.Duration(CheckpointBufferMinutes) * time.Minute):
-				GetAvroStore().ToCheckpoint(Keys.Checkpoints.RootDir, false)
-			}
-
-			ticker := time.NewTicker(DefaultAvroCheckpointInterval)
-			defer ticker.Stop()
-
-			for {
-				select {
-				case <-ctx.Done():
-					return
-				case <-ticker.C:
-					GetAvroStore().ToCheckpoint(Keys.Checkpoints.RootDir, false)
-				}
-			}
-		}()
-	}
+		}
+	}()
 }
 
 // MarshalJSON provides optimized JSON encoding for CheckpointMetrics.
@@ -190,7 +177,7 @@ func (cm *CheckpointMetrics) MarshalJSON() ([]byte, error) {
 	return buf, nil
 }
 
-// ToCheckpoint writes metric data to checkpoint files in parallel.
+// ToCheckpoint writes metric data to checkpoint files in parallel (JSON format).
 //
 // Metrics at root and cluster levels are skipped. One file per host is created.
 // Uses worker pool (Keys.NumWorkers) for parallel processing. Only locks one host
@@ -378,7 +365,6 @@ func enqueueCheckpointHosts(dir string, work chan<- [2]string) error {
 		return err
 	}
 
-	gcCounter := 0
 	for _, clusterDir := range clustersDir {
 		if !clusterDir.IsDir() {
 			return errors.New("[METRICSTORE]> expected only directories at first level of checkpoints/ directory")
@@ -394,16 +380,6 @@ func enqueueCheckpointHosts(dir string, work chan<- [2]string) error {
 				return errors.New("[METRICSTORE]> expected only directories at second level of checkpoints/ directory")
 			}
 
-			gcCounter++
-			// if gcCounter%GCTriggerInterval == 0 {
-			// Forcing garbage collection runs here regulary during the loading of checkpoints
-			// will decrease the total heap size after loading everything back to memory is done.
-			// While loading data, the heap will grow fast, so the GC target size will double
-			// almost always. By forcing GCs here, we can keep it growing more slowly so that
-			// at the end, less memory is wasted.
-			// runtime.GC()
-			// }
-
 			work <- [2]string{clusterDir.Name(), hostDir.Name()}
 		}
 	}
@@ -413,8 +389,8 @@ func enqueueCheckpointHosts(dir string, work chan<- [2]string) error {
 
 // FromCheckpoint loads checkpoint files from disk into memory in parallel.
 //
-// Uses worker pool to load cluster/host combinations. Periodically triggers GC
-// to prevent excessive heap growth. Returns number of files loaded and any errors.
+// Uses worker pool to load cluster/host combinations. Returns number of files
+// loaded and any errors.
 func (m *MemoryStore) FromCheckpoint(dir string, from int64) (int, error) {
 	var wg sync.WaitGroup
 	work := make(chan [2]string, Keys.NumWorkers*4)
@@ -452,13 +428,11 @@ func (m *MemoryStore) FromCheckpoint(dir string, from int64) (int, error) {
 
 // FromCheckpointFiles is the main entry point for loading checkpoints at startup.
 //
-// Automatically detects checkpoint format (JSON vs Avro) and falls back if needed.
 // Creates checkpoint directory if it doesn't exist. This function must be called
 // before any writes or reads, and can only be called once.
 func (m *MemoryStore) FromCheckpointFiles(dir string, from int64) (int, error) {
 	if _, err := os.Stat(dir); os.IsNotExist(err) {
-		// The directory does not exist, so create it using os.MkdirAll()
-		err := os.MkdirAll(dir, CheckpointDirPerms) // CheckpointDirPerms sets the permissions for the directory
+		err := os.MkdirAll(dir, CheckpointDirPerms)
 		if err != nil {
 			cclog.Fatalf("[METRICSTORE]> Error creating directory: %#v\n", err)
 		}
@@ -466,146 +440,6 @@ func (m *MemoryStore) FromCheckpointFiles(dir string, from int64) (int, error) {
 	}
 
 	return m.FromCheckpoint(dir, from)
-}
-
-func (l *Level) loadAvroFile(m *MemoryStore, f *os.File, from int64) error {
-	br := bufio.NewReader(f)
-
-	fileName := f.Name()[strings.LastIndex(f.Name(), "/")+1:]
-	resolution, err := strconv.ParseInt(fileName[0:strings.Index(fileName, "_")], 10, 64)
-	if err != nil {
-		return fmt.Errorf("[METRICSTORE]> error while reading avro file (resolution parsing) : %s", err)
-	}
-
-	fromTimestamp, err := strconv.ParseInt(fileName[strings.Index(fileName, "_")+1:len(fileName)-5], 10, 64)
-
-	// Same logic according to lineprotocol
-	fromTimestamp -= (resolution / 2)
-
-	if err != nil {
-		return fmt.Errorf("[METRICSTORE]> error converting timestamp from the avro file : %s", err)
-	}
-
-	// fmt.Printf("File : %s with resolution : %d\n", fileName, resolution)
-
-	var recordCounter int64 = 0
-
-	// Create a new OCF reader from the buffered reader
-	ocfReader, err := goavro.NewOCFReader(br)
-	if err != nil {
-		return fmt.Errorf("[METRICSTORE]> error creating OCF reader: %w", err)
-	}
-
-	metricsData := make(map[string]schema.FloatArray)
-
-	for ocfReader.Scan() {
-		datum, err := ocfReader.Read()
-		if err != nil {
-			return fmt.Errorf("[METRICSTORE]> error while reading avro file : %s", err)
-		}
-
-		record, ok := datum.(map[string]any)
-		if !ok {
-			return fmt.Errorf("[METRICSTORE]> failed to assert datum as map[string]interface{}")
-		}
-
-		for key, value := range record {
-			metricsData[key] = append(metricsData[key], schema.ConvertToFloat(value.(float64)))
-		}
-
-		recordCounter += 1
-	}
-
-	to := (fromTimestamp + (recordCounter / (60 / resolution) * 60))
-	if to < from {
-		return nil
-	}
-
-	for key, floatArray := range metricsData {
-		metricName := ReplaceKey(key)
-
-		if strings.Contains(metricName, SelectorDelimiter) {
-			subString := strings.Split(metricName, SelectorDelimiter)
-
-			lvl := l
-
-			for i := 0; i < len(subString)-1; i++ {
-
-				sel := subString[i]
-
-				if lvl.children == nil {
-					lvl.children = make(map[string]*Level)
-				}
-
-				child, ok := lvl.children[sel]
-				if !ok {
-					child = &Level{
-						metrics:  make([]*buffer, len(m.Metrics)),
-						children: nil,
-					}
-					lvl.children[sel] = child
-				}
-				lvl = child
-			}
-
-			leafMetricName := subString[len(subString)-1]
-			err = lvl.createBuffer(m, leafMetricName, floatArray, fromTimestamp, resolution)
-			if err != nil {
-				return fmt.Errorf("[METRICSTORE]> error while creating buffers from avroReader : %s", err)
-			}
-		} else {
-			err = l.createBuffer(m, metricName, floatArray, fromTimestamp, resolution)
-			if err != nil {
-				return fmt.Errorf("[METRICSTORE]> error while creating buffers from avroReader : %s", err)
-			}
-		}
-
-	}
-
-	return nil
-}
-
-func (l *Level) createBuffer(m *MemoryStore, metricName string, floatArray schema.FloatArray, from int64, resolution int64) error {
-	n := len(floatArray)
-	b := &buffer{
-		frequency: resolution,
-		start:     from,
-		data:      floatArray[0:n:n],
-		prev:      nil,
-		next:      nil,
-		archived:  true,
-	}
-
-	minfo, ok := m.Metrics[metricName]
-	if !ok {
-		return nil
-	}
-
-	prev := l.metrics[minfo.offset]
-	if prev == nil {
-		l.metrics[minfo.offset] = b
-	} else {
-		if prev.start > b.start {
-			return fmt.Errorf("[METRICSTORE]> buffer start time %d is before previous buffer start %d", b.start, prev.start)
-		}
-
-		b.prev = prev
-		prev.next = b
-
-		missingCount := ((int(b.start) - int(prev.start)) - len(prev.data)*int(b.frequency))
-		if missingCount > 0 {
-			missingCount /= int(b.frequency)
-
-			for range missingCount {
-				prev.data = append(prev.data, schema.NaN)
-			}
-
-			prev.data = prev.data[0:len(prev.data):len(prev.data)]
-		}
-	}
-	l.metrics[minfo.offset] = b
-
-	return nil
 }
 
 func (l *Level) loadJSONFile(m *MemoryStore, f *os.File, from int64) error {
@@ -679,37 +513,37 @@ func (l *Level) loadFile(cf *CheckpointFile, m *MemoryStore) error {
 	return nil
 }
 
+// fromCheckpoint loads all checkpoint files (JSON, binary snapshot, WAL) for a
+// single host directory. Snapshot files are loaded first (sorted by timestamp),
+// then current.wal is replayed on top.
 func (l *Level) fromCheckpoint(m *MemoryStore, dir string, from int64) (int, error) {
 	direntries, err := os.ReadDir(dir)
 	if err != nil {
 		if os.IsNotExist(err) {
 			return 0, nil
 		}
-
 		return 0, err
 	}
 
 	allFiles := make([]fs.DirEntry, 0)
+	var walEntry fs.DirEntry
 	filesLoaded := 0
+
 	for _, e := range direntries {
 		if e.IsDir() {
-			child := &Level{
-				metrics:  make([]*buffer, len(m.Metrics)),
-				children: make(map[string]*Level),
-			}
-
-			files, err := child.fromCheckpoint(m, path.Join(dir, e.Name()), from)
-			filesLoaded += files
-			if err != nil {
-				return filesLoaded, err
-			}
-
-			l.children[e.Name()] = child
-		} else if strings.HasSuffix(e.Name(), ".json") || strings.HasSuffix(e.Name(), ".avro") {
-			allFiles = append(allFiles, e)
-		} else {
+			// Legacy: skip subdirectories (only used by old Avro format).
+			// These are ignored; their data is not loaded.
+			cclog.Debugf("[METRICSTORE]> skipping subdirectory %s in checkpoint dir %s", e.Name(), dir)
 			continue
 		}
+
+		name := e.Name()
+		if strings.HasSuffix(name, ".json") || strings.HasSuffix(name, ".bin") {
+			allFiles = append(allFiles, e)
+		} else if name == "current.wal" {
+			walEntry = e
+		}
+		// Silently ignore other files (e.g., .tmp, .bin.tmp from interrupted writes).
 	}
 
 	files, err := findFiles(allFiles, from, true)
@@ -719,54 +553,81 @@ func (l *Level) fromCheckpoint(m *MemoryStore, dir string, from int64) (int, err
 
 	loaders := map[string]func(*MemoryStore, *os.File, int64) error{
 		".json": l.loadJSONFile,
-		".avro": l.loadAvroFile,
+		".bin":  l.loadBinaryFile,
 	}
 
 	for _, filename := range files {
 		ext := filepath.Ext(filename)
 		loader := loaders[ext]
 		if loader == nil {
-			cclog.Warnf("Unknown extension for file %s", filename)
+			cclog.Warnf("[METRICSTORE]> unknown extension for checkpoint file %s", filename)
 			continue
 		}
 
-		// Use a closure to ensure file is closed immediately after use
 		err := func() error {
 			f, err := os.Open(path.Join(dir, filename))
 			if err != nil {
 				return err
 			}
 			defer f.Close()
-
 			return loader(m, f, from)
 		}()
 		if err != nil {
 			return filesLoaded, err
 		}
+		filesLoaded++
+	}
 
-		filesLoaded += 1
+	// Replay WAL after all snapshot files so it fills in data since the last snapshot.
+	if walEntry != nil {
+		err := func() error {
+			f, err := os.Open(path.Join(dir, walEntry.Name()))
+			if err != nil {
+				return err
+			}
+			defer f.Close()
+			return l.loadWALFile(m, f, from)
+		}()
+		if err != nil {
+			// WAL errors are non-fatal: the snapshot already loaded the bulk of data.
+			cclog.Warnf("[METRICSTORE]> WAL replay error for %s: %v (data since last snapshot may be missing)", dir, err)
+		} else {
+			filesLoaded++
+		}
 	}
 
 	return filesLoaded, nil
 }
 
-// This will probably get very slow over time!
-// A solution could be some sort of an index file in which all other files
-// and the timespan they contain is listed.
-// NOTE: This now assumes that you have distinct timestamps for json and avro files
-// Also, it assumes that the timestamps are not overlapping/self-modified.
+// parseTimestampFromFilename extracts a Unix timestamp from a checkpoint filename.
+// Supports ".json" (format: "<ts>.json") and ".bin" (format: "<ts>.bin").
+func parseTimestampFromFilename(name string) (int64, error) {
+	switch {
+	case strings.HasSuffix(name, ".json"):
+		return strconv.ParseInt(name[:len(name)-5], 10, 64)
+	case strings.HasSuffix(name, ".bin"):
+		return strconv.ParseInt(name[:len(name)-4], 10, 64)
+	default:
+		return 0, fmt.Errorf("unknown checkpoint extension for file %q", name)
+	}
+}
+
+// findFiles returns filenames from direntries whose timestamps satisfy the filter.
+// If findMoreRecentFiles is true, returns files with timestamps >= t (plus the
+// last file before t if t falls between two files).
 func findFiles(direntries []fs.DirEntry, t int64, findMoreRecentFiles bool) ([]string, error) {
 	nums := map[string]int64{}
 	for _, e := range direntries {
-		if !strings.HasSuffix(e.Name(), ".json") && !strings.HasSuffix(e.Name(), ".avro") {
+		name := e.Name()
+		if !strings.HasSuffix(name, ".json") && !strings.HasSuffix(name, ".bin") {
 			continue
 		}
 
-		ts, err := strconv.ParseInt(e.Name()[strings.Index(e.Name(), "_")+1:len(e.Name())-5], 10, 64)
+		ts, err := parseTimestampFromFilename(name)
 		if err != nil {
 			return nil, err
 		}
-		nums[e.Name()] = ts
+		nums[name] = ts
 	}
 
 	sort.Slice(direntries, func(i, j int) bool {
@@ -783,16 +644,12 @@ func findFiles(direntries []fs.DirEntry, t int64, findMoreRecentFiles bool) ([]s
 	for i, e := range direntries {
 		ts1 := nums[e.Name()]
 
-		// Logic to look for files in forward or direction
-		// If logic: All files greater than  or after
-		// the given timestamp will be selected
-		// Else If logic: All files less than  or before
-		// the given timestamp will be selected
 		if findMoreRecentFiles && t <= ts1 {
 			filenames = append(filenames, e.Name())
 		} else if !findMoreRecentFiles && ts1 <= t && ts1 != 0 {
 			filenames = append(filenames, e.Name())
 		}
+
 		if i == len(direntries)-1 {
 			continue
 		}
