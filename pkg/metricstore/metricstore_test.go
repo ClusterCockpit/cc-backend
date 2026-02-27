@@ -464,3 +464,53 @@ func TestBufferHealthChecks(t *testing.T) {
 		})
 	}
 }
+
+func TestBufferPoolClean(t *testing.T) {
+	// Use a fresh pool for testing
+	pool := NewPersistentBufferPool()
+
+	now := time.Now().Unix()
+
+	// Create some buffers and put them in the pool with different lastUsed times
+	b1 := &buffer{lastUsed: now - 3600, data: make([]schema.Float, 0)}   // 1 hour ago
+	b2 := &buffer{lastUsed: now - 7200, data: make([]schema.Float, 0)}   // 2 hours ago
+	b3 := &buffer{lastUsed: now - 180000, data: make([]schema.Float, 0)} // 50 hours ago
+	b4 := &buffer{lastUsed: now - 200000, data: make([]schema.Float, 0)} // 55 hours ago
+	b5 := &buffer{lastUsed: now, data: make([]schema.Float, 0)}
+
+	pool.Put(b1)
+	pool.Put(b2)
+	pool.Put(b3)
+	pool.Put(b4)
+	pool.Put(b5)
+
+	if pool.GetSize() != 5 {
+		t.Fatalf("Expected pool size 5, got %d", pool.GetSize())
+	}
+
+	// Clean buffers older than 48 hours
+	timeUpdate := time.Now().Add(-48 * time.Hour).Unix()
+	pool.Clean(timeUpdate)
+
+	// Expected: b1, b2, b5 should remain. b3, b4 should be cleaned.
+	if pool.GetSize() != 3 {
+		t.Fatalf("Expected pool size 3 after clean, got %d", pool.GetSize())
+	}
+
+	validBufs := map[int64]bool{
+		b1.lastUsed: true,
+		b2.lastUsed: true,
+		b5.lastUsed: true,
+	}
+
+	for i := 0; i < 3; i++ {
+		b := pool.Get()
+		if !validBufs[b.lastUsed] {
+			t.Errorf("Found unexpected buffer with lastUsed %d", b.lastUsed)
+		}
+	}
+
+	if pool.GetSize() != 0 {
+		t.Fatalf("Expected pool to be empty, got %d", pool.GetSize())
+	}
+}

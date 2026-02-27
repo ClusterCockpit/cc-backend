@@ -357,6 +357,9 @@ func Retention(wg *sync.WaitGroup, ctx context.Context) {
 				}
 
 				state.mu.Unlock()
+
+				// Clean up the buffer pool
+				bufferPool.Clean(state.lastRetentionTime)
 			}
 		}
 	})
@@ -424,6 +427,9 @@ func MemoryUsageTracker(wg *sync.WaitGroup, ctx context.Context) {
 
 				runtime.ReadMemStats(&mem)
 				actualMemoryGB = float64(mem.Alloc) / 1e9
+
+				bufferPool.CleanAll()
+				cclog.Infof("[METRICSTORE]> Cleaned up bufferPool\n")
 
 				if actualMemoryGB > float64(Keys.MemoryCap) {
 					cclog.Warnf("[METRICSTORE]> memory usage %.2f GB exceeds cap %d GB, starting emergency buffer freeing", actualMemoryGB, Keys.MemoryCap)

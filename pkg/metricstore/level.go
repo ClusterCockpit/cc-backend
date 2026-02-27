@@ -42,6 +42,7 @@ package metricstore
 
 import (
 	"sync"
+	"time"
 	"unsafe"
 
 	"github.com/ClusterCockpit/cc-lib/v2/schema"
@@ -192,6 +193,7 @@ func (l *Level) free(t int64) (int, error) {
 				if cap(b.data) != BufferCap {
 					b.data = make([]schema.Float, 0, BufferCap)
 				}
+				b.lastUsed = time.Now().Unix()
 				bufferPool.Put(b)
 				l.metrics[i] = nil
 			}
