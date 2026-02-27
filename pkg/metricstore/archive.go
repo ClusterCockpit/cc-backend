@@ -49,9 +49,7 @@ func CleanUp(wg *sync.WaitGroup, ctx context.Context) {
 
 // runWorker takes simple values to configure what it does
 func cleanUpWorker(wg *sync.WaitGroup, ctx context.Context, interval string, mode string, cleanupDir string, delete bool) {
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
+	wg.Go(func() {
 
 		d, err := time.ParseDuration(interval)
 		if err != nil {
@@ -85,7 +83,7 @@ func cleanUpWorker(wg *sync.WaitGroup, ctx context.Context, interval string, mod
 				}
 			}
 		}
-	}()
+	})
 }
 
 var ErrNoNewArchiveData error = errors.New("all data already archived")

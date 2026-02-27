@@ -576,9 +576,7 @@ func (sa *SqliteArchive) Iter(loadMetricData bool) <-chan JobContainer {
 		var wg sync.WaitGroup
 
 		for range numWorkers {
-			wg.Add(1)
-			go func() {
-				defer wg.Done()
+			wg.Go(func() {
 				for row := range jobRows {
 					job, err := DecodeJobMeta(bytes.NewReader(row.metaBlob))
 					if err != nil {
@@ -617,7 +615,7 @@ func (sa *SqliteArchive) Iter(loadMetricData bool) <-chan JobContainer {
 						ch <- JobContainer{Meta: job, Data: nil}
 					}
 				}
-			}()
+			})
 		}
 
 		for {

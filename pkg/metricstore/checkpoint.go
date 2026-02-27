@@ -96,9 +96,7 @@ func Checkpointing(wg *sync.WaitGroup, ctx context.Context) {
 
 	ms := GetMemoryStore()
 
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
+	wg.Go(func() {
 
 		d, err := time.ParseDuration(Keys.Checkpoints.Interval)
 		if err != nil {
@@ -149,7 +147,7 @@ func Checkpointing(wg *sync.WaitGroup, ctx context.Context) {
 				}
 			}
 		}
-	}()
+	})
 }
 
 // MarshalJSON provides optimized JSON encoding for CheckpointMetrics.

@@ -65,6 +65,7 @@ import (
 	"math"
 	"os"
 	"path"
+	"strings"
 	"sync"
 	"sync/atomic"
 
@@ -114,9 +115,7 @@ type walFileState struct {
 // and appends binary WAL records to per-host current.wal files.
 // Also handles WAL rotation requests from the checkpoint goroutine.
 func WALStaging(wg *sync.WaitGroup, ctx context.Context) {
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
+	wg.Go(func() {
 
 		if Keys.Checkpoints.FileFormat == "json" {
 			return
@@ -220,7 +219,7 @@ func WALStaging(wg *sync.WaitGroup, ctx context.Context) {
 				processRotate(req)
 			}
 		}
-	}()
+	})
 }
 
 // RotateWALFiles sends rotation requests for the given host directories
@@ -478,11 +477,12 @@ func joinSelector(sel []string) string {
 	if len(sel) == 0 {
 		return ""
 	}
-	result := sel[0]
+	var result strings.Builder
+	result.WriteString(sel[0])
 	for i := 1; i < len(sel); i++ {
-		result += "\x00" + sel[i]
+		result.WriteString("\x00" + sel[i])
 	}
-	return result
+	return result.String()
 }
 
 // ToCheckpointWAL writes binary snapshot files for all hosts in parallel.

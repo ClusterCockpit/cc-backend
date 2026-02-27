@@ -320,9 +320,7 @@ func Shutdown() {
 func Retention(wg *sync.WaitGroup, ctx context.Context) {
 	ms := GetMemoryStore()
 
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
+	wg.Go(func() {
 		d, err := time.ParseDuration(Keys.RetentionInMemory)
 		if err != nil {
 			cclog.Fatal(err)
@@ -361,7 +359,7 @@ func Retention(wg *sync.WaitGroup, ctx context.Context) {
 				state.mu.Unlock()
 			}
 		}
-	}()
+	})
 }
 
 // MemoryUsageTracker starts a background goroutine that monitors memory usage.
@@ -382,9 +380,7 @@ func Retention(wg *sync.WaitGroup, ctx context.Context) {
 func MemoryUsageTracker(wg *sync.WaitGroup, ctx context.Context) {
 	ms := GetMemoryStore()
 
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
+	wg.Go(func() {
 		d := DefaultMemoryUsageTrackerInterval
 
 		if d <= 0 {
@@ -470,7 +466,7 @@ func MemoryUsageTracker(wg *sync.WaitGroup, ctx context.Context) {
 				}
 			}
 		}
-	}()
+	})
 }
 
 // Free removes metric data older than the given time while preserving data for active nodes.

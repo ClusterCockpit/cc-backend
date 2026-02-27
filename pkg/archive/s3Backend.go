@@ -821,9 +821,7 @@ func (s3a *S3Archive) Iter(loadMetricData bool) <-chan JobContainer {
 		var wg sync.WaitGroup
 
 		for range numWorkers {
-			wg.Add(1)
-			go func() {
-				defer wg.Done()
+			wg.Go(func() {
 				for metaKey := range metaKeys {
 					result, err := s3a.client.GetObject(ctx, &s3.GetObjectInput{
 						Bucket: aws.String(s3a.bucket),
@@ -859,7 +857,7 @@ func (s3a *S3Archive) Iter(loadMetricData bool) <-chan JobContainer {
 						ch <- JobContainer{Meta: job, Data: nil}
 					}
 				}
-			}()
+			})
 		}
 
 		for _, cluster := range s3a.clusters {
