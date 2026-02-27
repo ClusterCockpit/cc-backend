@@ -43,6 +43,7 @@ package metricstore
 import (
 	"errors"
 	"sync"
+	"time"
 
 	"github.com/ClusterCockpit/cc-lib/v2/schema"
 )
@@ -53,12 +54,102 @@ import (
 // of data or reallocation needs to happen on writes.
 const BufferCap int = DefaultBufferCapacity
 
-var bufferPool sync.Pool = sync.Pool{
-	New: func() any {
+// BufferPool is the global instance.
+// It is initialized immediately when the package loads.
+var bufferPool = NewPersistentBufferPool()
+
+type PersistentBufferPool struct {
+	pool []*buffer
+	mu   sync.Mutex
+}
+
+// NewPersistentBufferPool creates a dynamic pool for buffers.
+func NewPersistentBufferPool() *PersistentBufferPool {
+	return &PersistentBufferPool{
+		pool: make([]*buffer, 0),
+	}
+}
+
+func (p *PersistentBufferPool) Get() *buffer {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+
+	n := len(p.pool)
+	if n == 0 {
+		// Pool is empty, allocate a new one
 		return &buffer{
 			data: make([]schema.Float, 0, BufferCap),
 		}
-	},
+	}
+
+	// Reuse existing buffer from the pool
+	b := p.pool[n-1]
+	p.pool[n-1] = nil // Avoid memory leak
+	p.pool = p.pool[:n-1]
+	return b
+}
+
+func (p *PersistentBufferPool) Put(b *buffer) {
+	// Reset the buffer before putting it back
+	b.data = b.data[:0]
+
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	p.pool = append(p.pool, b)
+}
+
+// GetSize returns the exact number of buffers currently sitting in the pool.
+func (p *PersistentBufferPool) GetSize() int {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	return len(p.pool)
+}
+
+// Clear drains all buffers currently in the pool, allowing the GC to collect them.
+func (p *PersistentBufferPool) Clear() {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	for i := range p.pool {
+		p.pool[i] = nil
+	}
+	p.pool = p.pool[:0]
+}
+
+// Clean removes buffers from the pool that haven't been used in the given duration.
+// It uses a simple LRU approach based on the lastUsed timestamp.
+func (p *PersistentBufferPool) Clean(threshold int64) {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+
+	// Filter in place
+	active := p.pool[:0]
+	for _, b := range p.pool {
+		if b.lastUsed >= threshold {
+			active = append(active, b)
+		} else {
+			// Buffer is older than the threshold, let it be collected by GC
+		}
+	}
+
+	// Nullify the rest to prevent memory leaks
+	for i := len(active); i < len(p.pool); i++ {
+		p.pool[i] = nil
+	}
+
+	p.pool = active
+}
+
+// CleanAll removes all buffers from the pool.
+func (p *PersistentBufferPool) CleanAll() {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+
+	// Nullify all buffers to prevent memory leaks
+	for i := range p.pool {
+		p.pool[i] = nil
+	}
+
+	p.pool = p.pool[:0]
 }
 
 var (
@@ -94,10 +185,11 @@ type buffer struct {
 	start     int64
 	archived  bool
 	closed    bool
+	lastUsed  int64
 }
 
 func newBuffer(ts, freq int64) *buffer {
-	b := bufferPool.Get().(*buffer)
+	b := bufferPool.Get()
 	b.frequency = freq
 	b.start = ts - (freq / 2)
 	b.prev = nil
@@ -240,6 +332,7 @@ func (b *buffer) free(t int64) (delme bool, n int) {
 			if cap(b.prev.data) != BufferCap {
 				b.prev.data = make([]schema.Float, 0, BufferCap)
 			}
+			b.prev.lastUsed = time.Now().Unix()
 			bufferPool.Put(b.prev)
 			b.prev = nil
 		}
