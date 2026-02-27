@@ -489,7 +489,7 @@ func TestBufferPoolClean(t *testing.T) {
 	}
 
 	// Clean buffers older than 48 hours
-	timeUpdate := time.Now().Add(48 * time.Hour).Unix()
+	timeUpdate := time.Now().Add(-48 * time.Hour).Unix()
 	pool.Clean(timeUpdate)
 
 	// Expected: b1, b2, b5 should remain. b3, b4 should be cleaned.
