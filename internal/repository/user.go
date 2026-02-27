@@ -10,6 +10,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"reflect"
 	"strings"
 	"sync"
 
@@ -187,8 +188,8 @@ func (r *UserRepository) AddUser(user *schema.User) error {
 }
 
 func (r *UserRepository) UpdateUser(dbUser *schema.User, user *schema.User) error {
-	// user contains updated info, apply to dbuser
-	// TODO: Discuss updatable fields
+	// user contains updated info -> Apply to dbUser
+	// --- Simple Name Update ---
 	if dbUser.Name != user.Name {
 		if _, err := sq.Update("hpc_user").Set("name", user.Name).Where("hpc_user.username = ?", dbUser.Username).RunWith(r.DB).Exec(); err != nil {
 			cclog.Errorf("error while updating name of user '%s'", user.Username)
@@ -196,13 +197,64 @@ func (r *UserRepository) UpdateUser(dbUser *schema.User, user *schema.User) erro
 		}
 	}
 
-	// Toggled until greenlit
-	// if dbUser.HasRole(schema.RoleManager) && !reflect.DeepEqual(dbUser.Projects, user.Projects) {
-	// 	projects, _ := json.Marshal(user.Projects)
-	// 	if _, err := sq.Update("hpc_user").Set("projects", projects).Where("hpc_user.username = ?", dbUser.Username).RunWith(r.DB).Exec(); err != nil {
-	// 		return err
-	// 	}
-	// }
+	// --- Def Helpers ---
+	// Helper to update roles
+	updateRoles := func(roles []string) error {
+		rolesJSON, _ := json.Marshal(roles)
+		_, err := sq.Update("hpc_user").Set("roles", rolesJSON).Where("hpc_user.username = ?", dbUser.Username).RunWith(r.DB).Exec()
+		return err
+	}
+
+	// Helper to update projects
+	updateProjects := func(projects []string) error {
+		projectsJSON, _ := json.Marshal(projects)
+		_, err := sq.Update("hpc_user").Set("projects", projectsJSON).Where("hpc_user.username = ?", dbUser.Username).RunWith(r.DB).Exec()
+		return err
+	}
+
+	// Helper to clear projects
+	clearProjects := func() error {
+		_, err := sq.Update("hpc_user").Set("projects", "[]").Where("hpc_user.username = ?", dbUser.Username).RunWith(r.DB).Exec()
+		return err
+	}
+
+	// --- Manager Role Handling ---
+	if dbUser.HasRole(schema.RoleManager) && user.HasRole(schema.RoleManager) && !reflect.DeepEqual(dbUser.Projects, user.Projects) {
+		// Existing Manager: update projects
+		if err := updateProjects(user.Projects); err != nil {
+			return err
+		}
+	} else if dbUser.HasRole(schema.RoleUser) && user.HasRole(schema.RoleManager) && user.HasNotRoles([]schema.Role{schema.RoleAdmin}) {
+		// New Manager: update roles and projects
+		if err := updateRoles(user.Roles); err != nil {
+			return err
+		}
+		if err := updateProjects(user.Projects); err != nil {
+			return err
+		}
+	} else if dbUser.HasRole(schema.RoleManager) && user.HasNotRoles([]schema.Role{schema.RoleAdmin, schema.RoleManager}) {
+		// Remove Manager: update roles and clear projects
+		if err := updateRoles(user.Roles); err != nil {
+			return err
+		}
+		if err := clearProjects(); err != nil {
+			return err
+		}
+	}
+
+	// --- Support Role Handling ---
+	if dbUser.HasRole(schema.RoleUser) && dbUser.HasNotRoles([]schema.Role{schema.RoleSupport}) &&
+		user.HasRole(schema.RoleSupport) && user.HasNotRoles([]schema.Role{schema.RoleAdmin}) {
+		// New Support: update roles
+		if err := updateRoles(user.Roles); err != nil {
+			return err
+		}
+	} else if dbUser.HasRole(schema.RoleSupport) && user.HasNotRoles([]schema.Role{schema.RoleAdmin, schema.RoleSupport}) {
+		// Remove Support: update roles
+		if err := updateRoles(user.Roles); err != nil {
+			return err
+		}
+	}
 
 	return nil
 }
