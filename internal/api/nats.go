@@ -21,7 +21,7 @@ import (
 	"github.com/ClusterCockpit/cc-lib/v2/nats"
 	"github.com/ClusterCockpit/cc-lib/v2/receivers"
 	"github.com/ClusterCockpit/cc-lib/v2/schema"
-	influx "github.com/influxdata/line-protocol/v2/lineprotocol"
+	influx "github.com/ClusterCockpit/cc-line-protocol/v2/lineprotocol"
 )
 
 // NatsAPI provides NATS subscription-based handlers for Job and Node operations.

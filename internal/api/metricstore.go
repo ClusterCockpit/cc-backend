@@ -18,7 +18,7 @@ import (
 	"github.com/ClusterCockpit/cc-backend/pkg/metricstore"
 	cclog "github.com/ClusterCockpit/cc-lib/v2/ccLogger"
 
-	"github.com/influxdata/line-protocol/v2/lineprotocol"
+	"github.com/ClusterCockpit/cc-line-protocol/v2/lineprotocol"
 )
 
 // handleFree godoc
