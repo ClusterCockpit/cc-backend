@@ -54,6 +54,10 @@ import (
 // of data or reallocation needs to happen on writes.
 const BufferCap int = DefaultBufferCapacity
 
+// maxPoolSize caps the number of buffers held in the pool at any time.
+// Prevents unbounded memory growth after large retention-cleanup bursts.
+const maxPoolSize = 4096
+
 // BufferPool is the global instance.
 // It is initialized immediately when the package loads.
 var bufferPool = NewPersistentBufferPool()
@@ -89,12 +93,18 @@ func (p *PersistentBufferPool) Get() *buffer {
 	return b
 }
 
+// Put returns b to the pool. The caller must set b.lastUsed = time.Now().Unix()
+// before calling Put so that Clean() can evict idle entries correctly.
 func (p *PersistentBufferPool) Put(b *buffer) {
 	// Reset the buffer before putting it back
 	b.data = b.data[:0]
 
 	p.mu.Lock()
 	defer p.mu.Unlock()
+	if len(p.pool) >= maxPoolSize {
+		// Pool is full; drop the buffer and let GC collect it.
+		return
+	}
 	p.pool = append(p.pool, b)
 }
 
@@ -121,13 +131,11 @@ func (p *PersistentBufferPool) Clean(threshold int64) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 
-	// Filter in place
+	// Filter in place, retaining only buffers returned to the pool recently enough.
 	active := p.pool[:0]
 	for _, b := range p.pool {
 		if b.lastUsed >= threshold {
 			active = append(active, b)
-		} else {
-			// Buffer is older than the threshold, let it be collected by GC
 		}
 	}
 
@@ -137,19 +145,6 @@ func (p *PersistentBufferPool) Clean(threshold int64) {
 	}
 
 	p.pool = active
-}
-
-// CleanAll removes all buffers from the pool.
-func (p *PersistentBufferPool) CleanAll() {
-	p.mu.Lock()
-	defer p.mu.Unlock()
-
-	// Nullify all buffers to prevent memory leaks
-	for i := range p.pool {
-		p.pool[i] = nil
-	}
-
-	p.pool = p.pool[:0]
 }
 
 var (
@@ -276,11 +271,13 @@ func (b *buffer) firstWrite() int64 {
 //
 // Panics if 'data' slice is too small to hold all values in [from, to).
 func (b *buffer) read(from, to int64, data []schema.Float) ([]schema.Float, int64, int64, error) {
-	if from < b.firstWrite() {
-		if b.prev != nil {
-			return b.prev.read(from, to, data)
+	// Walk back to the buffer that covers 'from', adjusting if we hit the oldest.
+	for from < b.firstWrite() {
+		if b.prev == nil {
+			from = b.firstWrite()
+			break
 		}
-		from = b.firstWrite()
+		b = b.prev
 	}
 
 	i := 0
@@ -292,16 +289,17 @@ func (b *buffer) read(from, to int64, data []schema.Float) ([]schema.Float, int6
 				break
 			}
 			b = b.next
-			idx = 0
+			// Recalculate idx in the new buffer; a gap between buffers may exist.
+			idx = int((t - b.start) / b.frequency)
 		}
 
 		if idx >= len(b.data) {
 			if b.next == nil || to <= b.next.start {
 				break
 			}
-			data[i] += schema.NaN
+			data[i] += schema.NaN // NaN + anything = NaN; propagates missing data
 		} else if t < b.start {
-			data[i] += schema.NaN
+			data[i] += schema.NaN // gap before this buffer's first write
 		} else {
 			data[i] += b.data[idx]
 		}
@@ -359,11 +357,12 @@ func (b *buffer) forceFreeOldest() (delme bool, n int) {
 
 		// If the previous buffer signals it should be deleted:
 		if delPrev {
-			// Clear links on the dying buffer to prevent leaks
 			b.prev.next = nil
-			b.prev.data = nil // Release the underlying float slice immediately
-
-			// Remove the link from the current buffer
+			if cap(b.prev.data) != BufferCap {
+				b.prev.data = make([]schema.Float, 0, BufferCap)
+			}
+			b.prev.lastUsed = time.Now().Unix()
+			bufferPool.Put(b.prev)
 			b.prev = nil
 		}
 		return false, freed
@@ -392,21 +391,27 @@ func (b *buffer) iterFromTo(from, to int64, callback func(b *buffer) error) erro
 		return nil
 	}
 
-	if err := b.prev.iterFromTo(from, to, callback); err != nil {
-		return err
+	// Collect overlapping buffers walking backwards (newest → oldest).
+	var matching []*buffer
+	for cur := b; cur != nil; cur = cur.prev {
+		if from <= cur.end() && cur.start <= to {
+			matching = append(matching, cur)
+		}
 	}
 
-	if from <= b.end() && b.start <= to {
-		return callback(b)
+	// Invoke callback in chronological order (oldest → newest).
+	for i := len(matching) - 1; i >= 0; i-- {
+		if err := callback(matching[i]); err != nil {
+			return err
+		}
 	}
-
 	return nil
 }
 
 func (b *buffer) count() int64 {
-	res := int64(len(b.data))
-	if b.prev != nil {
-		res += b.prev.count()
+	var res int64
+	for ; b != nil; b = b.prev {
+		res += int64(len(b.data))
 	}
 	return res
 }

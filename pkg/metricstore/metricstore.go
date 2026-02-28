@@ -428,7 +428,7 @@ func MemoryUsageTracker(wg *sync.WaitGroup, ctx context.Context) {
 				runtime.ReadMemStats(&mem)
 				actualMemoryGB = float64(mem.Alloc) / 1e9
 
-				bufferPool.CleanAll()
+				bufferPool.Clear()
 				cclog.Infof("[METRICSTORE]> Cleaned up bufferPool\n")
 
 				if actualMemoryGB > float64(Keys.MemoryCap) {

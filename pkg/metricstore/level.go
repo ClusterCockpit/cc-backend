@@ -238,12 +238,13 @@ func (l *Level) forceFree() (int, error) {
 			// If delme is true, it means 'b' itself (the head) was the oldest
 			// and needs to be removed from the slice.
 			if delme {
-				// Nil out fields to ensure no hanging references
-
 				b.next = nil
 				b.prev = nil
-				b.data = nil
-
+				if cap(b.data) != BufferCap {
+					b.data = make([]schema.Float, 0, BufferCap)
+				}
+				b.lastUsed = time.Now().Unix()
+				bufferPool.Put(b)
 				l.metrics[i] = nil
 			}
 		}
