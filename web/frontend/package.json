@@ -15,7 +15,7 @@
     "rollup": "^4.55.1",
     "rollup-plugin-css-only": "^4.5.5",
     "rollup-plugin-svelte": "^7.2.3",
-    "svelte": "^5.46.4"
+    "svelte": "^5.53.6"
   },
   "dependencies": {
     "@rollup/plugin-replace": "^6.0.3",
