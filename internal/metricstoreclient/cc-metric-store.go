@@ -393,6 +393,10 @@ func (ccms *CCMetricStore) LoadStats(
 
 	stats := make(map[string]map[string]schema.MetricStatistics, len(metrics))
 	for i, res := range resBody.Results {
+		if len(res) == 0 {
+			// No Data Found For Metric, Logged in FetchData to Warn
+			continue
+		}
 		query := req.Queries[i]
 		metric := query.Metric
 		data := res[0]
@@ -562,6 +566,11 @@ func (ccms *CCMetricStore) LoadNodeData(
 	var errors []string
 	data := make(map[string]map[string][]*schema.JobMetric)
 	for i, res := range resBody.Results {
+		if len(res) == 0 {
+			// No Data Found For Metric, Logged in FetchData to Warn
+			continue
+		}
+
 		var query APIQuery
 		if resBody.Queries != nil {
 			query = resBody.Queries[i]
@@ -572,7 +581,6 @@ func (ccms *CCMetricStore) LoadNodeData(
 		metric := query.Metric
 		qdata := res[0]
 		if qdata.Error != nil {
-			/* Build list for "partial errors", if any */
 			errors = append(errors, fmt.Sprintf("fetching %s for node %s failed: %s", metric, query.Hostname, *qdata.Error))
 		}
 
