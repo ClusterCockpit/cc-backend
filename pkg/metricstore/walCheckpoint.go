@@ -116,7 +116,6 @@ type walFileState struct {
 // Also handles WAL rotation requests from the checkpoint goroutine.
 func WALStaging(wg *sync.WaitGroup, ctx context.Context) {
 	wg.Go(func() {
-
 		if Keys.Checkpoints.FileFormat == "json" {
 			return
 		}
@@ -232,6 +231,17 @@ func RotateWALFiles(hostDirs []string) {
 	}
 	for _, done := range dones {
 		<-done
+	}
+}
+
+// RotateWALFiles sends rotation requests for the given host directories
+// and blocks until all rotations complete.
+func RotateWALFilesAfterShutdown(hostDirs []string) {
+	for _, dir := range hostDirs {
+		walPath := path.Join(dir, "current.wal")
+		if err := os.Remove(walPath); err != nil && !os.IsNotExist(err) {
+			cclog.Errorf("[METRICSTORE]> WAL: remove %s: %v", walPath, err)
+		}
 	}
 }
 

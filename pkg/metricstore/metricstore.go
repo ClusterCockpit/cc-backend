@@ -294,7 +294,7 @@ func Shutdown() {
 		var hostDirs []string
 		files, hostDirs, err = ms.ToCheckpointWAL(Keys.Checkpoints.RootDir, from.Unix(), time.Now().Unix())
 		if err == nil {
-			RotateWALFiles(hostDirs)
+			RotateWALFilesAfterShutdown(hostDirs)
 		}
 	} else {
 		files, err = ms.ToCheckpoint(Keys.Checkpoints.RootDir, from.Unix(), time.Now().Unix())

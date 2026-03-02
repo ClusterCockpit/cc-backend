@@ -21,6 +21,7 @@
   ],
   "metric-store": {
     "checkpoints": {
+      "file-format": "wal",
       "interval": "12h"
     },
     "retention-in-memory": "48h",
