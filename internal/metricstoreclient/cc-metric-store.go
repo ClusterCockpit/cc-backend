@@ -123,7 +123,7 @@ type APIMetricData struct {
 	Max        schema.Float   `json:"max"`        // Maximum value in time range
 }
 
-// NewCCMetricStore creates and initializes a new CCMetricStore client.
+// NewCCMetricStore creates and initializes a new (external) CCMetricStore client.
 // The url parameter should include the protocol and port (e.g., "http://localhost:8080").
 // The token parameter is a JWT used for Bearer authentication; pass empty string if auth is disabled.
 func NewCCMetricStore(url string, token string) *CCMetricStore {
@@ -356,7 +356,7 @@ func (ccms *CCMetricStore) LoadData(
 
 	if len(errors) != 0 {
 		/* Returns list for "partial errors" */
-		return jobData, fmt.Errorf("METRICDATA/CCMS > Errors: %s", strings.Join(errors, ", "))
+		return jobData, fmt.Errorf("METRICDATA/EXTERNAL-CCMS > Errors: %s", strings.Join(errors, ", "))
 	}
 	return jobData, nil
 }
@@ -514,7 +514,7 @@ func (ccms *CCMetricStore) LoadScopedStats(
 
 	if len(errors) != 0 {
 		/* Returns list for "partial errors" */
-		return scopedJobStats, fmt.Errorf("METRICDATA/CCMS > Errors: %s", strings.Join(errors, ", "))
+		return scopedJobStats, fmt.Errorf("METRICDATA/EXTERNAL-CCMS > Errors: %s", strings.Join(errors, ", "))
 	}
 	return scopedJobStats, nil
 }
@@ -604,7 +604,7 @@ func (ccms *CCMetricStore) LoadNodeData(
 
 	if len(errors) != 0 {
 		/* Returns list of "partial errors" */
-		return data, fmt.Errorf("METRICDATA/CCMS > Errors: %s", strings.Join(errors, ", "))
+		return data, fmt.Errorf("METRICDATA/EXTERNAL-CCMS > Errors: %s", strings.Join(errors, ", "))
 	}
 
 	return data, nil
@@ -765,7 +765,7 @@ func (ccms *CCMetricStore) LoadNodeListData(
 
 	if len(errors) != 0 {
 		/* Returns list of "partial errors" */
-		return data, fmt.Errorf("METRICDATA/CCMS > Errors: %s", strings.Join(errors, ", "))
+		return data, fmt.Errorf("METRICDATA/EXTERNAL-CCMS > Errors: %s", strings.Join(errors, ", "))
 	}
 
 	return data, nil

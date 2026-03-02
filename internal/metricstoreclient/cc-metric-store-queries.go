@@ -134,7 +134,7 @@ func (ccms *CCMetricStore) buildQueries(
 				)
 
 				if len(hostQueries) == 0 && len(hostScopes) == 0 {
-					return nil, nil, fmt.Errorf("METRICDATA/CCMS > TODO: unhandled case: native-scope=%s, requested-scope=%s", nativeScope, requestedScope)
+					return nil, nil, fmt.Errorf("METRICDATA/INTERNAL-CCMS > TODO: unhandled case: native-scope=%s, requested-scope=%s", nativeScope, requestedScope)
 				}
 
 				queries = append(queries, hostQueries...)
@@ -237,7 +237,7 @@ func (ccms *CCMetricStore) buildNodeQueries(
 				)
 
 				if len(nodeQueries) == 0 && len(nodeScopes) == 0 {
-					return nil, nil, fmt.Errorf("METRICDATA/CCMS > TODO: unhandled case: native-scope=%s, requested-scope=%s", nativeScope, requestedScope)
+					return nil, nil, fmt.Errorf("METRICDATA/EXTERNAL-CCMS > TODO: unhandled case: native-scope=%s, requested-scope=%s", nativeScope, requestedScope)
 				}
 
 				queries = append(queries, nodeQueries...)

@@ -211,7 +211,7 @@ func (ccms *InternalMetricStore) LoadData(
 
 	if len(errors) != 0 {
 		/* Returns list for "partial errors" */
-		return jobData, fmt.Errorf("METRICDATA/CCMS > Errors: %s", strings.Join(errors, ", "))
+		return jobData, fmt.Errorf("METRICDATA/INTERNAL-CCMS > Errors: %s", strings.Join(errors, ", "))
 	}
 	return jobData, nil
 }
@@ -260,7 +260,7 @@ func buildQueries(
 	resolution int64,
 ) ([]APIQuery, []schema.MetricScope, error) {
 	if len(job.Resources) == 0 {
-		return nil, nil, fmt.Errorf("METRICDATA/CCMS > no resources allocated for job %d", job.JobID)
+		return nil, nil, fmt.Errorf("METRICDATA/INTERNAL-CCMS > no resources allocated for job %d", job.JobID)
 	}
 
 	queries := make([]APIQuery, 0, len(metrics)*len(scopes)*len(job.Resources))
@@ -531,7 +531,7 @@ func buildQueries(
 					continue
 				}
 
-				return nil, nil, fmt.Errorf("METRICDATA/CCMS > TODO: unhandled case: native-scope=%s, requested-scope=%s", nativeScope, requestedScope)
+				return nil, nil, fmt.Errorf("METRICDATA/INTERNAL-CCMS > TODO: unhandled case: native-scope=%s, requested-scope=%s", nativeScope, requestedScope)
 			}
 		}
 	}
@@ -719,7 +719,7 @@ func (ccms *InternalMetricStore) LoadScopedStats(
 
 	if len(errors) != 0 {
 		/* Returns list for "partial errors" */
-		return scopedJobStats, fmt.Errorf("METRICDATA/CCMS > Errors: %s", strings.Join(errors, ", "))
+		return scopedJobStats, fmt.Errorf("METRICDATA/INTERNAL-CCMS > Errors: %s", strings.Join(errors, ", "))
 	}
 	return scopedJobStats, nil
 }
@@ -824,7 +824,7 @@ func (ccms *InternalMetricStore) LoadNodeData(
 
 	if len(errors) != 0 {
 		/* Returns list of "partial errors" */
-		return data, fmt.Errorf("METRICDATA/CCMS > Errors: %s", strings.Join(errors, ", "))
+		return data, fmt.Errorf("METRICDATA/INTERNAL-CCMS > Errors: %s", strings.Join(errors, ", "))
 	}
 
 	return data, nil
@@ -994,7 +994,7 @@ func (ccms *InternalMetricStore) LoadNodeListData(
 
 	if len(errors) != 0 {
 		/* Returns list of "partial errors" */
-		return data, fmt.Errorf("METRICDATA/CCMS > Errors: %s", strings.Join(errors, ", "))
+		return data, fmt.Errorf("METRICDATA/INTERNAL-CCMS > Errors: %s", strings.Join(errors, ", "))
 	}
 
 	return data, nil
@@ -1313,7 +1313,7 @@ func buildNodeQueries(
 					continue
 				}
 
-				return nil, nil, fmt.Errorf("METRICDATA/CCMS > TODO: unhandled case: native-scope=%s, requested-scope=%s", nativeScope, requestedScope)
+				return nil, nil, fmt.Errorf("METRICDATA/INTERNAL-CCMS > TODO: unhandled case: native-scope=%s, requested-scope=%s", nativeScope, requestedScope)
 			}
 		}
 	}
