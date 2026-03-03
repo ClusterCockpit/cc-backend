@@ -54,10 +54,6 @@ import (
 // of data or reallocation needs to happen on writes.
 const BufferCap int = DefaultBufferCapacity
 
-// maxPoolSize caps the number of buffers held in the pool at any time.
-// Prevents unbounded memory growth after large retention-cleanup bursts.
-const maxPoolSize = 4096
-
 // BufferPool is the global instance.
 // It is initialized immediately when the package loads.
 var bufferPool = NewPersistentBufferPool()
@@ -101,10 +97,7 @@ func (p *PersistentBufferPool) Put(b *buffer) {
 
 	p.mu.Lock()
 	defer p.mu.Unlock()
-	if len(p.pool) >= maxPoolSize {
-		// Pool is full; drop the buffer and let GC collect it.
-		return
-	}
+
 	p.pool = append(p.pool, b)
 }
 
