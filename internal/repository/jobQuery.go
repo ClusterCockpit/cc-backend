@@ -282,7 +282,7 @@ func buildIntCondition(field string, cond *config.IntRange, query sq.SelectBuild
 	if cond.From != 0 && cond.To != 0 {
 		return query.Where(field+" BETWEEN ? AND ?", cond.From, cond.To)
 	} else if cond.From != 0 {
-		return query.Where("? <= "+field, cond.From)
+		return query.Where(field+" >= ?", cond.From)
 	} else if cond.To != 0 {
 		return query.Where(field+" <= ?", cond.To)
 	} else {
@@ -296,7 +296,7 @@ func buildFloatCondition(field string, cond *model.FloatRange, query sq.SelectBu
 	if cond.From != 0.0 && cond.To != 0.0 {
 		return query.Where(field+" BETWEEN ? AND ?", cond.From, cond.To)
 	} else if cond.From != 0.0 {
-		return query.Where("? <= "+field, cond.From)
+		return query.Where(field+" >= ?", cond.From)
 	} else if cond.To != 0.0 {
 		return query.Where(field+" <= ?", cond.To)
 	} else {
@@ -311,7 +311,7 @@ func buildTimeCondition(field string, cond *config.TimeRange, query sq.SelectBui
 	if cond.From != nil && cond.To != nil {
 		return query.Where(field+" BETWEEN ? AND ?", cond.From.Unix(), cond.To.Unix())
 	} else if cond.From != nil {
-		return query.Where("? <= "+field, cond.From.Unix())
+		return query.Where(field+" >= ?", cond.From.Unix())
 	} else if cond.To != nil {
 		return query.Where(field+" <= ?", cond.To.Unix())
 	} else if cond.Range != "" {
@@ -330,7 +330,7 @@ func buildTimeCondition(field string, cond *config.TimeRange, query sq.SelectBui
 			cclog.Debugf("No known named timeRange: startTime.range = %s", cond.Range)
 			return query
 		}
-		return query.Where("? <= "+field, then)
+		return query.Where(field+" >= ?", then)
 	} else {
 		return query
 	}
@@ -343,7 +343,7 @@ func buildFloatJSONCondition(condName string, condRange *model.FloatRange, query
 	if condRange.From != 0.0 && condRange.To != 0.0 {
 		return query.Where("JSON_EXTRACT(footprint, \"$."+condName+"\") BETWEEN ? AND ?", condRange.From, condRange.To)
 	} else if condRange.From != 0.0 {
-		return query.Where("? <= JSON_EXTRACT(footprint, \"$."+condName+"\")", condRange.From)
+		return query.Where("JSON_EXTRACT(footprint, \"$."+condName+"\") >= ?", condRange.From)
 	} else if condRange.To != 0.0 {
 		return query.Where("JSON_EXTRACT(footprint, \"$."+condName+"\") <= ?", condRange.To)
 	} else {
