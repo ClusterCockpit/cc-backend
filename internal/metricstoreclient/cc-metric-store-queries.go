@@ -126,6 +126,7 @@ func (ccms *CCMetricStore) buildQueries(
 					hwthreads = topology.Node
 				}
 
+				// Note: Expected exceptions will return as empty slices -> Continue
 				hostQueries, hostScopes := buildScopeQueries(
 					nativeScope, requestedScope,
 					remoteName, host.Hostname,
@@ -133,8 +134,9 @@ func (ccms *CCMetricStore) buildQueries(
 					resolution,
 				)
 
-				if len(hostQueries) == 0 && len(hostScopes) == 0 {
-					return nil, nil, fmt.Errorf("METRICDATA/CCMS > TODO: unhandled case: native-scope=%s, requested-scope=%s", nativeScope, requestedScope)
+				// Note: Unexpected errors, such as unhandled cases, will return as nils -> Error
+				if hostQueries == nil && hostScopes == nil {
+					return nil, nil, fmt.Errorf("METRICDATA/EXTERNAL-CCMS > TODO: unhandled case: native-scope=%s, requested-scope=%s", nativeScope, requestedScope)
 				}
 
 				queries = append(queries, hostQueries...)
@@ -237,7 +239,7 @@ func (ccms *CCMetricStore) buildNodeQueries(
 				)
 
 				if len(nodeQueries) == 0 && len(nodeScopes) == 0 {
-					return nil, nil, fmt.Errorf("METRICDATA/CCMS > TODO: unhandled case: native-scope=%s, requested-scope=%s", nativeScope, requestedScope)
+					return nil, nil, fmt.Errorf("METRICDATA/EXTERNAL-CCMS > TODO: unhandled case: native-scope=%s, requested-scope=%s", nativeScope, requestedScope)
 				}
 
 				queries = append(queries, nodeQueries...)
@@ -269,6 +271,7 @@ func buildScopeQueries(
 	// Accelerator -> Accelerator (Use "accelerator" scope if requested scope is lower than node)
 	if nativeScope == schema.MetricScopeAccelerator && scope.LT(schema.MetricScopeNode) {
 		if scope != schema.MetricScopeAccelerator {
+			// Expected Exception -> Continue -> Return Empty Slices
 			return queries, scopes
 		}
 
@@ -287,6 +290,7 @@ func buildScopeQueries(
 	// Accelerator -> Node
 	if nativeScope == schema.MetricScopeAccelerator && scope == schema.MetricScopeNode {
 		if len(accelerators) == 0 {
+			// Expected Exception -> Continue -> Return Empty Slices
 			return queries, scopes
 		}
 
@@ -447,6 +451,7 @@ func buildScopeQueries(
 		socketToDomains, err := topology.GetMemoryDomainsBySocket(memDomains)
 		if err != nil {
 			cclog.Errorf("Error mapping memory domains to sockets, return unchanged: %v", err)
+			// Rare Error Case -> Still Continue -> Return Empty Slices
 			return queries, scopes
 		}
 
@@ -507,8 +512,8 @@ func buildScopeQueries(
 		return queries, scopes
 	}
 
-	// Unhandled case - return empty slices
-	return queries, scopes
+	// Unhandled Case -> Error -> Return nils
+	return nil, nil
 }
 
 // intToStringSlice converts a slice of integers to a slice of strings.

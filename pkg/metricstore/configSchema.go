@@ -18,7 +18,7 @@ const configSchema = `{
       "type": "object",
       "properties": {
         "file-format": {
-          "description": "Specify the format for checkpoint files. There are 2 variants: 'avro' and 'json'. If nothing is specified, 'avro' is default.",
+          "description": "Specify the format for checkpoint files. Two variants: 'json' (human-readable, periodic) and 'wal' (binary snapshot + Write-Ahead Log, crash-safe). Default is 'json'.",
           "type": "string"
         },
         "interval": {

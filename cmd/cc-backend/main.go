@@ -339,7 +339,7 @@ func runServer(ctx context.Context) error {
 		err := metricdispatch.Init(mscfg)
 
 		if err != nil {
-			cclog.Debugf("initializing metricdispatch: %v", err)
+			cclog.Debugf("error while initializing external metricdispatch: %v", err)
 		} else {
 			haveMetricstore = true
 		}

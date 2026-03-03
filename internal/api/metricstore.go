@@ -10,7 +10,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io"
 	"net/http"
 	"strconv"
 	"strings"
@@ -90,21 +89,36 @@ func freeMetrics(rw http.ResponseWriter, r *http.Request) {
 // @security    ApiKeyAuth
 // @router      /write/ [post]
 func writeMetrics(rw http.ResponseWriter, r *http.Request) {
-	bytes, err := io.ReadAll(r.Body)
 	rw.Header().Add("Content-Type", "application/json")
-	if err != nil {
-		handleError(err, http.StatusInternalServerError, rw)
-		return
-	}
 
+	// Extract the "cluster" query parameter without allocating a url.Values map.
+	cluster := queryParam(r.URL.RawQuery, "cluster")
+
+	// Stream directly from the request body instead of copying it into a
+	// temporary buffer via io.ReadAll. The line-protocol decoder supports
+	// io.Reader natively, so this avoids the largest heap allocation.
 	ms := metricstore.GetMemoryStore()
-	dec := lineprotocol.NewDecoderWithBytes(bytes)
-	if err := metricstore.DecodeLine(dec, ms, r.URL.Query().Get("cluster")); err != nil {
+	dec := lineprotocol.NewDecoder(r.Body)
+	if err := metricstore.DecodeLine(dec, ms, cluster); err != nil {
 		cclog.Errorf("/api/write error: %s", err.Error())
 		handleError(err, http.StatusBadRequest, rw)
 		return
 	}
 	rw.WriteHeader(http.StatusOK)
+}
+
+// queryParam extracts a single query-parameter value from a raw query string
+// without allocating a url.Values map. Returns "" if the key is not present.
+func queryParam(raw, key string) string {
+	for raw != "" {
+		var kv string
+		kv, raw, _ = strings.Cut(raw, "&")
+		k, v, _ := strings.Cut(kv, "=")
+		if k == key {
+			return v
+		}
+	}
+	return ""
 }
 
 // handleDebug godoc
