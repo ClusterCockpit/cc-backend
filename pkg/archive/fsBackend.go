@@ -501,9 +501,7 @@ func (fsa *FsArchive) Iter(loadMetricData bool) <-chan JobContainer {
 		var wg sync.WaitGroup
 
 		for range numWorkers {
-			wg.Add(1)
-			go func() {
-				defer wg.Done()
+			wg.Go(func() {
 				for jobPath := range jobPaths {
 					job, err := loadJobMeta(filepath.Join(jobPath, "meta.json"))
 					if err != nil && !errors.Is(err, &jsonschema.ValidationError{}) {
@@ -529,7 +527,7 @@ func (fsa *FsArchive) Iter(loadMetricData bool) <-chan JobContainer {
 						ch <- JobContainer{Meta: job, Data: nil}
 					}
 				}
-			}()
+			})
 		}
 
 		clustersDir, err := os.ReadDir(fsa.path)

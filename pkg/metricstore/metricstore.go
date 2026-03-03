@@ -172,7 +172,7 @@ func Init(rawConfig json.RawMessage, metrics map[string]MetricConfig, wg *sync.W
 	Retention(wg, ctx)
 	Checkpointing(wg, ctx)
 	CleanUp(wg, ctx)
-	DataStaging(wg, ctx)
+	WALStaging(wg, ctx)
 	MemoryUsageTracker(wg, ctx)
 
 	// Note: Signal handling has been removed from this function.
@@ -264,7 +264,7 @@ func (ms *MemoryStore) SetNodeProvider(provider NodeProvider) {
 //
 // The function will:
 //  1. Cancel the context to stop all background workers
-//  2. Close NATS message channels if using Avro format
+//  2. Close the WAL messages channel if using WAL format
 //  3. Write a final checkpoint to preserve in-memory data
 //  4. Log any errors encountered during shutdown
 //
@@ -276,8 +276,8 @@ func Shutdown() {
 		shutdownFunc()
 	}
 
-	if Keys.Checkpoints.FileFormat != "json" {
-		close(LineProtocolMessages)
+	if Keys.Checkpoints.FileFormat == "wal" {
+		close(WALMessages)
 	}
 
 	cclog.Infof("[METRICSTORE]> Writing to '%s'...\n", Keys.Checkpoints.RootDir)
@@ -286,10 +286,18 @@ func Shutdown() {
 
 	ms := GetMemoryStore()
 
-	if Keys.Checkpoints.FileFormat == "json" {
-		files, err = ms.ToCheckpoint(Keys.Checkpoints.RootDir, lastCheckpoint.Unix(), time.Now().Unix())
+	lastCheckpointMu.Lock()
+	from := lastCheckpoint
+	lastCheckpointMu.Unlock()
+
+	if Keys.Checkpoints.FileFormat == "wal" {
+		var hostDirs []string
+		files, hostDirs, err = ms.ToCheckpointWAL(Keys.Checkpoints.RootDir, from.Unix(), time.Now().Unix())
+		if err == nil {
+			RotateWALFilesAfterShutdown(hostDirs)
+		}
 	} else {
-		files, err = GetAvroStore().ToCheckpoint(Keys.Checkpoints.RootDir, true)
+		files, err = ms.ToCheckpoint(Keys.Checkpoints.RootDir, from.Unix(), time.Now().Unix())
 	}
 
 	if err != nil {
@@ -312,9 +320,7 @@ func Shutdown() {
 func Retention(wg *sync.WaitGroup, ctx context.Context) {
 	ms := GetMemoryStore()
 
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
+	wg.Go(func() {
 		d, err := time.ParseDuration(Keys.RetentionInMemory)
 		if err != nil {
 			cclog.Fatal(err)
@@ -351,9 +357,12 @@ func Retention(wg *sync.WaitGroup, ctx context.Context) {
 				}
 
 				state.mu.Unlock()
+
+				// Clean up the buffer pool
+				bufferPool.Clean(state.lastRetentionTime)
 			}
 		}
-	}()
+	})
 }
 
 // MemoryUsageTracker starts a background goroutine that monitors memory usage.
@@ -374,9 +383,7 @@ func Retention(wg *sync.WaitGroup, ctx context.Context) {
 func MemoryUsageTracker(wg *sync.WaitGroup, ctx context.Context) {
 	ms := GetMemoryStore()
 
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
+	wg.Go(func() {
 		d := DefaultMemoryUsageTrackerInterval
 
 		if d <= 0 {
@@ -421,6 +428,9 @@ func MemoryUsageTracker(wg *sync.WaitGroup, ctx context.Context) {
 				runtime.ReadMemStats(&mem)
 				actualMemoryGB = float64(mem.Alloc) / 1e9
 
+				bufferPool.Clear()
+				cclog.Infof("[METRICSTORE]> Cleaned up bufferPool\n")
+
 				if actualMemoryGB > float64(Keys.MemoryCap) {
 					cclog.Warnf("[METRICSTORE]> memory usage %.2f GB exceeds cap %d GB, starting emergency buffer freeing", actualMemoryGB, Keys.MemoryCap)
 
@@ -462,7 +472,7 @@ func MemoryUsageTracker(wg *sync.WaitGroup, ctx context.Context) {
 				}
 			}
 		}
-	}()
+	})
 }
 
 // Free removes metric data older than the given time while preserving data for active nodes.
