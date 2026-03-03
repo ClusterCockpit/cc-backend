@@ -34,8 +34,8 @@
   let pendingValues = $derived([fromPreset, toPreset]);
   let sliderFrom = $derived(Math.max(((fromPreset  == null ? sliderMin : fromPreset)  - sliderMin) / (sliderMax - sliderMin), 0.));
   let sliderTo = $derived(Math.min(((toPreset == null ? sliderMin : toPreset) - sliderMin) / (sliderMax - sliderMin), 1.));
-  let inputFieldFrom = $derived(fromPreset.toString());
-  let inputFieldTo = $derived(toPreset.toString());
+  let inputFieldFrom = $derived(fromPreset ? fromPreset.toString() : null);
+  let inputFieldTo = $derived(toPreset ? toPreset.toString() : null);
 
   /* Var Init */
   let timeoutId = null;
@@ -160,12 +160,26 @@
 <div class="double-range-container">
   <div class="header">
     <input class="form-control" type="text" placeholder="from..." value={inputFieldFrom}
-      oninput={(e) => inputChanged(e, 'from')} />
+      oninput={(e) => {
+        inputChanged(e, 'from');
+      }}
+    />
 
-    <span>Full Range: <b> {sliderMin} </b> - <b> {sliderMax} </b></span>
+    {#if inputFieldFrom != "1" && inputFieldTo != sliderMax?.toString() }
+      <span>Selected: Range <b> {inputFieldFrom} </b> - <b> {inputFieldTo} </b></span>
+    {:else if inputFieldFrom != "1" && inputFieldTo == sliderMax?.toString() }
+      <span>Selected: More than <b> {inputFieldFrom} </b> </span>
+    {:else if inputFieldFrom == "1" && inputFieldTo != sliderMax?.toString() }
+      <span>Selected: Less than <b> {inputFieldTo} </b></span>
+    {:else}
+      <span><i>No Selection</i></span>
+    {/if}
 
     <input class="form-control" type="text" placeholder="to..." value={inputFieldTo}
-      oninput={(e) => inputChanged(e, 'to')} />
+      oninput={(e) => {
+        inputChanged(e, 'to');
+      }}
+    />
   </div>
 
   <div id="slider-active" class="slider" bind:this={sliderMain}>

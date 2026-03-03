@@ -305,30 +305,66 @@ func buildFilterPresets(query url.Values) map[string]any {
 	if query.Get("numNodes") != "" {
 		parts := strings.Split(query.Get("numNodes"), "-")
 		if len(parts) == 2 {
-			a, e1 := strconv.Atoi(parts[0])
-			b, e2 := strconv.Atoi(parts[1])
-			if e1 == nil && e2 == nil {
-				filterPresets["numNodes"] = map[string]int{"from": a, "to": b}
+			if parts[0] == "lessthan" {
+				lt, lte := strconv.Atoi(parts[1])
+				if lte == nil {
+					filterPresets["numNodes"] = map[string]int{"from": 1, "to": lt}
+				}
+			} else if parts[0] == "morethan" {
+				mt, mte := strconv.Atoi(parts[1])
+				if mte == nil {
+					filterPresets["numNodes"] = map[string]int{"from": mt, "to": 0}
+				}
+			} else {
+				a, e1 := strconv.Atoi(parts[0])
+				b, e2 := strconv.Atoi(parts[1])
+				if e1 == nil && e2 == nil {
+					filterPresets["numNodes"] = map[string]int{"from": a, "to": b}
+				}
 			}
 		}
 	}
 	if query.Get("numHWThreads") != "" {
 		parts := strings.Split(query.Get("numHWThreads"), "-")
 		if len(parts) == 2 {
-			a, e1 := strconv.Atoi(parts[0])
-			b, e2 := strconv.Atoi(parts[1])
-			if e1 == nil && e2 == nil {
-				filterPresets["numHWThreads"] = map[string]int{"from": a, "to": b}
+			if parts[0] == "lessthan" {
+				lt, lte := strconv.Atoi(parts[1])
+				if lte == nil {
+					filterPresets["numHWThreads"] = map[string]int{"from": 1, "to": lt}
+				}
+			} else if parts[0] == "morethan" {
+				mt, mte := strconv.Atoi(parts[1])
+				if mte == nil {
+					filterPresets["numHWThreads"] = map[string]int{"from": mt, "to": 0}
+				}
+			} else {
+				a, e1 := strconv.Atoi(parts[0])
+				b, e2 := strconv.Atoi(parts[1])
+				if e1 == nil && e2 == nil {
+					filterPresets["numHWThreads"] = map[string]int{"from": a, "to": b}
+				}
 			}
 		}
 	}
 	if query.Get("numAccelerators") != "" {
 		parts := strings.Split(query.Get("numAccelerators"), "-")
 		if len(parts) == 2 {
-			a, e1 := strconv.Atoi(parts[0])
-			b, e2 := strconv.Atoi(parts[1])
-			if e1 == nil && e2 == nil {
-				filterPresets["numAccelerators"] = map[string]int{"from": a, "to": b}
+			if parts[0] == "lessthan" {
+				lt, lte := strconv.Atoi(parts[1])
+				if lte == nil {
+					filterPresets["numAccelerators"] = map[string]int{"from": 1, "to": lt}
+				}
+			} else if parts[0] == "morethan" {
+				mt, mte := strconv.Atoi(parts[1])
+				if mte == nil {
+					filterPresets["numAccelerators"] = map[string]int{"from": mt, "to": 0}
+				}
+			} else {
+				a, e1 := strconv.Atoi(parts[0])
+				b, e2 := strconv.Atoi(parts[1])
+				if e1 == nil && e2 == nil {
+					filterPresets["numAccelerators"] = map[string]int{"from": a, "to": b}
+				}
 			}
 		}
 	}
