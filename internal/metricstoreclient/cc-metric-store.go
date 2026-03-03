@@ -123,7 +123,7 @@ type APIMetricData struct {
 	Max        schema.Float   `json:"max"`        // Maximum value in time range
 }
 
-// NewCCMetricStore creates and initializes a new CCMetricStore client.
+// NewCCMetricStore creates and initializes a new (external) CCMetricStore client.
 // The url parameter should include the protocol and port (e.g., "http://localhost:8080").
 // The token parameter is a JWT used for Bearer authentication; pass empty string if auth is disabled.
 func NewCCMetricStore(url string, token string) *CCMetricStore {
@@ -356,7 +356,7 @@ func (ccms *CCMetricStore) LoadData(
 
 	if len(errors) != 0 {
 		/* Returns list for "partial errors" */
-		return jobData, fmt.Errorf("METRICDATA/CCMS > Errors: %s", strings.Join(errors, ", "))
+		return jobData, fmt.Errorf("METRICDATA/EXTERNAL-CCMS > Errors: %s", strings.Join(errors, ", "))
 	}
 	return jobData, nil
 }
@@ -393,6 +393,10 @@ func (ccms *CCMetricStore) LoadStats(
 
 	stats := make(map[string]map[string]schema.MetricStatistics, len(metrics))
 	for i, res := range resBody.Results {
+		if len(res) == 0 {
+			// No Data Found For Metric, Logged in FetchData to Warn
+			continue
+		}
 		query := req.Queries[i]
 		metric := query.Metric
 		data := res[0]
@@ -514,7 +518,7 @@ func (ccms *CCMetricStore) LoadScopedStats(
 
 	if len(errors) != 0 {
 		/* Returns list for "partial errors" */
-		return scopedJobStats, fmt.Errorf("METRICDATA/CCMS > Errors: %s", strings.Join(errors, ", "))
+		return scopedJobStats, fmt.Errorf("METRICDATA/EXTERNAL-CCMS > Errors: %s", strings.Join(errors, ", "))
 	}
 	return scopedJobStats, nil
 }
@@ -562,6 +566,11 @@ func (ccms *CCMetricStore) LoadNodeData(
 	var errors []string
 	data := make(map[string]map[string][]*schema.JobMetric)
 	for i, res := range resBody.Results {
+		if len(res) == 0 {
+			// No Data Found For Metric, Logged in FetchData to Warn
+			continue
+		}
+
 		var query APIQuery
 		if resBody.Queries != nil {
 			query = resBody.Queries[i]
@@ -572,7 +581,6 @@ func (ccms *CCMetricStore) LoadNodeData(
 		metric := query.Metric
 		qdata := res[0]
 		if qdata.Error != nil {
-			/* Build list for "partial errors", if any */
 			errors = append(errors, fmt.Sprintf("fetching %s for node %s failed: %s", metric, query.Hostname, *qdata.Error))
 		}
 
@@ -604,7 +612,7 @@ func (ccms *CCMetricStore) LoadNodeData(
 
 	if len(errors) != 0 {
 		/* Returns list of "partial errors" */
-		return data, fmt.Errorf("METRICDATA/CCMS > Errors: %s", strings.Join(errors, ", "))
+		return data, fmt.Errorf("METRICDATA/EXTERNAL-CCMS > Errors: %s", strings.Join(errors, ", "))
 	}
 
 	return data, nil
@@ -765,7 +773,7 @@ func (ccms *CCMetricStore) LoadNodeListData(
 
 	if len(errors) != 0 {
 		/* Returns list of "partial errors" */
-		return data, fmt.Errorf("METRICDATA/CCMS > Errors: %s", strings.Join(errors, ", "))
+		return data, fmt.Errorf("METRICDATA/EXTERNAL-CCMS > Errors: %s", strings.Join(errors, ", "))
 	}
 
 	return data, nil

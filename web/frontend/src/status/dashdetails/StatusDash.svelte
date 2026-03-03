@@ -32,6 +32,7 @@
   let {
     clusters,
     presetCluster,
+    loadMe = false,
   } = $props();
 
   /* Const Init */
@@ -59,7 +60,7 @@
   /* Derived */
   let cluster = $derived(presetCluster);
   // States for Stacked charts
-  const statesTimed = $derived(queryStore({
+  const statesTimed = $derived(loadMe ? queryStore({
     client: client,
     query: gql`
       query ($filter: [NodeFilter!], $typeNode: String!, $typeHealth: String!) {
@@ -81,11 +82,11 @@
       typeHealth: "health"
     },
     requestPolicy: "network-only"
-  }));
+  }) : null);
 
   // Note: nodeMetrics are requested on configured $timestep resolution
   // Result: The latest 5 minutes (datapoints) for each node independent of job
-  const statusQuery = $derived(queryStore({
+  const statusQuery = $derived(loadMe ? queryStore({
     client: client,
     query: gql`
       query (
@@ -184,11 +185,11 @@
       sorting: { field: "startTime", type: "col", order: "DESC" }
     },
     requestPolicy: "network-only"
-  }));
+  }) : null);
 
   /* Effects */
   $effect(() => {
-    if ($statusQuery.data) {
+    if ($statusQuery?.data) {
       let subClusters = clusters.find(
         (c) => c.name == cluster,
       ).subClusters;
@@ -374,19 +375,19 @@
 <hr/>
 
 <!-- Node Stack Charts -->
-{#if $statesTimed.fetching}
+{#if $statesTimed?.fetching}
   <Row cols={1} class="text-center mt-3">
     <Col>
       <Spinner />
     </Col>
   </Row>
-{:else if $statesTimed.error}
+{:else if $statesTimed?.error}
   <Row cols={1} class="text-center mt-3">
     <Col>  
-      <Card body color="danger">States Timed: {$statesTimed.error.message}</Card>
+      <Card body color="danger">States Timed: {$statesTimed?.error?.message}</Card>
     </Col>
   </Row>
-{:else if $statesTimed.data}
+{:else if $statesTimed?.data}
   <Row cols={{ md: 2 , sm: 1}} class="mb-3 justify-content-center">
     <Col class="px-3 mt-2 mt-lg-0">
       <div>
@@ -427,19 +428,19 @@
 
 <hr/>
 <!-- Gauges & Roofline per Subcluster-->
-{#if $statusQuery.fetching}
+{#if $statusQuery?.fetching}
   <Row cols={1} class="text-center mt-3">
     <Col>
       <Spinner />
     </Col>
   </Row>
-{:else if $statusQuery.error}
+{:else if $statusQuery?.error}
   <Row cols={1} class="text-center mt-3">
     <Col>  
-      <Card body color="danger">Status Query (Details): {$statusQuery.error.message}</Card>
+      <Card body color="danger">Status Query (Details): {$statusQuery?.error?.message}</Card>
     </Col>
   </Row>
-{:else if $statusQuery.data}
+{:else if $statusQuery?.data}
   {#each clusters.find((c) => c.name == cluster).subClusters as subCluster, i}
     <Row cols={{ lg: 3, md: 1 , sm: 1}} class="mb-3 justify-content-center">
       <Col class="px-3">

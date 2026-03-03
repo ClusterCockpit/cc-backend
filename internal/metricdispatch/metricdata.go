@@ -74,11 +74,11 @@ func Init(rawConfig json.RawMessage) error {
 		dec := json.NewDecoder(bytes.NewReader(rawConfig))
 		dec.DisallowUnknownFields()
 		if err := dec.Decode(&configs); err != nil {
-			return fmt.Errorf("[METRICDISPATCH]> Metric Store Config Init: Could not decode config file '%s' Error: %s", rawConfig, err.Error())
+			return fmt.Errorf("[METRICDISPATCH]> External Metric Store Config Init: Could not decode config file '%s' Error: %s", rawConfig, err.Error())
 		}
 
 		if len(configs) == 0 {
-			return fmt.Errorf("[METRICDISPATCH]> No metric store configurations found in config file")
+			return fmt.Errorf("[METRICDISPATCH]> No external metric store configurations found in config file")
 		}
 
 		for _, config := range configs {

@@ -40,7 +40,8 @@
     presetCluster,
     presetSubCluster = null,
     useCbColors = false,
-    useAltColors = false
+    useAltColors = false,
+    loadMe = false,
   } = $props();
 
   /* Const Init */
@@ -62,7 +63,7 @@
       ? [{ state: ["running"] }, { cluster: { eq: presetCluster} }, { subCluster: { eq: presetSubCluster } }]
       : [{ state: ["running"] }, { cluster: { eq: presetCluster} }] 
   );
-  const topJobsQuery = $derived(queryStore({
+  const topJobsQuery = $derived(loadMe ? queryStore({
     client: client,
     query: gql`
       query (
@@ -95,9 +96,9 @@
       paging: pagingState // Top 10
     },
     requestPolicy: "network-only"
-  }));
+  }) : null);
 
-  const topNodesQuery = $derived(queryStore({
+  const topNodesQuery = $derived(loadMe ? queryStore({
     client: client,
     query: gql`
       query (
@@ -130,9 +131,9 @@
       paging: pagingState
     },
     requestPolicy: "network-only"
-  }));
+  }) : null);
 
-  const topAccsQuery = $derived(queryStore({
+  const topAccsQuery = $derived(loadMe ? queryStore({
     client: client,
     query: gql`
       query (
@@ -165,10 +166,10 @@
       paging: pagingState
     },
     requestPolicy: "network-only"
-  }));
+  }): null);
 
   // Note: nodeMetrics are requested on configured $timestep resolution
-  const nodeStatusQuery = $derived(queryStore({
+  const nodeStatusQuery = $derived(loadMe ? queryStore({
     client: client,
     query: gql`
       query (
@@ -198,7 +199,7 @@
       numDurationBins: numDurationBins,
     },
     requestPolicy: "network-only"
-  }));
+  }) : null);
 
   /* Functions */
   function legendColors(targetIdx) {
@@ -246,9 +247,9 @@
 <hr/>
 
 <!-- Job Duration, Top Users and Projects-->
-{#if $topJobsQuery.fetching || $nodeStatusQuery.fetching}
+{#if $topJobsQuery?.fetching || $nodeStatusQuery?.fetching}
   <Spinner />
-{:else if $topJobsQuery.data && $nodeStatusQuery.data}
+{:else if $topJobsQuery?.data && $nodeStatusQuery?.data}
   <Row>
     <Col xs="12" lg="4" class="p-2">
       {#key $nodeStatusQuery.data.jobsStatistics[0].histDuration}
@@ -354,9 +355,9 @@
 <hr/>
 
 <!-- Node Distribution, Top Users and Projects-->
-{#if $topNodesQuery.fetching || $nodeStatusQuery.fetching}
+{#if $topNodesQuery?.fetching || $nodeStatusQuery?.fetching}
   <Spinner />
-{:else if $topNodesQuery.data && $nodeStatusQuery.data}
+{:else if $topNodesQuery?.data && $nodeStatusQuery?.data}
   <Row>
     <Col xs="12" lg="4" class="p-2">
       <Histogram
@@ -458,9 +459,9 @@
 <hr/>
 
 <!-- Acc Distribution, Top Users and Projects-->
-{#if $topAccsQuery.fetching || $nodeStatusQuery.fetching}
+{#if $topAccsQuery?.fetching || $nodeStatusQuery?.fetching}
   <Spinner />
-{:else if $topAccsQuery.data && $nodeStatusQuery.data}
+{:else if $topAccsQuery?.data && $nodeStatusQuery?.data}
   <Row>
     <Col xs="12" lg="4" class="p-2">
       <Histogram

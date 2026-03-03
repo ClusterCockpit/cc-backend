@@ -36,6 +36,9 @@
   const { query: initq } = init();
   const useCbColors = getContext("cc-config")?.plotConfiguration_colorblindMode || false
 
+  /* State Init */
+  let activeTab = $state("");
+
   /* Derived */
   const subClusters = $derived($initq?.data?.clusters?.find((c) => c.name == presetCluster)?.subClusters || []);
 </script>
@@ -63,22 +66,22 @@
   </Row>
 {:else}
   <Card class="overflow-auto" style="height: auto;">
-    <TabContent>
+    <TabContent on:tab={(e) => (activeTab = e.detail)}>
       <TabPane tabId="status-dash" tab="Status" active>
         <CardBody>
-          <StatusDash clusters={$initq.data.clusters} {presetCluster}></StatusDash>
+          <StatusDash clusters={$initq.data.clusters} {presetCluster} loadMe={(activeTab === "status-dash")}></StatusDash>
         </CardBody>
       </TabPane>
 
       <TabPane tabId="health-dash" tab="Metric Status">
         <CardBody>
-          <HealthDash {presetCluster}></HealthDash>
+          <HealthDash {presetCluster} loadMe={(activeTab === "health-dash")}></HealthDash>
         </CardBody>
       </TabPane>
 
       <TabPane tabId="usage-dash" tab="Cluster Usage">
         <CardBody>
-          <UsageDash {presetCluster} {useCbColors}></UsageDash>
+          <UsageDash {presetCluster} {useCbColors} loadMe={(activeTab === "usage-dash")}></UsageDash>
         </CardBody>
       </TabPane>
 
@@ -86,7 +89,7 @@
         {#each subClusters.map(sc => sc.name) as scn}
         <TabPane tabId="{scn}-usage-dash" tab="{scn.charAt(0).toUpperCase() + scn.slice(1)} Usage">
           <CardBody>
-            <UsageDash {presetCluster} presetSubCluster={scn} {useCbColors}></UsageDash>
+            <UsageDash {presetCluster} presetSubCluster={scn} {useCbColors} loadMe={(activeTab === `${scn}-usage-dash`)}></UsageDash>
           </CardBody>
         </TabPane>
         {/each}
@@ -94,7 +97,7 @@
       
       <TabPane tabId="metric-dash" tab="Statistics">
         <CardBody>
-          <StatisticsDash {presetCluster} {useCbColors}></StatisticsDash>
+          <StatisticsDash {presetCluster} {useCbColors} loadMe={(activeTab === "metric-dash")}></StatisticsDash>
         </CardBody>
       </TabPane>
     </TabContent>

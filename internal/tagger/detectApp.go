@@ -64,9 +64,11 @@ func (t *AppTagger) scanApp(f *os.File, fns string) {
 		if line == "" {
 			continue
 		}
-		re, err := regexp.Compile(line)
+		// Wrap pattern to skip comment lines: match only if not preceded by # on the same line
+		wrapped := `(?m)^[^#]*` + line
+		re, err := regexp.Compile(wrapped)
 		if err != nil {
-			cclog.Errorf("invalid regex pattern '%s' in %s: %v", line, fns, err)
+			cclog.Errorf("invalid regex pattern '%s' (wrapped: '%s') in %s: %v", line, wrapped, fns, err)
 			continue
 		}
 		ai.patterns = append(ai.patterns, re)

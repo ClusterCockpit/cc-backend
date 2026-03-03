@@ -30,7 +30,8 @@
 
   /* Svelte 5 Props */
   let {
-    presetCluster
+    presetCluster,
+    loadMe = false,
   } = $props();
 
   /* Const Init */
@@ -49,7 +50,7 @@
     : ccconfig['statusView_selectedHistograms'] || []);
 
   // Note: nodeMetrics are requested on configured $timestep resolution
-  const metricStatusQuery = $derived(queryStore({
+  const metricStatusQuery = $derived(loadMe ? queryStore({
     client: client,
     query: gql`
       query (
@@ -75,7 +76,7 @@
       selectedHistograms: selectedHistograms
     },
     requestPolicy: "network-only"
-  }));
+  }) : null);
 </script>
 
 <!-- Loading indicators & Metric Sleect -->
@@ -100,18 +101,18 @@
 </Row>
 
 <Row cols={1} class="text-center mt-3">
-  {#if $metricStatusQuery.fetching}
+  {#if $metricStatusQuery?.fetching}
     <Col>
       <Spinner />
     </Col>
-  {:else if $metricStatusQuery.error}
+  {:else if $metricStatusQuery?.error}
     <Col>  
       <Card body color="danger">{$metricStatusQuery.error.message}</Card>
     </Col>
   {/if}
 </Row>
 
-{#if $metricStatusQuery.data}
+{#if $metricStatusQuery?.data}
   <!-- Selectable Stats as Histograms : Average Values of Running Jobs -->
   {#if selectedHistograms}
     <!-- Note: Ignore '#snippet' Error in IDE -->

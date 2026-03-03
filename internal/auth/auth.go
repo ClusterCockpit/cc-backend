@@ -263,7 +263,7 @@ func GetAuthInstance() *Authentication {
 }
 
 // handleUserSync syncs or updates a user in the database based on configuration.
-// This is used for both JWT and OIDC authentication when syncUserOnLogin or updateUserOnLogin is enabled.
+// This is used for LDAP, JWT and OIDC authentications when syncUserOnLogin or updateUserOnLogin is enabled.
 func handleUserSync(user *schema.User, syncUserOnLogin, updateUserOnLogin bool) {
 	r := repository.GetUserRepository()
 	dbUser, err := r.GetUser(user.Username)

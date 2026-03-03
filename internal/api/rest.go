@@ -302,7 +302,7 @@ func (api *RestAPI) runTagger(rw http.ResponseWriter, r *http.Request) {
 
 	rw.Header().Set("Content-Type", "text/plain")
 	rw.WriteHeader(http.StatusOK)
-	if _, err := rw.Write([]byte(fmt.Sprintf("Tagger %s started", name))); err != nil {
+	if _, err := rw.Write(fmt.Appendf(nil, "Tagger %s started", name)); err != nil {
 		cclog.Errorf("Failed to write response: %v", err)
 	}
 }
