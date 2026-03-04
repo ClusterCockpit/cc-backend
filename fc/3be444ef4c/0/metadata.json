@@ -1,0 +1,35 @@
+{
+  "cli_version": "0.4.9",
+  "checkpoint_id": "fc3be444ef4c",
+  "session_id": "5de2a23c-09cd-4d6c-a97c-fab8657d094c",
+  "strategy": "manual-commit",
+  "created_at": "2026-03-04T15:43:19.113795Z",
+  "branch": "dev",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "internal/metricstoreclient/cc-metric-store-queries.go",
+    "internal/metricstoreclient/cc-metric-store.go",
+    "pkg/metricstore/metricstore.go",
+    "pkg/metricstore/query.go",
+    "pkg/metricstore/scopequery.go",
+    "pkg/metricstore/scopequery_test.go"
+  ],
+  "agent": "Claude Code",
+  "turn_id": "3037579fee77",
+  "token_usage": {
+    "input_tokens": 53,
+    "cache_creation_tokens": 78269,
+    "cache_read_tokens": 3968698,
+    "output_tokens": 26118,
+    "api_call_count": 51
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-03-04T15:43:18.738924Z",
+    "agent_lines": 672,
+    "human_added": 0,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 672,
+    "agent_percentage": 100
+  }
+}
