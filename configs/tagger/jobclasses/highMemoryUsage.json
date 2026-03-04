@@ -16,6 +16,6 @@
       "expr": "mem_used.max / mem_used.limits.peak * 100.0"
     }
   ],
-  "rule": "mem_used.max > memory_used.limits.alert",
+  "rule": "mem_used.max > mem_used.limits.alert",
   "hint": "This job used high memory: peak memory usage {{.mem_used.max}} GB ({{.memory_usage_pct}}% of {{.mem_used.limits.peak}} GB node capacity), exceeding the {{.highmemoryusage_threshold_factor}} utilization threshold. Risk of out-of-memory conditions."
 }
