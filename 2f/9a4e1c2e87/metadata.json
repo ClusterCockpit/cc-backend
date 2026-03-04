@@ -1,0 +1,31 @@
+{
+  "cli_version": "0.4.9",
+  "checkpoint_id": "2f9a4e1c2e87",
+  "strategy": "manual-commit",
+  "branch": "dev",
+  "checkpoints_count": 2,
+  "files_touched": [
+    "configs/config-demo.json",
+    "configs/config.json",
+    "pkg/metricstore/archive.go",
+    "pkg/metricstore/checkpoint.go",
+    "pkg/metricstore/config.go",
+    "pkg/metricstore/configSchema.go"
+  ],
+  "sessions": [
+    {
+      "metadata": "/2f/9a4e1c2e87/0/metadata.json",
+      "transcript": "/2f/9a4e1c2e87/0/full.jsonl",
+      "context": "/2f/9a4e1c2e87/0/context.md",
+      "content_hash": "/2f/9a4e1c2e87/0/content_hash.txt",
+      "prompt": "/2f/9a4e1c2e87/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 27,
+    "cache_creation_tokens": 35422,
+    "cache_read_tokens": 1096892,
+    "output_tokens": 7323,
+    "api_call_count": 23
+  }
+}

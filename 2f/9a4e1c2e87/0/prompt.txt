@@ -1,0 +1,109 @@
+Implement the following plan:
+
+# Plan: Simplify Checkpoint and Cleanup Configuration
+
+## Context
+
+The metricstore checkpoint interval is always "12h" in practice and has no reason to be configurable. The cleanup interval for the "delete" mode already falls back to `retention-in-memory` when not set — this should be the fixed behavior for all modes. WAL is the preferred and more robust checkpoint format and should be the default instead of JSON.
+
+These changes reduce unnecessary configuration surface, eliminate a required field from the schema, and make WAL the out-of-the-box format.
+
+---
+
+## Changes
+
+### 1. `pkg/metricstore/config.go`
+
+- Remove `Interval string` field from `Checkpoints` struct (with its `json:"interval"` tag)
+- Remove `Interval string` field from `Cleanup` struct (with its `json:"interval"` tag)
+- Change default `FileFormat` from `"json"` to `"wal"` in the `Keys` var
+- Update doc comments on both structs and the `Keys` hierarchy comment
+
+### 2. `pkg/metricstore/configSchema.go`
+
+- Remove `"interval"` property from the `checkpoints` object properties
+- Remove `"interval"` from `"required": ["interval"]` in checkpoints (make required empty or remove it)
+- Remove `"interval"` property from the `cleanup` object properties
+- Remove `"interval"` from the conditional `"then": { "required": ["interval", "directory"] }` → only `"directory"` remains required for archive mode
+- Update the `"file-format"` description to say default is `'wal'`
+
+### 3. `pkg/metricstore/checkpoint.go`
+
+Replace dynamic interval parsing with a hardcoded 12h constant:
+
+```go
+// Before
+d, err := time.ParseDuration(Keys.Checkpoints.Interval)
+if err != nil { cclog.Fatalf(...) }
+if d <= 0 { cclog.Warnf(...); return }
+
+// After
+const checkpointInterval = 12 * time.Hour
+d := checkpointInterval
+```
+
+Remove the `err` variable and validation block. The `ticker` and rest of the function stay unchanged.
+
+### 4. `pkg/metricstore/archive.go`
+
+Simplify `CleanUp()` to always use `Keys.RetentionInMemory` as the interval:
+
+```go
+// Before
+func CleanUp(wg *sync.WaitGroup, ctx context.Context) {
+    if Keys.Cleanup.Mode == "archive" {
+        cleanUpWorker(wg, ctx, Keys.Cleanup.Interval, "archiving", Keys.Cleanup.RootDir, false)
+    } else {
+        if Keys.Cleanup.Interval == "" {
+            Keys.Cleanup.Interval = Keys.RetentionInMemory
+        }
+        cleanUpWorker(wg, ctx, Keys.Cleanup.Interval, "deleting", "", true)
+    }
+}
+
+// After
+func CleanUp(wg *sync.WaitGroup, ctx context.Context) {
+    if Keys.Cleanup.Mode == "archive" {
+        cleanUpWorker(wg, ctx, Keys.RetentionInMemory, "archiving", Keys.Cleanup.RootDir, false)
+    } else {
+        cleanUpWorker(wg, ctx, Keys.RetentionInMemory, "deleting", "", true)
+    }
+}
+```
+
+### 5. `configs/config.json`
+
+- Remove `"interval": "12h"` from `checkpoints` section
+- Remove `"interval": "48h"` from `cleanup` section
+
+### 6. `configs/config-demo.json`
+
+- Remove `"interval": "12h"` from `checkpoints` section
+- Remove `"file-format": "wal"` from `checkpoints` section (now the default, no need to specify)
+
+---
+
+## Critical Files
+
+- `pkg/metricstore/config.go` — struct definitions and defaults
+- `pkg/metricstore/configSchema.go` — JSON schema for validation
+- `pkg/metricstore/checkpoint.go` — checkpoint worker (interval usage)
+- `pkg/metricstore/archive.go` — cleanup worker (interval usage)
+- `configs/config.json` — example production config
+- `configs/config-demo.json` — demo config
+
+---
+
+## Verification
+
+1. `go build ./...` — must compile without errors
+2. `go test ./pkg/metricstore/...` — existing tests must pass
+3. Verify JSON schema validation still accepts a config without `"interval"` in checkpoints/cleanup
+4. Verify that a config with the old `"interval"` field is silently ignored (Go JSON unmarshal ignores unknown fields — but here the field is removed from the struct, so it will be ignored)
+
+
+If you need specific details from before exiting plan mode (like exact code snippets, error messages, or content you generated), read the full transcript at: /Users/jan/.claude/projects/-Users-jan-prg-ClusterCockpit-cc-backend/e7e4183c-0858-4bcb-8163-764db66ef417.jsonl
+
+---
+
+Make the checkpoints option also option also optional
