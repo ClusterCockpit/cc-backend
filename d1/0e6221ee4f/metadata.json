@@ -1,0 +1,29 @@
+{
+  "cli_version": "0.4.9",
+  "checkpoint_id": "d10e6221ee4f",
+  "strategy": "manual-commit",
+  "branch": "dev",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "internal/metricstoreclient/cc-metric-store-queries.go",
+    "internal/metricstoreclient/cc-metric-store.go",
+    "pkg/metricstore/query.go",
+    "pkg/metricstore/scopequery.go"
+  ],
+  "sessions": [
+    {
+      "metadata": "/d1/0e6221ee4f/0/metadata.json",
+      "transcript": "/d1/0e6221ee4f/0/full.jsonl",
+      "context": "/d1/0e6221ee4f/0/context.md",
+      "content_hash": "/d1/0e6221ee4f/0/content_hash.txt",
+      "prompt": "/d1/0e6221ee4f/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 39,
+    "cache_creation_tokens": 53370,
+    "cache_read_tokens": 2335326,
+    "output_tokens": 14970,
+    "api_call_count": 37
+  }
+}
