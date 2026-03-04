@@ -63,7 +63,7 @@ import (
 	"time"
 
 	"github.com/ClusterCockpit/cc-backend/pkg/archive"
-	"github.com/ClusterCockpit/cc-backend/pkg/metricstore"
+	ms "github.com/ClusterCockpit/cc-backend/pkg/metricstore"
 	cclog "github.com/ClusterCockpit/cc-lib/v2/ccLogger"
 	"github.com/ClusterCockpit/cc-lib/v2/schema"
 )
@@ -331,7 +331,7 @@ func (ccms *CCMetricStore) LoadData(
 				}
 			}
 
-			sanitizeStats(&res.Avg, &res.Min, &res.Max)
+			ms.SanitizeStats(&res.Avg, &res.Min, &res.Max)
 
 			jobMetric.Series = append(jobMetric.Series, schema.Series{
 				Hostname: query.Hostname,
@@ -494,7 +494,7 @@ func (ccms *CCMetricStore) LoadScopedStats(
 				}
 			}
 
-			sanitizeStats(&res.Avg, &res.Min, &res.Max)
+			ms.SanitizeStats(&res.Avg, &res.Min, &res.Max)
 
 			scopedJobStats[metric][scope] = append(scopedJobStats[metric][scope], &schema.ScopedStats{
 				Hostname: query.Hostname,
@@ -584,7 +584,7 @@ func (ccms *CCMetricStore) LoadNodeData(
 			errors = append(errors, fmt.Sprintf("fetching %s for node %s failed: %s", metric, query.Hostname, *qdata.Error))
 		}
 
-		sanitizeStats(&qdata.Avg, &qdata.Min, &qdata.Max)
+		ms.SanitizeStats(&qdata.Avg, &qdata.Min, &qdata.Max)
 
 		hostdata, ok := data[query.Hostname]
 		if !ok {
@@ -756,7 +756,7 @@ func (ccms *CCMetricStore) LoadNodeListData(
 				}
 			}
 
-			sanitizeStats(&res.Avg, &res.Min, &res.Max)
+			ms.SanitizeStats(&res.Avg, &res.Min, &res.Max)
 
 			scopeData.Series = append(scopeData.Series, schema.Series{
 				Hostname: query.Hostname,
@@ -784,8 +784,8 @@ func (ccms *CCMetricStore) LoadNodeListData(
 // returns the per-node health check results.
 func (ccms *CCMetricStore) HealthCheck(cluster string,
 	nodes []string, metrics []string,
-) (map[string]metricstore.HealthCheckResult, error) {
-	req := metricstore.HealthCheckReq{
+) (map[string]ms.HealthCheckResult, error) {
+	req := ms.HealthCheckReq{
 		Cluster:     cluster,
 		Nodes:       nodes,
 		MetricNames: metrics,
@@ -818,23 +818,13 @@ func (ccms *CCMetricStore) HealthCheck(cluster string,
 		return nil, fmt.Errorf("'%s': HTTP Status: %s", endpoint, res.Status)
 	}
 
-	var results map[string]metricstore.HealthCheckResult
+	var results map[string]ms.HealthCheckResult
 	if err := json.NewDecoder(bufio.NewReader(res.Body)).Decode(&results); err != nil {
 		cclog.Errorf("Error while decoding health check response: %s", err.Error())
 		return nil, err
 	}
 
 	return results, nil
-}
-
-// sanitizeStats replaces NaN values in statistics with 0 to enable JSON marshaling.
-// Regular float64 values cannot be JSONed when NaN.
-func sanitizeStats(avg, min, max *schema.Float) {
-	if avg.IsNaN() || min.IsNaN() || max.IsNaN() {
-		*avg = schema.Float(0)
-		*min = schema.Float(0)
-		*max = schema.Float(0)
-	}
 }
 
 // hasNaNStats returns true if any of the statistics contain NaN values.

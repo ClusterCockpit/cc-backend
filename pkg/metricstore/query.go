@@ -29,7 +29,6 @@ package metricstore
 import (
 	"context"
 	"fmt"
-	"strconv"
 	"strings"
 	"time"
 
@@ -186,7 +185,7 @@ func (ccms *InternalMetricStore) LoadData(
 				}
 			}
 
-			sanitizeStats(&res)
+			SanitizeStats(&res.Avg, &res.Min, &res.Max)
 
 			jobMetric.Series = append(jobMetric.Series, schema.Series{
 				Hostname: query.Hostname,
@@ -215,18 +214,6 @@ func (ccms *InternalMetricStore) LoadData(
 	}
 	return jobData, nil
 }
-
-// Pre-converted scope strings avoid repeated string(MetricScope) allocations during
-// query construction. These are used in APIQuery.Type field throughout buildQueries
-// and buildNodeQueries functions. Converting once at package initialization improves
-// performance for high-volume query building.
-var (
-	hwthreadString     = string(schema.MetricScopeHWThread)
-	coreString         = string(schema.MetricScopeCore)
-	memoryDomainString = string(schema.MetricScopeMemoryDomain)
-	socketString       = string(schema.MetricScopeSocket)
-	acceleratorString  = string(schema.MetricScopeAccelerator)
-)
 
 // buildQueries constructs APIQuery structures with automatic scope transformation for a job.
 //
@@ -293,9 +280,10 @@ func buildQueries(
 			}
 		}
 
-		// Avoid duplicates using map for O(1) lookup
-		handledScopes := make(map[schema.MetricScope]bool, 3)
+		// Avoid duplicates...
+		handledScopes := make([]schema.MetricScope, 0, 3)
 
+	scopesLoop:
 		for _, requestedScope := range scopes {
 			nativeScope := mc.Scope
 			if nativeScope == schema.MetricScopeAccelerator && job.NumAcc == 0 {
@@ -303,10 +291,12 @@ func buildQueries(
 			}
 
 			scope := nativeScope.Max(requestedScope)
-			if handledScopes[scope] {
-				continue
+			for _, s := range handledScopes {
+				if scope == s {
+					continue scopesLoop
+				}
 			}
-			handledScopes[scope] = true
+			handledScopes = append(handledScopes, scope)
 
 			for _, host := range job.Resources {
 				hwthreads := host.HWThreads
@@ -314,224 +304,27 @@ func buildQueries(
 					hwthreads = topology.Node
 				}
 
-				// Accelerator -> Accelerator (Use "accelerator" scope if requested scope is lower than node)
-				if nativeScope == schema.MetricScopeAccelerator && scope.LT(schema.MetricScopeNode) {
-					if scope != schema.MetricScopeAccelerator {
-						// Skip all other catched cases
-						continue
-					}
+				scopeResults, ok := BuildScopeQueries(
+					nativeScope, requestedScope,
+					metric, host.Hostname,
+					&topology, hwthreads, host.Accelerators,
+				)
 
+				if !ok {
+					return nil, nil, fmt.Errorf("METRICDATA/INTERNAL-CCMS > TODO: unhandled case: native-scope=%s, requested-scope=%s", nativeScope, requestedScope)
+				}
+
+				for _, sr := range scopeResults {
 					queries = append(queries, APIQuery{
-						Metric:     metric,
-						Hostname:   host.Hostname,
-						Aggregate:  false,
-						Type:       &acceleratorString,
-						TypeIds:    host.Accelerators,
+						Metric:     sr.Metric,
+						Hostname:   sr.Hostname,
+						Aggregate:  sr.Aggregate,
+						Type:       sr.Type,
+						TypeIds:    sr.TypeIds,
 						Resolution: resolution,
 					})
-					assignedScope = append(assignedScope, schema.MetricScopeAccelerator)
-					continue
+					assignedScope = append(assignedScope, sr.Scope)
 				}
-
-				// Accelerator -> Node
-				if nativeScope == schema.MetricScopeAccelerator && scope == schema.MetricScopeNode {
-					if len(host.Accelerators) == 0 {
-						continue
-					}
-
-					queries = append(queries, APIQuery{
-						Metric:     metric,
-						Hostname:   host.Hostname,
-						Aggregate:  true,
-						Type:       &acceleratorString,
-						TypeIds:    host.Accelerators,
-						Resolution: resolution,
-					})
-					assignedScope = append(assignedScope, scope)
-					continue
-				}
-
-				// HWThread -> HWThread
-				if nativeScope == schema.MetricScopeHWThread && scope == schema.MetricScopeHWThread {
-					queries = append(queries, APIQuery{
-						Metric:     metric,
-						Hostname:   host.Hostname,
-						Aggregate:  false,
-						Type:       &hwthreadString,
-						TypeIds:    intToStringSlice(hwthreads),
-						Resolution: resolution,
-					})
-					assignedScope = append(assignedScope, scope)
-					continue
-				}
-
-				// HWThread -> Core
-				if nativeScope == schema.MetricScopeHWThread && scope == schema.MetricScopeCore {
-					cores, _ := topology.GetCoresFromHWThreads(hwthreads)
-					for _, core := range cores {
-						queries = append(queries, APIQuery{
-							Metric:     metric,
-							Hostname:   host.Hostname,
-							Aggregate:  true,
-							Type:       &hwthreadString,
-							TypeIds:    intToStringSlice(topology.Core[core]),
-							Resolution: resolution,
-						})
-						assignedScope = append(assignedScope, scope)
-					}
-					continue
-				}
-
-				// HWThread -> Socket
-				if nativeScope == schema.MetricScopeHWThread && scope == schema.MetricScopeSocket {
-					sockets, _ := topology.GetSocketsFromHWThreads(hwthreads)
-					for _, socket := range sockets {
-						queries = append(queries, APIQuery{
-							Metric:     metric,
-							Hostname:   host.Hostname,
-							Aggregate:  true,
-							Type:       &hwthreadString,
-							TypeIds:    intToStringSlice(topology.Socket[socket]),
-							Resolution: resolution,
-						})
-						assignedScope = append(assignedScope, scope)
-					}
-					continue
-				}
-
-				// HWThread -> Node
-				if nativeScope == schema.MetricScopeHWThread && scope == schema.MetricScopeNode {
-					queries = append(queries, APIQuery{
-						Metric:     metric,
-						Hostname:   host.Hostname,
-						Aggregate:  true,
-						Type:       &hwthreadString,
-						TypeIds:    intToStringSlice(hwthreads),
-						Resolution: resolution,
-					})
-					assignedScope = append(assignedScope, scope)
-					continue
-				}
-
-				// Core -> Core
-				if nativeScope == schema.MetricScopeCore && scope == schema.MetricScopeCore {
-					cores, _ := topology.GetCoresFromHWThreads(hwthreads)
-					queries = append(queries, APIQuery{
-						Metric:     metric,
-						Hostname:   host.Hostname,
-						Aggregate:  false,
-						Type:       &coreString,
-						TypeIds:    intToStringSlice(cores),
-						Resolution: resolution,
-					})
-					assignedScope = append(assignedScope, scope)
-					continue
-				}
-
-				// Core -> Socket
-				if nativeScope == schema.MetricScopeCore && scope == schema.MetricScopeSocket {
-					sockets, _ := topology.GetSocketsFromCores(hwthreads)
-					for _, socket := range sockets {
-						queries = append(queries, APIQuery{
-							Metric:     metric,
-							Hostname:   host.Hostname,
-							Aggregate:  true,
-							Type:       &coreString,
-							TypeIds:    intToStringSlice(topology.Socket[socket]),
-							Resolution: resolution,
-						})
-						assignedScope = append(assignedScope, scope)
-					}
-					continue
-				}
-
-				// Core -> Node
-				if nativeScope == schema.MetricScopeCore && scope == schema.MetricScopeNode {
-					cores, _ := topology.GetCoresFromHWThreads(hwthreads)
-					queries = append(queries, APIQuery{
-						Metric:     metric,
-						Hostname:   host.Hostname,
-						Aggregate:  true,
-						Type:       &coreString,
-						TypeIds:    intToStringSlice(cores),
-						Resolution: resolution,
-					})
-					assignedScope = append(assignedScope, scope)
-					continue
-				}
-
-				// MemoryDomain -> MemoryDomain
-				if nativeScope == schema.MetricScopeMemoryDomain && scope == schema.MetricScopeMemoryDomain {
-					sockets, _ := topology.GetMemoryDomainsFromHWThreads(hwthreads)
-					queries = append(queries, APIQuery{
-						Metric:     metric,
-						Hostname:   host.Hostname,
-						Aggregate:  false,
-						Type:       &memoryDomainString,
-						TypeIds:    intToStringSlice(sockets),
-						Resolution: resolution,
-					})
-					assignedScope = append(assignedScope, scope)
-					continue
-				}
-
-				// MemoryDomain -> Node
-				if nativeScope == schema.MetricScopeMemoryDomain && scope == schema.MetricScopeNode {
-					sockets, _ := topology.GetMemoryDomainsFromHWThreads(hwthreads)
-					queries = append(queries, APIQuery{
-						Metric:     metric,
-						Hostname:   host.Hostname,
-						Aggregate:  true,
-						Type:       &memoryDomainString,
-						TypeIds:    intToStringSlice(sockets),
-						Resolution: resolution,
-					})
-					assignedScope = append(assignedScope, scope)
-					continue
-				}
-
-				// Socket -> Socket
-				if nativeScope == schema.MetricScopeSocket && scope == schema.MetricScopeSocket {
-					sockets, _ := topology.GetSocketsFromHWThreads(hwthreads)
-					queries = append(queries, APIQuery{
-						Metric:     metric,
-						Hostname:   host.Hostname,
-						Aggregate:  false,
-						Type:       &socketString,
-						TypeIds:    intToStringSlice(sockets),
-						Resolution: resolution,
-					})
-					assignedScope = append(assignedScope, scope)
-					continue
-				}
-
-				// Socket -> Node
-				if nativeScope == schema.MetricScopeSocket && scope == schema.MetricScopeNode {
-					sockets, _ := topology.GetSocketsFromHWThreads(hwthreads)
-					queries = append(queries, APIQuery{
-						Metric:     metric,
-						Hostname:   host.Hostname,
-						Aggregate:  true,
-						Type:       &socketString,
-						TypeIds:    intToStringSlice(sockets),
-						Resolution: resolution,
-					})
-					assignedScope = append(assignedScope, scope)
-					continue
-				}
-
-				// Node -> Node
-				if nativeScope == schema.MetricScopeNode && scope == schema.MetricScopeNode {
-					queries = append(queries, APIQuery{
-						Metric:     metric,
-						Hostname:   host.Hostname,
-						Resolution: resolution,
-					})
-					assignedScope = append(assignedScope, scope)
-					continue
-				}
-
-				return nil, nil, fmt.Errorf("METRICDATA/INTERNAL-CCMS > TODO: unhandled case: native-scope=%s, requested-scope=%s", nativeScope, requestedScope)
 			}
 		}
 	}
@@ -695,7 +488,7 @@ func (ccms *InternalMetricStore) LoadScopedStats(
 				}
 			}
 
-			sanitizeStats(&res)
+			SanitizeStats(&res.Avg, &res.Min, &res.Max)
 
 			scopedJobStats[metric][scope] = append(scopedJobStats[metric][scope], &schema.ScopedStats{
 				Hostname: query.Hostname,
@@ -796,7 +589,7 @@ func (ccms *InternalMetricStore) LoadNodeData(
 			errors = append(errors, fmt.Sprintf("fetching %s for node %s failed: %s", metric, query.Hostname, *qdata.Error))
 		}
 
-		sanitizeStats(&qdata)
+		SanitizeStats(&qdata.Avg, &qdata.Min, &qdata.Max)
 
 		hostdata, ok := data[query.Hostname]
 		if !ok {
@@ -977,7 +770,7 @@ func (ccms *InternalMetricStore) LoadNodeListData(
 				}
 			}
 
-			sanitizeStats(&res)
+			SanitizeStats(&res.Avg, &res.Min, &res.Max)
 
 			scopeData.Series = append(scopeData.Series, schema.Series{
 				Hostname: query.Hostname,
@@ -1060,17 +853,20 @@ func buildNodeQueries(
 			}
 		}
 
-		// Avoid duplicates using map for O(1) lookup
-		handledScopes := make(map[schema.MetricScope]bool, 3)
+		// Avoid duplicates...
+		handledScopes := make([]schema.MetricScope, 0, 3)
 
+	nodeScopesLoop:
 		for _, requestedScope := range scopes {
 			nativeScope := mc.Scope
 
 			scope := nativeScope.Max(requestedScope)
-			if handledScopes[scope] {
-				continue
+			for _, s := range handledScopes {
+				if scope == s {
+					continue nodeScopesLoop
+				}
 			}
-			handledScopes[scope] = true
+			handledScopes = append(handledScopes, scope)
 
 			for _, hostname := range nodes {
 
@@ -1086,8 +882,7 @@ func buildNodeQueries(
 					}
 				}
 
-				// Always full node hwthread id list, no partial queries expected -> Use "topology.Node" directly where applicable
-				// Always full accelerator id list, no partial queries expected -> Use "acceleratorIds" directly where applicable
+				// Always full node hwthread id list, no partial queries expected
 				topology := subClusterTopol.Topology
 				acceleratorIds := topology.GetAcceleratorIDs()
 
@@ -1096,262 +891,30 @@ func buildNodeQueries(
 					continue
 				}
 
-				// Accelerator -> Accelerator (Use "accelerator" scope if requested scope is lower than node)
-				if nativeScope == schema.MetricScopeAccelerator && scope.LT(schema.MetricScopeNode) {
-					if scope != schema.MetricScopeAccelerator {
-						// Skip all other catched cases
-						continue
-					}
+				scopeResults, ok := BuildScopeQueries(
+					nativeScope, requestedScope,
+					metric, hostname,
+					&topology, topology.Node, acceleratorIds,
+				)
 
+				if !ok {
+					return nil, nil, fmt.Errorf("METRICDATA/INTERNAL-CCMS > TODO: unhandled case: native-scope=%s, requested-scope=%s", nativeScope, requestedScope)
+				}
+
+				for _, sr := range scopeResults {
 					queries = append(queries, APIQuery{
-						Metric:     metric,
-						Hostname:   hostname,
-						Aggregate:  false,
-						Type:       &acceleratorString,
-						TypeIds:    acceleratorIds,
+						Metric:     sr.Metric,
+						Hostname:   sr.Hostname,
+						Aggregate:  sr.Aggregate,
+						Type:       sr.Type,
+						TypeIds:    sr.TypeIds,
 						Resolution: resolution,
 					})
-					assignedScope = append(assignedScope, schema.MetricScopeAccelerator)
-					continue
+					assignedScope = append(assignedScope, sr.Scope)
 				}
-
-				// Accelerator -> Node
-				if nativeScope == schema.MetricScopeAccelerator && scope == schema.MetricScopeNode {
-					if len(acceleratorIds) == 0 {
-						continue
-					}
-
-					queries = append(queries, APIQuery{
-						Metric:     metric,
-						Hostname:   hostname,
-						Aggregate:  true,
-						Type:       &acceleratorString,
-						TypeIds:    acceleratorIds,
-						Resolution: resolution,
-					})
-					assignedScope = append(assignedScope, scope)
-					continue
-				}
-
-				// HWThread -> HWThread
-				if nativeScope == schema.MetricScopeHWThread && scope == schema.MetricScopeHWThread {
-					queries = append(queries, APIQuery{
-						Metric:     metric,
-						Hostname:   hostname,
-						Aggregate:  false,
-						Type:       &hwthreadString,
-						TypeIds:    intToStringSlice(topology.Node),
-						Resolution: resolution,
-					})
-					assignedScope = append(assignedScope, scope)
-					continue
-				}
-
-				// HWThread -> Core
-				if nativeScope == schema.MetricScopeHWThread && scope == schema.MetricScopeCore {
-					cores, _ := topology.GetCoresFromHWThreads(topology.Node)
-					for _, core := range cores {
-						queries = append(queries, APIQuery{
-							Metric:     metric,
-							Hostname:   hostname,
-							Aggregate:  true,
-							Type:       &hwthreadString,
-							TypeIds:    intToStringSlice(topology.Core[core]),
-							Resolution: resolution,
-						})
-						assignedScope = append(assignedScope, scope)
-					}
-					continue
-				}
-
-				// HWThread -> Socket
-				if nativeScope == schema.MetricScopeHWThread && scope == schema.MetricScopeSocket {
-					sockets, _ := topology.GetSocketsFromHWThreads(topology.Node)
-					for _, socket := range sockets {
-						queries = append(queries, APIQuery{
-							Metric:     metric,
-							Hostname:   hostname,
-							Aggregate:  true,
-							Type:       &hwthreadString,
-							TypeIds:    intToStringSlice(topology.Socket[socket]),
-							Resolution: resolution,
-						})
-						assignedScope = append(assignedScope, scope)
-					}
-					continue
-				}
-
-				// HWThread -> Node
-				if nativeScope == schema.MetricScopeHWThread && scope == schema.MetricScopeNode {
-					queries = append(queries, APIQuery{
-						Metric:     metric,
-						Hostname:   hostname,
-						Aggregate:  true,
-						Type:       &hwthreadString,
-						TypeIds:    intToStringSlice(topology.Node),
-						Resolution: resolution,
-					})
-					assignedScope = append(assignedScope, scope)
-					continue
-				}
-
-				// Core -> Core
-				if nativeScope == schema.MetricScopeCore && scope == schema.MetricScopeCore {
-					cores, _ := topology.GetCoresFromHWThreads(topology.Node)
-					queries = append(queries, APIQuery{
-						Metric:     metric,
-						Hostname:   hostname,
-						Aggregate:  false,
-						Type:       &coreString,
-						TypeIds:    intToStringSlice(cores),
-						Resolution: resolution,
-					})
-					assignedScope = append(assignedScope, scope)
-					continue
-				}
-
-				// Core -> Socket
-				if nativeScope == schema.MetricScopeCore && scope == schema.MetricScopeSocket {
-					sockets, _ := topology.GetSocketsFromCores(topology.Node)
-					for _, socket := range sockets {
-						queries = append(queries, APIQuery{
-							Metric:     metric,
-							Hostname:   hostname,
-							Aggregate:  true,
-							Type:       &coreString,
-							TypeIds:    intToStringSlice(topology.Socket[socket]),
-							Resolution: resolution,
-						})
-						assignedScope = append(assignedScope, scope)
-					}
-					continue
-				}
-
-				// Core -> Node
-				if nativeScope == schema.MetricScopeCore && scope == schema.MetricScopeNode {
-					cores, _ := topology.GetCoresFromHWThreads(topology.Node)
-					queries = append(queries, APIQuery{
-						Metric:     metric,
-						Hostname:   hostname,
-						Aggregate:  true,
-						Type:       &coreString,
-						TypeIds:    intToStringSlice(cores),
-						Resolution: resolution,
-					})
-					assignedScope = append(assignedScope, scope)
-					continue
-				}
-
-				// MemoryDomain -> MemoryDomain
-				if nativeScope == schema.MetricScopeMemoryDomain && scope == schema.MetricScopeMemoryDomain {
-					sockets, _ := topology.GetMemoryDomainsFromHWThreads(topology.Node)
-					queries = append(queries, APIQuery{
-						Metric:     metric,
-						Hostname:   hostname,
-						Aggregate:  false,
-						Type:       &memoryDomainString,
-						TypeIds:    intToStringSlice(sockets),
-						Resolution: resolution,
-					})
-					assignedScope = append(assignedScope, scope)
-					continue
-				}
-
-				// MemoryDomain -> Node
-				if nativeScope == schema.MetricScopeMemoryDomain && scope == schema.MetricScopeNode {
-					sockets, _ := topology.GetMemoryDomainsFromHWThreads(topology.Node)
-					queries = append(queries, APIQuery{
-						Metric:     metric,
-						Hostname:   hostname,
-						Aggregate:  true,
-						Type:       &memoryDomainString,
-						TypeIds:    intToStringSlice(sockets),
-						Resolution: resolution,
-					})
-					assignedScope = append(assignedScope, scope)
-					continue
-				}
-
-				// Socket -> Socket
-				if nativeScope == schema.MetricScopeSocket && scope == schema.MetricScopeSocket {
-					sockets, _ := topology.GetSocketsFromHWThreads(topology.Node)
-					queries = append(queries, APIQuery{
-						Metric:     metric,
-						Hostname:   hostname,
-						Aggregate:  false,
-						Type:       &socketString,
-						TypeIds:    intToStringSlice(sockets),
-						Resolution: resolution,
-					})
-					assignedScope = append(assignedScope, scope)
-					continue
-				}
-
-				// Socket -> Node
-				if nativeScope == schema.MetricScopeSocket && scope == schema.MetricScopeNode {
-					sockets, _ := topology.GetSocketsFromHWThreads(topology.Node)
-					queries = append(queries, APIQuery{
-						Metric:     metric,
-						Hostname:   hostname,
-						Aggregate:  true,
-						Type:       &socketString,
-						TypeIds:    intToStringSlice(sockets),
-						Resolution: resolution,
-					})
-					assignedScope = append(assignedScope, scope)
-					continue
-				}
-
-				// Node -> Node
-				if nativeScope == schema.MetricScopeNode && scope == schema.MetricScopeNode {
-					queries = append(queries, APIQuery{
-						Metric:     metric,
-						Hostname:   hostname,
-						Resolution: resolution,
-					})
-					assignedScope = append(assignedScope, scope)
-					continue
-				}
-
-				return nil, nil, fmt.Errorf("METRICDATA/INTERNAL-CCMS > TODO: unhandled case: native-scope=%s, requested-scope=%s", nativeScope, requestedScope)
 			}
 		}
 	}
 
 	return queries, assignedScope, nil
-}
-
-// sanitizeStats converts NaN statistics to zero for JSON compatibility.
-//
-// schema.Float with NaN values cannot be properly JSON-encoded, so we convert
-// NaN to 0. This loses the distinction between "no data" and "zero value",
-// but maintains API compatibility.
-func sanitizeStats(data *APIMetricData) {
-	if data.Avg.IsNaN() {
-		data.Avg = schema.Float(0)
-	}
-	if data.Min.IsNaN() {
-		data.Min = schema.Float(0)
-	}
-	if data.Max.IsNaN() {
-		data.Max = schema.Float(0)
-	}
-}
-
-// intToStringSlice converts a slice of integers to a slice of strings.
-// Used to convert hardware thread/core/socket IDs from topology (int) to APIQuery TypeIds (string).
-//
-// Optimized to reuse a byte buffer for string conversion, reducing allocations.
-func intToStringSlice(is []int) []string {
-	if len(is) == 0 {
-		return nil
-	}
-
-	ss := make([]string, len(is))
-	buf := make([]byte, 0, 16) // Reusable buffer for integer conversion
-	for i, x := range is {
-		buf = strconv.AppendInt(buf[:0], int64(x), 10)
-		ss[i] = string(buf)
-	}
-	return ss
 }
