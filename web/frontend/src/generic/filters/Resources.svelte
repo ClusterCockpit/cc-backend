@@ -262,7 +262,7 @@
         <Icon id="numthreads-info" style="cursor:help; padding-right: 10px;" size="sm" name="info-circle"/>
       </div>
       <Tooltip target={`numthreads-info`} placement="right">
-        Presets for a single node. Can be changed to higher values.
+        Presets for a single node. Use input fields to change to higher values.
       </Tooltip>
       <DoubleRangeSlider
         changeRange={(detail) => {
@@ -282,7 +282,7 @@
           <Icon id="numaccs-info" style="cursor:help; padding-right: 10px;" size="sm" name="info-circle"/>
         </div>
         <Tooltip target={`numaccs-info`} placement="right">
-          Presets for a single node. Can be changed to higher values.
+          Presets for a single node. Use input fields to change to higher values.
         </Tooltip>
         <DoubleRangeSlider
           changeRange={(detail) => {
