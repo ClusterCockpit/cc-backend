@@ -178,24 +178,24 @@ func (t *AppTagger) Match(job *schema.Job) {
 
 	metadata, err := r.FetchMetadata(job)
 	if err != nil {
-		cclog.Infof("AppTagger: cannot fetch metadata for job %d on %s: %v", job.JobID, job.Cluster, err)
+		cclog.Debugf("AppTagger: cannot fetch metadata for job %d on %s: %v", job.JobID, job.Cluster, err)
 		return
 	}
 
 	if metadata == nil {
-		cclog.Infof("AppTagger: metadata is nil for job %d on %s", job.JobID, job.Cluster)
+		cclog.Debugf("AppTagger: metadata is nil for job %d on %s", job.JobID, job.Cluster)
 		return
 	}
 
 	jobscript, ok := metadata["jobScript"]
 	if !ok {
-		cclog.Infof("AppTagger: no 'jobScript' key in metadata for job %d on %s (keys: %v)",
+		cclog.Debugf("AppTagger: no 'jobScript' key in metadata for job %d on %s (keys: %v)",
 			job.JobID, job.Cluster, metadataKeys(metadata))
 		return
 	}
 
 	if len(jobscript) == 0 {
-		cclog.Infof("AppTagger: empty jobScript for job %d on %s", job.JobID, job.Cluster)
+		cclog.Debugf("AppTagger: empty jobScript for job %d on %s", job.JobID, job.Cluster)
 		return
 	}
 
@@ -210,7 +210,7 @@ func (t *AppTagger) Match(job *schema.Job) {
 				if r.HasTag(id, t.tagType, a.tag) {
 					cclog.Debugf("AppTagger: job %d already has tag %s:%s, skipping", id, t.tagType, a.tag)
 				} else {
-					cclog.Infof("AppTagger: pattern '%s' matched for app '%s' on job %d", re.String(), a.tag, id)
+					cclog.Debugf("AppTagger: pattern '%s' matched for app '%s' on job %d", re.String(), a.tag, id)
 					if _, err := r.AddTagOrCreateDirect(id, t.tagType, a.tag); err != nil {
 						cclog.Errorf("AppTagger: failed to add tag '%s' to job %d: %v", a.tag, id, err)
 					}
