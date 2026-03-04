@@ -280,12 +280,24 @@
       opts.push(`duration=morethan-${filters.duration.moreThan}`);
     if (filters.tags.length != 0)
       for (let tag of filters.tags) opts.push(`tag=${tag}`);
-    if (filters.numNodes.from && filters.numNodes.to)
+    if (filters.numNodes.from > 1 && filters.numNodes.to > 0)
       opts.push(`numNodes=${filters.numNodes.from}-${filters.numNodes.to}`);
-    if (filters.numHWThreads.from && filters.numHWThreads.to)
+    else if (filters.numNodes.from > 1 && filters.numNodes.to == 0)
+      opts.push(`numNodes=morethan-${filters.numNodes.from}`);
+    else if (filters.numNodes.from == 1 && filters.numNodes.to > 0)
+      opts.push(`numNodes=lessthan-${filters.numNodes.to}`);
+    if (filters.numHWThreads.from > 1 && filters.numHWThreads.to > 0)
       opts.push(`numHWThreads=${filters.numHWThreads.from}-${filters.numHWThreads.to}`);
+    else if (filters.numHWThreads.from > 1 && filters.numHWThreads.to == 0)
+      opts.push(`numHWThreads=morethan-${filters.numHWThreads.from}`);
+    else if (filters.numHWThreads.from == 1 && filters.numHWThreads.to > 0)
+      opts.push(`numHWThreads=lessthan-${filters.numHWThreads.to}`);
     if (filters.numAccelerators.from && filters.numAccelerators.to)
       opts.push(`numAccelerators=${filters.numAccelerators.from}-${filters.numAccelerators.to}`);
+    else if (filters.numAccelerators.from > 1 && filters.numAccelerators.to == 0)
+      opts.push(`numAccelerators=morethan-${filters.numAccelerators.from}`);
+    else if (filters.numAccelerators.from == 1 && filters.numAccelerators.to > 0)
+      opts.push(`numAccelerators=lessthan-${filters.numAccelerators.to}`);
     if (filters.node) opts.push(`node=${filters.node}`);
     if (filters.node && filters.nodeMatch != "eq") // "eq" is default-case
       opts.push(`nodeMatch=${filters.nodeMatch}`);
@@ -490,21 +502,45 @@
     </Info>
   {/if}
 
-  {#if filters.numNodes.from != null || filters.numNodes.to != null}
+  {#if filters.numNodes.from > 1 && filters.numNodes.to > 0}
     <Info icon="hdd-stack" onclick={() => (isResourcesOpen = true)}>
-        Nodes: {filters.numNodes.from} - {filters.numNodes.to}
+      Nodes: {filters.numNodes.from} - {filters.numNodes.to}
+    </Info>
+  {:else if filters.numNodes.from > 1 && filters.numNodes.to == 0}
+    <Info icon="hdd-stack" onclick={() => (isResourcesOpen = true)}>
+      &nbsp;&ge;&nbsp;{filters.numNodes.from} Node(s)
+    </Info>
+  {:else if filters.numNodes.from == 1 && filters.numNodes.to > 0}
+    <Info icon="hdd-stack" onclick={() => (isResourcesOpen = true)}>
+      &nbsp;&le;&nbsp;{filters.numNodes.to} Node(s)
     </Info>
   {/if}
 
-  {#if filters.numHWThreads.from != null || filters.numHWThreads.to != null}
+  {#if filters.numHWThreads.from > 1 && filters.numHWThreads.to > 0}
     <Info icon="cpu" onclick={() => (isResourcesOpen = true)}>
-        HWThreads: {filters.numHWThreads.from} - {filters.numHWThreads.to}
+      HWThreads: {filters.numHWThreads.from} - {filters.numHWThreads.to}
+    </Info>
+  {:else if filters.numHWThreads.from > 1 && filters.numHWThreads.to == 0}
+    <Info icon="cpu" onclick={() => (isResourcesOpen = true)}>
+      &nbsp;&ge;&nbsp;{filters.numHWThreads.from} HWThread(s)
+    </Info>
+  {:else if filters.numHWThreads.from == 1 && filters.numHWThreads.to > 0}
+    <Info icon="cpu" onclick={() => (isResourcesOpen = true)}>
+      &nbsp;&le;&nbsp;{filters.numHWThreads.to} HWThread(s)
     </Info>
   {/if}
 
-  {#if filters.numAccelerators.from != null || filters.numAccelerators.to != null}
+  {#if filters.numAccelerators.from > 1 && filters.numAccelerators.to > 0}
     <Info icon="gpu-card" onclick={() => (isResourcesOpen = true)}>
-        Accelerators: {filters.numAccelerators.from} - {filters.numAccelerators.to}
+      Accelerators: {filters.numAccelerators.from} - {filters.numAccelerators.to}
+    </Info>
+  {:else if filters.numAccelerators.from > 1 && filters.numAccelerators.to == 0}
+    <Info icon="gpu-card" onclick={() => (isResourcesOpen = true)}>
+      &nbsp;&ge;&nbsp;{filters.numAccelerators.from} Acc(s)
+    </Info>
+  {:else if filters.numAccelerators.from == 1 && filters.numAccelerators.to > 0}
+    <Info icon="gpu-card" onclick={() => (isResourcesOpen = true)}>
+      &nbsp;&le;&nbsp;{filters.numAccelerators.to} Acc(s)
     </Info>
   {/if}
 

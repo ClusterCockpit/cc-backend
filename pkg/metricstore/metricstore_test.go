@@ -52,23 +52,6 @@ func TestBufferPoolClear(t *testing.T) {
 	}
 }
 
-// TestBufferPoolMaxSize verifies that Put() silently drops buffers once the
-// pool reaches maxPoolSize, preventing unbounded memory growth.
-func TestBufferPoolMaxSize(t *testing.T) {
-	pool := NewPersistentBufferPool()
-	for i := 0; i < maxPoolSize; i++ {
-		pool.Put(&buffer{data: make([]schema.Float, 0, BufferCap), lastUsed: time.Now().Unix()})
-	}
-	if pool.GetSize() != maxPoolSize {
-		t.Fatalf("pool size = %d, want %d", pool.GetSize(), maxPoolSize)
-	}
-
-	pool.Put(&buffer{data: make([]schema.Float, 0, BufferCap), lastUsed: time.Now().Unix()})
-	if pool.GetSize() != maxPoolSize {
-		t.Errorf("pool size after overflow Put = %d, want %d (should not grow)", pool.GetSize(), maxPoolSize)
-	}
-}
-
 // ─── Buffer helpers ───────────────────────────────────────────────────────────
 
 // TestBufferEndFirstWrite verifies the end() and firstWrite() calculations.

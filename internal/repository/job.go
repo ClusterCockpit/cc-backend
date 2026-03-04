@@ -718,7 +718,7 @@ func (r *JobRepository) StopJobsExceedingWalltimeBy(seconds int) error {
 		Set("job_state", schema.JobStateFailed).
 		Where("job.job_state = 'running'").
 		Where("job.walltime > 0").
-		Where("(? - job.start_time) > (job.walltime + ?)", currentTime, seconds).
+		Where("job.start_time < (? - job.walltime)", currentTime-int64(seconds)).
 		RunWith(r.DB).Exec()
 	if err != nil {
 		cclog.Warnf("Error while stopping jobs exceeding walltime: %v", err)
