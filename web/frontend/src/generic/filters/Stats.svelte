@@ -15,13 +15,15 @@
     ModalBody,
     ModalHeader,
     ModalFooter,
+    Tooltip,
+    Icon
   } from "@sveltestrap/sveltestrap";
   import DoubleRangeSlider from "../select/DoubleRangeSlider.svelte";
 
   /* Svelte 5 Props */
   let { 
     isOpen = $bindable(),
-    presetStats,
+    presetStats = [],
     setFilter
    } = $props();
 
@@ -29,10 +31,18 @@
   const availableStats = $derived(getStatsItems(presetStats));
 
   /* Functions */
+  function setRanges() {
+    for (let as of availableStats) {
+      if (as.enabled) {
+        as.to = (as.to == as.peak) ? 0 : as.to
+      }
+    };
+  }
+  
   function resetRanges() {
     for (let as of availableStats) {
       as.enabled = false
-      as.from = 0
+      as.from = 1
       as.to = as.peak
     };
   }
@@ -45,18 +55,24 @@
   <ModalBody>
     {#each availableStats as aStat}
       <div class="mb-3">
-        <div class="mb-0"><b>{aStat.text}</b></div>
+        <div class="mb-0">
+          <b>{aStat.text} ({aStat.unit})</b>
+          <Icon id={`${aStat.metric}-info`} style="cursor:help; padding-right: 10px;" size="sm" name="info-circle"/>
+        </div>
+        <Tooltip target={`${aStat.metric}-info`} placement="right">
+          Peak Threshold Preset. Use input fields to change to higher values.
+        </Tooltip>
         <DoubleRangeSlider
           changeRange={(detail) => {
             aStat.from = detail[0];
             aStat.to = detail[1];
-            if (aStat.from == 0 && aStat.to == aStat.peak) {
+            if (aStat.from == 1 && aStat.to == aStat.peak) {
               aStat.enabled = false;
             } else {
               aStat.enabled = true;
             }
           }}
-          sliderMin={0.0}
+          sliderMin={1}
           sliderMax={aStat.peak}
           fromPreset={aStat.from}
           toPreset={aStat.to}
@@ -69,6 +85,7 @@
       color="primary"
       onclick={() => {
         isOpen = false;
+        setRanges();
         setFilter({ stats: [...availableStats.filter((as) => as.enabled)] });
       }}>Close & Apply</Button
     >

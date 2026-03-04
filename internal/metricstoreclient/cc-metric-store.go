@@ -63,7 +63,7 @@ import (
 	"time"
 
 	"github.com/ClusterCockpit/cc-backend/pkg/archive"
-	"github.com/ClusterCockpit/cc-backend/pkg/metricstore"
+	ms "github.com/ClusterCockpit/cc-backend/pkg/metricstore"
 	cclog "github.com/ClusterCockpit/cc-lib/v2/ccLogger"
 	"github.com/ClusterCockpit/cc-lib/v2/schema"
 )
@@ -275,13 +275,6 @@ func (ccms *CCMetricStore) LoadData(
 	}
 
 	for i, row := range resBody.Results {
-		// Safety check to prevent index out of range errors
-		if i >= len(req.Queries) || i >= len(assignedScope) {
-			cclog.Warnf("Index out of range prevented: i=%d, queries=%d, assignedScope=%d",
-				i, len(req.Queries), len(assignedScope))
-			continue
-		}
-
 		query := req.Queries[i]
 		metric := query.Metric
 		scope := assignedScope[i]
@@ -318,20 +311,9 @@ func (ccms *CCMetricStore) LoadData(
 				continue
 			}
 
-			id := (*string)(nil)
-			if query.Type != nil {
-				// Check if ndx is within the bounds of TypeIds slice
-				if ndx < len(query.TypeIds) {
-					id = new(string)
-					*id = query.TypeIds[ndx]
-				} else {
-					// Log the error but continue processing
-					cclog.Warnf("TypeIds index out of range: %d with length %d for metric %s on host %s",
-						ndx, len(query.TypeIds), query.Metric, query.Hostname)
-				}
-			}
+			id := ms.ExtractTypeID(query.Type, query.TypeIds, ndx, query.Metric, query.Hostname)
 
-			sanitizeStats(&res.Avg, &res.Min, &res.Max)
+			ms.SanitizeStats(&res.Avg, &res.Min, &res.Max)
 
 			jobMetric.Series = append(jobMetric.Series, schema.Series{
 				Hostname: query.Hostname,
@@ -393,6 +375,10 @@ func (ccms *CCMetricStore) LoadStats(
 
 	stats := make(map[string]map[string]schema.MetricStatistics, len(metrics))
 	for i, res := range resBody.Results {
+		if i >= len(req.Queries) {
+			cclog.Warnf("LoadStats: result index %d exceeds queries length %d", i, len(req.Queries))
+			break
+		}
 		if len(res) == 0 {
 			// No Data Found For Metric, Logged in FetchData to Warn
 			continue
@@ -481,20 +467,9 @@ func (ccms *CCMetricStore) LoadScopedStats(
 				continue
 			}
 
-			id := (*string)(nil)
-			if query.Type != nil {
-				// Check if ndx is within the bounds of TypeIds slice
-				if ndx < len(query.TypeIds) {
-					id = new(string)
-					*id = query.TypeIds[ndx]
-				} else {
-					// Log the error but continue processing
-					cclog.Warnf("TypeIds index out of range: %d with length %d for metric %s on host %s",
-						ndx, len(query.TypeIds), query.Metric, query.Hostname)
-				}
-			}
+			id := ms.ExtractTypeID(query.Type, query.TypeIds, ndx, query.Metric, query.Hostname)
 
-			sanitizeStats(&res.Avg, &res.Min, &res.Max)
+			ms.SanitizeStats(&res.Avg, &res.Min, &res.Max)
 
 			scopedJobStats[metric][scope] = append(scopedJobStats[metric][scope], &schema.ScopedStats{
 				Hostname: query.Hostname,
@@ -582,9 +557,16 @@ func (ccms *CCMetricStore) LoadNodeData(
 		qdata := res[0]
 		if qdata.Error != nil {
 			errors = append(errors, fmt.Sprintf("fetching %s for node %s failed: %s", metric, query.Hostname, *qdata.Error))
+			continue
 		}
 
-		sanitizeStats(&qdata.Avg, &qdata.Min, &qdata.Max)
+		mc := archive.GetMetricConfig(cluster, metric)
+		if mc == nil {
+			cclog.Warnf("Metric config not found for %s on cluster %s", metric, cluster)
+			continue
+		}
+
+		ms.SanitizeStats(&qdata.Avg, &qdata.Min, &qdata.Max)
 
 		hostdata, ok := data[query.Hostname]
 		if !ok {
@@ -592,7 +574,6 @@ func (ccms *CCMetricStore) LoadNodeData(
 			data[query.Hostname] = hostdata
 		}
 
-		mc := archive.GetMetricConfig(cluster, metric)
 		hostdata[metric] = append(hostdata[metric], &schema.JobMetric{
 			Unit:     mc.Unit,
 			Timestep: mc.Timestep,
@@ -680,13 +661,6 @@ func (ccms *CCMetricStore) LoadNodeListData(
 	}
 
 	for i, row := range resBody.Results {
-		// Safety check to prevent index out of range errors
-		if i >= len(req.Queries) || i >= len(assignedScope) {
-			cclog.Warnf("Index out of range prevented: i=%d, queries=%d, assignedScope=%d",
-				i, len(req.Queries), len(assignedScope))
-			continue
-		}
-
 		var query APIQuery
 		if resBody.Queries != nil {
 			if i < len(resBody.Queries) {
@@ -743,20 +717,9 @@ func (ccms *CCMetricStore) LoadNodeListData(
 				continue
 			}
 
-			id := (*string)(nil)
-			if query.Type != nil {
-				// Check if ndx is within the bounds of TypeIds slice
-				if ndx < len(query.TypeIds) {
-					id = new(string)
-					*id = query.TypeIds[ndx]
-				} else {
-					// Log the error but continue processing
-					cclog.Warnf("TypeIds index out of range: %d with length %d for metric %s on host %s",
-						ndx, len(query.TypeIds), query.Metric, query.Hostname)
-				}
-			}
+			id := ms.ExtractTypeID(query.Type, query.TypeIds, ndx, query.Metric, query.Hostname)
 
-			sanitizeStats(&res.Avg, &res.Min, &res.Max)
+			ms.SanitizeStats(&res.Avg, &res.Min, &res.Max)
 
 			scopeData.Series = append(scopeData.Series, schema.Series{
 				Hostname: query.Hostname,
@@ -784,8 +747,8 @@ func (ccms *CCMetricStore) LoadNodeListData(
 // returns the per-node health check results.
 func (ccms *CCMetricStore) HealthCheck(cluster string,
 	nodes []string, metrics []string,
-) (map[string]metricstore.HealthCheckResult, error) {
-	req := metricstore.HealthCheckReq{
+) (map[string]ms.HealthCheckResult, error) {
+	req := ms.HealthCheckReq{
 		Cluster:     cluster,
 		Nodes:       nodes,
 		MetricNames: metrics,
@@ -818,23 +781,13 @@ func (ccms *CCMetricStore) HealthCheck(cluster string,
 		return nil, fmt.Errorf("'%s': HTTP Status: %s", endpoint, res.Status)
 	}
 
-	var results map[string]metricstore.HealthCheckResult
+	var results map[string]ms.HealthCheckResult
 	if err := json.NewDecoder(bufio.NewReader(res.Body)).Decode(&results); err != nil {
 		cclog.Errorf("Error while decoding health check response: %s", err.Error())
 		return nil, err
 	}
 
 	return results, nil
-}
-
-// sanitizeStats replaces NaN values in statistics with 0 to enable JSON marshaling.
-// Regular float64 values cannot be JSONed when NaN.
-func sanitizeStats(avg, min, max *schema.Float) {
-	if avg.IsNaN() || min.IsNaN() || max.IsNaN() {
-		*avg = schema.Float(0)
-		*min = schema.Float(0)
-		*max = schema.Float(0)
-	}
 }
 
 // hasNaNStats returns true if any of the statistics contain NaN values.

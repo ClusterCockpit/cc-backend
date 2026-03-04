@@ -341,26 +341,28 @@ export function getStatsItems(presetStats = []) {
         if (gm?.footprint) {
             const mc = getMetricConfigDeep(gm.name, null, null)
             if (mc) {
-                const presetEntry = presetStats.find((s) => s?.field === (gm.name + '_' + gm.footprint))
+                const presetEntry = presetStats.find((s) => s.field == `${gm.name}_${gm.footprint}`)
                 if (presetEntry) {
                     return {
-                        field: gm.name + '_' + gm.footprint,
-                        text: gm.name + ' (' + gm.footprint + ')',
+                        field: presetEntry.field,
+                        text: `${gm.name} (${gm.footprint})`,
                         metric: gm.name,
                         from: presetEntry.from,
-                        to: presetEntry.to,
+                        to: (presetEntry.to == 0) ? mc.peak : presetEntry.to,
                         peak: mc.peak,
-                        enabled: true
+                        enabled: true,
+                        unit: `${gm?.unit?.prefix ? gm.unit.prefix : ''}${gm.unit.base}`
                     }
                 } else {
                     return {
-                        field: gm.name + '_' + gm.footprint,
-                        text: gm.name + ' (' + gm.footprint + ')',
+                        field: `${gm.name}_${gm.footprint}`,
+                        text: `${gm.name} (${gm.footprint})`,
                         metric: gm.name,
-                        from: 0,
+                        from: 1,
                         to: mc.peak,
                         peak: mc.peak,
-                        enabled: false
+                        enabled: false,
+                        unit: `${gm?.unit?.prefix ? gm.unit.prefix : ''}${gm.unit.base}`
                     }
                 }
             }

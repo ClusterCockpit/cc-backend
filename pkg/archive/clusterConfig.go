@@ -126,6 +126,9 @@ func initClusterConfig() error {
 				if newMetric.Energy != "" {
 					sc.EnergyFootprint = append(sc.EnergyFootprint, newMetric.Name)
 				}
+
+				// Init Topology Lookup Maps Once Per Subcluster
+				sc.Topology.InitTopologyMaps()
 			}
 
 			item := metricLookup[mc.Name]

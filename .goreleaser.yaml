@@ -1,3 +1,4 @@
+version: 2
 before:
   hooks:
     - go mod tidy
@@ -42,13 +43,26 @@ builds:
       - amd64
     goamd64:
       - v3
+    id: "archive-migration"
+    binary: archive-migration
+    main: ./tools/archive-migration
+    tags:
+      - static_build
+  - env:
+      - CGO_ENABLED=0
+    goos:
+      - linux
+    goarch:
+      - amd64
+    goamd64:
+      - v3
     id: "gen-keypair"
     binary: gen-keypair
     main: ./tools/gen-keypair
     tags:
       - static_build
 archives:
-  - format: tar.gz
+  - formats: tar.gz
     # this name template makes the OS and Arch compatible with the results of uname.
     name_template: >-
       {{ .ProjectName }}_
@@ -59,7 +73,7 @@ archives:
 checksum:
   name_template: "checksums.txt"
 snapshot:
-  name_template: "{{ incpatch .Version }}-next"
+  version_template: "{{ incpatch .Version }}-next"
 changelog:
   sort: asc
   filters:
@@ -87,7 +101,7 @@ changelog:
 release:
   draft: false
   footer: |
-    Supports job archive version 2 and database version 8.
+    Supports job archive version 3 and database version 10.
     Please check out the [Release Notes](https://github.com/ClusterCockpit/cc-backend/blob/master/ReleaseNotes.md) for further details on breaking changes.
 
 # vim: set ts=2 sw=2 tw=0 fo=cnqoj

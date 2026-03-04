@@ -309,7 +309,7 @@ func (t *JobClassTagger) Register() error {
 func (t *JobClassTagger) Match(job *schema.Job) {
 	jobStats, err := t.getStatistics(job)
 	metricsList := t.getMetricConfig(job.Cluster, job.SubCluster)
-	cclog.Infof("Enter match rule with %d rules for job %d", len(t.rules), job.JobID)
+	cclog.Debugf("Enter match rule with %d rules for job %d", len(t.rules), job.JobID)
 	if err != nil {
 		cclog.Errorf("job classification failed for job %d: %#v", job.JobID, err)
 		return
@@ -321,7 +321,7 @@ func (t *JobClassTagger) Match(job *schema.Job) {
 	for tag, ri := range t.rules {
 		env := make(map[string]any)
 		maps.Copy(env, ri.env)
-		cclog.Infof("Try to match rule %s for job %d", tag, job.JobID)
+		cclog.Debugf("Try to match rule %s for job %d", tag, job.JobID)
 
 		// Initialize environment
 		env["job"] = map[string]any{
@@ -369,7 +369,7 @@ func (t *JobClassTagger) Match(job *schema.Job) {
 				break
 			}
 			if !ok.(bool) {
-				cclog.Infof("requirement for rule %s not met", tag)
+				cclog.Debugf("requirement for rule %s not met", tag)
 				requirementsMet = false
 				break
 			}
@@ -399,7 +399,6 @@ func (t *JobClassTagger) Match(job *schema.Job) {
 			continue
 		}
 		if match.(bool) {
-			cclog.Info("Rule matches!")
 			if !t.repo.HasTag(id, t.tagType, tag) {
 				if _, err := t.repo.AddTagOrCreateDirect(id, t.tagType, tag); err != nil {
 					cclog.Errorf("failed to add tag '%s' to job %d: %v", tag, id, err)
@@ -414,8 +413,6 @@ func (t *JobClassTagger) Match(job *schema.Job) {
 				continue
 			}
 			messages = append(messages, msg.String())
-		} else {
-			cclog.Info("Rule does not match!")
 		}
 	}
 

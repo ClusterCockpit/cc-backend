@@ -9,7 +9,7 @@ tool (
 
 require (
 	github.com/99designs/gqlgen v0.17.87
-	github.com/ClusterCockpit/cc-lib/v2 v2.7.0
+	github.com/ClusterCockpit/cc-lib/v2 v2.8.0
 	github.com/ClusterCockpit/cc-line-protocol/v2 v2.4.0
 	github.com/Masterminds/squirrel v1.5.4
 	github.com/aws/aws-sdk-go-v2 v1.41.2
@@ -111,7 +111,6 @@ require (
 	github.com/xrash/smetrics v0.0.0-20250705151800-55b8f293f342 // indirect
 	go.yaml.in/yaml/v2 v2.4.3 // indirect
 	go.yaml.in/yaml/v3 v3.0.4 // indirect
-	golang.org/x/exp v0.0.0-20260218203240-3dfff04db8fa // indirect
 	golang.org/x/mod v0.33.0 // indirect
 	golang.org/x/net v0.51.0 // indirect
 	golang.org/x/sync v0.19.0 // indirect

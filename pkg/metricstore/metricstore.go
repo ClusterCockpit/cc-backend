@@ -235,7 +235,7 @@ func InitMetrics(metrics map[string]MetricConfig) {
 // This function is safe for concurrent use after initialization.
 func GetMemoryStore() *MemoryStore {
 	if msInstance == nil {
-		cclog.Fatalf("[METRICSTORE]> MemoryStore not initialized!")
+		cclog.Warnf("[METRICSTORE]> MemoryStore not initialized!")
 	}
 
 	return msInstance
