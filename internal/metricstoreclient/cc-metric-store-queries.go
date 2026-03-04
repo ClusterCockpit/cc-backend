@@ -79,17 +79,8 @@ func (ccms *CCMetricStore) buildQueries(
 		}
 
 		// Skip if metric is removed for subcluster
-		if len(mc.SubClusters) != 0 {
-			isRemoved := false
-			for _, scConfig := range mc.SubClusters {
-				if scConfig.Name == job.SubCluster && scConfig.Remove {
-					isRemoved = true
-					break
-				}
-			}
-			if isRemoved {
-				continue
-			}
+		if len(mc.SubClusters) != 0 && metricstore.IsMetricRemovedForSubCluster(mc, job.SubCluster) {
+			continue
 		}
 
 		// Avoid duplicates...
@@ -123,7 +114,7 @@ func (ccms *CCMetricStore) buildQueries(
 				)
 
 				if !ok {
-					return nil, nil, fmt.Errorf("METRICDATA/EXTERNAL-CCMS > TODO: unhandled case: native-scope=%s, requested-scope=%s", nativeScope, requestedScope)
+					return nil, nil, fmt.Errorf("METRICDATA/EXTERNAL-CCMS > unsupported scope transformation: native-scope=%s, requested-scope=%s", nativeScope, requestedScope)
 				}
 
 				for _, sr := range scopeResults {
@@ -175,17 +166,8 @@ func (ccms *CCMetricStore) buildNodeQueries(
 		}
 
 		// Skip if metric is removed for subcluster
-		if mc.SubClusters != nil {
-			isRemoved := false
-			for _, scConfig := range mc.SubClusters {
-				if scConfig.Name == subCluster && scConfig.Remove {
-					isRemoved = true
-					break
-				}
-			}
-			if isRemoved {
-				continue
-			}
+		if mc.SubClusters != nil && metricstore.IsMetricRemovedForSubCluster(mc, subCluster) {
+			continue
 		}
 
 		// Avoid duplicates...
@@ -234,7 +216,7 @@ func (ccms *CCMetricStore) buildNodeQueries(
 				)
 
 				if !ok {
-					return nil, nil, fmt.Errorf("METRICDATA/EXTERNAL-CCMS > TODO: unhandled case: native-scope=%s, requested-scope=%s", nativeScope, requestedScope)
+					return nil, nil, fmt.Errorf("METRICDATA/EXTERNAL-CCMS > unsupported scope transformation: native-scope=%s, requested-scope=%s", nativeScope, requestedScope)
 				}
 
 				for _, sr := range scopeResults {

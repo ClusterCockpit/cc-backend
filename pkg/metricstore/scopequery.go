@@ -303,6 +303,33 @@ func IntToStringSlice(is []int) []string {
 	return ss
 }
 
+// ExtractTypeID returns the type ID at the given index from a query's TypeIds slice.
+// Returns nil if queryType is nil (no type filtering). Logs a warning and returns nil
+// if the index is out of range.
+func ExtractTypeID(queryType *string, typeIds []string, ndx int, metric, hostname string) *string {
+	if queryType == nil {
+		return nil
+	}
+	if ndx < len(typeIds) {
+		id := typeIds[ndx]
+		return &id
+	}
+	cclog.Warnf("TypeIds index out of range: %d with length %d for metric %s on host %s",
+		ndx, len(typeIds), metric, hostname)
+	return nil
+}
+
+// IsMetricRemovedForSubCluster checks whether a metric is marked as removed
+// for the given subcluster in its per-subcluster configuration.
+func IsMetricRemovedForSubCluster(mc *schema.MetricConfig, subCluster string) bool {
+	for _, scConfig := range mc.SubClusters {
+		if scConfig.Name == subCluster && scConfig.Remove {
+			return true
+		}
+	}
+	return false
+}
+
 // SanitizeStats replaces NaN values in statistics with 0 to enable JSON marshaling.
 // If ANY of avg/min/max is NaN, ALL three are zeroed for consistency.
 func SanitizeStats(avg, min, max *schema.Float) {
