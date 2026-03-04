@@ -74,14 +74,12 @@
   ],
   "metric-store": {
     "checkpoints": {
-      "interval": "12h",
       "directory": "./var/checkpoints"
     },
     "memory-cap": 100,
-    "retention-in-memory": "48h",
+    "retention-in-memory": "24h",
     "cleanup": {
       "mode": "archive",
-      "interval": "48h",
       "directory": "./var/archive"
     },
     "nats-subscriptions": [

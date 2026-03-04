@@ -86,9 +86,11 @@ var (
 
 // Checkpointing starts a background worker that periodically saves metric data to disk.
 //
+// Checkpoints are written every 12 hours (hardcoded).
+//
 // Format behaviour:
-//   - "json": Periodic checkpointing based on Keys.Checkpoints.Interval
-//   - "wal":  Periodic binary snapshots + WAL rotation at Keys.Checkpoints.Interval
+//   - "json": Periodic checkpointing every checkpointInterval
+//   - "wal":  Periodic binary snapshots + WAL rotation every checkpointInterval
 func Checkpointing(wg *sync.WaitGroup, ctx context.Context) {
 	lastCheckpointMu.Lock()
 	lastCheckpoint = time.Now()
@@ -98,14 +100,8 @@ func Checkpointing(wg *sync.WaitGroup, ctx context.Context) {
 
 	wg.Go(func() {
 
-		d, err := time.ParseDuration(Keys.Checkpoints.Interval)
-		if err != nil {
-			cclog.Fatalf("[METRICSTORE]> invalid checkpoint interval '%s': %s", Keys.Checkpoints.Interval, err.Error())
-		}
-		if d <= 0 {
-			cclog.Warnf("[METRICSTORE]> checkpoint interval is zero or negative (%s), checkpointing disabled", d)
-			return
-		}
+		const checkpointInterval = 12 * time.Hour
+		d := checkpointInterval
 
 		ticker := time.NewTicker(d)
 		defer ticker.Stop()

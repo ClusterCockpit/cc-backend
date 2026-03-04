@@ -11,15 +11,13 @@
 //
 //	MetricStoreConfig (Keys)
 //	├─ NumWorkers: Parallel checkpoint/archive workers
-//	├─ RetentionInMemory: How long to keep data in RAM
+//	├─ RetentionInMemory: How long to keep data in RAM (also used as cleanup interval)
 //	├─ MemoryCap: Memory limit in bytes (triggers forceFree)
 //	├─ Checkpoints: Persistence configuration
-//	│  ├─ FileFormat: "json" or "wal"
-//	│  ├─ Interval: How often to save (e.g., "1h")
+//	│  ├─ FileFormat: "json" or "wal" (default: "wal")
 //	│  └─ RootDir: Checkpoint storage path
-//	├─ Cleanup: Long-term storage configuration
-//	│  ├─ Interval: How often to delete/archive
-//	│  ├─ RootDir: Archive storage path
+//	├─ Cleanup: Long-term storage configuration (interval = RetentionInMemory)
+//	│  ├─ RootDir: Archive storage path (archive mode only)
 //	│  └─ Mode: "delete" or "archive"
 //	├─ Debug: Development/debugging options
 //	└─ Subscriptions: NATS topic subscriptions for metric ingestion
@@ -61,12 +59,10 @@ const (
 // Checkpoints configures periodic persistence of in-memory metric data.
 //
 // Fields:
-//   - FileFormat: "json" (human-readable, periodic) or "wal" (binary snapshot + WAL, crash-safe)
-//   - Interval:   Duration string (e.g., "1h", "30m") between checkpoint saves
+//   - FileFormat: "json" (human-readable, periodic) or "wal" (binary snapshot + WAL, crash-safe); default is "wal"
 //   - RootDir:    Filesystem path for checkpoint files (created if missing)
 type Checkpoints struct {
 	FileFormat string `json:"file-format"`
-	Interval   string `json:"interval"`
 	RootDir    string `json:"directory"`
 }
 
@@ -80,18 +76,17 @@ type Debug struct {
 	EnableGops bool   `json:"gops"`
 }
 
-// Archive configures long-term storage of old metric data.
+// Cleanup configures long-term storage of old metric data.
 //
 // Data older than RetentionInMemory is archived to disk or deleted.
+// The cleanup interval is always RetentionInMemory.
 //
 // Fields:
-//   - ArchiveInterval: Duration string (e.g., "24h") between archive operations
-//   - RootDir:         Filesystem path for archived data (created if missing)
-//   - DeleteInstead:   If true, delete old data instead of archiving (saves disk space)
+//   - RootDir: Filesystem path for archived data (used in "archive" mode)
+//   - Mode:    "delete" (discard old data) or "archive" (write to RootDir)
 type Cleanup struct {
-	Interval string `json:"interval"`
-	RootDir  string `json:"directory"`
-	Mode     string `json:"mode"`
+	RootDir string `json:"directory"`
+	Mode    string `json:"mode"`
 }
 
 // Subscriptions defines NATS topics to subscribe to for metric ingestion.
@@ -141,7 +136,7 @@ type MetricStoreConfig struct {
 // Accessed by Init(), Checkpointing(), and other lifecycle functions.
 var Keys MetricStoreConfig = MetricStoreConfig{
 	Checkpoints: Checkpoints{
-		FileFormat: "json",
+		FileFormat: "wal",
 		RootDir:    "./var/checkpoints",
 	},
 	Cleanup: &Cleanup{

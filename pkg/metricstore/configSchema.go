@@ -18,35 +18,26 @@ const configSchema = `{
       "type": "object",
       "properties": {
         "file-format": {
-          "description": "Specify the format for checkpoint files. Two variants: 'json' (human-readable, periodic) and 'wal' (binary snapshot + Write-Ahead Log, crash-safe). Default is 'json'.",
-          "type": "string"
-        },
-        "interval": {
-          "description": "Interval at which the metrics should be checkpointed.",
+          "description": "Specify the format for checkpoint files. Two variants: 'json' (human-readable, periodic) and 'wal' (binary snapshot + Write-Ahead Log, crash-safe). Default is 'wal'.",
           "type": "string"
         },
         "directory": {
           "description": "Path in which the checkpointed files should be placed.",
           "type": "string"
         }
-      },
-      "required": ["interval"]
+      }
     },
     "cleanup": {
-      "description": "Configuration for the cleanup process.",
+      "description": "Configuration for the cleanup process. The cleanup interval is always 'retention-in-memory'.",
       "type": "object",
       "properties": {
         "mode": {
           "description": "The operation mode (e.g., 'archive' or 'delete').",
           "type": "string",
-          "enum": ["archive", "delete"] 
-        },
-        "interval": {
-          "description": "Interval at which the cleanup runs.",
-          "type": "string"
+          "enum": ["archive", "delete"]
         },
         "directory": {
-          "description": "Target directory for operations.",
+          "description": "Target directory for archive operations.",
           "type": "string"
         }
       },
@@ -56,7 +47,7 @@ const configSchema = `{
         }
       },
       "then": {
-        "required": ["interval", "directory"]
+        "required": ["directory"]
       }
     },
     "retention-in-memory": {
@@ -86,5 +77,5 @@ const configSchema = `{
       }
     }
   },
-  "required": ["checkpoints", "retention-in-memory", "memory-cap"]
+  "required": ["retention-in-memory", "memory-cap"]
 }`
