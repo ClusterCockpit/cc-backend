@@ -1,0 +1,5 @@
+The buildQueries logic on @pkg/metricstore/query.go  is diverged from the buildQueries logic in @internal/metricstoreclient/cc-metric-store-queries.go . As it appears the latter is the cleaner implementation. Analyse the difference, synchronize and evaluate if the code can be consolidated.
+
+---
+
+[Request interrupted by user for tool use]
