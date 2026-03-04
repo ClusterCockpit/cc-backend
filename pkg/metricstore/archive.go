@@ -24,19 +24,15 @@ func CleanUp(wg *sync.WaitGroup, ctx context.Context) {
 	if Keys.Cleanup.Mode == "archive" {
 		// Run as Archiver
 		cleanUpWorker(wg, ctx,
-			Keys.Cleanup.Interval,
+			Keys.RetentionInMemory,
 			"archiving",
 			Keys.Cleanup.RootDir,
 			false,
 		)
 	} else {
-		if Keys.Cleanup.Interval == "" {
-			Keys.Cleanup.Interval = Keys.RetentionInMemory
-		}
-
 		// Run as Deleter
 		cleanUpWorker(wg, ctx,
-			Keys.Cleanup.Interval,
+			Keys.RetentionInMemory,
 			"deleting",
 			"",
 			true,
