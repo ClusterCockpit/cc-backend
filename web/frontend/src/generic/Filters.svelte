@@ -206,7 +206,7 @@
       items.push({ duration: { to: filters.duration.lessThan, from: 0 } });
     if (filters.duration.moreThan)
       items.push({ duration: { to: 0, from: filters.duration.moreThan } });
-    if (filters.energy.from || filters.energy.to)
+    if (filters.energy.from != null || filters.energy.to != null)
       items.push({
         energy: { from: filters.energy.from, to: filters.energy.to },
       });
@@ -301,11 +301,20 @@
     if (filters.node) opts.push(`node=${filters.node}`);
     if (filters.node && filters.nodeMatch != "eq") // "eq" is default-case
       opts.push(`nodeMatch=${filters.nodeMatch}`);
-    if (filters.energy.from && filters.energy.to)
+    if (filters.energy.from > 1 && filters.energy.to > 0)
       opts.push(`energy=${filters.energy.from}-${filters.energy.to}`);
-    if (filters.stats.length != 0)
+    else if (filters.energy.from > 1 && filters.energy.to == 0)
+      opts.push(`energy=morethan-${filters.energy.from}`);
+    else if (filters.energy.from == 1 && filters.energy.to > 0)
+      opts.push(`energy=lessthan-${filters.energy.to}`);
+    if (filters.stats.length > 0)
       for (let stat of filters.stats) {
+        if (stat.from > 1 && stat.to > 0)
           opts.push(`stat=${stat.field}-${stat.from}-${stat.to}`);
+        else if (stat.from > 1 && stat.to == 0)
+          opts.push(`stat=${stat.field}-morethan-${stat.from}`);
+        else if (stat.from == 1 && stat.to > 0)
+          opts.push(`stat=${stat.field}-lessthan-${stat.to}`);
       }
     // Build && Return
     if (opts.length == 0 && window.location.search.length <= 1) return;
@@ -550,18 +559,36 @@
     </Info>
   {/if}
 
-  {#if filters.energy.from || filters.energy.to}
+  {#if filters.energy.from > 1 && filters.energy.to > 0}
     <Info icon="lightning-charge-fill" onclick={() => (isEnergyOpen = true)}>
-      Total Energy: {filters.energy.from} - {filters.energy.to}
+      Total Energy: {filters.energy.from} - {filters.energy.to} kWh
+    </Info>
+  {:else if filters.energy.from > 1 && filters.energy.to == 0}
+    <Info icon="lightning-charge-fill" onclick={() => (isEnergyOpen = true)}>
+      Total Energy &ge;&nbsp;{filters.energy.from} kWh
+    </Info>
+  {:else if filters.energy.from == 1 && filters.energy.to > 0}
+    <Info icon="lightning-charge-fill" onclick={() => (isEnergyOpen = true)}>
+      Total Energy &le;&nbsp;{filters.energy.to} kWh
     </Info>
   {/if}
 
   {#if filters.stats.length > 0}
-    <Info icon="bar-chart" onclick={() => (isStatsOpen = true)}>
-      {filters.stats
-        .map((stat) => `${stat.field}: ${stat.from} - ${stat.to}`)
-        .join(", ")}
-    </Info>
+    {#each filters.stats as stat}
+      {#if stat.from > 1 && stat.to > 0}
+        <Info icon="bar-chart" onclick={() => (isStatsOpen = true)}>
+          {stat.field}: {stat.from} - {stat.to} {stat.unit}
+        </Info>&thinsp;
+      {:else if stat.from > 1 && stat.to == 0}
+        <Info icon="bar-chart" onclick={() => (isStatsOpen = true)}>
+          {stat.field} &ge;&nbsp;{stat.from} {stat.unit}
+        </Info>&thinsp;
+      {:else if stat.from == 1 && stat.to > 0}
+        <Info icon="bar-chart" onclick={() => (isStatsOpen = true)}>
+          {stat.field} &le;&nbsp;{stat.to} {stat.unit}
+        </Info>&thinsp;
+      {/if}
+    {/each}
   {/if}
 {/if}
 

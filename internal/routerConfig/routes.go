@@ -405,10 +405,22 @@ func buildFilterPresets(query url.Values) map[string]any {
 	if query.Get("energy") != "" {
 		parts := strings.Split(query.Get("energy"), "-")
 		if len(parts) == 2 {
-			a, e1 := strconv.Atoi(parts[0])
-			b, e2 := strconv.Atoi(parts[1])
-			if e1 == nil && e2 == nil {
-				filterPresets["energy"] = map[string]int{"from": a, "to": b}
+			if parts[0] == "lessthan" {
+				lt, lte := strconv.Atoi(parts[1])
+				if lte == nil {
+					filterPresets["energy"] = map[string]int{"from": 1, "to": lt}
+				}
+			} else if parts[0] == "morethan" {
+				mt, mte := strconv.Atoi(parts[1])
+				if mte == nil {
+					filterPresets["energy"] = map[string]int{"from": mt, "to": 0}
+				}
+			} else {
+				a, e1 := strconv.Atoi(parts[0])
+				b, e2 := strconv.Atoi(parts[1])
+				if e1 == nil && e2 == nil {
+					filterPresets["energy"] = map[string]int{"from": a, "to": b}
+				}
 			}
 		}
 	}
@@ -417,15 +429,37 @@ func buildFilterPresets(query url.Values) map[string]any {
 		for _, statEntry := range query["stat"] {
 			parts := strings.Split(statEntry, "-")
 			if len(parts) == 3 { // Metric Footprint Stat Field, from - to
-				a, e1 := strconv.ParseInt(parts[1], 10, 64)
-				b, e2 := strconv.ParseInt(parts[2], 10, 64)
-				if e1 == nil && e2 == nil {
-					statEntry := map[string]any{
-						"field": parts[0],
-						"from":  a,
-						"to":    b,
+				if parts[1] == "lessthan" {
+					lt, lte := strconv.ParseInt(parts[2], 10, 64)
+					if lte == nil {
+						statEntry := map[string]any{
+							"field": parts[0],
+							"from":  1,
+							"to":    lt,
+						}
+						statList = append(statList, statEntry)
 					}
-					statList = append(statList, statEntry)
+				} else if parts[1] == "morethan" {
+					mt, mte := strconv.ParseInt(parts[2], 10, 64)
+					if mte == nil {
+						statEntry := map[string]any{
+							"field": parts[0],
+							"from":  mt,
+							"to":    0,
+						}
+						statList = append(statList, statEntry)
+					}
+				} else {
+					a, e1 := strconv.ParseInt(parts[1], 10, 64)
+					b, e2 := strconv.ParseInt(parts[2], 10, 64)
+					if e1 == nil && e2 == nil {
+						statEntry := map[string]any{
+							"field": parts[0],
+							"from":  a,
+							"to":    b,
+						}
+						statList = append(statList, statEntry)
+					}
 				}
 			}
 		}

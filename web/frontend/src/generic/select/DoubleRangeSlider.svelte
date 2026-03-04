@@ -165,11 +165,11 @@
       }}
     />
 
-    {#if inputFieldFrom != "1" && inputFieldTo != sliderMax?.toString() }
+    {#if inputFieldFrom != sliderMin?.toString() && inputFieldTo != sliderMax?.toString() }
       <span>Selected: Range <b> {inputFieldFrom} </b> - <b> {inputFieldTo} </b></span>
-    {:else if inputFieldFrom != "1" && inputFieldTo == sliderMax?.toString() }
+    {:else if inputFieldFrom != sliderMin?.toString() && inputFieldTo == sliderMax?.toString() }
       <span>Selected: More than <b> {inputFieldFrom} </b> </span>
-    {:else if inputFieldFrom == "1" && inputFieldTo != sliderMax?.toString() }
+    {:else if inputFieldFrom == sliderMin?.toString() && inputFieldTo != sliderMax?.toString() }
       <span>Selected: Less than <b> {inputFieldTo} </b></span>
     {:else}
       <span><i>No Selection</i></span>
