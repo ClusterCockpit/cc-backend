@@ -77,7 +77,7 @@
       "directory": "./var/checkpoints"
     },
     "memory-cap": 100,
-    "retention-in-memory": "48h",
+    "retention-in-memory": "24h",
     "cleanup": {
       "mode": "archive",
       "directory": "./var/archive"
