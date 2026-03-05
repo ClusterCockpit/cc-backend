@@ -7,9 +7,9 @@
     "dev": "rollup -c -w"
   },
   "devDependencies": {
-    "@rollup/plugin-commonjs": "^29.0.0",
+    "@rollup/plugin-commonjs": "^29.0.1",
     "@rollup/plugin-node-resolve": "^16.0.3",
-    "@rollup/plugin-terser": "^0.4.4",
+    "@rollup/plugin-terser": "^1.0.0",
     "@timohausmann/quadtree-js": "^1.2.6",
     "rollup": "^4.59.0",
     "rollup-plugin-css-only": "^4.5.5",
@@ -22,7 +22,7 @@
     "@urql/svelte": "^4.2.3",
     "chart.js": "^4.5.1",
     "date-fns": "^4.1.0",
-    "graphql": "^16.13.0",
+    "graphql": "^16.13.1",
     "mathjs": "^15.1.1",
     "uplot": "^1.6.32",
     "wonka": "^6.3.5"
