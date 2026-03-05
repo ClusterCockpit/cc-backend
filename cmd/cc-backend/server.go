@@ -424,7 +424,11 @@ func (s *Server) Shutdown(ctx context.Context) {
 	}
 
 	// Archive all the metric store data
-	metricstore.Shutdown()
+	ms := metricstore.GetMemoryStore()
+
+	if ms != nil {
+		metricstore.Shutdown()
+	}
 
 	// Shutdown archiver with 10 second timeout for fast shutdown
 	if err := archiver.Shutdown(10 * time.Second); err != nil {
