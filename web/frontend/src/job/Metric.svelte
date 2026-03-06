@@ -178,8 +178,6 @@
       timestep={selectedData.timestep}
       scope={selectedScope}
       metric={metricName}
-      numaccs={job.numAcc}
-      numhwthreads={job.numHWThreads}
       series={selectedSeries}
       {isShared}
       {zoomState}
@@ -194,8 +192,6 @@
       timestep={selectedData.timestep}
       scope={selectedScope}
       metric={metricName}
-      numaccs={job.numAcc}
-      numhwthreads={job.numHWThreads}
       series={selectedSeries}
       {isShared}
       {zoomState}
