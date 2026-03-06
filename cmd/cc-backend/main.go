@@ -395,6 +395,7 @@ func runServer(ctx context.Context) error {
 
 	// Set GC percent if not configured
 	if os.Getenv(envGOGC) == "" {
+		// trigger GC when heap grows 15% above the previous live set
 		debug.SetGCPercent(15)
 	}
 	runtime.SystemdNotify(true, "running")

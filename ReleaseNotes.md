@@ -271,6 +271,8 @@ For release specific notes visit the [ClusterCockpit Documentation](https://clus
 
 ## Known issues
 
+- The new dynamic memory management is not bullet proof yet across restarts. We
+  will fix that in a subsequent patch release
 - Currently energy footprint metrics of type energy are ignored for calculating
   total energy.
 - With energy footprint metrics of type power the unit is ignored and it is

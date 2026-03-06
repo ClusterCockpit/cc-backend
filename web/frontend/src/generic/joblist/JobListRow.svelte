@@ -234,8 +234,6 @@
             cluster={clusterInfos.find((c) => c.name == job.cluster)}
             subCluster={job.subCluster}
             isShared={job.shared != "none"}
-            numhwthreads={job.numHWThreads}
-            numaccs={job.numAcc}
             zoomState={zoomStates[metric.data.name] || null}
             thresholdState={thresholdStates[metric.data.name] || null}
             {plotSync}
