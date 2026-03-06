@@ -300,11 +300,11 @@
       let divisor;
       if (scope == 'node')              divisor = 1 // Node Scope: Always return unscaled (Maximum Scope)
       // Partial Scopes: Get from Topologies
-      else if (scope == 'socket')       divisor = subClusterTopology.socket.length;
-      else if (scope == "memoryDomain") divisor = subClusterTopology.memoryDomain.length;
-      else if (scope == "core")         divisor = subClusterTopology.core.length;
-      else if (scope == "hwthread")     divisor = subClusterTopology.node.length;
-      else if (scope == "accelerator")  divisor = subClusterTopology.accelerators.length;
+      else if (scope == 'socket')       divisor = subClusterTopology?.socket?.length || 1;
+      else if (scope == "memoryDomain") divisor = subClusterTopology?.memoryDomain?.length || 1;
+      else if (scope == "core")         divisor = subClusterTopology?.core?.length || 1;
+      else if (scope == "hwthread")     divisor = subClusterTopology?.node?.length || 1;
+      else if (scope == "accelerator")  divisor = subClusterTopology?.accelerators?.length || 1;
       else {
         console.log('Unknown scope, return default aggregation thresholds for sum', scope)
         divisor = 1;
