@@ -21,10 +21,11 @@ import (
 // is added to internal/repository/migrations/sqlite3/.
 //
 // Version history:
-//   - Version 10: Current version
+//   - Version 11: Add expression indexes on footprint JSON fields
+//   - Version 10: Previous version
 //
 // Migration files are embedded at build time from the migrations directory.
-const Version uint = 10
+const Version uint = 11
 
 //go:embed migrations/*
 var migrationFiles embed.FS

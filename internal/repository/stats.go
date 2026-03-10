@@ -921,16 +921,14 @@ func (r *JobRepository) jobsMetricStatisticsHistogram(
 	// Special case: value == peak would create bin N+1, so we test for equality
 	// and multiply peak by 0.999999999 to force it into bin N.
 	binQuery := fmt.Sprintf(`CAST(
-		((case when json_extract(footprint, "$.%s") = %f then %f*0.999999999 else json_extract(footprint, "$.%s") end) / %f)
+		((case when json_extract(footprint, '$.%s') = %f then %f*0.999999999 else json_extract(footprint, '$.%s') end) / %f)
 		* %v as INTEGER )`,
 		(metric + "_" + footprintStat), peak, peak, (metric + "_" + footprintStat), peak, *bins)
 
 	mainQuery := sq.Select(
 		fmt.Sprintf(`%s + 1 as bin`, binQuery),
 		`count(*) as count`,
-	).From("job").Where(
-		"JSON_VALID(footprint)",
-	).Where(fmt.Sprintf(`json_extract(footprint, "$.%s") is not null and json_extract(footprint, "$.%s") <= %f`, (metric + "_" + footprintStat), (metric + "_" + footprintStat), peak))
+	).From("job").Where(fmt.Sprintf(`json_extract(footprint, '$.%s') is not null and json_extract(footprint, '$.%s') <= %f`, (metric + "_" + footprintStat), (metric + "_" + footprintStat), peak))
 
 	mainQuery, qerr := SecurityCheck(ctx, mainQuery)
 	if qerr != nil {
