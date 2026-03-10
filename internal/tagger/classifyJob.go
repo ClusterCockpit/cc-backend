@@ -10,6 +10,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"maps"
+	"math"
 	"os"
 	"path/filepath"
 	"strings"
@@ -109,6 +110,29 @@ type JobClassTagger struct {
 	getStatistics func(job *schema.Job) (map[string]schema.JobStatistics, error)
 	// getMetricConfig retrieves metric configuration (limits) for a cluster
 	getMetricConfig func(cluster, subCluster string) map[string]*schema.Metric
+}
+
+// roundEnv returns a copy of env with all float64 values rounded to 2 decimal places.
+// Nested map[string]any and map[string]float64 values are recursed into.
+func roundEnv(env map[string]any) map[string]any {
+	rounded := make(map[string]any, len(env))
+	for k, v := range env {
+		switch val := v.(type) {
+		case float64:
+			rounded[k] = math.Round(val*100) / 100
+		case map[string]any:
+			rounded[k] = roundEnv(val)
+		case map[string]float64:
+			rm := make(map[string]float64, len(val))
+			for mk, mv := range val {
+				rm[mk] = math.Round(mv*100) / 100
+			}
+			rounded[k] = rm
+		default:
+			rounded[k] = v
+		}
+	}
+	return rounded
 }
 
 func (t *JobClassTagger) prepareRule(b []byte, fns string) {
@@ -408,7 +432,7 @@ func (t *JobClassTagger) Match(job *schema.Job) {
 
 			// process hint template
 			var msg bytes.Buffer
-			if err := ri.hint.Execute(&msg, env); err != nil {
+			if err := ri.hint.Execute(&msg, roundEnv(env)); err != nil {
 				cclog.Errorf("Template error: %s", err.Error())
 				continue
 			}
