@@ -1,0 +1,33 @@
+{
+  "cli_version": "0.5.0",
+  "checkpoint_id": "b68850c6fcff",
+  "session_id": "93c63f8c-809e-42db-9531-483bd3d4c502",
+  "strategy": "manual-commit",
+  "created_at": "2026-03-10T05:01:32.068904Z",
+  "branch": "hotfix",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "internal/tagger/classifyJob.go"
+  ],
+  "agent": "Claude Code",
+  "turn_id": "2ed358a05d36",
+  "token_usage": {
+    "input_tokens": 8,
+    "cache_creation_tokens": 11936,
+    "cache_read_tokens": 126814,
+    "output_tokens": 1109,
+    "api_call_count": 6
+  },
+  "session_metrics": {
+    "turn_count": 1
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-03-10T05:01:32.014478Z",
+    "agent_lines": 25,
+    "human_added": 0,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 25,
+    "agent_percentage": 100
+  }
+}
