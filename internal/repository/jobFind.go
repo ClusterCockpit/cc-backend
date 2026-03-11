@@ -171,7 +171,7 @@ func (r *JobRepository) FindByID(ctx context.Context, jobID int64) (*schema.Job,
 		return nil, qerr
 	}
 
-	return scanJob(q.RunWith(r.stmtCache).QueryRow())
+	return scanJob(q.RunWith(r.stmtCache).QueryRowContext(ctx))
 }
 
 // FindByIDWithUser executes a SQL query to find a specific batch job.
@@ -217,7 +217,7 @@ func (r *JobRepository) FindByJobID(ctx context.Context, jobID int64, startTime 
 		return nil, qerr
 	}
 
-	return scanJob(q.RunWith(r.stmtCache).QueryRow())
+	return scanJob(q.RunWith(r.stmtCache).QueryRowContext(ctx))
 }
 
 // IsJobOwner checks if the specified user owns the batch job identified by jobID,

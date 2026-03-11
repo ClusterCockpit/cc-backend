@@ -36,9 +36,10 @@ type DatabaseOptions struct {
 	ConnectionMaxIdleTime time.Duration
 }
 
-func setupSqlite(db *sql.DB) error {
+func setupSqlite(db *sql.DB, cfg *RepositoryConfig) error {
 	pragmas := []string{
 		"temp_store = memory",
+		fmt.Sprintf("soft_heap_limit = %d", int64(cfg.DbSoftHeapLimitMB)*1024*1024),
 	}
 
 	for _, pragma := range pragmas {
@@ -79,7 +80,8 @@ func Connect(db string) {
 		connectionURLParams.Add("_journal_mode", "WAL")
 		connectionURLParams.Add("_busy_timeout", "5000")
 		connectionURLParams.Add("_synchronous", "NORMAL")
-		connectionURLParams.Add("_cache_size", "1000000000")
+		cacheSizeKiB := repoConfig.DbCacheSizeMB * 1024 // Convert MB to KiB
+		connectionURLParams.Add("_cache_size", fmt.Sprintf("-%d", cacheSizeKiB))
 		connectionURLParams.Add("_foreign_keys", "true")
 		opts.URL = fmt.Sprintf("file:%s?%s", opts.URL, connectionURLParams.Encode())
 
@@ -94,10 +96,13 @@ func Connect(db string) {
 			cclog.Abortf("DB Connection: Could not connect to SQLite database with sqlx.Open().\nError: %s\n", err.Error())
 		}
 
-		err = setupSqlite(dbHandle.DB)
+		err = setupSqlite(dbHandle.DB, repoConfig)
 		if err != nil {
 			cclog.Abortf("Failed sqlite db setup.\nError: %s\n", err.Error())
 		}
+
+		cclog.Infof("SQLite config: cache_size=%dMB/conn, soft_heap_limit=%dMB, max_conns=%d",
+			repoConfig.DbCacheSizeMB, repoConfig.DbSoftHeapLimitMB, repoConfig.MaxOpenConnections)
 
 		dbHandle.SetMaxOpenConns(opts.MaxOpenConnections)
 		dbHandle.SetMaxIdleConns(opts.MaxIdleConnections)

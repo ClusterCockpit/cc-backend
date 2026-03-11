@@ -230,7 +230,7 @@ func (r *JobRepository) JobsStatsGrouped(
 		query = query.Offset((uint64(page.Page) - 1) * limit).Limit(limit)
 	}
 
-	rows, err := query.RunWith(r.DB).Query()
+	rows, err := query.RunWith(r.DB).QueryContext(ctx)
 	if err != nil {
 		cclog.Warn("Error while querying DB for job statistics")
 		return nil, err
@@ -355,7 +355,7 @@ func (r *JobRepository) JobsStats(
 		return nil, err
 	}
 
-	row := query.RunWith(r.DB).QueryRow()
+	row := query.RunWith(r.DB).QueryRowContext(ctx)
 	stats := make([]*model.JobsStatistics, 0, 1)
 
 	var jobs, users, walltime, nodes, nodeHours, cores, coreHours, accs, accHours sql.NullInt64
@@ -440,7 +440,7 @@ func (r *JobRepository) JobCountGrouped(
 	if err != nil {
 		return nil, err
 	}
-	rows, err := query.RunWith(r.DB).Query()
+	rows, err := query.RunWith(r.DB).QueryContext(ctx)
 	if err != nil {
 		cclog.Warn("Error while querying DB for job statistics")
 		return nil, err
@@ -501,7 +501,7 @@ func (r *JobRepository) AddJobCountGrouped(
 	if err != nil {
 		return nil, err
 	}
-	rows, err := query.RunWith(r.DB).Query()
+	rows, err := query.RunWith(r.DB).QueryContext(ctx)
 	if err != nil {
 		cclog.Warn("Error while querying DB for job statistics")
 		return nil, err
@@ -566,7 +566,7 @@ func (r *JobRepository) AddJobCount(
 		return nil, err
 	}
 	var cnt sql.NullInt64
-	if err := query.RunWith(r.DB).QueryRow().Scan(&cnt); err != nil {
+	if err := query.RunWith(r.DB).QueryRowContext(ctx).Scan(&cnt); err != nil {
 		cclog.Warn("Error while querying DB for job count")
 		return nil, err
 	}
@@ -755,7 +755,7 @@ func (r *JobRepository) jobsStatisticsHistogram(
 		query = BuildWhereClause(f, query)
 	}
 
-	rows, err := query.GroupBy("value").RunWith(r.DB).Query()
+	rows, err := query.GroupBy("value").RunWith(r.DB).QueryContext(ctx)
 	if err != nil {
 		cclog.Error("Error while running query")
 		return nil, err
@@ -829,7 +829,7 @@ func (r *JobRepository) jobsDurationStatisticsHistogram(
 		query = BuildWhereClause(f, query)
 	}
 
-	rows, err := query.GroupBy("value").RunWith(r.DB).Query()
+	rows, err := query.GroupBy("value").RunWith(r.DB).QueryContext(ctx)
 	if err != nil {
 		cclog.Error("Error while running query")
 		return nil, err
@@ -959,7 +959,7 @@ func (r *JobRepository) jobsMetricStatisticsHistogram(
 
 	mainQuery = mainQuery.GroupBy("bin").OrderBy("bin")
 
-	rows, err := mainQuery.RunWith(r.DB).Query()
+	rows, err := mainQuery.RunWith(r.DB).QueryContext(ctx)
 	if err != nil {
 		cclog.Errorf("Error while running mainQuery: %s", err)
 		return nil, err

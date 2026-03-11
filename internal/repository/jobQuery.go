@@ -84,7 +84,7 @@ func (r *JobRepository) QueryJobs(
 		query = BuildWhereClause(f, query)
 	}
 
-	rows, err := query.RunWith(r.stmtCache).Query()
+	rows, err := query.RunWith(r.stmtCache).QueryContext(ctx)
 	if err != nil {
 		queryString, queryVars, _ := query.ToSql()
 		return nil, fmt.Errorf("query failed [%s] %v: %w", queryString, queryVars, err)
@@ -126,7 +126,7 @@ func (r *JobRepository) CountJobs(
 	}
 
 	var count int
-	if err := query.RunWith(r.DB).Scan(&count); err != nil {
+	if err := query.RunWith(r.DB).QueryRowContext(ctx).Scan(&count); err != nil {
 		return 0, fmt.Errorf("failed to count jobs: %w", err)
 	}
 

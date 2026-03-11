@@ -108,6 +108,26 @@ func initConfiguration() error {
 }
 
 func initDatabase() error {
+	if config.Keys.DbConfig != nil {
+		cfg := repository.DefaultConfig()
+		dc := config.Keys.DbConfig
+		if dc.CacheSizeMB > 0 {
+			cfg.DbCacheSizeMB = dc.CacheSizeMB
+		}
+		if dc.SoftHeapLimitMB > 0 {
+			cfg.DbSoftHeapLimitMB = dc.SoftHeapLimitMB
+		}
+		if dc.MaxOpenConnections > 0 {
+			cfg.MaxOpenConnections = dc.MaxOpenConnections
+		}
+		if dc.MaxIdleConnections > 0 {
+			cfg.MaxIdleConnections = dc.MaxIdleConnections
+		}
+		if dc.ConnectionMaxIdleTimeMins > 0 {
+			cfg.ConnectionMaxIdleTime = time.Duration(dc.ConnectionMaxIdleTimeMins) * time.Minute
+		}
+		repository.SetConfig(cfg)
+	}
 	repository.Connect(config.Keys.DB)
 	return nil
 }
