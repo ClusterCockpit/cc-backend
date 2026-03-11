@@ -13,7 +13,7 @@ import (
 
 	"github.com/ClusterCockpit/cc-backend/internal/repository"
 	"github.com/ClusterCockpit/cc-backend/pkg/archive"
-	"github.com/ClusterCockpit/cc-lib/schema"
+	"github.com/ClusterCockpit/cc-lib/v2/schema"
 )
 
 // GetClustersAPIResponse model
@@ -27,7 +27,7 @@ type GetClustersAPIResponse struct {
 // @description Get a list of all cluster configs. Specific cluster can be requested using query parameter.
 // @produce     json
 // @param       cluster        query    string            false "Job Cluster"
-// @success     200            {object} api.GetClustersApiResponse  "Array of clusters"
+// @success     200            {object} api.GetClustersAPIResponse  "Array of clusters"
 // @failure     400            {object} api.ErrorResponse       "Bad Request"
 // @failure     401            {object} api.ErrorResponse       "Unauthorized"
 // @failure     403            {object} api.ErrorResponse       "Forbidden"
@@ -36,9 +36,9 @@ type GetClustersAPIResponse struct {
 // @router      /api/clusters/ [get]
 func (api *RestAPI) getClusters(rw http.ResponseWriter, r *http.Request) {
 	if user := repository.GetUserFromContext(r.Context()); user != nil &&
-		!user.HasRole(schema.RoleApi) {
+		!user.HasRole(schema.RoleAPI) {
 
-		handleError(fmt.Errorf("missing role: %v", schema.GetRoleString(schema.RoleApi)), http.StatusForbidden, rw)
+		handleError(fmt.Errorf("missing role: %v", schema.GetRoleString(schema.RoleAPI)), http.StatusForbidden, rw)
 		return
 	}
 

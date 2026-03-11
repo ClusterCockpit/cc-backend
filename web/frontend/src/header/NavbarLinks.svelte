@@ -2,8 +2,8 @@
   @component Navbar component; renders in app navigation links as received from upstream
 
   Properties:
-  - `clusters [String]`: List of cluster names
-  - `subClusters map[String][]string`: Map of subclusters by cluster names
+  - `clusterNames [String]`: List of cluster names
+  - `subclusterMap map[String][]string`: Map of subclusters by cluster names
   - `links [Object]`: Pre-filtered link objects based on user auth
   - `direction String?`: The direcion of the drop-down menue [default: down]
 -->
@@ -20,8 +20,8 @@
 
   /* Svelte 5 Props */
   let {
-    clusters,
-    subClusters,
+    clusterNames,
+    subclusterMap,
     links,
     direction = "down"
   } = $props();
@@ -36,27 +36,27 @@
           {item.title}
         </DropdownToggle>
         <DropdownMenu class="dropdown-menu-lg-end">
-          {#each clusters as cluster}
+          {#each clusterNames as cn}
             <Dropdown nav direction="right">
               <DropdownToggle nav caret class="dropdown-item py-1 px-2">
-                {cluster.name}
+                {cn}
               </DropdownToggle>
               <DropdownMenu>
                 <DropdownItem class="py-1 px-2"
-                  href={item.href + cluster.name}
+                  href={item.href + cn}
                 >
                   Node Overview
                 </DropdownItem>
                 <DropdownItem class="py-1 px-2"
-                  href={item.href + 'list/' + cluster.name}
+                  href={`${item.href}list/${cn}`}
                 >
                   Node List
                 </DropdownItem>
-                {#each subClusters[cluster.name] as subCluster}
+                {#each subclusterMap[cn] as scn}
                   <DropdownItem class="py-1 px-2"
-                    href={item.href + 'list/' + cluster.name + '/' + subCluster}
+                    href={`${item.href}list/${cn}/${scn}`}
                   >
-                  {subCluster} Node List
+                  {scn} Node List
                   </DropdownItem>
                 {/each}
               </DropdownMenu>
@@ -64,7 +64,35 @@
           {/each}
         </DropdownMenu>
       </Dropdown>
-    {:else}
+    {:else if item.title === 'Status'}
+      <Dropdown nav inNavbar {direction}>
+        <DropdownToggle nav caret>
+          <Icon name={item.icon} />
+          {item.title}
+        </DropdownToggle>
+        <DropdownMenu class="dropdown-menu-lg-end">
+          {#each clusterNames as cn}
+            <Dropdown nav direction="right">
+              <DropdownToggle nav caret class="dropdown-item py-1 px-2">
+                {cn}
+              </DropdownToggle>
+              <DropdownMenu>
+                <DropdownItem class="py-1 px-2"
+                  href={item.href + cn}
+                >
+                  Status Dashboard
+                </DropdownItem>
+                <DropdownItem class="py-1 px-2"
+                  href={`${item.href}detail/${cn}`}
+                >
+                  Status Details
+                </DropdownItem>
+              </DropdownMenu>
+            </Dropdown>
+          {/each}
+        </DropdownMenu>
+      </Dropdown>
+    {:else} <!-- Lists -->
       <Dropdown nav inNavbar {direction}>
         <DropdownToggle nav caret>
           <Icon name={item.icon} />
@@ -72,24 +100,24 @@
         </DropdownToggle>
         <DropdownMenu class="dropdown-menu-lg-end">
           <DropdownItem
-            href={item.href}
+            href={`${item.href}?startTime=last30d`}
           >
             All Clusters
           </DropdownItem>
           <DropdownItem divider />
-          {#each clusters as cluster}
+          {#each clusterNames as cn}
             <Dropdown nav direction="right">
               <DropdownToggle nav caret class="dropdown-item py-1 px-2">
-                {cluster.name}
+                {cn}
               </DropdownToggle>
               <DropdownMenu>
                 <DropdownItem class="py-1 px-2"
-                  href={item.href + '?cluster=' + cluster.name}
+                  href={`${item.href}?cluster=${cn}&startTime=last30d`}
                 >
                   All Jobs
                 </DropdownItem>
                 <DropdownItem class="py-1 px-2"
-                  href={item.href + '?cluster=' + cluster.name + '&state=running'}
+                  href={`${item.href}?cluster=${cn}&state=running&startTime=last30d`}
                 >
                   Running Jobs
                 </DropdownItem>
@@ -110,12 +138,12 @@
         {item.title}
       </DropdownToggle>
       <DropdownMenu class="dropdown-menu-lg-end">
-        {#each clusters as cluster}
+        {#each clusterNames as cn}
           <DropdownItem
-            href={item.href + cluster.name}
-            active={window.location.pathname == item.href + cluster.name}
+            href={item.href + cn}
+            active={window.location.pathname == item.href + cn}
           >
-            {cluster.name}
+            {cn}
           </DropdownItem>
         {/each}
       </DropdownMenu>

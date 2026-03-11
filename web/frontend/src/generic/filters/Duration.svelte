@@ -31,15 +31,16 @@
     setFilter
   } = $props();
 
-  /* State Init */
-  let pendingDuration = $state(presetDuration);
-  let lessState = $state(secsToHoursAndMins(presetDuration?.lessThan));
-  let moreState = $state(secsToHoursAndMins(presetDuration?.moreThan));
-  let fromState = $state(secsToHoursAndMins(presetDuration?.from));
-  let toState = $state(secsToHoursAndMins(presetDuration?.to));
+  /* States */
+  let lessState = $state({ hours:0, mins:0 });
+  let moreState = $state({ hours:0, mins:0 });
+  let fromState = $state({ hours:0, mins:0 });
+  let toState = $state({ hours:0, mins:0 });
 
-  /* Derived Init */
-  const lessDisabled = $derived(
+  /* Derived */
+  let pendingDuration = $derived(presetDuration);
+
+  let lessDisabled = $derived(
     moreState.hours !== 0 ||
     moreState.mins !== 0 ||
     fromState.hours !== 0 ||
@@ -48,7 +49,7 @@
     toState.mins !== 0
   );
 
-  const moreDisabled = $derived(
+  let moreDisabled = $derived(
     lessState.hours !== 0 ||
     lessState.mins !== 0 ||
     fromState.hours !== 0 ||
@@ -57,12 +58,26 @@
     toState.mins !== 0
   );
 
-  const betweenDisabled = $derived(
+  let betweenDisabled = $derived(
     moreState.hours !== 0 ||
     moreState.mins !== 0 ||
     lessState.hours !== 0 ||
     lessState.mins !== 0
   )
+
+  /* Effects */
+  $effect(() => {
+    lessState = secsToHoursAndMins(pendingDuration?.lessThan);
+  });
+  $effect(() => {
+    moreState = secsToHoursAndMins(pendingDuration?.moreThan);
+  });
+  $effect(() => {
+    fromState = secsToHoursAndMins(pendingDuration?.from);
+  });
+  $effect(() => {
+    toState = secsToHoursAndMins(pendingDuration?.to);
+  });
 
   /* Functions */
   function resetPending() {

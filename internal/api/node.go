@@ -7,17 +7,31 @@ package api
 
 import (
 	"fmt"
+	"maps"
 	"net/http"
 	"strings"
 	"time"
 
+	"github.com/ClusterCockpit/cc-backend/internal/metricdispatch"
 	"github.com/ClusterCockpit/cc-backend/internal/repository"
-	"github.com/ClusterCockpit/cc-lib/schema"
+	"github.com/ClusterCockpit/cc-backend/pkg/archive"
+	"github.com/ClusterCockpit/cc-backend/pkg/metricstore"
+	cclog "github.com/ClusterCockpit/cc-lib/v2/ccLogger"
+	"github.com/ClusterCockpit/cc-lib/v2/schema"
 )
 
 type UpdateNodeStatesRequest struct {
 	Nodes   []schema.NodePayload `json:"nodes"`
 	Cluster string               `json:"cluster" example:"fritz"`
+}
+
+// metricListToNames converts a map of metric configurations to a list of metric names
+func metricListToNames(metricList map[string]*schema.Metric) []string {
+	names := make([]string, 0, len(metricList))
+	for name := range metricList {
+		names = append(names, name)
+	}
+	return names
 }
 
 // this routine assumes that only one of them exists per node
@@ -47,7 +61,7 @@ func determineState(states []string) schema.SchedulerState {
 // @description Required query-parameter defines if all users or only users with additional special roles are returned.
 // @produce     json
 // @param       request body UpdateNodeStatesRequest true "Request body containing nodes and their states"
-// @success     200     {object} api.DefaultApiResponse "Success message"
+// @success     200     {object} api.DefaultAPIResponse "Success message"
 // @failure     400     {object} api.ErrorResponse      "Bad Request"
 // @failure     401     {object} api.ErrorResponse      "Unauthorized"
 // @failure     403     {object} api.ErrorResponse      "Forbidden"
@@ -62,19 +76,70 @@ func (api *RestAPI) updateNodeStates(rw http.ResponseWriter, r *http.Request) {
 			http.StatusBadRequest, rw)
 		return
 	}
+	requestReceived := time.Now().Unix()
 	repo := repository.GetNodeRepository()
+
+	m := make(map[string][]string)
+	metricNames := make(map[string][]string)
+	healthResults := make(map[string]metricstore.HealthCheckResult)
+
+	startMs := time.Now()
+
+	// Step 1: Build nodeList and metricList per subcluster
+	for _, node := range req.Nodes {
+		if sc, err := archive.GetSubClusterByNode(req.Cluster, node.Hostname); err == nil {
+			m[sc] = append(m[sc], node.Hostname)
+		}
+	}
+
+	for sc := range m {
+		if sc != "" {
+			metricList := archive.GetMetricConfigSubCluster(req.Cluster, sc)
+			metricNames[sc] = metricListToNames(metricList)
+		}
+	}
+
+	// Step 2: Determine which metric store to query and perform health check
+	healthRepo, err := metricdispatch.GetHealthCheckRepo(req.Cluster)
+	if err != nil {
+		cclog.Warnf("updateNodeStates: no metric store for cluster %s, skipping health check: %v", req.Cluster, err)
+	} else {
+		for sc, nl := range m {
+			if sc != "" {
+				if results, err := healthRepo.HealthCheck(req.Cluster, nl, metricNames[sc]); err == nil {
+					maps.Copy(healthResults, results)
+				}
+			}
+		}
+	}
+
+	cclog.Debugf("Timer updateNodeStates, MemStore HealthCheck: %s", time.Since(startMs))
+	startDB := time.Now()
 
 	for _, node := range req.Nodes {
 		state := determineState(node.States)
+		healthState := schema.MonitoringStateFailed
+		var healthMetrics string
+		if result, ok := healthResults[node.Hostname]; ok {
+			healthState = result.State
+			healthMetrics = result.HealthMetrics
+		}
 		nodeState := schema.NodeStateDB{
-			TimeStamp: time.Now().Unix(), NodeState: state,
+			TimeStamp:       requestReceived,
+			NodeState:       state,
 			CpusAllocated:   node.CpusAllocated,
 			MemoryAllocated: node.MemoryAllocated,
 			GpusAllocated:   node.GpusAllocated,
-			HealthState:     schema.MonitoringStateFull,
+			HealthState:     healthState,
+			HealthMetrics:   healthMetrics,
 			JobsRunning:     node.JobsRunning,
 		}
 
-		repo.UpdateNodeState(node.Hostname, req.Cluster, &nodeState)
+		if err := repo.UpdateNodeState(node.Hostname, req.Cluster, &nodeState); err != nil {
+			cclog.Errorf("updateNodeStates: updating node state for %s on %s failed: %v",
+				node.Hostname, req.Cluster, err)
+		}
 	}
+
+	cclog.Debugf("Timer updateNodeStates, SQLite Inserts: %s", time.Since(startDB))
 }

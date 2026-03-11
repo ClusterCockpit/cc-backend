@@ -23,47 +23,45 @@ import (
 	"github.com/ClusterCockpit/cc-backend/internal/auth"
 	"github.com/ClusterCockpit/cc-backend/internal/config"
 	"github.com/ClusterCockpit/cc-backend/internal/graph"
-	"github.com/ClusterCockpit/cc-backend/internal/metricDataDispatcher"
-	"github.com/ClusterCockpit/cc-backend/internal/metricdata"
+	"github.com/ClusterCockpit/cc-backend/internal/metricdispatch"
 	"github.com/ClusterCockpit/cc-backend/internal/repository"
 	"github.com/ClusterCockpit/cc-backend/pkg/archive"
-	ccconf "github.com/ClusterCockpit/cc-lib/ccConfig"
-	cclog "github.com/ClusterCockpit/cc-lib/ccLogger"
-	"github.com/ClusterCockpit/cc-lib/schema"
-	"github.com/gorilla/mux"
+	"github.com/ClusterCockpit/cc-backend/pkg/metricstore"
+	ccconf "github.com/ClusterCockpit/cc-lib/v2/ccConfig"
+	cclog "github.com/ClusterCockpit/cc-lib/v2/ccLogger"
+	"github.com/ClusterCockpit/cc-lib/v2/schema"
+	"github.com/go-chi/chi/v5"
 
 	_ "github.com/mattn/go-sqlite3"
 )
 
 func setup(t *testing.T) *api.RestAPI {
+	repository.ResetConnection()
+
 	const testconfig = `{
-		"main": {
-	"addr":            "0.0.0.0:8080",
-	"validate": false,
-  "apiAllowedIPs": [
-    "*"
-  ]
-	},
+	"main": {
+	   "addr":            "0.0.0.0:8080",
+	   "validate": false,
+     "api-allowed-ips": [
+       "*"
+      ]
+  },
+  "metric-store": {
+    "checkpoints": {
+      "interval": "12h"
+    },
+    "retention-in-memory": "48h",
+    "memory-cap": 100
+  },
 	"archive": {
-		"kind": "file",
-		"path": "./var/job-archive"
+		 "kind": "file",
+		 "path": "./var/job-archive"
 	},
 	"auth": {
-  "jwts": {
-      "max-age": "2m"
+     "jwts": {
+     "max-age": "2m"
   }
-	},
-	"clusters": [
-	{
-	   "name": "testcluster",
-	   "metricDataRepository": {"kind": "test", "url": "bla:8081"},
-	   "filterRanges": {
-		"numNodes": { "from": 1, "to": 64 },
-		"duration": { "from": 0, "to": 86400 },
-		"startTime": { "from": "2022-01-01T00:00:00Z", "to": null }
-	   }
-	}
-	]
+  }
 }`
 	const testclusterJSON = `{
         "name": "testcluster",
@@ -141,7 +139,7 @@ func setup(t *testing.T) *api.RestAPI {
 	}
 
 	dbfilepath := filepath.Join(tmpdir, "test.db")
-	err := repository.MigrateDB("sqlite3", dbfilepath)
+	err := repository.MigrateDB(dbfilepath)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -152,28 +150,23 @@ func setup(t *testing.T) *api.RestAPI {
 	}
 
 	ccconf.Init(cfgFilePath)
+	metricstore.MetricStoreHandle = &metricstore.InternalMetricStore{}
 
 	// Load and check main configuration
 	if cfg := ccconf.GetPackageConfig("main"); cfg != nil {
-		if clustercfg := ccconf.GetPackageConfig("clusters"); clustercfg != nil {
-			config.Init(cfg, clustercfg)
-		} else {
-			cclog.Abort("Cluster configuration must be present")
-		}
+		config.Init(cfg)
 	} else {
 		cclog.Abort("Main configuration must be present")
 	}
 	archiveCfg := fmt.Sprintf("{\"kind\": \"file\",\"path\": \"%s\"}", jobarchive)
 
-	repository.Connect("sqlite3", dbfilepath)
+	repository.Connect(dbfilepath)
 
-	if err := archive.Init(json.RawMessage(archiveCfg), config.Keys.DisableArchive); err != nil {
+	if err := archive.Init(json.RawMessage(archiveCfg)); err != nil {
 		t.Fatal(err)
 	}
 
-	if err := metricdata.Init(); err != nil {
-		t.Fatal(err)
-	}
+	// metricstore initialization removed - it's initialized via callback in tests
 
 	archiver.Start(repository.GetJobRepository(), context.Background())
 
@@ -190,11 +183,9 @@ func setup(t *testing.T) *api.RestAPI {
 }
 
 func cleanup() {
-	// Gracefully shutdown archiver with timeout
 	if err := archiver.Shutdown(5 * time.Second); err != nil {
 		cclog.Warnf("Archiver shutdown timeout in tests: %v", err)
 	}
-	// TODO: Clear all caches, reset all modules, etc...
 }
 
 /*
@@ -221,16 +212,14 @@ func TestRestApi(t *testing.T) {
 		},
 	}
 
-	metricdata.TestLoadDataCallback = func(job *schema.Job, metrics []string, scopes []schema.MetricScope, ctx context.Context, resolution int) (schema.JobData, error) {
+	metricstore.TestLoadDataCallback = func(job *schema.Job, metrics []string, scopes []schema.MetricScope, ctx context.Context, resolution int) (schema.JobData, error) {
 		return testData, nil
 	}
 
-	r := mux.NewRouter()
-	r.PathPrefix("/api").Subrouter()
-	r.StrictSlash(true)
+	r := chi.NewRouter()
 	restapi.MountAPIRoutes(r)
 
-	var TestJobId int64 = 123
+	var TestJobID int64 = 123
 	TestClusterName := "testcluster"
 	var TestStartTime int64 = 123456789
 
@@ -280,7 +269,7 @@ func TestRestApi(t *testing.T) {
 		}
 		// resolver := graph.GetResolverInstance()
 		restapi.JobRepository.SyncJobs()
-		job, err := restapi.JobRepository.Find(&TestJobId, &TestClusterName, &TestStartTime)
+		job, err := restapi.JobRepository.Find(&TestJobID, &TestClusterName, &TestStartTime)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -338,7 +327,7 @@ func TestRestApi(t *testing.T) {
 		}
 
 		// Archiving happens asynchronously, will be completed in cleanup
-		job, err := restapi.JobRepository.Find(&TestJobId, &TestClusterName, &TestStartTime)
+		job, err := restapi.JobRepository.Find(&TestJobID, &TestClusterName, &TestStartTime)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -366,7 +355,7 @@ func TestRestApi(t *testing.T) {
 	}
 
 	t.Run("CheckArchive", func(t *testing.T) {
-		data, err := metricDataDispatcher.LoadData(stoppedJob, []string{"load_one"}, []schema.MetricScope{schema.MetricScopeNode}, context.Background(), 60)
+		data, err := metricdispatch.LoadData(stoppedJob, []string{"load_one"}, []schema.MetricScope{schema.MetricScopeNode}, context.Background(), 60)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -464,4 +453,198 @@ func TestRestApi(t *testing.T) {
 	if !ok {
 		t.Fatal("subtest failed")
 	}
+
+	t.Run("GetUsedNodesNoRunning", func(t *testing.T) {
+		contextUserValue := &schema.User{
+			Username:   "testuser",
+			Projects:   make([]string, 0),
+			Roles:      []string{"api"},
+			AuthType:   0,
+			AuthSource: 2,
+		}
+
+		req := httptest.NewRequest(http.MethodGet, "/jobs/used_nodes?ts=123456790", nil)
+		recorder := httptest.NewRecorder()
+
+		ctx := context.WithValue(req.Context(), contextUserKey, contextUserValue)
+
+		r.ServeHTTP(recorder, req.WithContext(ctx))
+		response := recorder.Result()
+		if response.StatusCode != http.StatusOK {
+			t.Fatal(response.Status, recorder.Body.String())
+		}
+
+		var result api.GetUsedNodesAPIResponse
+		if err := json.NewDecoder(response.Body).Decode(&result); err != nil {
+			t.Fatal(err)
+		}
+
+		if result.UsedNodes == nil {
+			t.Fatal("expected usedNodes to be non-nil")
+		}
+
+		if len(result.UsedNodes) != 0 {
+			t.Fatalf("expected no used nodes for stopped jobs, got: %v", result.UsedNodes)
+		}
+	})
+}
+
+// TestStopJobWithReusedJobId verifies that stopping a recently started job works
+// even when an older job with the same jobId exists in the job table (e.g. with
+// state "failed"). This is a regression test for the bug where Find() on the job
+// table would match the old job instead of the new one still in job_cache.
+func TestStopJobWithReusedJobId(t *testing.T) {
+	restapi := setup(t)
+	t.Cleanup(cleanup)
+
+	testData := schema.JobData{
+		"load_one": map[schema.MetricScope]*schema.JobMetric{
+			schema.MetricScopeNode: {
+				Unit:     schema.Unit{Base: "load"},
+				Timestep: 60,
+				Series: []schema.Series{
+					{
+						Hostname:   "host123",
+						Statistics: schema.MetricStatistics{Min: 0.1, Avg: 0.2, Max: 0.3},
+						Data:       []schema.Float{0.1, 0.1, 0.1, 0.2, 0.2, 0.2, 0.3, 0.3, 0.3},
+					},
+				},
+			},
+		},
+	}
+
+	metricstore.TestLoadDataCallback = func(job *schema.Job, metrics []string, scopes []schema.MetricScope, ctx context.Context, resolution int) (schema.JobData, error) {
+		return testData, nil
+	}
+
+	r := chi.NewRouter()
+	restapi.MountAPIRoutes(r)
+
+	const contextUserKey repository.ContextKey = "user"
+	contextUserValue := &schema.User{
+		Username:   "testuser",
+		Projects:   make([]string, 0),
+		Roles:      []string{"user"},
+		AuthType:   0,
+		AuthSource: 2,
+	}
+
+	// Step 1: Start the first job (jobId=999)
+	const startJobBody1 string = `{
+		"jobId":            999,
+		"user":             "testuser",
+		"project":          "testproj",
+		"cluster":          "testcluster",
+		"partition":        "default",
+		"walltime":         3600,
+		"numNodes":         1,
+		"numHwthreads":     8,
+		"numAcc":           0,
+		"shared":           "none",
+		"monitoringStatus": 1,
+		"smt":              1,
+		"resources": [{"hostname": "host123", "hwthreads": [0, 1, 2, 3, 4, 5, 6, 7]}],
+		"startTime":        200000000
+	}`
+
+	if ok := t.Run("StartFirstJob", func(t *testing.T) {
+		req := httptest.NewRequest(http.MethodPost, "/jobs/start_job/", bytes.NewBuffer([]byte(startJobBody1)))
+		recorder := httptest.NewRecorder()
+		ctx := context.WithValue(req.Context(), contextUserKey, contextUserValue)
+		r.ServeHTTP(recorder, req.WithContext(ctx))
+		if recorder.Result().StatusCode != http.StatusCreated {
+			t.Fatal(recorder.Result().Status, recorder.Body.String())
+		}
+	}); !ok {
+		return
+	}
+
+	// Step 2: Sync to move job from cache to job table, then stop it as "failed"
+	time.Sleep(1 * time.Second)
+	restapi.JobRepository.SyncJobs()
+
+	const stopJobBody1 string = `{
+		"jobId":     999,
+		"startTime": 200000000,
+		"cluster":   "testcluster",
+		"jobState":  "failed",
+		"stopTime":  200001000
+	}`
+
+	if ok := t.Run("StopFirstJobAsFailed", func(t *testing.T) {
+		req := httptest.NewRequest(http.MethodPost, "/jobs/stop_job/", bytes.NewBuffer([]byte(stopJobBody1)))
+		recorder := httptest.NewRecorder()
+		ctx := context.WithValue(req.Context(), contextUserKey, contextUserValue)
+		r.ServeHTTP(recorder, req.WithContext(ctx))
+		if recorder.Result().StatusCode != http.StatusOK {
+			t.Fatal(recorder.Result().Status, recorder.Body.String())
+		}
+
+		jobid, cluster := int64(999), "testcluster"
+		job, err := restapi.JobRepository.Find(&jobid, &cluster, nil)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if job.State != schema.JobStateFailed {
+			t.Fatalf("expected first job to be failed, got: %s", job.State)
+		}
+	}); !ok {
+		return
+	}
+
+	// Wait for archiving to complete
+	time.Sleep(1 * time.Second)
+
+	// Step 3: Start a NEW job with the same jobId=999 but different startTime.
+	// This job will sit in job_cache (not yet synced).
+	const startJobBody2 string = `{
+		"jobId":            999,
+		"user":             "testuser",
+		"project":          "testproj",
+		"cluster":          "testcluster",
+		"partition":        "default",
+		"walltime":         3600,
+		"numNodes":         1,
+		"numHwthreads":     8,
+		"numAcc":           0,
+		"shared":           "none",
+		"monitoringStatus": 1,
+		"smt":              1,
+		"resources": [{"hostname": "host123", "hwthreads": [0, 1, 2, 3, 4, 5, 6, 7]}],
+		"startTime":        300000000
+	}`
+
+	if ok := t.Run("StartSecondJob", func(t *testing.T) {
+		req := httptest.NewRequest(http.MethodPost, "/jobs/start_job/", bytes.NewBuffer([]byte(startJobBody2)))
+		recorder := httptest.NewRecorder()
+		ctx := context.WithValue(req.Context(), contextUserKey, contextUserValue)
+		r.ServeHTTP(recorder, req.WithContext(ctx))
+		if recorder.Result().StatusCode != http.StatusCreated {
+			t.Fatal(recorder.Result().Status, recorder.Body.String())
+		}
+	}); !ok {
+		return
+	}
+
+	// Step 4: Stop the second job WITHOUT syncing first.
+	// Before the fix, this would fail because Find() on the job table would
+	// match the old failed job (jobId=999) and reject with "already stopped".
+	const stopJobBody2 string = `{
+		"jobId":     999,
+		"startTime": 300000000,
+		"cluster":   "testcluster",
+		"jobState":  "completed",
+		"stopTime":  300001000
+	}`
+
+	t.Run("StopSecondJobBeforeSync", func(t *testing.T) {
+		req := httptest.NewRequest(http.MethodPost, "/jobs/stop_job/", bytes.NewBuffer([]byte(stopJobBody2)))
+		recorder := httptest.NewRecorder()
+		ctx := context.WithValue(req.Context(), contextUserKey, contextUserValue)
+		r.ServeHTTP(recorder, req.WithContext(ctx))
+		if recorder.Result().StatusCode != http.StatusOK {
+			t.Fatalf("expected stop to succeed for cached job, got: %s %s",
+				recorder.Result().Status, recorder.Body.String())
+		}
+	})
 }

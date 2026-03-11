@@ -10,10 +10,10 @@ import (
 	"math"
 	"time"
 
-	"github.com/ClusterCockpit/cc-backend/internal/metricdata"
+	"github.com/ClusterCockpit/cc-backend/internal/metricdispatch"
 	"github.com/ClusterCockpit/cc-backend/pkg/archive"
-	cclog "github.com/ClusterCockpit/cc-lib/ccLogger"
-	"github.com/ClusterCockpit/cc-lib/schema"
+	cclog "github.com/ClusterCockpit/cc-lib/v2/ccLogger"
+	"github.com/ClusterCockpit/cc-lib/v2/schema"
 	sq "github.com/Masterminds/squirrel"
 	"github.com/go-co-op/gocron/v2"
 )
@@ -49,19 +49,13 @@ func RegisterFootprintWorker() {
 					if err != nil {
 						continue
 					}
-					// NOTE: Additional Subcluster Loop Could Allow For Limited List Of Footprint-Metrics Only.
+					// NOTE: Additional SubCluster Loop Could Allow For Limited List Of Footprint-Metrics Only.
 					//       - Chunk-Size Would Then Be 'SubCluster' (Running Jobs, Transactions) as Lists Can Change Within SCs
 					//       - Would Require Review of 'updateFootprint' Usage (Logic Could Possibly Be Included Here Completely)
 					allMetrics := make([]string, 0)
 					metricConfigs := archive.GetCluster(cluster.Name).MetricConfig
 					for _, mc := range metricConfigs {
 						allMetrics = append(allMetrics, mc.Name)
-					}
-
-					repo, err := metricdata.GetMetricDataRepo(cluster.Name)
-					if err != nil {
-						cclog.Errorf("no metric data repository configured for '%s'", cluster.Name)
-						continue
 					}
 
 					pendingStatements := []sq.UpdateBuilder{}
@@ -72,7 +66,14 @@ func RegisterFootprintWorker() {
 
 						sJob := time.Now()
 
-						jobStats, err := repo.LoadStats(job, allMetrics, context.Background())
+						ms, err := metricdispatch.GetMetricDataRepo(job.Cluster, job.SubCluster)
+						if err != nil {
+							cclog.Errorf("failed to access metricDataRepo for cluster %s-%s: %s",
+								job.Cluster, job.SubCluster, err.Error())
+							continue
+						}
+
+						jobStats, err := ms.LoadStats(job, allMetrics, context.Background())
 						if err != nil {
 							cclog.Errorf("error wile loading job data stats for footprint update: %v", err)
 							ce++
@@ -112,7 +113,7 @@ func RegisterFootprintWorker() {
 						stmt := sq.Update("job")
 						stmt, err = jobRepo.UpdateFootprint(stmt, job)
 						if err != nil {
-							cclog.Errorf("update job (dbid: %d) statement build failed at footprint step: %s", job.ID, err.Error())
+							cclog.Errorf("update job (dbid: %d) statement build failed at footprint step: %s", *job.ID, err.Error())
 							ce++
 							continue
 						}

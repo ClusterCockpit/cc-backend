@@ -6,11 +6,13 @@ package repository
 
 import (
 	"context"
+	"os"
+	"path/filepath"
 	"testing"
 
 	"github.com/ClusterCockpit/cc-backend/internal/graph/model"
-	cclog "github.com/ClusterCockpit/cc-lib/ccLogger"
-	"github.com/ClusterCockpit/cc-lib/schema"
+	cclog "github.com/ClusterCockpit/cc-lib/v2/ccLogger"
+	"github.com/ClusterCockpit/cc-lib/v2/schema"
 	_ "github.com/mattn/go-sqlite3"
 )
 
@@ -46,7 +48,7 @@ func BenchmarkSelect1(b *testing.B) {
 }
 
 func BenchmarkDB_FindJobById(b *testing.B) {
-	var jobId int64 = 1677322
+	var jobID int64 = 1677322
 
 	b.Run("FindJobById", func(b *testing.B) {
 		db := setup(b)
@@ -55,7 +57,7 @@ func BenchmarkDB_FindJobById(b *testing.B) {
 
 		b.RunParallel(func(pb *testing.PB) {
 			for pb.Next() {
-				_, err := db.FindById(getContext(b), jobId)
+				_, err := db.FindByID(getContext(b), jobID)
 				noErr(b, err)
 			}
 		})
@@ -63,7 +65,7 @@ func BenchmarkDB_FindJobById(b *testing.B) {
 }
 
 func BenchmarkDB_FindJob(b *testing.B) {
-	var jobId int64 = 107266
+	var jobID int64 = 107266
 	var startTime int64 = 1657557241
 	cluster := "fritz"
 
@@ -74,7 +76,7 @@ func BenchmarkDB_FindJob(b *testing.B) {
 
 		b.RunParallel(func(pb *testing.PB) {
 			for pb.Next() {
-				_, err := db.Find(&jobId, &cluster, &startTime)
+				_, err := db.Find(&jobID, &cluster, &startTime)
 				noErr(b, err)
 			}
 		})
@@ -148,10 +150,24 @@ func getContext(tb testing.TB) context.Context {
 func setup(tb testing.TB) *JobRepository {
 	tb.Helper()
 	cclog.Init("warn", true)
-	dbfile := "testdata/job.db"
-	err := MigrateDB("sqlite3", dbfile)
+
+	// Copy test DB to a temp file for test isolation
+	srcData, err := os.ReadFile("testdata/job.db")
 	noErr(tb, err)
-	Connect("sqlite3", dbfile)
+	dbfile := filepath.Join(tb.TempDir(), "job.db")
+	err = os.WriteFile(dbfile, srcData, 0o644)
+	noErr(tb, err)
+
+	// Reset singletons so Connect uses the new temp DB
+	err = ResetConnection()
+	noErr(tb, err)
+	tb.Cleanup(func() {
+		ResetConnection()
+	})
+
+	err = MigrateDB(dbfile)
+	noErr(tb, err)
+	Connect(dbfile)
 	return GetJobRepository()
 }
 

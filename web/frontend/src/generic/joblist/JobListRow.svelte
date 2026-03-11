@@ -11,13 +11,16 @@
   - `triggerMetricRefresh Bool?`: If changed to true from upstream, will trigger metric query [Default: false]
   - `selectJob Func`: The callback function to select a job for comparison
   - `unselectJob Func`: The callback function to unselect a job from comparison
+  - `globalMetrics [Obj]`: Includes the backend supplied availabilities for cluster and subCluster
+  - `clusterInfos [Obj]`: Includes the backend supplied cluster topology
+  - `resampleConfig [Obj]`: Includes the backend supplied resampling info
 -->
 
 <script>
   import { queryStore, gql, getContextClient } from "@urql/svelte";
-  import { getContext } from "svelte";
   import { Card, Spinner } from "@sveltestrap/sveltestrap";
-  import { maxScope, checkMetricDisabled } from "../utils.js";
+  import { maxScope, checkMetricAvailability } from "../utils.js";
+  import uPlot from "uplot";
   import JobInfo from "./JobInfo.svelte";
   import MetricPlot from "../plots/MetricPlot.svelte";
   import JobFootprint from "../helper/JobFootprint.svelte";
@@ -33,19 +36,13 @@
     triggerMetricRefresh = false,
     selectJob,
     unselectJob,
+    globalMetrics,
+    clusterInfos,
+    resampleConfig
   } = $props();
 
   /* Const Init */
   const client = getContextClient();
-  const jobId = job.id;
-  const cluster = getContext("clusters");
-  const scopes = (job.numNodes == 1)
-    ? (job.numAcc >= 1)
-      ? ["core", "accelerator"]
-      : ["core"]
-    : ["node"];
-  const resampleConfig = getContext("resampling") || null;
-  const resampleDefault = resampleConfig ? Math.max(...resampleConfig.resolutions) : 0;
   const query = gql`
     query ($id: ID!, $metrics: [String!]!, $scopes: [MetricScope!]!, $selectedResolution: Int) {
       jobMetrics(id: $id, metrics: $metrics, scopes: $scopes, resolution: $selectedResolution) {
@@ -78,12 +75,27 @@
     }
   `;
 
+  /* Var Init*/
+  // svelte-ignore state_referenced_locally
+  let plotSync = uPlot.sync(`jobMetricStack-${job.cluster}-${job.id}`);
+
   /* State Init */
-  let selectedResolution = $state(resampleDefault);
   let zoomStates = $state({});
   let thresholdStates = $state({});
 
   /* Derived */
+  const resampleDefault = $derived(resampleConfig ? Math.max(...resampleConfig.resolutions) : 0);
+  const jobId = $derived(job.id);
+  const scopes = $derived.by(() => {
+    if (job.numNodes == 1) {
+      if (job.numAcc >= 1) return ["core", "accelerator"];
+      else return ["core"];
+    } else {
+      return ["node"];
+    };
+  });
+
+  let selectedResolution = $derived(resampleDefault);
   let isSelected = $derived(previousSelect);
   let metricsQuery = $derived(queryStore({
       client: client,
@@ -91,6 +103,8 @@
       variables: { id: jobId, metrics, scopes, selectedResolution },
     })
   );
+
+  const refinedData = $derived($metricsQuery?.data?.jobMetrics ? sortAndSelectScope(metrics, $metricsQuery.data.jobMetrics) : []);
 
   /* Effects */
   $effect(() => {
@@ -131,6 +145,26 @@
     });
   }
 
+  function sortAndSelectScope(metricList = [], jobMetrics = []) {
+    const pendingData = [];
+    metricList.forEach((metricName) => {
+      const pendingMetric = {
+        name: metricName,
+        availability: checkMetricAvailability(
+          globalMetrics,
+          metricName,
+          job.cluster,
+          job.subCluster,
+        ),
+        data: null
+      };
+      const scopesData = jobMetrics.filter((jobMetric) => jobMetric.name == metricName)
+      if (scopesData.length > 0) pendingMetric.data = selectScope(scopesData)
+      pendingData.push(pendingMetric)
+    });
+    return pendingData;
+  };
+
   const selectScope = (jobMetrics) =>
     jobMetrics.reduce(
       (a, b) =>
@@ -143,29 +177,6 @@
             : a,
       jobMetrics[0],
     );
-
-  const sortAndSelectScope = (jobMetrics) =>
-    metrics
-      .map((name) => jobMetrics.filter((jobMetric) => jobMetric.name == name))
-      .map((jobMetrics) => ({
-        disabled: false,
-        data: jobMetrics.length > 0 ? selectScope(jobMetrics) : null,
-      }))
-      .map((jobMetric) => {
-        if (jobMetric.data) {
-          return {
-            name: jobMetric.data.name,
-            disabled: checkMetricDisabled(
-              jobMetric.data.name,
-              job.cluster,
-              job.subCluster,
-            ),
-            data: jobMetric.data,
-          };
-        } else {
-          return jobMetric;
-        }
-      });
 </script>
 
 <tr>
@@ -199,10 +210,19 @@
         />
       </td>
     {/if}
-    {#each sortAndSelectScope($metricsQuery.data.jobMetrics) as metric, i (metric?.name || i)}
+    {#each refinedData as metric, i (metric?.name || i)}
       <td>
-        <!-- Subluster Metricconfig remove keyword for jobtables (joblist main, user joblist, project joblist) to be used here as toplevel case-->
-        {#if metric.disabled == false && metric.data}
+        {#if metric?.availability == "none"}
+          <Card body class="mx-2" color="light">
+            <p>No dataset(s) returned for <b>{metrics[i]}</b></p>
+            <p class="mb-1">Metric is not configured for cluster <b>{job.cluster}</b>.</p>
+          </Card>
+        {:else if metric?.availability == "disabled"}
+          <Card body class="mx-2" color="info">
+            <p>No dataset(s) returned for <b>{metrics[i]}</b></p>
+            <p class="mb-1">Metric has been disabled for subcluster <b>{job.subCluster}</b>.</p>
+          </Card>
+        {:else if metric?.data}
           <MetricPlot
             onZoom={(detail) => handleZoom(detail, metric.data.name)}
             height={plotHeight}
@@ -211,23 +231,25 @@
             series={metric.data.metric.series}
             statisticsSeries={metric.data.metric.statisticsSeries}
             metric={metric.data.name}
-            cluster={cluster.find((c) => c.name == job.cluster)}
+            cluster={clusterInfos.find((c) => c.name == job.cluster)}
             subCluster={job.subCluster}
             isShared={job.shared != "none"}
-            numhwthreads={job.numHWThreads}
-            numaccs={job.numAcc}
             zoomState={zoomStates[metric.data.name] || null}
             thresholdState={thresholdStates[metric.data.name] || null}
+            {plotSync}
           />
-        {:else if metric.disabled == true && metric.data}
-          <Card body color="info"
-            >Metric disabled for subcluster <code
-              >{metric.data.name}:{job.subCluster}</code
-            ></Card
-          >
         {:else}
-          <Card body color="warning">No dataset returned</Card>
+          <Card body class="mx-2" color="warning">
+            <p>No dataset(s) returned for <b>{metrics[i]}</b></p>
+            <p class="mb-1">Metric or host was not found in metric store for cluster <b>{job.cluster}</b>:</p>
+            <p class="mb-1">Identical messages in <i>{metrics[i]} column</i>: Metric not found.</p>
+            <p class="mb-1">Identical messages in <i>job {job.jobId} row</i>: Host not found.</p>
+          </Card>
         {/if}
+      </td>
+    {:else}
+      <td>
+        <Card body class="mx-2">No metrics selected for display.</Card>
       </td>
     {/each}
   {/if}

@@ -10,8 +10,8 @@ import (
 	"io"
 	"time"
 
-	cclog "github.com/ClusterCockpit/cc-lib/ccLogger"
-	"github.com/ClusterCockpit/cc-lib/schema"
+	cclog "github.com/ClusterCockpit/cc-lib/v2/ccLogger"
+	"github.com/ClusterCockpit/cc-lib/v2/schema"
 )
 
 func DecodeJobData(r io.Reader, k string) (schema.JobData, error) {
@@ -51,7 +51,7 @@ func DecodeJobStats(r io.Reader, k string) (schema.ScopedJobStats, error) {
 				for _, series := range jobMetric.Series {
 					scopedJobStats[metric][scope] = append(scopedJobStats[metric][scope], &schema.ScopedStats{
 						Hostname: series.Hostname,
-						Id:       series.Id,
+						ID:       series.ID,
 						Data:     &series.Statistics,
 					})
 				}

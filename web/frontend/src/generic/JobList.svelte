@@ -32,17 +32,13 @@
   let {
     matchedListJobs = $bindable(0),
     selectedJobs = $bindable([]),
-    metrics = getContext("cc-config").metricConfig_jobListMetrics,
+    metrics = [],
     sorting = { field: "startTime", type: "col", order: "DESC" },
     showFootprint = false,
     filterBuffer = [],
   } = $props();
 
   /* Const Init */
-  const ccconfig = getContext("cc-config");
-  const initialized = getContext("initialized");
-  const globalMetrics = getContext("globalMetrics");
-  const usePaging = ccconfig?.jobList_usePaging || false;
   const jobInfoColumnWidth = 250;
   const client = getContextClient();
   const query = gql`
@@ -99,17 +95,24 @@
   /* State Init */
   let headerPaddingTop = $state(0);
   let jobs = $state([]);
-  let filter = $state([...filterBuffer]);
   let page = $state(1);
-  let itemsPerPage = $state(usePaging ? (ccconfig?.jobList_jobsPerPage || 10) : 10);
   let triggerMetricRefresh = $state(false);
   let tableWidth = $state(0);
 
   /* Derived */
+  const initialized = $derived(getContext("initialized") || false);
+  const ccconfig = $derived(initialized ? getContext("cc-config") : null);
+  const globalMetrics = $derived(initialized ? getContext("globalMetrics") : null);
+  const clusterInfos = $derived(initialized ? getContext("clusters"): null);
+  const resampleConfig = $derived(initialized ? getContext("resampling") : null);
+  const usePaging = $derived(ccconfig?.jobList_usePaging || false);
+
+  let itemsPerPage = $derived(usePaging ? (ccconfig?.jobList_jobsPerPage || 10) : 10);
+  let filter = $derived([...filterBuffer]);
   let paging = $derived({ itemsPerPage, page });
   const plotWidth = $derived.by(() => {
     return Math.floor(
-      (tableWidth - jobInfoColumnWidth) / (metrics.length + (showFootprint ? 1 : 0)) - 10,
+      (tableWidth - jobInfoColumnWidth) / (metrics.length + (showFootprint ? 2 : 1)) - 10,
     );
   });
   let jobsStore = $derived(queryStore({
@@ -177,10 +180,6 @@
   // (Re-)query and optionally set new filters; Query will be started reactively.
   export function queryJobs(filters) {
     if (filters != null) {
-      let minRunningFor = ccconfig.jobList_hideShortRunningJobs;
-      if (minRunningFor && minRunningFor > 0) {
-        filters.push({ minRunningFor });
-      }
       filter = [...filters];
     }
   };
@@ -254,6 +253,9 @@
             style="width: {jobInfoColumnWidth}px; padding-top: {headerPaddingTop}px"
           >
             Job Info
+            {#if $jobsStore.fetching}
+              <Spinner size="sm" style="margin-left:10px;" secondary />
+            {/if}
           </th>
           {#if showFootprint}
             <th
@@ -271,7 +273,7 @@
               style="width: {plotWidth}px; padding-top: {headerPaddingTop}px"
             >
               {metric}
-              {#if $initialized}
+              {#if initialized}
                 ({getUnit(metric)})
               {/if}
             </th>
@@ -289,7 +291,8 @@
           </tr>
         {:else}
           {#each jobs as job (job.id)}
-            <JobListRow {triggerMetricRefresh} {job} {metrics} {plotWidth} {showFootprint} previousSelect={selectedJobs.includes(job.id)}
+            <JobListRow {triggerMetricRefresh} {job} {metrics} {plotWidth} {showFootprint} {globalMetrics} {clusterInfos} {resampleConfig}
+              previousSelect={selectedJobs.includes(job.id)}
               selectJob={(detail) => selectedJobs = [...selectedJobs, detail]}
               unselectJob={(detail) => selectedJobs = selectedJobs.filter(item => item !== detail)}
             />
@@ -302,7 +305,7 @@
         {#if $jobsStore.fetching || !$jobsStore.data}
           <tr>
             <td colspan={metrics.length + 1}>
-              <div style="text-align:center;">
+              <div style="text-align:center; margin-top: 1rem;">
                 <Spinner secondary />
               </div>
             </td>

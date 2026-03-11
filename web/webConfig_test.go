@@ -7,51 +7,64 @@ package web
 
 import (
 	"encoding/json"
-	"fmt"
 	"testing"
-
-	ccconf "github.com/ClusterCockpit/cc-lib/ccConfig"
 )
 
-func TestInit(t *testing.T) {
-	fp := "../../configs/config.json"
-	ccconf.Init(fp)
-	cfg := ccconf.GetPackageConfig("ui")
+func TestInitDefaults(t *testing.T) {
+	// Test Init with nil config uses defaults
+	err := Init(nil)
+	if err != nil {
+		t.Fatalf("Init failed: %v", err)
+	}
 
-	Init(cfg)
-
-	if UIDefaultsMap["nodelist_usePaging"] == false {
-		t.Errorf("wrong option\ngot: %v \nwant: true", UIDefaultsMap["NodeList_UsePaging"])
+	// Check default values are set
+	if UIDefaultsMap["jobList_usePaging"] != false {
+		t.Errorf("wrong option\ngot: %v \nwant: false", UIDefaultsMap["jobList_usePaging"])
+	}
+	if UIDefaultsMap["nodeList_usePaging"] != false {
+		t.Errorf("wrong option\ngot: %v \nwant: false", UIDefaultsMap["nodeList_usePaging"])
+	}
+	if UIDefaultsMap["jobView_showPolarPlot"] != true {
+		t.Errorf("wrong option\ngot: %v \nwant: true", UIDefaultsMap["jobView_showPolarPlot"])
 	}
 }
 
 func TestSimpleDefaults(t *testing.T) {
 	const s = `{
-		"joblist": {
-		    "showFootprint": false
+		"job-list": {
+		    "show-footprint": true
 		}
 	}`
 
-	Init(json.RawMessage(s))
+	err := Init(json.RawMessage(s))
+	if err != nil {
+		t.Fatalf("Init failed: %v", err)
+	}
 
-	if UIDefaultsMap["joblist_usePaging"] == true {
-		t.Errorf("wrong option\ngot: %v \nwant: false", UIDefaultsMap["NodeList_UsePaging"])
+	// Verify show-footprint was set
+	if UIDefaultsMap["jobList_showFootprint"] != true {
+		t.Errorf("wrong option\ngot: %v \nwant: true", UIDefaultsMap["jobList_showFootprint"])
+	}
+
+	// Verify other defaults remain unchanged
+	if UIDefaultsMap["jobList_usePaging"] != false {
+		t.Errorf("wrong option\ngot: %v \nwant: false", UIDefaultsMap["jobList_usePaging"])
 	}
 }
 
 func TestOverwrite(t *testing.T) {
 	const s = `{
-  "metricConfig": {
-    "jobListMetrics": ["flops_sp", "flops_dp"],
+  "metric-config": {
+    "job-list-metrics": ["flops_sp", "flops_dp"],
     "clusters": [
       {
         "name": "fritz",
-        "jobListMetrics": ["flops_any", "mem_bw", "load"],
-        "subClusters": [
+        "job-list-metrics": ["flops_any", "mem_bw", "load"],
+        "sub-clusters": [
           {
             "name": "icelake",
-            "jobListMetrics": ["flops_any", "mem_bw", "power", "load"],
-            "jobViewPlotMetrics": ["load"]
+            "job-list-metrics": ["flops_any", "mem_bw", "power", "load"],
+            "job-view-plot-metrics": ["load"]
           }
         ]
       }
@@ -59,9 +72,11 @@ func TestOverwrite(t *testing.T) {
   }
 }`
 
-	Init(json.RawMessage(s))
+	err := Init(json.RawMessage(s))
+	if err != nil {
+		t.Fatalf("Init failed: %v", err)
+	}
 
-	fmt.Printf("%+v", UIDefaultsMap)
 	v, ok := UIDefaultsMap["metricConfig_jobListMetrics"].([]string)
 	if ok {
 		if v[0] != "flops_sp" {

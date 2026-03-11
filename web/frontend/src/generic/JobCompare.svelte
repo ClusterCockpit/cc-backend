@@ -64,10 +64,10 @@
   let plotSync = uPlot.sync("compareJobsView");
 
   /* State Init */
-  let filter = $state([...filterBuffer] || []);
   let tableJobIDFilter = $state("");
 
   /* Derived*/
+  let filter = $derived([...filterBuffer] || []);
   const compareData = $derived(queryStore({
       client: client,
       query: compareQuery,
@@ -112,11 +112,7 @@
   // (Re-)query and optionally set new filters; Query will be started reactively.
   export function queryJobs(filters) {
     if (filters != null) {
-      let minRunningFor = ccconfig.jobList_hideShortRunningJobs;
-      if (minRunningFor && minRunningFor > 0) {
-        filters.push({ minRunningFor });
-      }
-      filter = filters;
+      filter = [...filters];
     }
   }
 

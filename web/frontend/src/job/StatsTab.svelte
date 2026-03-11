@@ -3,8 +3,10 @@
 
   Properties:
   - `job Object`: The job object
-  - `clusters Object`: The clusters object
+  - `clusterInfo Object`: The clusters object
   - `tabActive bool`: Boolean if StatsTabe Tab is Active on Creation
+  - `globalMetrics [Obj]`: Includes the backend supplied availabilities for cluster and subCluster
+  - `ccconfig Object?`: The ClusterCockpit Config Context
 -->
 
 <script>
@@ -13,7 +15,6 @@
     gql,
     getContextClient 
   } from "@urql/svelte";
-  import { getContext } from "svelte";
   import {
     Card,
     Button,
@@ -29,8 +30,10 @@
   /* Svelte 5 Props */
   let {
     job,
-    clusters,
+    clusterInfo,
     tabActive,
+    globalMetrics,
+    ccconfig
   } = $props();
 
   /* Const Init */
@@ -55,65 +58,73 @@
 
   /* State Init */
   let moreScopes = $state(false);
-  let selectedScopes = $state([]);
-  let selectedMetrics = $state([]);
   let totalMetrics = $state(0); // For Info Only, filled by MetricSelection Component
   let isMetricSelectionOpen = $state(false);
 
-  /* Derived */
+  /* Derived Var Preprocessing*/
+  let selectedTableMetrics = $derived.by(() => {
+    if(job && ccconfig) {
+      if (job.cluster) {
+        if (job.subCluster) {
+          return ccconfig[`metricConfig_jobViewTableMetrics:${job.cluster}:${job.subCluster}`] ||
+            ccconfig[`metricConfig_jobViewTableMetrics:${job.cluster}`] ||
+            ccconfig.metricConfig_jobViewTableMetrics
+        }
+        return ccconfig[`metricConfig_jobViewTableMetrics:${job.cluster}`] ||
+          ccconfig.metricConfig_jobViewTableMetrics
+      }
+      return ccconfig.metricConfig_jobViewTableMetrics
+    }
+    return [];
+  });
+
+  let selectedTableScopes = $derived.by(() => {
+    if (job) {
+      if (!moreScopes) {
+        // Select default Scopes to load: Check before if any metric has accelerator scope by default
+        const pendingScopes = ["node"]
+        const accScopeDefault = [...selectedTableMetrics].some(function (m) {
+          const cluster = clusterInfo.find((c) => c.name == job.cluster);
+          const subCluster = cluster.subClusters.find((sc) => sc.name == job.subCluster);
+          return subCluster.metricConfig.find((smc) => smc.name == m)?.scope === "accelerator";
+        });
+        
+        if (job.numNodes === 1) {
+          pendingScopes.push("socket")
+          pendingScopes.push("core")
+          pendingScopes.push("hwthread")
+          if (accScopeDefault) { pendingScopes.push("accelerator") }
+        }
+        return[...new Set(pendingScopes)]; 
+      } else {
+        // If flag set: Always load all scopes
+        return ["node", "socket", "core", "hwthread", "accelerator"];
+      }
+    } // Fallback
+    return ["node"]
+  });
+
+  /* Derived Query */
   const scopedStats = $derived(queryStore({
       client: client,
       query: query,
-      variables: { dbid: job.id, selectedMetrics, selectedScopes },
+      variables: {
+        dbid: job.id,
+        selectedMetrics: selectedTableMetrics,
+        selectedScopes: selectedTableScopes
+      },
     })
   );
-
-  /* Functions  */
-  function loadScopes() {
-    // Archived Jobs Load All Scopes By Default (See Backend)
-    moreScopes = true;
-    selectedScopes = ["node", "socket", "core", "hwthread", "accelerator"];
-  };
-
-  /* On Init */
-  // Handle Job Query on Init -> is not executed anymore
-  getContext("on-init")(() => {
-    if (!job) return;
-
-    const pendingMetrics = (
-      getContext("cc-config")[`metricConfig_jobViewTableMetrics:${job.cluster}:${job.subCluster}`] ||
-      getContext("cc-config")[`metricConfig_jobViewTableMetrics:${job.cluster}`]
-    ) || getContext("cc-config")["metricConfig_jobViewTableMetrics"];
-
-    // Select default Scopes to load: Check before if any metric has accelerator scope by default
-    const accScopeDefault = [...pendingMetrics].some(function (m) {
-      const cluster = clusters.find((c) => c.name == job.cluster);
-      const subCluster = cluster.subClusters.find((sc) => sc.name == job.subCluster);
-      return subCluster.metricConfig.find((smc) => smc.name == m)?.scope === "accelerator";
-    });
-
-    const pendingScopes = ["node"]
-    if (job.numNodes === 1) {
-      pendingScopes.push("socket")
-      pendingScopes.push("core")
-      pendingScopes.push("hwthread")
-      if (accScopeDefault) { pendingScopes.push("accelerator") }
-    }
-
-    selectedMetrics = [...pendingMetrics];
-    selectedScopes = [...pendingScopes];
-  });
-
 </script>
 
 <TabPane tabId="stats" tab="Statistics Table" class="overflow-x-auto" active={tabActive}>
   <Row>
     <Col class="m-2">
       <Button outline onclick={() => (isMetricSelectionOpen = true)} class="px-2" color="primary" style="margin-right:0.5rem">
-        Select Metrics (Selected {selectedMetrics.length} of {totalMetrics} available)
+        Select Metrics (Selected {selectedTableMetrics.length} of {totalMetrics} available)
       </Button>
       {#if job.numNodes > 1 && job.state === "running"}
-        <Button class="px-2 ml-auto" color="success" outline onclick={loadScopes} disabled={moreScopes}>
+        <Button class="px-2 ml-auto" color="success" outline onclick={() => (moreScopes = !moreScopes)} disabled={moreScopes}>
           {#if !moreScopes}
             <Icon name="plus-square-fill" style="margin-right:0.25rem"/> Add More Scopes
           {:else}
@@ -141,7 +152,7 @@
     <StatsTable 
       hosts={job.resources.map((r) => r.hostname).sort()}
       jobStats={$scopedStats?.data?.scopedJobStats}
-      {selectedMetrics}
+      selectedMetrics={selectedTableMetrics}
     />
   {/if}
 </TabPane>
@@ -149,12 +160,12 @@
 <MetricSelection
   bind:isOpen={isMetricSelectionOpen}
   bind:totalMetrics
-  presetMetrics={selectedMetrics}
+  presetMetrics={selectedTableMetrics}
   cluster={job.cluster}
   subCluster={job.subCluster}
   configName="metricConfig_jobViewTableMetrics"
-  preInitialized
+  {globalMetrics}
   applyMetrics={(newMetrics) => 
-    selectedMetrics = [...newMetrics]
+    selectedTableMetrics = [...newMetrics]
   }
 />

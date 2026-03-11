@@ -6,6 +6,7 @@ mount(Status, {
     target: document.getElementById('svelte-app'),
     props: {
         presetCluster: infos.cluster,
+        displayType: displayType,
     },
     context: new Map([
             ['cc-config', clusterCockpitConfig]

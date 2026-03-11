@@ -27,7 +27,7 @@
   import uPlot from "uplot";
   import { formatNumber, formatDurationTime } from "../units.js";
   import { getContext, onMount, onDestroy } from "svelte";
-  import { Card } from "@sveltestrap/sveltestrap";
+  import { Card, CardBody, CardHeader } from "@sveltestrap/sveltestrap";
 
   /* Svelte 5 Props */
   let {
@@ -43,8 +43,6 @@
     subCluster,
     isShared = false,
     forNode = false,
-    numhwthreads = 0,
-    numaccs = 0,
     zoomState = null,
     thresholdState = null,
     extendedLegendData = null,
@@ -56,9 +54,6 @@
   /* Const Init */
   const clusterCockpitConfig = getContext("cc-config");
   const resampleConfig = getContext("resampling");
-  const subClusterTopology = getContext("getHardwareTopology")(cluster, subCluster);
-  const metricConfig = getContext("getMetricConfig")(cluster, subCluster, metric);
-  const lineColors = clusterCockpitConfig.plotConfiguration_colorScheme;
   const lineWidth = clusterCockpitConfig.plotConfiguration_lineWidth / window.devicePixelRatio;
   const cbmode = clusterCockpitConfig?.plotConfiguration_colorblindMode || false;
   const renderSleepTime = 200;
@@ -77,6 +72,8 @@
   let uplot = $state(null);
 
   /* Derived */
+  const subClusterTopology = $derived(getContext("getHardwareTopology")(cluster, subCluster));
+  const metricConfig = $derived(getContext("getMetricConfig")(cluster, subCluster, metric));
   const usesMeanStatsSeries = $derived((statisticsSeries?.mean && statisticsSeries.mean.length != 0));
   const resampleTrigger = $derived(resampleConfig?.trigger ? Number(resampleConfig.trigger) : null);
   const resampleResolutions = $derived(resampleConfig?.resolutions ? [...resampleConfig.resolutions] : null);
@@ -84,9 +81,7 @@
   const thresholds = $derived(findJobAggregationThresholds(
     subClusterTopology,
     metricConfig,
-    scope,
-    numhwthreads,
-    numaccs
+    scope
   ));
   const longestSeries = $derived.by(() => {
     if (useStatsSeries) {
@@ -200,7 +195,7 @@
                 : scope + " #" + (i + 1),
             scale: "y",
             width: lineWidth,
-            stroke: lineColor(i, series?.length),
+            stroke: lineColor(i, clusterCockpitConfig.plotConfiguration_colorScheme),
           });
         }
         // Extended Legend For NodeList
@@ -214,7 +209,7 @@
                   : scope + " #" + (i + 1),
             scale: "y",
             width: lineWidth,
-            stroke: lineColor(i, series?.length),
+            stroke: lineColor(i, clusterCockpitConfig.plotConfiguration_colorScheme),
             values: (u, sidx, idx) => {
               // "i" = "sidx - 1" : sidx contains x-axis-data
               if (idx == null)
@@ -277,9 +272,7 @@
   function findJobAggregationThresholds(
     subClusterTopology,
     metricConfig,
-    scope,
-    numhwthreads,
-    numaccs
+    scope
   ) {
 
     if (!subClusterTopology || !metricConfig || !scope) {
@@ -304,22 +297,14 @@
     }
 
     if (metricConfig?.aggregation == "sum") {
-      // Scale Thresholds
-      let fraction;
-      if (numaccs > 0) fraction = subClusterTopology.accelerators.length / numaccs;
-      else if (numhwthreads > 0) fraction = subClusterTopology.core.length / numhwthreads;
-      else fraction = 1; // Fallback
-
       let divisor;
-      // Exclusive: Fraction = 1; Shared: Fraction > 1
-      if (scope == 'node')              divisor = fraction;
-      // Cap divisor at number of available sockets or domains
-      else if (scope == 'socket')       divisor = (fraction < subClusterTopology.socket.length) ? subClusterTopology.socket.length : fraction;
-      else if (scope == "memoryDomain") divisor = (fraction < subClusterTopology.memoryDomain.length) ? subClusterTopology.socket.length : fraction;
-      // Use Maximum Division for Smallest Scopes
-      else if (scope == "core")         divisor = subClusterTopology.core.length;
-      else if (scope == "hwthread")     divisor = subClusterTopology.core.length; // alt. name for core
-      else if (scope == "accelerator")  divisor = subClusterTopology.accelerators.length;
+      if (scope == 'node')              divisor = 1 // Node Scope: Always return unscaled (Maximum Scope)
+      // Partial Scopes: Get from Topologies
+      else if (scope == 'socket')       divisor = subClusterTopology?.socket?.length || 1;
+      else if (scope == "memoryDomain") divisor = subClusterTopology?.memoryDomain?.length || 1;
+      else if (scope == "core")         divisor = subClusterTopology?.core?.length || 1;
+      else if (scope == "hwthread")     divisor = subClusterTopology?.node?.length || 1;
+      else if (scope == "accelerator")  divisor = subClusterTopology?.accelerators?.length || 1;
       else {
         console.log('Unknown scope, return default aggregation thresholds for sum', scope)
         divisor = 1;
@@ -446,9 +431,8 @@
     return backgroundColors.normal;
   }
 
-  function lineColor(i, n) {
-    if (n && n >= lineColors.length) return lineColors[i % lineColors.length];
-    else return lineColors[Math.floor((i / n) * lineColors.length)];
+  function lineColor(index, colors) {
+    return colors[index % colors.length];
   }
 
   function render(ren_width, ren_height) {
@@ -635,7 +619,13 @@
         style="background-color: {backgroundColor()};" class={forNode ? 'py-2 rounded' : 'rounded'}
   ></div>
 {:else}
-  <Card body color="warning" class="mx-4"
-    >Cannot render plot: No series data returned for <code>{metric}</code></Card
-  >
+  <Card color="warning" class={forNode ? 'mx-2' : 'mt-2'}>
+    <CardHeader class="mb-0">
+      <b>Empty Metric</b>
+    </CardHeader>
+    <CardBody>
+      <p>Cannot render plot for <b>{metric}</b>.</p>
+      <p class="mb-1">Metric found but returned without timeseries data.</p>
+    </CardBody>
+  </Card>
 {/if}

@@ -12,7 +12,7 @@ import (
 )
 
 func TestClusterConfig(t *testing.T) {
-	if err := archive.Init(json.RawMessage("{\"kind\": \"file\",\"path\": \"testdata/archive\"}"), false); err != nil {
+	if err := archive.Init(json.RawMessage("{\"kind\": \"file\",\"path\": \"testdata/archive\"}")); err != nil {
 		t.Fatal(err)
 	}
 

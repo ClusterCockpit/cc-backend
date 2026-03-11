@@ -6,6 +6,8 @@
   - `filterPresets Object?`: Optional predefined filter values [Default: {}]
   - `disableClusterSelection Bool?`: Is the selection disabled [Default: false]
   - `startTimeQuickSelect Bool?`: Render startTime quick selections [Default: false]
+  - `shortJobQuickSelect Bool?`: Render short job quick selections [Default: false]
+  - `shortJobCutoff Int?`: Time in seconds for jobs to be considered short [Default: null]
   - `matchedJobs Number?`: Number of jobs matching the filter [Default: -2]
   - `showFilter Func`: If the filter component should be rendered in addition to total count info [Default: true]
   - `applyFilters Func`: The callback function to apply current filter selection
@@ -25,10 +27,11 @@
     ButtonGroup,
     ButtonDropdown,
     Icon,
+    Tooltip
   } from "@sveltestrap/sveltestrap";
   import Info from "./filters/InfoBox.svelte";
   import Cluster from "./filters/Cluster.svelte";
-  import JobStates, { allJobStates } from "./filters/JobStates.svelte";
+  import JobStates, { allJobStates, mapSharedStates } from "./filters/JobStates.svelte";
   import StartTime, { startTimeSelectOptions } from "./filters/StartTime.svelte";
   import Duration from "./filters/Duration.svelte";
   import Tags from "./filters/Tags.svelte";
@@ -36,6 +39,7 @@
   import Resources from "./filters/Resources.svelte";
   import Energy from "./filters/Energy.svelte";
   import Statistics from "./filters/Stats.svelte";
+  import { formatDurationTime } from "./units.js";
 
   /* Svelte 5 Props */
   let {  
@@ -43,6 +47,8 @@
     filterPresets = {},
     disableClusterSelection = false,
     startTimeQuickSelect = false,
+    shortJobQuickSelect = false,
+    shortJobCutoff = 0,
     matchedJobs = -2,
     showFilter = true,
     applyFilters
@@ -69,6 +75,8 @@
     cluster: null,
     partition: null,
     states: allJobStates,
+    shared: "",
+    schedule: "",
     startTime: { from: null, to: null, range: ""},
     duration: {
       lessThan: null,
@@ -87,37 +95,40 @@
   };
 
   /* State Init */
+  // svelte-ignore state_referenced_locally
   let filters = $state({
-    dbId: filterPresets.dbId || [],
-    jobId: filterPresets.jobId || "",
-    jobIdMatch: filterPresets.jobIdMatch || "eq",
-    arrayJobId: filterPresets.arrayJobId || null,
-    jobName: filterPresets.jobName || "",
-    project: filterPresets.project || "",
-    projectMatch: filterPresets.projectMatch || "contains",
-    user: filterPresets.user || "",
-    userMatch: filterPresets.userMatch || "contains",
-    cluster: filterPresets.cluster || null,
-    partition: filterPresets.partition || null,
+    dbId: filterPresets?.dbId || [],
+    jobId: filterPresets?.jobId || "",
+    jobIdMatch: filterPresets?.jobIdMatch || "eq",
+    arrayJobId: filterPresets?.arrayJobId || null,
+    jobName: filterPresets?.jobName || "",
+    project: filterPresets?.project || "",
+    projectMatch: filterPresets?.projectMatch || "contains",
+    user: filterPresets?.user || "",
+    userMatch: filterPresets?.userMatch || "contains",
+    cluster: filterPresets?.cluster || null,
+    partition: filterPresets?.partition || null,
     states:
-      filterPresets.states || filterPresets.state
+      filterPresets?.states || filterPresets?.state
         ? [filterPresets.state].flat()
         : allJobStates,
-    startTime: filterPresets.startTime || { from: null, to: null, range: ""},
-    duration: filterPresets.duration || {
+    shared: filterPresets?.shared || "",
+    schedule: filterPresets?.schedule || "",
+    startTime: filterPresets?.startTime || { from: null, to: null, range: ""},
+    duration: filterPresets?.duration || {
       lessThan: null,
       moreThan: null,
       from: null,
       to: null,
     },
-    tags: filterPresets.tags || [],
-    numNodes: filterPresets.numNodes || { from: null, to: null },
-    numHWThreads: filterPresets.numHWThreads || { from: null, to: null },
-    numAccelerators: filterPresets.numAccelerators || { from: null, to: null },
-    node: filterPresets.node || null,
-    nodeMatch: filterPresets.nodeMatch || "eq",
-    energy: filterPresets.energy || { from: null, to: null },
-    stats: filterPresets.stats || [],
+    tags: filterPresets?.tags || [],
+    numNodes: filterPresets?.numNodes || { from: null, to: null },
+    numHWThreads: filterPresets?.numHWThreads || { from: null, to: null },
+    numAccelerators: filterPresets?.numAccelerators || { from: null, to: null },
+    node: filterPresets?.node || null,
+    nodeMatch: filterPresets?.nodeMatch || "eq",
+    energy: filterPresets?.energy || { from: null, to: null },
+    stats: filterPresets?.stats || [],
   });
 
   /* Opened States */
@@ -146,47 +157,18 @@
     let items = [];
     if (filters.dbId.length != 0)
       items.push({ dbId: filters.dbId });
-    if (filters.jobId)
-      items.push({ jobId: { [filters.jobIdMatch]: filters.jobId } });
-    if (filters.arrayJobId != null)
-      items.push({ arrayJobId: filters.arrayJobId });
-    if (filters.jobName) items.push({ jobName: { contains: filters.jobName } });
-    if (filters.project)
-      items.push({ project: { [filters.projectMatch]: filters.project } });
-    if (filters.user)
-      items.push({ user: { [filters.userMatch]: filters.user } });
     if (filters.cluster) items.push({ cluster: { eq: filters.cluster } });
     if (filters.partition) items.push({ partition: { eq: filters.partition } });
     if (filters.states.length != allJobStates?.length)
       items.push({ state: filters.states });
-    if (filters.startTime.from || filters.startTime.to)
-      items.push({
-        startTime: { from: filters.startTime.from, to: filters.startTime.to },
-      });
-    if (filters.startTime.range)
-      items.push({
-        startTime: { range: filters.startTime.range },
-      });
-    if (filters.duration.from || filters.duration.to)
-      items.push({
-        duration: { from: filters.duration.from, to: filters.duration.to },
-      });
-    if (filters.duration.lessThan)
-      items.push({ duration: { from: 0, to: filters.duration.lessThan } });
-    if (filters.duration.moreThan)
-      items.push({ duration: { from: filters.duration.moreThan, to: 604800 } }); // 7 days to include special jobs with long runtimes
-    if (filters.tags.length != 0) items.push({ tags: filters.tags });
+    if (filters.shared) items.push({ shared: filters.shared });
+    if (filters.project)
+      items.push({ project: { [filters.projectMatch]: filters.project } });
+    if (filters.user)
+      items.push({ user: { [filters.userMatch]: filters.user } });
     if (filters.numNodes.from != null || filters.numNodes.to != null) {
       items.push({
         numNodes: { from: filters.numNodes.from, to: filters.numNodes.to },
-      });
-    }
-    if (filters.numHWThreads.from != null || filters.numHWThreads.to != null) {
-      items.push({
-        numHWThreads: {
-          from: filters.numHWThreads.from,
-          to: filters.numHWThreads.to,
-        },
       });
     }
     if (filters.numAccelerators.from != null || filters.numAccelerators.to != null) {
@@ -197,14 +179,44 @@
         },
       });
     }
-    if (filters.node) items.push({ node: { [filters.nodeMatch]: filters.node } });
-    if (filters.energy.from || filters.energy.to)
+    if (filters.numHWThreads.from != null || filters.numHWThreads.to != null) {
+      items.push({
+        numHWThreads: {
+          from: filters.numHWThreads.from,
+          to: filters.numHWThreads.to,
+        },
+      });
+    }
+    if (filters.arrayJobId != null)
+      items.push({ arrayJobId: filters.arrayJobId });
+    if (filters.tags.length != 0) items.push({ tags: filters.tags });
+    if (filters.startTime.from || filters.startTime.to)
+      items.push({
+        startTime: { from: filters.startTime.from, to: filters.startTime.to },
+      });
+    if (filters.startTime.range)
+      items.push({
+        startTime: { range: filters.startTime.range },
+      });
+    if (filters.duration.from && filters.duration.to)
+      items.push({
+        duration: { from: filters.duration.from, to: filters.duration.to },
+      });
+    if (filters.duration.lessThan)
+      items.push({ duration: { to: filters.duration.lessThan, from: 0 } });
+    if (filters.duration.moreThan)
+      items.push({ duration: { to: 0, from: filters.duration.moreThan } });
+    if (filters.energy.from != null || filters.energy.to != null)
       items.push({
         energy: { from: filters.energy.from, to: filters.energy.to },
       });
+    if (filters.jobId)
+      items.push({ jobId: { [filters.jobIdMatch]: filters.jobId } });
     if (filters.stats.length != 0)
       items.push({ metricStats: filters.stats.map((st) => { return { metricName: st.field, range: { from: st.from, to: st.to }} }) });
-
+    if (filters.node) items.push({ node: { [filters.nodeMatch]: filters.node } });
+    if (filters.jobName) items.push({ jobName: { contains: filters.jobName } });
+    if (filters.schedule) items.push({ schedule: filters.schedule });
     applyFilters({ filters: items });
     changeURL();
     return items;
@@ -235,12 +247,15 @@
     if (filters.project) opts.push(`project=${filters.project}`);
     if (filters.project && filters.projectMatch != "contains") // "contains" is default-case
      opts.push(`projectMatch=${filters.projectMatch}`);
-    if (filters.user.length != 0)
-      if (filters.userMatch != "in") {
-        opts.push(`user=${filters.user}`);
-      } else {
-        for (let singleUser of filters.user) opts.push(`user=${singleUser}`);
+    if (filters.user) {
+      if (filters.user.length != 0) {
+        if (filters.userMatch != "in") {
+          opts.push(`user=${filters.user}`);
+        } else {
+          for (let singleUser of filters.user) opts.push(`user=${singleUser}`);
+        }
       }
+    }
     if (filters.userMatch != "contains") // "contains" is default-case
       opts.push(`userMatch=${filters.userMatch}`);
     // Filter Modals
@@ -248,6 +263,8 @@
     if (filters.partition) opts.push(`partition=${filters.partition}`);
     if (filters.states.length != allJobStates?.length)
       for (let state of filters.states) opts.push(`state=${state}`);
+    if (filters.shared) opts.push(`shared=${filters.shared}`);
+    if (filters.schedule) opts.push(`schedule=${filters.schedule}`);
     if (filters.startTime.from && filters.startTime.to)
       opts.push(
         `startTime=${dateToUnixEpoch(filters.startTime.from)}-${dateToUnixEpoch(filters.startTime.to)}`,
@@ -258,25 +275,46 @@
     if (filters.duration.from && filters.duration.to)
       opts.push(`duration=${filters.duration.from}-${filters.duration.to}`);
     if (filters.duration.lessThan)
-      opts.push(`duration=0-${filters.duration.lessThan}`);
+      opts.push(`duration=lessthan-${filters.duration.lessThan}`);
     if (filters.duration.moreThan)
-      opts.push(`duration=${filters.duration.moreThan}-604800`);
+      opts.push(`duration=morethan-${filters.duration.moreThan}`);
     if (filters.tags.length != 0)
       for (let tag of filters.tags) opts.push(`tag=${tag}`);
-    if (filters.numNodes.from && filters.numNodes.to)
+    if (filters.numNodes.from > 1 && filters.numNodes.to > 0)
       opts.push(`numNodes=${filters.numNodes.from}-${filters.numNodes.to}`);
-    if (filters.numHWThreads.from && filters.numHWThreads.to)
+    else if (filters.numNodes.from > 1 && filters.numNodes.to == 0)
+      opts.push(`numNodes=morethan-${filters.numNodes.from}`);
+    else if (filters.numNodes.from == 1 && filters.numNodes.to > 0)
+      opts.push(`numNodes=lessthan-${filters.numNodes.to}`);
+    if (filters.numHWThreads.from > 1 && filters.numHWThreads.to > 0)
       opts.push(`numHWThreads=${filters.numHWThreads.from}-${filters.numHWThreads.to}`);
+    else if (filters.numHWThreads.from > 1 && filters.numHWThreads.to == 0)
+      opts.push(`numHWThreads=morethan-${filters.numHWThreads.from}`);
+    else if (filters.numHWThreads.from == 1 && filters.numHWThreads.to > 0)
+      opts.push(`numHWThreads=lessthan-${filters.numHWThreads.to}`);
     if (filters.numAccelerators.from && filters.numAccelerators.to)
       opts.push(`numAccelerators=${filters.numAccelerators.from}-${filters.numAccelerators.to}`);
+    else if (filters.numAccelerators.from > 1 && filters.numAccelerators.to == 0)
+      opts.push(`numAccelerators=morethan-${filters.numAccelerators.from}`);
+    else if (filters.numAccelerators.from == 1 && filters.numAccelerators.to > 0)
+      opts.push(`numAccelerators=lessthan-${filters.numAccelerators.to}`);
     if (filters.node) opts.push(`node=${filters.node}`);
     if (filters.node && filters.nodeMatch != "eq") // "eq" is default-case
       opts.push(`nodeMatch=${filters.nodeMatch}`);
-    if (filters.energy.from && filters.energy.to)
+    if (filters.energy.from > 1 && filters.energy.to > 0)
       opts.push(`energy=${filters.energy.from}-${filters.energy.to}`);
-    if (filters.stats.length != 0)
+    else if (filters.energy.from > 1 && filters.energy.to == 0)
+      opts.push(`energy=morethan-${filters.energy.from}`);
+    else if (filters.energy.from == 1 && filters.energy.to > 0)
+      opts.push(`energy=lessthan-${filters.energy.to}`);
+    if (filters.stats.length > 0)
       for (let stat of filters.stats) {
+        if (stat.from > 1 && stat.to > 0)
           opts.push(`stat=${stat.field}-${stat.from}-${stat.to}`);
+        else if (stat.from > 1 && stat.to == 0)
+          opts.push(`stat=${stat.field}-morethan-${stat.from}`);
+        else if (stat.from == 1 && stat.to > 0)
+          opts.push(`stat=${stat.field}-lessthan-${stat.to}`);
       }
     // Build && Return
     if (opts.length == 0 && window.location.search.length <= 1) return;
@@ -324,6 +362,44 @@
         <DropdownItem onclick={() => (isStatsOpen = true)}>
           <Icon name="bar-chart" onclick={() => (isStatsOpen = true)} /> Statistics
         </DropdownItem>
+        {#if shortJobQuickSelect && shortJobCutoff > 0}
+          <DropdownItem divider />
+          <DropdownItem header>
+            Short Jobs Selection
+            <Icon id="shortjobsfilter-info" style="cursor:help; padding-right: 8px;" size="sm" name="info-circle"/>
+            <Tooltip target={`shortjobsfilter-info`} placement="right">
+              Job duration less than {formatDurationTime(shortJobCutoff)}
+            </Tooltip>
+          </DropdownItem>
+          <DropdownItem
+            onclick={() => {
+              filters.duration = { 
+                moreThan: null,
+                lessThan: shortJobCutoff,
+                from: null,
+                to: null
+              }
+              updateFilters();
+            }}
+          >
+            <Icon name="stopwatch" />
+            Only Short Jobs
+          </DropdownItem>
+          <DropdownItem
+            onclick={() => {
+              filters.duration = { 
+                moreThan: shortJobCutoff,
+                lessThan: null,
+                from: null,
+                to: null
+              }
+              updateFilters();
+            }}
+          >
+            <Icon name="stopwatch" />
+            Exclude Short Jobs
+          </DropdownItem>
+        {/if}
         {#if startTimeQuickSelect}
           <DropdownItem divider />
           <DropdownItem header>Start Time Quick Selection</DropdownItem>
@@ -366,6 +442,23 @@
   {#if filters.states.length != allJobStates?.length}
     <Info icon="gear-fill" onclick={() => (isJobStatesOpen = true)}>
       {filters.states.join(", ")}
+      {#if filters.shared && !filters.schedule}
+        ({mapSharedStates[filters.shared]})
+      {:else if filters.schedule && !filters.shared}
+        ({filters.schedule.charAt(0).toUpperCase() + filters.schedule?.slice(1)})
+      {:else if (filters.shared && filters.schedule)}
+        ({[mapSharedStates[filters.shared], (filters.schedule.charAt(0).toUpperCase() + filters.schedule.slice(1))].join(", ")})
+      {/if}
+    </Info>
+  {:else if (filters.shared || filters.schedule)}
+    <Info icon="gear-fill" onclick={() => (isJobStatesOpen = true)}>
+      {#if filters.shared && !filters.schedule}
+        {mapSharedStates[filters.shared]}
+      {:else if filters.schedule && !filters.shared}
+        {filters.schedule.charAt(0).toUpperCase() + filters.schedule?.slice(1)}
+      {:else if (filters.shared && filters.schedule)}
+        {[mapSharedStates[filters.shared], (filters.schedule.charAt(0).toUpperCase() + filters.schedule.slice(1))].join(", ")}
+      {/if}
     </Info>
   {/if}
 
@@ -379,7 +472,7 @@
 
   {#if filters.startTime.range}
     <Info icon="calendar-range" onclick={() => (isStartTimeOpen = true)}>
-      {startTimeSelectOptions.find((stso) => stso.range === filters.startTime.range).rangeLabel }
+      Job Start: {startTimeSelectOptions.find((stso) => stso.range === filters.startTime.range).rangeLabel }
     </Info>
   {/if}
 
@@ -418,21 +511,45 @@
     </Info>
   {/if}
 
-  {#if filters.numNodes.from != null || filters.numNodes.to != null}
+  {#if filters.numNodes.from > 1 && filters.numNodes.to > 0}
     <Info icon="hdd-stack" onclick={() => (isResourcesOpen = true)}>
-        Nodes: {filters.numNodes.from} - {filters.numNodes.to}
+      Nodes: {filters.numNodes.from} - {filters.numNodes.to}
+    </Info>
+  {:else if filters.numNodes.from > 1 && filters.numNodes.to == 0}
+    <Info icon="hdd-stack" onclick={() => (isResourcesOpen = true)}>
+      &nbsp;&ge;&nbsp;{filters.numNodes.from} Node(s)
+    </Info>
+  {:else if filters.numNodes.from == 1 && filters.numNodes.to > 0}
+    <Info icon="hdd-stack" onclick={() => (isResourcesOpen = true)}>
+      &nbsp;&le;&nbsp;{filters.numNodes.to} Node(s)
     </Info>
   {/if}
 
-  {#if filters.numHWThreads.from != null || filters.numHWThreads.to != null}
+  {#if filters.numHWThreads.from > 1 && filters.numHWThreads.to > 0}
     <Info icon="cpu" onclick={() => (isResourcesOpen = true)}>
-        HWThreads: {filters.numHWThreads.from} - {filters.numHWThreads.to}
+      HWThreads: {filters.numHWThreads.from} - {filters.numHWThreads.to}
+    </Info>
+  {:else if filters.numHWThreads.from > 1 && filters.numHWThreads.to == 0}
+    <Info icon="cpu" onclick={() => (isResourcesOpen = true)}>
+      &nbsp;&ge;&nbsp;{filters.numHWThreads.from} HWThread(s)
+    </Info>
+  {:else if filters.numHWThreads.from == 1 && filters.numHWThreads.to > 0}
+    <Info icon="cpu" onclick={() => (isResourcesOpen = true)}>
+      &nbsp;&le;&nbsp;{filters.numHWThreads.to} HWThread(s)
     </Info>
   {/if}
 
-  {#if filters.numAccelerators.from != null || filters.numAccelerators.to != null}
+  {#if filters.numAccelerators.from > 1 && filters.numAccelerators.to > 0}
     <Info icon="gpu-card" onclick={() => (isResourcesOpen = true)}>
-        Accelerators: {filters.numAccelerators.from} - {filters.numAccelerators.to}
+      Accelerators: {filters.numAccelerators.from} - {filters.numAccelerators.to}
+    </Info>
+  {:else if filters.numAccelerators.from > 1 && filters.numAccelerators.to == 0}
+    <Info icon="gpu-card" onclick={() => (isResourcesOpen = true)}>
+      &nbsp;&ge;&nbsp;{filters.numAccelerators.from} Acc(s)
+    </Info>
+  {:else if filters.numAccelerators.from == 1 && filters.numAccelerators.to > 0}
+    <Info icon="gpu-card" onclick={() => (isResourcesOpen = true)}>
+      &nbsp;&le;&nbsp;{filters.numAccelerators.to} Acc(s)
     </Info>
   {/if}
 
@@ -442,18 +559,36 @@
     </Info>
   {/if}
 
-  {#if filters.energy.from || filters.energy.to}
+  {#if filters.energy.from > 1 && filters.energy.to > 0}
     <Info icon="lightning-charge-fill" onclick={() => (isEnergyOpen = true)}>
-      Total Energy: {filters.energy.from} - {filters.energy.to}
+      Total Energy: {filters.energy.from} - {filters.energy.to} kWh
+    </Info>
+  {:else if filters.energy.from > 1 && filters.energy.to == 0}
+    <Info icon="lightning-charge-fill" onclick={() => (isEnergyOpen = true)}>
+      Total Energy &ge;&nbsp;{filters.energy.from} kWh
+    </Info>
+  {:else if filters.energy.from == 1 && filters.energy.to > 0}
+    <Info icon="lightning-charge-fill" onclick={() => (isEnergyOpen = true)}>
+      Total Energy &le;&nbsp;{filters.energy.to} kWh
     </Info>
   {/if}
 
   {#if filters.stats.length > 0}
-    <Info icon="bar-chart" onclick={() => (isStatsOpen = true)}>
-      {filters.stats
-        .map((stat) => `${stat.field}: ${stat.from} - ${stat.to}`)
-        .join(", ")}
-    </Info>
+    {#each filters.stats as stat}
+      {#if stat.from > 1 && stat.to > 0}
+        <Info icon="bar-chart" onclick={() => (isStatsOpen = true)}>
+          {stat.field}: {stat.from} - {stat.to} {stat.unit}
+        </Info>&thinsp;
+      {:else if stat.from > 1 && stat.to == 0}
+        <Info icon="bar-chart" onclick={() => (isStatsOpen = true)}>
+          {stat.field} &ge;&nbsp;{stat.from} {stat.unit}
+        </Info>&thinsp;
+      {:else if stat.from == 1 && stat.to > 0}
+        <Info icon="bar-chart" onclick={() => (isStatsOpen = true)}>
+          {stat.field} &le;&nbsp;{stat.to} {stat.unit}
+        </Info>&thinsp;
+      {/if}
+    {/each}
   {/if}
 {/if}
 
@@ -468,6 +603,8 @@
 <JobStates
   bind:isOpen={isJobStatesOpen}
   presetStates={filters.states}
+  presetShared={filters.shared}
+  presetSchedule={filters.schedule}
   setFilter={(filter) => updateFilters(filter)}
 />
 

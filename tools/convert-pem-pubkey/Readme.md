@@ -16,7 +16,7 @@ CROSS_LOGIN_JWT_PUBLIC_KEY="+51iXX8BdLFocrppRxIw52xCOf8xFSH/eNilN5IHVGc="
 
 Instructions
 
-- `cd tools/convert-pem-pubkey-for-cc/`
+- `cd tools/convert-pem-pubkey/`
 - Insert your public ed25519 PEM key into `dummy.pub`
 - `go run . dummy.pub`
 - Copy the result into ClusterCockpit's `.env`

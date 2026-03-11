@@ -9,8 +9,8 @@ if (headerDomTarget != null) {
         props: {
             username: hUsername, 
             authlevel: hAuthlevel,
-            clusters: hClusters, 
-            subClusters: hSubClusters,
+            clusterNames: hClusterNames, 
+            subclusterMap: hSubclusterMap,
             roles: hRoles,
         },
     });

@@ -43,11 +43,14 @@
   } = $props();
 
   // By default, look at the jobs of the last 6 hours:
+  // svelte-ignore state_referenced_locally
   if (filterPresets?.startTime == null) {
+    // svelte-ignore state_referenced_locally
     if (filterPresets == null) filterPresets = {};
     let now = new Date(Date.now());
     let hourAgo = new Date(now);
     hourAgo.setHours(hourAgo.getHours() - 6);
+    // svelte-ignore state_referenced_locally
     filterPresets.startTime = {
       from: hourAgo.toISOString(),
       to: now.toISOString(),

@@ -12,8 +12,8 @@ import (
 	"testing"
 
 	"github.com/ClusterCockpit/cc-backend/pkg/archive"
-	"github.com/ClusterCockpit/cc-lib/schema"
-	"github.com/ClusterCockpit/cc-lib/util"
+	"github.com/ClusterCockpit/cc-lib/v2/schema"
+	"github.com/ClusterCockpit/cc-lib/v2/util"
 )
 
 // TestImportFileToSqlite tests importing jobs from file backend to SQLite backend
@@ -41,14 +41,14 @@ func TestImportFileToSqlite(t *testing.T) {
 	}
 
 	// Initialize destination backend (sqlite)
-	dstConfig := fmt.Sprintf(`{"kind":"sqlite","dbPath":"%s"}`, dstDb)
+	dstConfig := fmt.Sprintf(`{"kind":"sqlite","db-path":"%s"}`, dstDb)
 	dstBackend, err := archive.InitBackend(json.RawMessage(dstConfig))
 	if err != nil {
 		t.Fatalf("Failed to initialize destination backend: %s", err.Error())
 	}
 
 	// Perform import
-	imported, failed, err := importArchive(srcBackend, dstBackend)
+	imported, failed, err := importArchive(srcBackend, dstBackend, srcConfig)
 	if err != nil {
 		t.Errorf("Import failed: %s", err.Error())
 	}
@@ -111,13 +111,13 @@ func TestImportFileToFile(t *testing.T) {
 	}
 
 	// Create destination archive directory
-	if err := os.MkdirAll(dstArchive, 0755); err != nil {
+	if err := os.MkdirAll(dstArchive, 0o755); err != nil {
 		t.Fatalf("Failed to create destination directory: %s", err.Error())
 	}
 
 	// Write version file
 	versionFile := filepath.Join(dstArchive, "version.txt")
-	if err := os.WriteFile(versionFile, []byte("3"), 0644); err != nil {
+	if err := os.WriteFile(versionFile, []byte("3"), 0o644); err != nil {
 		t.Fatalf("Failed to write version file: %s", err.Error())
 	}
 
@@ -136,7 +136,7 @@ func TestImportFileToFile(t *testing.T) {
 	}
 
 	// Perform import
-	imported, failed, err := importArchive(srcBackend, dstBackend)
+	imported, failed, err := importArchive(srcBackend, dstBackend, srcConfig)
 	if err != nil {
 		t.Errorf("Import failed: %s", err.Error())
 	}
@@ -176,14 +176,14 @@ func TestImportDataIntegrity(t *testing.T) {
 		t.Fatalf("Failed to initialize source backend: %s", err.Error())
 	}
 
-	dstConfig := fmt.Sprintf(`{"kind":"sqlite","dbPath":"%s"}`, dstDb)
+	dstConfig := fmt.Sprintf(`{"kind":"sqlite","db-path":"%s"}`, dstDb)
 	dstBackend, err := archive.InitBackend(json.RawMessage(dstConfig))
 	if err != nil {
 		t.Fatalf("Failed to initialize destination backend: %s", err.Error())
 	}
 
 	// Perform import
-	_, _, err = importArchive(srcBackend, dstBackend)
+	_, _, err = importArchive(srcBackend, dstBackend, srcConfig)
 	if err != nil {
 		t.Errorf("Import failed: %s", err.Error())
 	}
@@ -253,13 +253,13 @@ func TestImportEmptyArchive(t *testing.T) {
 	dstDb := filepath.Join(tmpdir, "dst-archive.db")
 
 	// Create empty source archive
-	if err := os.MkdirAll(srcArchive, 0755); err != nil {
+	if err := os.MkdirAll(srcArchive, 0o755); err != nil {
 		t.Fatalf("Failed to create source directory: %s", err.Error())
 	}
 
 	// Write version file
 	versionFile := filepath.Join(srcArchive, "version.txt")
-	if err := os.WriteFile(versionFile, []byte("3"), 0644); err != nil {
+	if err := os.WriteFile(versionFile, []byte("3"), 0o644); err != nil {
 		t.Fatalf("Failed to write version file: %s", err.Error())
 	}
 
@@ -270,14 +270,14 @@ func TestImportEmptyArchive(t *testing.T) {
 		t.Fatalf("Failed to initialize source backend: %s", err.Error())
 	}
 
-	dstConfig := fmt.Sprintf(`{"kind":"sqlite","dbPath":"%s"}`, dstDb)
+	dstConfig := fmt.Sprintf(`{"kind":"sqlite","db-path":"%s"}`, dstDb)
 	dstBackend, err := archive.InitBackend(json.RawMessage(dstConfig))
 	if err != nil {
 		t.Fatalf("Failed to initialize destination backend: %s", err.Error())
 	}
 
 	// Perform import
-	imported, failed, err := importArchive(srcBackend, dstBackend)
+	imported, failed, err := importArchive(srcBackend, dstBackend, srcConfig)
 	if err != nil {
 		t.Errorf("Import from empty archive should not fail: %s", err.Error())
 	}
@@ -314,20 +314,20 @@ func TestImportDuplicateJobs(t *testing.T) {
 		t.Fatalf("Failed to initialize source backend: %s", err.Error())
 	}
 
-	dstConfig := fmt.Sprintf(`{"kind":"sqlite","dbPath":"%s"}`, dstDb)
+	dstConfig := fmt.Sprintf(`{"kind":"sqlite","db-path":"%s"}`, dstDb)
 	dstBackend, err := archive.InitBackend(json.RawMessage(dstConfig))
 	if err != nil {
 		t.Fatalf("Failed to initialize destination backend: %s", err.Error())
 	}
 
 	// First import
-	imported1, _, err := importArchive(srcBackend, dstBackend)
+	imported1, _, err := importArchive(srcBackend, dstBackend, srcConfig)
 	if err != nil {
 		t.Fatalf("First import failed: %s", err.Error())
 	}
 
 	// Second import (should skip all jobs)
-	imported2, _, err := importArchive(srcBackend, dstBackend)
+	imported2, _, err := importArchive(srcBackend, dstBackend, srcConfig)
 	if err != nil {
 		t.Errorf("Second import failed: %s", err.Error())
 	}
@@ -366,7 +366,7 @@ func TestImportToEmptyFileDestination(t *testing.T) {
 	util.CopyDir(testDataPath, srcArchive)
 
 	// Setup empty destination directory
-	os.MkdirAll(dstArchive, 0755)
+	os.MkdirAll(dstArchive, 0o755)
 	// NOTE: NOT writing version.txt here!
 
 	// Initialize source
@@ -384,7 +384,7 @@ func TestImportToEmptyFileDestination(t *testing.T) {
 	}
 
 	// Perform import
-	imported, _, err := importArchive(srcBackend, dstBackend)
+	imported, _, err := importArchive(srcBackend, dstBackend, srcConfig)
 	if err != nil {
 		t.Errorf("Import failed: %v", err)
 	}

@@ -1,10 +1,8 @@
 #!/bin/sh
 
-# rm -rf var
-
 if [ -d './var' ]; then
   echo 'Directory ./var already exists! Skipping initialization.'
-  ./cc-backend -server -dev
+  ./cc-backend -server -dev -loglevel info
 else
   make
   ./cc-backend --init
@@ -15,5 +13,6 @@ else
   rm ./job-archive-demo.tar
 
   ./cc-backend -dev -init-db -add-user demo:admin,api:demo
-  ./cc-backend -server -dev
+  ./cc-backend -server -dev -loglevel info
 fi
+

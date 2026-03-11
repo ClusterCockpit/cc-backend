@@ -9,15 +9,15 @@ import (
 	"time"
 
 	"github.com/ClusterCockpit/cc-backend/pkg/archive"
-	cclog "github.com/ClusterCockpit/cc-lib/ccLogger"
-	"github.com/ClusterCockpit/cc-lib/schema"
+	cclog "github.com/ClusterCockpit/cc-lib/v2/ccLogger"
+	"github.com/ClusterCockpit/cc-lib/v2/schema"
 	"github.com/go-co-op/gocron/v2"
 )
 
 func RegisterCompressionService(compressOlderThan int) {
 	cclog.Info("Register compression service")
 
-	s.NewJob(gocron.DailyJob(1, gocron.NewAtTimes(gocron.NewAtTime(0o5, 0, 0))),
+	s.NewJob(gocron.DailyJob(1, gocron.NewAtTimes(gocron.NewAtTime(5, 0, 0))),
 		gocron.NewTask(
 			func() {
 				var jobs []*schema.Job
@@ -28,10 +28,10 @@ func RegisterCompressionService(compressOlderThan int) {
 				lastTime := ar.CompressLast(startTime)
 				if startTime == lastTime {
 					cclog.Info("Compression Service - Complete archive run")
-					jobs, err = jobRepo.FindJobsBetween(0, startTime, false)
+					jobs, err = jobRepo.FindJobsBetween(0, startTime, "none")
 
 				} else {
-					jobs, err = jobRepo.FindJobsBetween(lastTime, startTime, false)
+					jobs, err = jobRepo.FindJobsBetween(lastTime, startTime, "none")
 				}
 
 				if err != nil {

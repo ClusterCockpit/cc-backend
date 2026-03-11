@@ -22,6 +22,8 @@
     Icon,
     Spinner,
     Card,
+    CardHeader,
+    CardBody
   } from "@sveltestrap/sveltestrap";
   import {
     queryStore,
@@ -30,7 +32,7 @@
   } from "@urql/svelte";
   import {
     init,
-    checkMetricDisabled,
+    checkMetricAvailability,
   } from "./generic/utils.js";
   import PlotGrid from "./generic/PlotGrid.svelte";
   import MetricPlot from "./generic/plots/MetricPlot.svelte";
@@ -47,19 +49,10 @@
 
   /* Const Init */
   const { query: initq } = init();
-  const initialized = getContext("initialized")
-  const globalMetrics = getContext("globalMetrics")
-  const ccconfig = getContext("cc-config");
-  const clusters = getContext("clusters");
+  const client = getContextClient();
   const nowEpoch = Date.now();
   const paging = { itemsPerPage: 50, page: 1 };
   const sorting = { field: "startTime", type: "col", order: "DESC" };
-  const filter = [
-    { cluster: { eq: cluster } },
-    { node: { contains: hostname } },
-    { state: ["running"] },
-  ];
-  const client = getContextClient();
   const nodeMetricsQuery = gql`
     query ($cluster: String!, $nodes: [String!], $from: Time!, $to: Time!) {
       nodeMetrics(cluster: $cluster, nodes: $nodes, from: $from, to: $to) {
@@ -111,11 +104,36 @@
   }
 
   /* State Init */
+  // svelte-ignore state_referenced_locally
   let from = $state(presetFrom ? presetFrom : new Date(nowEpoch - (4 * 3600 * 1000)));
+  // svelte-ignore state_referenced_locally
   let to = $state(presetTo ? presetTo : new Date(nowEpoch));
-  let systemUnits = $state({});
+
+  /* Derived Init Return */
+  const thisInit = $derived($initq?.data ? true : false);
 
   /* Derived */
+  const ccconfig = $derived(thisInit ? getContext("cc-config") : null);
+  const globalMetrics = $derived(thisInit ? getContext("globalMetrics") : null);
+  const clusterInfos = $derived(thisInit ? getContext("clusters") : null);
+
+  const filter = $derived([
+    { cluster: { eq: cluster } },
+    { node: { eq: hostname } },
+    { state: ["running"] },
+  ]);
+
+  const systemUnits = $derived.by(() => {
+    const pendingUnits = {};
+    if (thisInit) {
+      const systemMetrics = [...globalMetrics.filter((gm) => gm?.availability.find((av) => av.cluster == cluster))]
+      for (let sm of systemMetrics) {
+        pendingUnits[sm.name] = (sm?.unit?.prefix ? sm.unit.prefix : "") + (sm?.unit?.base ? sm.unit.base : "")
+      }
+    }
+    return {...pendingUnits};
+  });
+
   const nodeMetricsData = $derived(queryStore({
       client: client,
       query: nodeMetricsQuery,
@@ -136,20 +154,6 @@
   );
 
   const thisNodeState = $derived($nodeMetricsData?.data?.nodeMetrics[0]?.state ? $nodeMetricsData.data.nodeMetrics[0].state : 'notindb');
-
-  /* Effect */
-  $effect(() => {
-    loadUnits($initialized);
-  });
-
-  /* Functions */
-  function loadUnits(isInitialized) {
-    if (!isInitialized) return
-    const systemMetrics = [...globalMetrics.filter((gm) => gm?.availability.find((av) => av.cluster == cluster))]
-    for (let sm of systemMetrics) {
-      systemUnits[sm.name] = (sm?.unit?.prefix ? sm.unit.prefix : "") + (sm?.unit?.base ? sm.unit.base : "")
-    }
-  }
 </script>
 
 <Row cols={{ xs: 2, lg: 5 }}>
@@ -163,7 +167,7 @@
       <InputGroup>
         <InputGroupText><Icon name="hdd" /></InputGroupText>
         <InputGroupText>Selected Node</InputGroupText>
-        <Input style="background-color: white;" type="text" value="{hostname} [{cluster} {$nodeMetricsData?.data ? `(${$nodeMetricsData.data.nodeMetrics[0].subCluster})` : ''}]" disabled/>
+        <Input style="background-color: white;" type="text" value="{hostname} [{cluster} {$nodeMetricsData?.data?.nodeMetrics[0] ? `(${$nodeMetricsData.data.nodeMetrics[0].subCluster})` : ''}]" disabled/>
       </InputGroup>
     </Col>
     <!-- State Col -->
@@ -172,7 +176,11 @@
         <InputGroupText><Icon name="clipboard2-pulse" /></InputGroupText>
         <InputGroupText>Node State</InputGroupText>
         <Button class="flex-grow-1 text-center" color={stateColors[thisNodeState]} disabled>
-          {thisNodeState}
+          {#if $nodeMetricsData?.data}
+            {thisNodeState}
+          {:else}
+            <span><Spinner size="sm" secondary/></span>
+          {/if}
         </Button>
       </InputGroup>
     </Col>
@@ -234,44 +242,61 @@
           {item.name}
           {systemUnits[item.name] ? "(" + systemUnits[item.name] + ")" : ""}
         </h4>
-        {#if item.disabled === false && item.metric}
+        {#if item.availability == "none"}
+          <Card color="light" class="mx-2">
+            <CardHeader class="mb-0">
+              <b>Metric not configured</b>
+            </CardHeader>
+            <CardBody>
+              <p>No datasets returned for <b>{item.name}</b>.</p>
+              <p class="mb-1">Metric is not configured for cluster <b>{cluster}</b>.</p>
+            </CardBody>
+          </Card>
+        {:else if item.availability == "disabled"}
+          <Card color="info" class="mx-2">
+            <CardHeader class="mb-0">
+              <b>Disabled Metric</b>
+            </CardHeader>
+            <CardBody>
+              <p>No dataset(s) returned for <b>{item.name}</b></p>
+              <p class="mb-1">Metric has been disabled for subcluster <b>{$nodeMetricsData?.data?.nodeMetrics[0]?.subCluster}</b>.</p>
+            </CardBody>
+          </Card>
+        {:else if item?.metric}
           <MetricPlot
             metric={item.name}
             timestep={item.metric.timestep}
-            cluster={clusters.find((c) => c.name == cluster)}
-            subCluster={$nodeMetricsData.data.nodeMetrics[0].subCluster}
+            cluster={clusterInfos.find((c) => c.name == cluster)}
+            subCluster={$nodeMetricsData?.data?.nodeMetrics[0]?.subCluster}
             series={item.metric.series}
             enableFlip
             forNode
           />
-        {:else if item.disabled === true && item.metric}
-          <Card style="margin-left: 2rem;margin-right: 2rem;" body color="info"
-            >Metric disabled for subcluster <code
-              >{item.name}:{$nodeMetricsData.data.nodeMetrics[0]
-                .subCluster}</code
-            ></Card
-          >
         {:else}
-          <Card
-            style="margin-left: 2rem;margin-right: 2rem;"
-            body
-            color="warning"
-            >No dataset returned for <code>{item.name}</code></Card
-          >
+          <Card color="warning" class="mx-2">
+            <CardHeader class="mb-0">
+              <b>Missing Metric</b>
+            </CardHeader>
+            <CardBody>
+              <p>No dataset returned for <b>{item.name}</b>.</p>
+              <p class="mb-1">Metric was not found in metric store for cluster <b>{cluster}</b>.</p>
+            </CardBody>
+          </Card>
         {/if}
       {/snippet}
 
       <PlotGrid
-        items={$nodeMetricsData.data.nodeMetrics[0].metrics
+        items={$nodeMetricsData?.data?.nodeMetrics[0]?.metrics
           .map((m) => ({
             ...m,
-            disabled: checkMetricDisabled(
+            availability: checkMetricAvailability(
+              globalMetrics,
               m.name,
               cluster,
-              $nodeMetricsData.data.nodeMetrics[0].subCluster,
+              $nodeMetricsData?.data?.nodeMetrics[0]?.subCluster,
             ),
           }))
-          .sort((a, b) => a.name.localeCompare(b.name))}
+          .sort((a, b) => a.name.localeCompare(b.name)) || []}
         itemsPerRow={ccconfig.plotConfiguration_plotsPerRow}
         {gridContent}
       />

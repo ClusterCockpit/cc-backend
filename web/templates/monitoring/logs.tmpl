@@ -1,0 +1,13 @@
+{{define "content"}}
+    <div id="svelte-app"></div>
+{{end}}
+
+{{define "stylesheets"}}
+    <link rel='stylesheet' href='/build/logs.css'>
+{{end}}
+{{define "javascript"}}
+    <script>
+        const isAdmin = {{ .User.HasRole .Roles.admin }};
+    </script>
+    <script src='/build/logs.js'></script>
+{{end}}

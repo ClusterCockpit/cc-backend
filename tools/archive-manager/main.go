@@ -5,18 +5,27 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"flag"
 	"fmt"
+	"io/fs"
 	"os"
+	"os/exec"
+	"os/signal"
+	"path/filepath"
+	"strconv"
+	"strings"
 	"sync"
 	"sync/atomic"
+	"syscall"
 	"time"
 
 	"github.com/ClusterCockpit/cc-backend/internal/config"
 	"github.com/ClusterCockpit/cc-backend/pkg/archive"
-	ccconf "github.com/ClusterCockpit/cc-lib/ccConfig"
-	cclog "github.com/ClusterCockpit/cc-lib/ccLogger"
+	pqarchive "github.com/ClusterCockpit/cc-backend/pkg/archive/parquet"
+	ccconf "github.com/ClusterCockpit/cc-lib/v2/ccConfig"
+	cclog "github.com/ClusterCockpit/cc-lib/v2/ccLogger"
 )
 
 func parseDate(in string) int64 {
@@ -33,80 +42,288 @@ func parseDate(in string) int64 {
 	return 0
 }
 
+// parseArchivePath extracts the path from the source config JSON.
+func parseArchivePath(srcConfig string) (string, error) {
+	var config struct {
+		Kind string `json:"kind"`
+		Path string `json:"path"`
+	}
+	if err := json.Unmarshal([]byte(srcConfig), &config); err != nil {
+		return "", fmt.Errorf("failed to parse source config: %w", err)
+	}
+
+	if config.Path == "" {
+		return "", fmt.Errorf("no path found in source config")
+	}
+
+	return config.Path, nil
+}
+
+// countJobsNative counts jobs using native Go filepath.WalkDir.
+// This is used as a fallback when fd/fdfind is not available.
+func countJobsNative(archivePath string) (int, error) {
+	count := 0
+	err := filepath.WalkDir(archivePath, func(path string, d fs.DirEntry, err error) error {
+		if err != nil {
+			return nil // Skip directories we can't access
+		}
+		if !d.IsDir() && d.Name() == "meta.json" {
+			count++
+		}
+		return nil
+	})
+	if err != nil {
+		return 0, fmt.Errorf("failed to walk directory: %w", err)
+	}
+
+	return count, nil
+}
+
+// countJobsWithFd counts jobs using the external fd command.
+func countJobsWithFd(fdPath, archivePath string) (int, error) {
+	fdCmd := exec.Command(fdPath, "meta.json", archivePath)
+	wcCmd := exec.Command("wc", "-l")
+
+	pipe, err := fdCmd.StdoutPipe()
+	if err != nil {
+		return 0, fmt.Errorf("failed to create pipe: %w", err)
+	}
+	wcCmd.Stdin = pipe
+
+	if err := fdCmd.Start(); err != nil {
+		return 0, fmt.Errorf("failed to start fd command: %w", err)
+	}
+
+	output, err := wcCmd.Output()
+	if err != nil {
+		return 0, fmt.Errorf("failed to run wc command: %w", err)
+	}
+
+	if err := fdCmd.Wait(); err != nil {
+		return 0, fmt.Errorf("fd command failed: %w", err)
+	}
+
+	countStr := strings.TrimSpace(string(output))
+	count, err := strconv.Atoi(countStr)
+	if err != nil {
+		return 0, fmt.Errorf("failed to parse count from wc output '%s': %w", countStr, err)
+	}
+
+	return count, nil
+}
+
+// countJobs counts the total number of jobs in the source archive.
+// It tries to use external fd/fdfind command for speed, falling back to
+// native Go filepath.WalkDir if neither is available.
+// The srcConfig parameter should be the JSON configuration string containing the archive path.
+func countJobs(srcConfig string) (int, error) {
+	archivePath, err := parseArchivePath(srcConfig)
+	if err != nil {
+		return 0, err
+	}
+
+	// Try fd first (common name)
+	if fdPath, err := exec.LookPath("fd"); err == nil {
+		return countJobsWithFd(fdPath, archivePath)
+	}
+
+	// Try fdfind (Debian/Ubuntu package name)
+	if fdPath, err := exec.LookPath("fdfind"); err == nil {
+		return countJobsWithFd(fdPath, archivePath)
+	}
+
+	// Fall back to native Go implementation
+	cclog.Debug("fd/fdfind not found, using native Go file walker")
+	return countJobsNative(archivePath)
+}
+
+// formatDuration formats a duration as a human-readable string.
+func formatDuration(d time.Duration) string {
+	if d < time.Minute {
+		return fmt.Sprintf("%ds", int(d.Seconds()))
+	} else if d < time.Hour {
+		return fmt.Sprintf("%dm%ds", int(d.Minutes()), int(d.Seconds())%60)
+	}
+	return fmt.Sprintf("%dh%dm", int(d.Hours()), int(d.Minutes())%60)
+}
+
+// progressMeter displays import progress to the terminal.
+type progressMeter struct {
+	total     int
+	processed int32
+	imported  int32
+	skipped   int32
+	failed    int32
+	startTime time.Time
+	done      chan struct{}
+}
+
+func newProgressMeter(total int) *progressMeter {
+	return &progressMeter{
+		total:     total,
+		startTime: time.Now(),
+		done:      make(chan struct{}),
+	}
+}
+
+func (p *progressMeter) start() {
+	go func() {
+		ticker := time.NewTicker(500 * time.Millisecond)
+		defer ticker.Stop()
+
+		for {
+			select {
+			case <-ticker.C:
+				p.render()
+			case <-p.done:
+				p.render()
+				fmt.Println()
+				return
+			}
+		}
+	}()
+}
+
+func (p *progressMeter) render() {
+	processed := atomic.LoadInt32(&p.processed)
+	imported := atomic.LoadInt32(&p.imported)
+	skipped := atomic.LoadInt32(&p.skipped)
+	failed := atomic.LoadInt32(&p.failed)
+
+	elapsed := time.Since(p.startTime)
+	percent := float64(processed) / float64(p.total) * 100
+	if p.total == 0 {
+		percent = 0
+	}
+
+	var eta string
+	var throughput float64
+	if processed > 0 {
+		throughput = float64(processed) / elapsed.Seconds()
+		remaining := float64(p.total-int(processed)) / throughput
+		eta = formatDuration(time.Duration(remaining) * time.Second)
+	} else {
+		eta = "calculating..."
+	}
+
+	barWidth := 30
+	filled := int(float64(barWidth) * float64(processed) / float64(p.total))
+	if p.total == 0 {
+		filled = 0
+	}
+
+	var bar strings.Builder
+	for i := range barWidth {
+		if i < filled {
+			bar.WriteString("█")
+		} else {
+			bar.WriteString("░")
+		}
+	}
+
+	fmt.Printf("\r[%s] %5.1f%% | %d/%d | %.1f jobs/s | ETA: %s | ✓%d ○%d ✗%d   ",
+		bar.String(), percent, processed, p.total, throughput, eta, imported, skipped, failed)
+}
+
+func (p *progressMeter) stop() {
+	close(p.done)
+}
+
 // importArchive imports all jobs from a source archive backend to a destination archive backend.
 // It uses parallel processing with a worker pool to improve performance.
+// The import can be interrupted by CTRL-C (SIGINT) and will terminate gracefully.
 // Returns the number of successfully imported jobs, failed jobs, and any error encountered.
-func importArchive(srcBackend, dstBackend archive.ArchiveBackend) (int, int, error) {
+func importArchive(srcBackend, dstBackend archive.ArchiveBackend, srcConfig string) (int, int, error) {
 	cclog.Info("Starting parallel archive import...")
+	cclog.Info("Press CTRL-C to interrupt (will finish current jobs before exiting)")
 
-	// Use atomic counters for thread-safe updates
-	var imported int32
-	var failed int32
-	var skipped int32
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
 
-	// Number of parallel workers
+	sigChan := make(chan os.Signal, 1)
+	signal.Notify(sigChan, os.Interrupt, syscall.SIGTERM)
+
+	var interrupted atomic.Bool
+
+	go func() {
+		<-sigChan
+		cclog.Warn("Interrupt received, stopping import (finishing current jobs)...")
+		interrupted.Store(true)
+		cancel()
+		// Stop listening for further signals to allow force quit with second CTRL-C
+		signal.Stop(sigChan)
+	}()
+
+	cclog.Info("Counting jobs in source archive (this may take a long time) ...")
+	totalJobs, err := countJobs(srcConfig)
+	if err != nil {
+		return 0, 0, fmt.Errorf("failed to count jobs: %w", err)
+	}
+	cclog.Infof("Found %d jobs to process", totalJobs)
+
+	progress := newProgressMeter(totalJobs)
+
 	numWorkers := 4
 	cclog.Infof("Using %d parallel workers", numWorkers)
 
-	// Create channels for job distribution
 	jobs := make(chan archive.JobContainer, numWorkers*2)
 
-	// WaitGroup to track worker completion
 	var wg sync.WaitGroup
 
-	// Start worker goroutines
+	progress.start()
+
 	for i := range numWorkers {
 		wg.Add(1)
 		go func(workerID int) {
 			defer wg.Done()
 
 			for job := range jobs {
-				// Validate job metadata
 				if job.Meta == nil {
 					cclog.Warn("Skipping job with nil metadata")
-					atomic.AddInt32(&failed, 1)
+					atomic.AddInt32(&progress.failed, 1)
+					atomic.AddInt32(&progress.processed, 1)
 					continue
 				}
 
-				// Validate job data
 				if job.Data == nil {
 					cclog.Warnf("Job %d from cluster %s has no metric data, skipping",
 						job.Meta.JobID, job.Meta.Cluster)
-					atomic.AddInt32(&failed, 1)
+					atomic.AddInt32(&progress.failed, 1)
+					atomic.AddInt32(&progress.processed, 1)
 					continue
 				}
 
-				// Check if job already exists in destination
 				if dstBackend.Exists(job.Meta) {
 					cclog.Debugf("Job %d (cluster: %s, start: %d) already exists in destination, skipping",
 						job.Meta.JobID, job.Meta.Cluster, job.Meta.StartTime)
-					atomic.AddInt32(&skipped, 1)
+					atomic.AddInt32(&progress.skipped, 1)
+					atomic.AddInt32(&progress.processed, 1)
 					continue
 				}
 
-				// Import job to destination
 				if err := dstBackend.ImportJob(job.Meta, job.Data); err != nil {
 					cclog.Errorf("Failed to import job %d from cluster %s: %s",
 						job.Meta.JobID, job.Meta.Cluster, err.Error())
-					atomic.AddInt32(&failed, 1)
+					atomic.AddInt32(&progress.failed, 1)
+					atomic.AddInt32(&progress.processed, 1)
 					continue
 				}
 
-				// Successfully imported
-				newCount := atomic.AddInt32(&imported, 1)
-				if newCount%100 == 0 {
-					cclog.Infof("Progress: %d jobs imported, %d skipped, %d failed",
-						newCount, atomic.LoadInt32(&skipped), atomic.LoadInt32(&failed))
-				}
+				atomic.AddInt32(&progress.imported, 1)
+				atomic.AddInt32(&progress.processed, 1)
 			}
 		}(i)
 	}
 
-	// Feed jobs to workers
 	go func() {
-		// Import cluster configs first
+		defer close(jobs)
+
 		clusters := srcBackend.GetClusters()
 		for _, clusterName := range clusters {
+			if ctx.Err() != nil {
+				return
+			}
+
 			clusterCfg, err := srcBackend.LoadClusterCfg(clusterName)
 			if err != nil {
 				cclog.Errorf("Failed to load cluster config for %s: %v", clusterName, err)
@@ -121,20 +338,33 @@ func importArchive(srcBackend, dstBackend archive.ArchiveBackend) (int, int, err
 		}
 
 		for job := range srcBackend.Iter(true) {
-			jobs <- job
+			select {
+			case <-ctx.Done():
+				// Drain remaining items from iterator to avoid resource leak
+				// but don't process them
+				return
+			case jobs <- job:
+			}
 		}
-		close(jobs)
 	}()
 
-	// Wait for all workers to complete
 	wg.Wait()
+	progress.stop()
 
-	finalImported := int(atomic.LoadInt32(&imported))
-	finalFailed := int(atomic.LoadInt32(&failed))
-	finalSkipped := int(atomic.LoadInt32(&skipped))
+	finalImported := int(atomic.LoadInt32(&progress.imported))
+	finalFailed := int(atomic.LoadInt32(&progress.failed))
+	finalSkipped := int(atomic.LoadInt32(&progress.skipped))
 
-	cclog.Infof("Import completed: %d jobs imported, %d skipped, %d failed",
-		finalImported, finalSkipped, finalFailed)
+	elapsed := time.Since(progress.startTime)
+
+	if interrupted.Load() {
+		cclog.Warnf("Import interrupted after %s: %d jobs imported, %d skipped, %d failed",
+			formatDuration(elapsed), finalImported, finalSkipped, finalFailed)
+		return finalImported, finalFailed, fmt.Errorf("import interrupted by user")
+	}
+
+	cclog.Infof("Import completed in %s: %d jobs imported, %d skipped, %d failed",
+		formatDuration(elapsed), finalImported, finalSkipped, finalFailed)
 
 	if finalFailed > 0 {
 		return finalImported, finalFailed, fmt.Errorf("%d jobs failed to import", finalFailed)
@@ -143,20 +373,220 @@ func importArchive(srcBackend, dstBackend archive.ArchiveBackend) (int, int, err
 	return finalImported, finalFailed, nil
 }
 
+// parseSourceConfig parses the common kind/path/s3 fields from a config JSON string.
+type sourceConfig struct {
+	Kind         string `json:"kind"`
+	Path         string `json:"path"`
+	Endpoint     string `json:"endpoint"`
+	Bucket       string `json:"bucket"`
+	AccessKey    string `json:"accessKey"`
+	SecretKey    string `json:"secretKey"`
+	Region       string `json:"region"`
+	UsePathStyle bool   `json:"usePathStyle"`
+}
+
+// createParquetTarget creates a ParquetTarget from a parsed config.
+func createParquetTarget(cfg sourceConfig) (pqarchive.ParquetTarget, error) {
+	switch cfg.Kind {
+	case "s3":
+		return pqarchive.NewS3Target(pqarchive.S3TargetConfig{
+			Endpoint:     cfg.Endpoint,
+			Bucket:       cfg.Bucket,
+			AccessKey:    cfg.AccessKey,
+			SecretKey:    cfg.SecretKey,
+			Region:       cfg.Region,
+			UsePathStyle: cfg.UsePathStyle,
+		})
+	default:
+		return pqarchive.NewFileTarget(cfg.Path)
+	}
+}
+
+// createParquetSource creates a ParquetSource from a parsed config.
+func createParquetSource(cfg sourceConfig) (pqarchive.ParquetSource, error) {
+	switch cfg.Kind {
+	case "s3":
+		return pqarchive.NewS3ParquetSource(pqarchive.S3TargetConfig{
+			Endpoint:     cfg.Endpoint,
+			Bucket:       cfg.Bucket,
+			AccessKey:    cfg.AccessKey,
+			SecretKey:    cfg.SecretKey,
+			Region:       cfg.Region,
+			UsePathStyle: cfg.UsePathStyle,
+		})
+	default:
+		if cfg.Path == "" {
+			return nil, fmt.Errorf("file source: path is required")
+		}
+		return pqarchive.NewFileParquetSource(cfg.Path), nil
+	}
+}
+
+// convertJSONToParquet converts a JSON archive backend to parquet format.
+func convertJSONToParquet(srcBackend archive.ArchiveBackend, dstCfg sourceConfig, maxSizeMB int) error {
+	target, err := createParquetTarget(dstCfg)
+	if err != nil {
+		return fmt.Errorf("create parquet target: %w", err)
+	}
+
+	cw := pqarchive.NewClusterAwareParquetWriter(target, maxSizeMB)
+
+	// Transfer cluster configs
+	for _, clusterName := range srcBackend.GetClusters() {
+		clusterCfg, err := srcBackend.LoadClusterCfg(clusterName)
+		if err != nil {
+			cclog.Warnf("Convert: load cluster config %q: %v", clusterName, err)
+			continue
+		}
+		cw.SetClusterConfig(clusterName, clusterCfg)
+	}
+
+	converted := 0
+	failed := 0
+	startTime := time.Now()
+
+	for job := range srcBackend.Iter(true) {
+		if job.Meta == nil {
+			cclog.Warn("Skipping job with nil metadata")
+			failed++
+			continue
+		}
+		if job.Data == nil {
+			cclog.Warnf("Job %d has no metric data, skipping", job.Meta.JobID)
+			failed++
+			continue
+		}
+
+		row, err := pqarchive.JobToParquetRow(job.Meta, job.Data)
+		if err != nil {
+			cclog.Warnf("Convert job %d: %v", job.Meta.JobID, err)
+			failed++
+			continue
+		}
+		if err := cw.AddJob(*row); err != nil {
+			cclog.Errorf("Add job %d to writer: %v", job.Meta.JobID, err)
+			failed++
+			continue
+		}
+		converted++
+
+		if converted%1000 == 0 {
+			cclog.Infof("Converted %d jobs so far...", converted)
+		}
+	}
+
+	if err := cw.Close(); err != nil {
+		return fmt.Errorf("close parquet writer: %w", err)
+	}
+
+	elapsed := time.Since(startTime)
+	cclog.Infof("JSON->Parquet conversion completed in %s: %d jobs converted, %d failed",
+		formatDuration(elapsed), converted, failed)
+	return nil
+}
+
+// convertParquetToJSON converts a parquet archive to a JSON archive backend.
+func convertParquetToJSON(srcCfg sourceConfig, dstBackend archive.ArchiveBackend) error {
+	src, err := createParquetSource(srcCfg)
+	if err != nil {
+		return fmt.Errorf("create parquet source: %w", err)
+	}
+
+	clusters, err := src.GetClusters()
+	if err != nil {
+		return fmt.Errorf("list clusters: %w", err)
+	}
+
+	converted := 0
+	failed := 0
+	skipped := 0
+	startTime := time.Now()
+
+	for _, cluster := range clusters {
+		// Transfer cluster config
+		clusterCfg, err := src.ReadClusterConfig(cluster)
+		if err != nil {
+			cclog.Warnf("Convert: read cluster config %q: %v", cluster, err)
+		} else {
+			if err := dstBackend.StoreClusterCfg(cluster, clusterCfg); err != nil {
+				cclog.Warnf("Convert: store cluster config %q: %v", cluster, err)
+			} else {
+				cclog.Infof("Imported cluster config for %s", cluster)
+			}
+		}
+
+		// Read and convert parquet files
+		files, err := src.ListParquetFiles(cluster)
+		if err != nil {
+			cclog.Errorf("Convert: list parquet files for %q: %v", cluster, err)
+			continue
+		}
+
+		for _, file := range files {
+			data, err := src.ReadFile(file)
+			if err != nil {
+				cclog.Errorf("Convert: read file %q: %v", file, err)
+				failed++
+				continue
+			}
+
+			rows, err := pqarchive.ReadParquetFile(data)
+			if err != nil {
+				cclog.Errorf("Convert: parse parquet file %q: %v", file, err)
+				failed++
+				continue
+			}
+
+			cclog.Infof("Processing %s: %d jobs", file, len(rows))
+
+			for _, row := range rows {
+				meta, jobData, err := pqarchive.ParquetRowToJob(&row)
+				if err != nil {
+					cclog.Warnf("Convert row to job: %v", err)
+					failed++
+					continue
+				}
+
+				if dstBackend.Exists(meta) {
+					skipped++
+					continue
+				}
+
+				if err := dstBackend.ImportJob(meta, jobData); err != nil {
+					cclog.Warnf("Import job %d: %v", meta.JobID, err)
+					failed++
+					continue
+				}
+				converted++
+			}
+		}
+	}
+
+	elapsed := time.Since(startTime)
+	cclog.Infof("Parquet->JSON conversion completed in %s: %d jobs converted, %d skipped, %d failed",
+		formatDuration(elapsed), converted, skipped, failed)
+	return nil
+}
+
 func main() {
 	var srcPath, flagConfigFile, flagLogLevel, flagRemoveCluster, flagRemoveAfter, flagRemoveBefore string
 	var flagSrcConfig, flagDstConfig string
-	var flagLogDateTime, flagValidate, flagImport bool
+	var flagLogDateTime, flagValidate, flagImport, flagConvert bool
+	var flagFormat string
+	var flagMaxFileSize int
 
 	flag.StringVar(&srcPath, "s", "./var/job-archive", "Specify the source job archive path. Default is ./var/job-archive")
 	flag.BoolVar(&flagLogDateTime, "logdate", false, "Set this flag to add date and time to log messages")
-	flag.StringVar(&flagLogLevel, "loglevel", "warn", "Sets the logging level: `[debug,info,warn (default),err,fatal,crit]`")
+	flag.StringVar(&flagLogLevel, "loglevel", "info", "Sets the logging level: `[debug,info,warn (default),err,fatal,crit]`")
 	flag.StringVar(&flagConfigFile, "config", "./config.json", "Specify alternative path to `config.json`")
 	flag.StringVar(&flagRemoveCluster, "remove-cluster", "", "Remove cluster from archive and database")
 	flag.StringVar(&flagRemoveBefore, "remove-before", "", "Remove all jobs with start time before date (Format: 2006-Jan-04)")
 	flag.StringVar(&flagRemoveAfter, "remove-after", "", "Remove all jobs with start time after date (Format: 2006-Jan-04)")
 	flag.BoolVar(&flagValidate, "validate", false, "Set this flag to validate a job archive against the json schema")
 	flag.BoolVar(&flagImport, "import", false, "Import jobs from source archive to destination archive")
+	flag.BoolVar(&flagConvert, "convert", false, "Convert archive between JSON and Parquet formats")
+	flag.StringVar(&flagFormat, "format", "json", "Output format for conversion: 'json' or 'parquet'")
+	flag.IntVar(&flagMaxFileSize, "max-file-size", 512, "Max parquet file size in MB (only for parquet output)")
 	flag.StringVar(&flagSrcConfig, "src-config", "", "Source archive backend configuration (JSON), e.g. '{\"kind\":\"file\",\"path\":\"./archive\"}'")
 	flag.StringVar(&flagDstConfig, "dst-config", "", "Destination archive backend configuration (JSON), e.g. '{\"kind\":\"sqlite\",\"dbPath\":\"./archive.db\"}'")
 	flag.Parse()
@@ -188,7 +618,7 @@ func main() {
 		cclog.Info("Destination backend initialized successfully")
 
 		// Perform import
-		imported, failed, err := importArchive(srcBackend, dstBackend)
+		imported, failed, err := importArchive(srcBackend, dstBackend, flagSrcConfig)
 		if err != nil {
 			cclog.Errorf("Import completed with errors: %s", err.Error())
 			if failed > 0 {
@@ -200,20 +630,59 @@ func main() {
 		os.Exit(0)
 	}
 
+	// Handle convert mode
+	if flagConvert {
+		if flagSrcConfig == "" || flagDstConfig == "" {
+			cclog.Fatal("Both --src-config and --dst-config must be specified for convert mode")
+		}
+
+		var srcCfg, dstCfg sourceConfig
+		if err := json.Unmarshal([]byte(flagSrcConfig), &srcCfg); err != nil {
+			cclog.Fatalf("Failed to parse source config: %s", err.Error())
+		}
+		if err := json.Unmarshal([]byte(flagDstConfig), &dstCfg); err != nil {
+			cclog.Fatalf("Failed to parse destination config: %s", err.Error())
+		}
+
+		switch flagFormat {
+		case "parquet":
+			// JSON archive -> Parquet: source is an archive backend
+			cclog.Info("Convert mode: JSON -> Parquet")
+			srcBackend, err := archive.InitBackend(json.RawMessage(flagSrcConfig))
+			if err != nil {
+				cclog.Fatalf("Failed to initialize source backend: %s", err.Error())
+			}
+			if err := convertJSONToParquet(srcBackend, dstCfg, flagMaxFileSize); err != nil {
+				cclog.Fatalf("Conversion failed: %s", err.Error())
+			}
+		case "json":
+			// Parquet -> JSON archive: destination is an archive backend
+			cclog.Info("Convert mode: Parquet -> JSON")
+			dstBackend, err := archive.InitBackend(json.RawMessage(flagDstConfig))
+			if err != nil {
+				cclog.Fatalf("Failed to initialize destination backend: %s", err.Error())
+			}
+			if err := convertParquetToJSON(srcCfg, dstBackend); err != nil {
+				cclog.Fatalf("Conversion failed: %s", err.Error())
+			}
+		default:
+			cclog.Fatalf("Unknown format %q: must be 'json' or 'parquet'", flagFormat)
+		}
+
+		cclog.Info("Conversion finished successfully")
+		os.Exit(0)
+	}
+
 	ccconf.Init(flagConfigFile)
 
 	// Load and check main configuration
 	if cfg := ccconf.GetPackageConfig("main"); cfg != nil {
-		if clustercfg := ccconf.GetPackageConfig("clusters"); clustercfg != nil {
-			config.Init(cfg, clustercfg)
-		} else {
-			cclog.Abort("Cluster configuration must be present")
-		}
+		config.Init(cfg)
 	} else {
 		cclog.Abort("Main configuration must be present")
 	}
 
-	if err := archive.Init(json.RawMessage(archiveCfg), false); err != nil {
+	if err := archive.Init(json.RawMessage(archiveCfg)); err != nil {
 		cclog.Fatal(err)
 	}
 	ar := archive.GetHandle()

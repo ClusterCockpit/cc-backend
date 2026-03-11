@@ -9,7 +9,7 @@ import (
 	"os"
 	"testing"
 
-	"github.com/ClusterCockpit/cc-lib/schema"
+	"github.com/ClusterCockpit/cc-lib/v2/schema"
 )
 
 func TestSqliteInitEmptyPath(t *testing.T) {
@@ -22,7 +22,7 @@ func TestSqliteInitEmptyPath(t *testing.T) {
 
 func TestSqliteInitInvalidConfig(t *testing.T) {
 	var sa SqliteArchive
-	_, err := sa.Init(json.RawMessage(`"dbPath":"/tmp/test.db"`))
+	_, err := sa.Init(json.RawMessage(`"db-path":"/tmp/test.db"`))
 	if err == nil {
 		t.Fatal("expected error for invalid config")
 	}
@@ -33,7 +33,7 @@ func TestSqliteInit(t *testing.T) {
 	defer os.Remove(tmpfile)
 
 	var sa SqliteArchive
-	version, err := sa.Init(json.RawMessage(`{"dbPath":"` + tmpfile + `"}`))
+	version, err := sa.Init(json.RawMessage(`{"db-path":"` + tmpfile + `"}`))
 	if err != nil {
 		t.Fatalf("init failed: %v", err)
 	}
@@ -51,7 +51,7 @@ func TestSqliteStoreAndLoadJobMeta(t *testing.T) {
 	defer os.Remove(tmpfile)
 
 	var sa SqliteArchive
-	_, err := sa.Init(json.RawMessage(`{"dbPath":"` + tmpfile + `"}`))
+	_, err := sa.Init(json.RawMessage(`{"db-path":"` + tmpfile + `"}`))
 	if err != nil {
 		t.Fatalf("init failed: %v", err)
 	}
@@ -97,7 +97,7 @@ func TestSqliteImportJob(t *testing.T) {
 	defer os.Remove(tmpfile)
 
 	var sa SqliteArchive
-	_, err := sa.Init(json.RawMessage(`{"dbPath":"` + tmpfile + `"}`))
+	_, err := sa.Init(json.RawMessage(`{"db-path":"` + tmpfile + `"}`))
 	if err != nil {
 		t.Fatalf("init failed: %v", err)
 	}
@@ -114,7 +114,7 @@ func TestSqliteGetClusters(t *testing.T) {
 	defer os.Remove(tmpfile)
 
 	var sa SqliteArchive
-	_, err := sa.Init(json.RawMessage(`{"dbPath":"` + tmpfile + `"}`))
+	_, err := sa.Init(json.RawMessage(`{"db-path":"` + tmpfile + `"}`))
 	if err != nil {
 		t.Fatalf("init failed: %v", err)
 	}
@@ -141,7 +141,7 @@ func TestSqliteGetClusters(t *testing.T) {
 
 	// Reinitialize to refresh cluster list
 	sa.db.Close()
-	_, err = sa.Init(json.RawMessage(`{"dbPath":"` + tmpfile + `"}`))
+	_, err = sa.Init(json.RawMessage(`{"db-path":"` + tmpfile + `"}`))
 	if err != nil {
 		t.Fatalf("reinit failed: %v", err)
 	}
@@ -158,7 +158,7 @@ func TestSqliteCleanUp(t *testing.T) {
 	defer os.Remove(tmpfile)
 
 	var sa SqliteArchive
-	_, err := sa.Init(json.RawMessage(`{"dbPath":"` + tmpfile + `"}`))
+	_, err := sa.Init(json.RawMessage(`{"db-path":"` + tmpfile + `"}`))
 	if err != nil {
 		t.Fatalf("init failed: %v", err)
 	}
@@ -193,7 +193,7 @@ func TestSqliteClean(t *testing.T) {
 	defer os.Remove(tmpfile)
 
 	var sa SqliteArchive
-	_, err := sa.Init(json.RawMessage(`{"dbPath":"` + tmpfile + `"}`))
+	_, err := sa.Init(json.RawMessage(`{"db-path":"` + tmpfile + `"}`))
 	if err != nil {
 		t.Fatalf("init failed: %v", err)
 	}
@@ -237,7 +237,7 @@ func TestSqliteIter(t *testing.T) {
 	defer os.Remove(tmpfile)
 
 	var sa SqliteArchive
-	_, err := sa.Init(json.RawMessage(`{"dbPath":"` + tmpfile + `"}`))
+	_, err := sa.Init(json.RawMessage(`{"db-path":"` + tmpfile + `"}`))
 	if err != nil {
 		t.Fatalf("init failed: %v", err)
 	}
@@ -276,7 +276,7 @@ func TestSqliteCompress(t *testing.T) {
 	defer os.Remove(tmpfile)
 
 	var sa SqliteArchive
-	_, err := sa.Init(json.RawMessage(`{"dbPath":"` + tmpfile + `"}`))
+	_, err := sa.Init(json.RawMessage(`{"db-path":"` + tmpfile + `"}`))
 	if err != nil {
 		t.Fatalf("init failed: %v", err)
 	}
@@ -294,12 +294,12 @@ func TestSqliteCompress(t *testing.T) {
 
 	// Compress should not panic even with missing data
 	sa.Compress([]*schema.Job{job})
-	
+
 	t.Log("Compression method verified")
 }
 
 func TestSqliteConfigParsing(t *testing.T) {
-	rawConfig := json.RawMessage(`{"dbPath": "/tmp/test.db"}`)
+	rawConfig := json.RawMessage(`{"db-path": "/tmp/test.db"}`)
 
 	var cfg SqliteArchiveConfig
 	err := json.Unmarshal(rawConfig, &cfg)
@@ -310,4 +310,59 @@ func TestSqliteConfigParsing(t *testing.T) {
 	if cfg.DBPath != "/tmp/test.db" {
 		t.Errorf("expected dbPath '/tmp/test.db', got '%s'", cfg.DBPath)
 	}
+}
+
+func TestSqliteIterChunking(t *testing.T) {
+	tmpfile := t.TempDir() + "/test.db"
+	defer os.Remove(tmpfile)
+
+	var sa SqliteArchive
+	_, err := sa.Init(json.RawMessage(`{"db-path":"` + tmpfile + `"}`))
+	if err != nil {
+		t.Fatalf("init failed: %v", err)
+	}
+	defer sa.db.Close()
+
+	const totalJobs = 2500
+	for i := 1; i <= totalJobs; i++ {
+		job := &schema.Job{
+			JobID:     int64(i),
+			Cluster:   "test",
+			StartTime: int64(i * 1000),
+			NumNodes:  1,
+			Resources: []*schema.Resource{{Hostname: "node001"}},
+		}
+		if err := sa.StoreJobMeta(job); err != nil {
+			t.Fatalf("store failed: %v", err)
+		}
+	}
+
+	t.Run("IterWithoutData", func(t *testing.T) {
+		count := 0
+		for container := range sa.Iter(false) {
+			if container.Meta == nil {
+				t.Error("expected non-nil meta")
+			}
+			if container.Data != nil {
+				t.Error("expected nil data when loadMetricData is false")
+			}
+			count++
+		}
+		if count != totalJobs {
+			t.Errorf("expected %d jobs, got %d", totalJobs, count)
+		}
+	})
+
+	t.Run("IterWithData", func(t *testing.T) {
+		count := 0
+		for container := range sa.Iter(true) {
+			if container.Meta == nil {
+				t.Error("expected non-nil meta")
+			}
+			count++
+		}
+		if count != totalJobs {
+			t.Errorf("expected %d jobs, got %d", totalJobs, count)
+		}
+	})
 }

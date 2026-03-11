@@ -25,11 +25,14 @@ func TestBuildJobStatsQuery(t *testing.T) {
 func TestJobStats(t *testing.T) {
 	r := setup(t)
 
-	filter := &model.JobFilter{}
-	stats, err := r.JobsStats(getContext(t), []*model.JobFilter{filter})
+	var expectedCount int
+	err := r.DB.QueryRow(`SELECT COUNT(*) FROM job`).Scan(&expectedCount)
 	noErr(t, err)
 
-	if stats[0].TotalJobs != 544 {
-		t.Fatalf("Want 544, Got %d", stats[0].TotalJobs)
+	stats, err := r.JobsStats(getContext(t), []*model.JobFilter{})
+	noErr(t, err)
+
+	if stats[0].TotalJobs != expectedCount {
+		t.Fatalf("Want %d, Got %d", expectedCount, stats[0].TotalJobs)
 	}
 }

@@ -7,7 +7,7 @@
 -->
 
 <script>
-  import { onMount } from "svelte";
+  import { getContext, onMount } from "svelte";
   import {
     Row,
     Col,
@@ -18,6 +18,7 @@
     Spinner,
     InputGroup,
     Input,
+    Tooltip
   } from "@sveltestrap/sveltestrap";
   import {
     queryStore,
@@ -29,6 +30,9 @@
     scramble,
     scrambleNames,
   } from "./generic/utils.js";
+  import {
+    formatDurationTime
+  } from "./generic/units.js";
   import Filters from "./generic/Filters.svelte";
 
   /* Svelte 5 Props */
@@ -37,57 +41,110 @@
     filterPresets
   } = $props();
 
-  /* Validate Type */
-  console.assert(
-    type == "USER" || type == "PROJECT",
-    "Invalid list type provided!",
-  );
-
   /* Const Init */
   const {} = init();
   const client = getContextClient();
+  const shortDuration = getContext("cc-config").jobList_hideShortRunningJobs; // Always configured
 
   /* State Init*/
   let filterComponent = $state(); // see why here: https://stackoverflow.com/questions/58287729/how-can-i-export-a-function-from-a-svelte-component-that-changes-a-value-in-the
   let jobFilters = $state([]);
   let nameFilter = $state("");
-  let sorting = $state({ field: "totalJobs", direction: "down" });
+  let sorting = $state({ field: "totalJobs", direction: "desc" });
 
   /* Derived Vars */
+  const fetchRunning = $derived(jobFilters.some(jf => jf?.state?.length == 1 && jf?.state?.includes("running")));
+  const numCols = $derived.by(() => {
+    let colbase = 6
+    if (fetchRunning) {
+      colbase += 2
+    }
+    return colbase
+  })
+  const sortedRows = $derived(
+    $stats.data ? sort($stats.data.rows, sorting, nameFilter) : []
+  );
+
   let stats = $derived(
     queryStore({
       client: client,
       query: gql`
-        query($jobFilters: [JobFilter!]!) {
+        query($jobFilters: [JobFilter!]!, $fetchRunning: Boolean!) {
           rows: jobsStatistics(filter: $jobFilters, groupBy: ${type}) {
             id
             name
             totalJobs
+            shortJobs
+            totalCores @include(if: $fetchRunning)
+            totalAccs @include(if: $fetchRunning)
             totalWalltime
             totalCoreHours
             totalAccHours
           }
         }`,
-      variables: { jobFilters },
+      variables: {
+        jobFilters,
+        fetchRunning
+      },
     })
   );
 
   /* Functions */
-  function changeSorting(field) {
-    sorting = { field, direction: sorting?.direction == "down" ? "up" : "down" };
+  function exportCsv() {
+    const isUser = type === "USER";
+    const header = [
+      isUser ? "Username" : "Project",
+      ...(isUser ? ["Name"] : []),
+      "Total Jobs",
+      "Short Jobs",
+      ...(fetchRunning ? ["Total Cores", "Total Accelerators"] : []),
+      "Total Walltime",
+      "Total Core Hours",
+      "Total Accelerator Hours",
+    ];
+    const rows = sortedRows.map((row) => [
+      row.id,
+      ...(isUser ? [row?.name ?? ""] : []),
+      row.totalJobs,
+      row.shortJobs,
+      ...(fetchRunning ? [row.totalCores, row.totalAccs] : []),
+      row.totalWalltime,
+      row.totalCoreHours,
+      row.totalAccHours,
+    ]);
+    const csv = [header, ...rows]
+      .map((row) => row.map((v) => `"${String(v ?? "").replace(/"/g, '""')}"`).join(","))
+      .join("\n");
+    const blob = new Blob([csv], { type: "text/csv" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `${type.toLowerCase()}s.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
+  function changeSorting(newField) {
+    if (sorting.field == newField) {
+      // Same Field, Change Direction
+      sorting = { field: newField, direction: sorting.direction == "desc" ? "asc" : "desc" };
+    } else {
+      // Change Field, Apply Default Direction
+      sorting = { field: newField, direction: "desc" };
+    }
   }
 
   function sort(stats, sorting, nameFilter) {
-    const idCmp = sorting.direction == "up"
+    const idCmp = sorting.direction == "asc"
       ? (a, b) => b.id.localeCompare(a.id)
       : (a, b) => a.id.localeCompare(b.id)
 
     // Force empty or undefined strings to the end of the list
-    const nameCmp = sorting.direction == "up"
+    const nameCmp = sorting.direction == "asc"
       ? (a, b) => !a?.name ? 1 : (!b?.name ? -1 : (b.name.localeCompare(a.name)))
       : (a, b) => !a?.name ? 1 : (!b?.name ? -1 : (a.name.localeCompare(b.name)))
 
-    const intCmp = sorting.direction == "up"
+    const intCmp = sorting.direction == "asc"
       ? (a, b) => a[sorting.field] - b[sorting.field]
       : (a, b) => b[sorting.field] - a[sorting.field];
 
@@ -101,19 +158,7 @@
   }
 
   /* On Mount */
-  onMount(() => {
-    // By default, look at the jobs of the last 30 days:
-    if (filterPresets?.startTime == null) {
-      if (filterPresets == null) filterPresets = {};
-
-      filterPresets.startTime = {
-        range: "last30d",
-        text: "Last 30 Days",
-      };
-    };
-    // Init Filter
-    filterComponent.updateFilters();
-  });
+  onMount(() => filterComponent.updateFilters());
 </script>
 
 <Row cols={{ xs: 1, md: 2}}>
@@ -129,6 +174,14 @@
           PROJECT: 'project',
         }[type]}"
       />
+      <Button
+        color="success"
+        title="Export current view as CSV"
+        disabled={!$stats.data}
+        onclick={() => exportCsv()}
+      >
+        <Icon name="download" /> CSV
+      </Button>
     </InputGroup>
   </Col>
   <Col xs="12" md="7" lg="8" xl="9">
@@ -159,7 +212,7 @@
         >
           {#if sorting?.field == "id"}
             <!-- Note on Icon-Name: Arrow-indicator always down, only alpha-indicator switches -->
-            <Icon name={`sort-alpha-${sorting?.direction == 'down' ? 'down' : 'down-alt'}`} />
+            <Icon name={`sort-alpha-${sorting?.direction == 'desc' ? 'down' : 'down-alt'}`} />
           {:else}
             <Icon name="three-dots-vertical" />
           {/if}
@@ -174,7 +227,7 @@
             onclick={() => changeSorting("name")}
           >
             {#if sorting?.field == "name"}
-              <Icon name={`sort-alpha-${sorting?.direction == 'down' ? 'down' : 'down-alt'}`} />
+              <Icon name={`sort-alpha-${sorting?.direction == 'desc' ? 'down' : 'down-alt'}`} />
             {:else}
               <Icon name="three-dots-vertical" />
             {/if}
@@ -190,12 +243,66 @@
         >
           {#if sorting?.field == "totalJobs"}
             <!-- Note on Icon-Name: Arrow-indicator always down, only numeric-indicator switches -->
-            <Icon name={`sort-numeric-${sorting?.direction == 'down' ? 'down-alt' : 'down'}`} />
+            <Icon name={`sort-numeric-${sorting?.direction == 'desc' ? 'down-alt' : 'down'}`} />
           {:else}
             <Icon name="three-dots-vertical" />
           {/if}
         </Button>
       </th>
+      <th scope="col">
+        <span class="mr-1">
+          Short Jobs
+          <Icon id="shortjobs-info" style="cursor:help;" size="sm" name="info-circle"/>
+        </span>
+        <Tooltip target={`shortjobs-info`} placement="top">
+          Job duration less than {formatDurationTime(shortDuration)}
+        </Tooltip>
+        &#8239; <!-- Narrow Non-Breaking Space -->
+        <Button
+          color={sorting.field == "shortJobs" ? "primary" : "light"}
+          size="sm"
+          onclick={() => changeSorting("shortJobs")}
+        >
+          {#if sorting?.field == "shortJobs"}
+            <!-- Note on Icon-Name: Arrow-indicator always down, only numeric-indicator switches -->
+            <Icon name={`sort-numeric-${sorting?.direction == 'desc' ? 'down-alt' : 'down'}`} />
+          {:else}
+            <Icon name="three-dots-vertical" />
+          {/if}
+        </Button>
+      </th>
+      {#if fetchRunning}
+        <th scope="col">
+          Total Cores
+          <Button
+            color={sorting.field == "totalCores" ? "primary" : "light"}
+            size="sm"
+            onclick={() => changeSorting("totalCores")}
+          >
+            {#if sorting?.field == "totalJCores"}
+              <!-- Note on Icon-Name: Arrow-indicator always down, only numeric-indicator switches -->
+              <Icon name={`sort-numeric-${sorting?.direction == 'desc' ? 'down-alt' : 'down'}`} />
+            {:else}
+              <Icon name="three-dots-vertical" />
+            {/if}
+          </Button>
+        </th>
+        <th scope="col">
+          Total Accelerators
+          <Button
+            color={sorting.field == "totalAccs" ? "primary" : "light"}
+            size="sm"
+            onclick={() => changeSorting("totalAccs")}
+          >
+            {#if sorting?.field == "totalAccs"}
+              <!-- Note on Icon-Name: Arrow-indicator always down, only numeric-indicator switches -->
+              <Icon name={`sort-numeric-${sorting?.direction == 'desc' ? 'down-alt' : 'down'}`} />
+            {:else}
+              <Icon name="three-dots-vertical" />
+            {/if}
+          </Button>
+        </th>
+      {/if}
       <th scope="col">
         Total Walltime
         <Button
@@ -204,7 +311,7 @@
           onclick={() => changeSorting("totalWalltime")}
         >
           {#if sorting?.field == "totalWalltime"}
-            <Icon name={`sort-numeric-${sorting?.direction == 'down' ? 'down-alt' : 'down'}`} />
+            <Icon name={`sort-numeric-${sorting?.direction == 'desc' ? 'down-alt' : 'down'}`} />
           {:else}
             <Icon name="three-dots-vertical" />
           {/if}
@@ -218,7 +325,7 @@
           onclick={() => changeSorting("totalCoreHours")}
         >
           {#if sorting?.field == "totalCoreHours"}
-            <Icon name={`sort-numeric-${sorting?.direction == 'down' ? 'down-alt' : 'down'}`} />
+            <Icon name={`sort-numeric-${sorting?.direction == 'desc' ? 'down-alt' : 'down'}`} />
           {:else}
             <Icon name="three-dots-vertical" />
           {/if}
@@ -232,7 +339,7 @@
           onclick={() => changeSorting("totalAccHours")}
         >
           {#if sorting?.field == "totalAccHours"}
-            <Icon name={`sort-numeric-${sorting?.direction == 'down' ? 'down-alt' : 'down'}`} />
+            <Icon name={`sort-numeric-${sorting?.direction == 'desc' ? 'down-alt' : 'down'}`} />
           {:else}
             <Icon name="three-dots-vertical" />
           {/if}
@@ -243,11 +350,11 @@
   <tbody>
     {#if $stats.fetching}
       <tr>
-        <td colspan="4" style="text-align: center;"><Spinner secondary /></td>
+        <td colspan={numCols} style="text-align: center;"><Spinner secondary /></td>
       </tr>
     {:else if $stats.error}
       <tr>
-        <td colspan="4"
+        <td colspan={numCols}
           ><Card body color="danger" class="mb-3">{$stats.error.message}</Card
           ></td
         >
@@ -257,11 +364,11 @@
         <tr>
           <td>
             {#if type == "USER"}
-              <a href="/monitoring/user/{row.id}"
+              <a href="/monitoring/user/{row.id}{fetchRunning ? '?state=running' : ''}"
                 >{scrambleNames ? scramble(row.id) : row.id}</a
               >
             {:else if type == "PROJECT"}
-              <a href="/monitoring/jobs/?project={row.id}"
+              <a href="/monitoring/jobs/?project={row.id}{fetchRunning ? '&state=running' : ''}"
                 >{scrambleNames ? scramble(row.id) : row.id}</a
               >
             {:else}
@@ -278,13 +385,18 @@
             >
           {/if}
           <td>{row.totalJobs}</td>
+          <td>{row.shortJobs}</td>
+          {#if fetchRunning}
+            <td>{row.totalCores}</td>
+            <td>{row.totalAccs}</td>
+          {/if}
           <td>{row.totalWalltime}</td>
           <td>{row.totalCoreHours}</td>
           <td>{row.totalAccHours}</td>
         </tr>
       {:else}
         <tr>
-          <td colspan="4"><i>No {type.toLowerCase()}s/jobs found</i></td>
+          <td colspan={numCols}><i>No {type.toLowerCase()}s/jobs found</i></td>
         </tr>
       {/each}
     {/if}

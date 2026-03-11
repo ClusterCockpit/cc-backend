@@ -22,12 +22,12 @@ import (
 	"github.com/ClusterCockpit/cc-backend/internal/graph"
 	"github.com/ClusterCockpit/cc-backend/internal/graph/model"
 	"github.com/ClusterCockpit/cc-backend/internal/importer"
-	"github.com/ClusterCockpit/cc-backend/internal/metricDataDispatcher"
+	"github.com/ClusterCockpit/cc-backend/internal/metricdispatch"
 	"github.com/ClusterCockpit/cc-backend/internal/repository"
 	"github.com/ClusterCockpit/cc-backend/pkg/archive"
-	cclog "github.com/ClusterCockpit/cc-lib/ccLogger"
-	"github.com/ClusterCockpit/cc-lib/schema"
-	"github.com/gorilla/mux"
+	cclog "github.com/ClusterCockpit/cc-lib/v2/ccLogger"
+	"github.com/ClusterCockpit/cc-lib/v2/schema"
+	"github.com/go-chi/chi/v5"
 )
 
 const (
@@ -72,6 +72,14 @@ type EditMetaRequest struct {
 	Value string `json:"value" example:"bash script"`
 }
 
+// JobMetaRequest model
+type JobMetaRequest struct {
+	JobId     *int64          `json:"jobId" validate:"required" example:"123000"` // Cluster Job ID of job
+	Cluster   *string         `json:"cluster" example:"fritz"`                    // Cluster of job
+	StartTime *int64          `json:"startTime" example:"1649723812"`             // Start Time of job as epoch
+	Payload   EditMetaRequest `json:"payload"`                                    // Content to Add to Job Meta_Data
+}
+
 type TagJobAPIRequest []*APITag
 
 type GetJobAPIRequest []string
@@ -104,7 +112,7 @@ type JobMetricWithName struct {
 // @param       items-per-page query    int               false "Items per page (Default: 25)"
 // @param       page           query    int               false "Page Number (Default: 1)"
 // @param       with-metadata  query    bool              false "Include metadata (e.g. jobScript) in response"
-// @success     200            {object} api.GetJobsApiResponse  "Job array and page info"
+// @success     200            {object} api.GetJobsAPIResponse  "Job array and page info"
 // @failure     400            {object} api.ErrorResponse       "Bad Request"
 // @failure     401   		   {object} api.ErrorResponse       "Unauthorized"
 // @failure     403            {object} api.ErrorResponse       "Forbidden"
@@ -232,7 +240,7 @@ func (api *RestAPI) getJobs(rw http.ResponseWriter, r *http.Request) {
 // @produce     json
 // @param       id          path     int                  true "Database ID of Job"
 // @param       all-metrics query    bool                 false "Include all available metrics"
-// @success     200     {object} api.GetJobApiResponse      "Job resource"
+// @success     200     {object} api.GetJobAPIResponse      "Job resource"
 // @failure     400     {object} api.ErrorResponse          "Bad Request"
 // @failure     401     {object} api.ErrorResponse          "Unauthorized"
 // @failure     403     {object} api.ErrorResponse          "Forbidden"
@@ -243,17 +251,17 @@ func (api *RestAPI) getJobs(rw http.ResponseWriter, r *http.Request) {
 // @router      /api/jobs/{id} [get]
 func (api *RestAPI) getCompleteJobByID(rw http.ResponseWriter, r *http.Request) {
 	// Fetch job from db
-	id, ok := mux.Vars(r)["id"]
+	id := chi.URLParam(r, "id")
 	var job *schema.Job
 	var err error
-	if ok {
+	if id != "" {
 		id, e := strconv.ParseInt(id, 10, 64)
 		if e != nil {
 			handleError(fmt.Errorf("integer expected in path for id: %w", e), http.StatusBadRequest, rw)
 			return
 		}
 
-		job, err = api.JobRepository.FindById(r.Context(), id) // Get Job from Repo by ID
+		job, err = api.JobRepository.FindByID(r.Context(), id) // Get Job from Repo by ID
 	} else {
 		handleError(fmt.Errorf("the parameter 'id' is required"), http.StatusBadRequest, rw)
 		return
@@ -293,7 +301,7 @@ func (api *RestAPI) getCompleteJobByID(rw http.ResponseWriter, r *http.Request) 
 	}
 
 	if r.URL.Query().Get("all-metrics") == "true" {
-		data, err = metricDataDispatcher.LoadData(job, nil, scopes, r.Context(), resolution)
+		data, err = metricdispatch.LoadData(job, nil, scopes, r.Context(), resolution)
 		if err != nil {
 			cclog.Warnf("REST: error while loading all-metrics job data for JobID %d on %s", job.JobID, job.Cluster)
 			return
@@ -324,8 +332,8 @@ func (api *RestAPI) getCompleteJobByID(rw http.ResponseWriter, r *http.Request) 
 // @accept      json
 // @produce     json
 // @param       id          path     int                  true "Database ID of Job"
-// @param       request     body     api.GetJobApiRequest true  "Array of metric names"
-// @success     200     {object} api.GetJobApiResponse      "Job resource"
+// @param       request     body     api.GetJobAPIRequest true  "Array of metric names"
+// @success     200     {object} api.GetJobAPIResponse      "Job resource"
 // @failure     400     {object} api.ErrorResponse          "Bad Request"
 // @failure     401     {object} api.ErrorResponse          "Unauthorized"
 // @failure     403     {object} api.ErrorResponse          "Forbidden"
@@ -336,17 +344,17 @@ func (api *RestAPI) getCompleteJobByID(rw http.ResponseWriter, r *http.Request) 
 // @router      /api/jobs/{id} [post]
 func (api *RestAPI) getJobByID(rw http.ResponseWriter, r *http.Request) {
 	// Fetch job from db
-	id, ok := mux.Vars(r)["id"]
+	id := chi.URLParam(r, "id")
 	var job *schema.Job
 	var err error
-	if ok {
+	if id != "" {
 		id, e := strconv.ParseInt(id, 10, 64)
 		if e != nil {
 			handleError(fmt.Errorf("integer expected in path for id: %w", e), http.StatusBadRequest, rw)
 			return
 		}
 
-		job, err = api.JobRepository.FindById(r.Context(), id)
+		job, err = api.JobRepository.FindByID(r.Context(), id)
 	} else {
 		handleError(errors.New("the parameter 'id' is required"), http.StatusBadRequest, rw)
 		return
@@ -389,7 +397,7 @@ func (api *RestAPI) getJobByID(rw http.ResponseWriter, r *http.Request) {
 		resolution = max(resolution, mc.Timestep)
 	}
 
-	data, err := metricDataDispatcher.LoadData(job, metrics, scopes, r.Context(), resolution)
+	data, err := metricdispatch.LoadData(job, metrics, scopes, r.Context(), resolution)
 	if err != nil {
 		cclog.Warnf("REST: error while loading job data for JobID %d on %s", job.JobID, job.Cluster)
 		return
@@ -423,29 +431,29 @@ func (api *RestAPI) getJobByID(rw http.ResponseWriter, r *http.Request) {
 }
 
 // editMeta godoc
-// @summary    Edit meta-data json
+// @summary    Edit meta-data json of job identified by database id
 // @tags Job add and modify
-// @description Edit key value pairs in job metadata json
+// @description Edit key value pairs in job metadata json of job specified by database id
 // @description If a key already exists its content will be overwritten
 // @accept      json
 // @produce     json
 // @param       id      path     int                  true "Job Database ID"
-// @param       request body     api.EditMetaRequest  true "Kay value pair to add"
+// @param       request body     api.EditMetaRequest  true "Metadata Key value pair to add or update"
 // @success     200     {object} schema.Job                "Updated job resource"
 // @failure     400     {object} api.ErrorResponse         "Bad Request"
 // @failure     401     {object} api.ErrorResponse         "Unauthorized"
 // @failure     404     {object} api.ErrorResponse         "Job does not exist"
 // @failure     500     {object} api.ErrorResponse         "Internal Server Error"
 // @security    ApiKeyAuth
-// @router      /api/jobs/edit_meta/{id} [post]
+// @router      /api/jobs/edit_meta/{id} [patch]
 func (api *RestAPI) editMeta(rw http.ResponseWriter, r *http.Request) {
-	id, err := strconv.ParseInt(mux.Vars(r)["id"], 10, 64)
+	id, err := strconv.ParseInt(chi.URLParam(r, "id"), 10, 64)
 	if err != nil {
 		handleError(fmt.Errorf("parsing job ID failed: %w", err), http.StatusBadRequest, rw)
 		return
 	}
 
-	job, err := api.JobRepository.FindById(r.Context(), id)
+	job, err := api.JobRepository.FindByID(r.Context(), id)
 	if err != nil {
 		handleError(fmt.Errorf("finding job failed: %w", err), http.StatusNotFound, rw)
 		return
@@ -469,6 +477,54 @@ func (api *RestAPI) editMeta(rw http.ResponseWriter, r *http.Request) {
 	}
 }
 
+// editMetaByRequest godoc
+// @summary    Edit meta-data json of job identified by request
+// @tags Job add and modify
+// @description Edit key value pairs in metadata json of job specified by jobID, StartTime and Cluster
+// @description If a key already exists its content will be overwritten
+// @accept      json
+// @produce     json
+// @param       request body     api.JobMetaRequest   true "Specifies job and payload to add or update"
+// @success     200     {object} schema.Job                "Updated job resource"
+// @failure     400     {object} api.ErrorResponse         "Bad Request"
+// @failure     401     {object} api.ErrorResponse         "Unauthorized"
+// @failure     404     {object} api.ErrorResponse         "Job does not exist"
+// @failure     500     {object} api.ErrorResponse         "Internal Server Error"
+// @security    ApiKeyAuth
+// @router      /api/jobs/edit_meta/ [patch]
+func (api *RestAPI) editMetaByRequest(rw http.ResponseWriter, r *http.Request) {
+	// Parse request body
+	req := JobMetaRequest{}
+	if err := decode(r.Body, &req); err != nil {
+		handleError(fmt.Errorf("parsing request body failed: %w", err), http.StatusBadRequest, rw)
+		return
+	}
+
+	// Fetch job (that will have its meta_data edited) from db
+	var job *schema.Job
+	var err error
+	if req.JobId == nil {
+		handleError(errors.New("the field 'jobId' is required"), http.StatusBadRequest, rw)
+		return
+	}
+
+	// log.Printf("loading db job for editMetaByRequest... : JobMetaRequest=%v", req)
+	job, err = api.JobRepository.Find(req.JobId, req.Cluster, req.StartTime)
+	if err != nil {
+		handleError(fmt.Errorf("finding job failed: %w", err), http.StatusUnprocessableEntity, rw)
+		return
+	}
+
+	if err := api.JobRepository.UpdateMetadata(job, req.Payload.Key, req.Payload.Value); err != nil {
+		http.Error(rw, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	rw.Header().Add("Content-Type", "application/json")
+	rw.WriteHeader(http.StatusOK)
+	json.NewEncoder(rw).Encode(job)
+}
+
 // tagJob godoc
 // @summary     Adds one or more tags to a job
 // @tags Job add and modify
@@ -478,7 +534,7 @@ func (api *RestAPI) editMeta(rw http.ResponseWriter, r *http.Request) {
 // @accept      json
 // @produce     json
 // @param       id      path     int                  true "Job Database ID"
-// @param       request body     api.TagJobApiRequest true "Array of tag-objects to add"
+// @param       request body     api.TagJobAPIRequest true "Array of tag-objects to add"
 // @success     200     {object} schema.Job                "Updated job resource"
 // @failure     400     {object} api.ErrorResponse         "Bad Request"
 // @failure     401     {object} api.ErrorResponse         "Unauthorized"
@@ -487,13 +543,13 @@ func (api *RestAPI) editMeta(rw http.ResponseWriter, r *http.Request) {
 // @security    ApiKeyAuth
 // @router      /api/jobs/tag_job/{id} [post]
 func (api *RestAPI) tagJob(rw http.ResponseWriter, r *http.Request) {
-	id, err := strconv.ParseInt(mux.Vars(r)["id"], 10, 64)
+	id, err := strconv.ParseInt(chi.URLParam(r, "id"), 10, 64)
 	if err != nil {
 		handleError(fmt.Errorf("parsing job ID failed: %w", err), http.StatusBadRequest, rw)
 		return
 	}
 
-	job, err := api.JobRepository.FindById(r.Context(), id)
+	job, err := api.JobRepository.FindByID(r.Context(), id)
 	if err != nil {
 		handleError(fmt.Errorf("finding job failed: %w", err), http.StatusNotFound, rw)
 		return
@@ -542,7 +598,7 @@ func (api *RestAPI) tagJob(rw http.ResponseWriter, r *http.Request) {
 // @accept      json
 // @produce     json
 // @param       id      path     int                  true "Job Database ID"
-// @param       request body     api.TagJobApiRequest true "Array of tag-objects to remove"
+// @param       request body     api.TagJobAPIRequest true "Array of tag-objects to remove"
 // @success     200     {object} schema.Job                "Updated job resource"
 // @failure     400     {object} api.ErrorResponse         "Bad Request"
 // @failure     401     {object} api.ErrorResponse         "Unauthorized"
@@ -551,13 +607,13 @@ func (api *RestAPI) tagJob(rw http.ResponseWriter, r *http.Request) {
 // @security    ApiKeyAuth
 // @router      /jobs/tag_job/{id} [delete]
 func (api *RestAPI) removeTagJob(rw http.ResponseWriter, r *http.Request) {
-	id, err := strconv.ParseInt(mux.Vars(r)["id"], 10, 64)
+	id, err := strconv.ParseInt(chi.URLParam(r, "id"), 10, 64)
 	if err != nil {
 		handleError(fmt.Errorf("parsing job ID failed: %w", err), http.StatusBadRequest, rw)
 		return
 	}
 
-	job, err := api.JobRepository.FindById(r.Context(), id)
+	job, err := api.JobRepository.FindByID(r.Context(), id)
 	if err != nil {
 		handleError(fmt.Errorf("finding job failed: %w", err), http.StatusNotFound, rw)
 		return
@@ -606,7 +662,7 @@ func (api *RestAPI) removeTagJob(rw http.ResponseWriter, r *http.Request) {
 // @description Tag wills be removed from respective archive files.
 // @accept      json
 // @produce     plain
-// @param       request body     api.TagJobApiRequest true "Array of tag-objects to remove"
+// @param       request body     api.TagJobAPIRequest true "Array of tag-objects to remove"
 // @success     200     {string} string                    "Success Response"
 // @failure     400     {object} api.ErrorResponse         "Bad Request"
 // @failure     401     {object} api.ErrorResponse         "Unauthorized"
@@ -650,7 +706,7 @@ func (api *RestAPI) removeTags(rw http.ResponseWriter, r *http.Request) {
 // @accept      json
 // @produce     json
 // @param       request body     schema.Job true "Job to add"
-// @success     201     {object} api.DefaultApiResponse    "Job added successfully"
+// @success     201     {object} api.DefaultAPIResponse    "Job added successfully"
 // @failure     400     {object} api.ErrorResponse            "Bad Request"
 // @failure     401     {object} api.ErrorResponse            "Unauthorized"
 // @failure     403     {object} api.ErrorResponse            "Forbidden"
@@ -691,13 +747,21 @@ func (api *RestAPI) startJob(rw http.ResponseWriter, r *http.Request) {
 		for _, job := range jobs {
 			// Check if jobs are within the same day (prevent duplicates)
 			if (req.StartTime - job.StartTime) < secondsPerDay {
-				handleError(fmt.Errorf("a job with that jobId, cluster and startTime already exists: dbid: %d, jobid: %d", job.ID, job.JobID), http.StatusUnprocessableEntity, rw)
+				handleError(fmt.Errorf("a job with that jobId, cluster and startTime already exists: dbid: %d, jobid: %d", *job.ID, job.JobID), http.StatusUnprocessableEntity, rw)
 				return
 			}
 		}
 	}
 
-	id, err := api.JobRepository.Start(&req)
+	// When tags are present, insert directly into the job table so that the
+	// returned ID can be used with AddTagOrCreate (which queries the job table).
+	// Jobs without tags use the cache path as before.
+	var id int64
+	if len(req.Tags) > 0 {
+		id, err = api.JobRepository.StartDirect(&req)
+	} else {
+		id, err = api.JobRepository.Start(&req)
+	}
 	if err != nil {
 		handleError(fmt.Errorf("insert into database failed: %w", err), http.StatusInternalServerError, rw)
 		return
@@ -728,7 +792,7 @@ func (api *RestAPI) startJob(rw http.ResponseWriter, r *http.Request) {
 // @description Job to stop is specified by request body. All fields are required in this case.
 // @description Returns full job resource information according to 'Job' scheme.
 // @produce     json
-// @param       request body     api.StopJobApiRequest true "All fields required"
+// @param       request body     api.StopJobAPIRequest true "All fields required"
 // @success     200     {object} schema.Job                 "Success message"
 // @failure     400     {object} api.ErrorResponse          "Bad Request"
 // @failure     401     {object} api.ErrorResponse          "Unauthorized"
@@ -754,20 +818,20 @@ func (api *RestAPI) stopJobByRequest(rw http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// cclog.Printf("loading db job for stopJobByRequest... : stopJobApiRequest=%v", req)
-	job, err = api.JobRepository.Find(req.JobID, req.Cluster, req.StartTime)
+	isCached := false
+	job, err = api.JobRepository.FindCached(req.JobID, req.Cluster, req.StartTime)
 	if err != nil {
-		// Try cached jobs if not found in main repository
-		cachedJob, cachedErr := api.JobRepository.FindCached(req.JobID, req.Cluster, req.StartTime)
-		if cachedErr != nil {
-			// Combine both errors for better debugging
-			handleError(fmt.Errorf("finding job failed: %w (cached lookup also failed: %v)", err, cachedErr), http.StatusNotFound, rw)
+		// Not in cache, try main job table
+		job, err = api.JobRepository.Find(req.JobID, req.Cluster, req.StartTime)
+		if err != nil {
+			handleError(fmt.Errorf("finding job failed: %w", err), http.StatusNotFound, rw)
 			return
 		}
-		job = cachedJob
+	} else {
+		isCached = true
 	}
 
-	api.checkAndHandleStopJob(rw, job, req)
+	api.checkAndHandleStopJob(rw, job, req, isCached)
 }
 
 // deleteJobByID godoc
@@ -776,7 +840,7 @@ func (api *RestAPI) stopJobByRequest(rw http.ResponseWriter, r *http.Request) {
 // @description Job to remove is specified by database ID. This will not remove the job from the job archive.
 // @produce     json
 // @param       id      path     int                   true "Database ID of Job"
-// @success     200     {object} api.DefaultApiResponse  "Success message"
+// @success     200     {object} api.DefaultAPIResponse  "Success message"
 // @failure     400     {object} api.ErrorResponse          "Bad Request"
 // @failure     401     {object} api.ErrorResponse          "Unauthorized"
 // @failure     403     {object} api.ErrorResponse          "Forbidden"
@@ -787,16 +851,16 @@ func (api *RestAPI) stopJobByRequest(rw http.ResponseWriter, r *http.Request) {
 // @router      /api/jobs/delete_job/{id} [delete]
 func (api *RestAPI) deleteJobByID(rw http.ResponseWriter, r *http.Request) {
 	// Fetch job (that will be stopped) from db
-	id, ok := mux.Vars(r)["id"]
+	id := chi.URLParam(r, "id")
 	var err error
-	if ok {
+	if id != "" {
 		id, e := strconv.ParseInt(id, 10, 64)
 		if e != nil {
 			handleError(fmt.Errorf("integer expected in path for id: %w", e), http.StatusBadRequest, rw)
 			return
 		}
 
-		err = api.JobRepository.DeleteJobById(id)
+		err = api.JobRepository.DeleteJobByID(id)
 	} else {
 		handleError(errors.New("the parameter 'id' is required"), http.StatusBadRequest, rw)
 		return
@@ -820,8 +884,8 @@ func (api *RestAPI) deleteJobByID(rw http.ResponseWriter, r *http.Request) {
 // @description Job to delete is specified by request body. All fields are required in this case.
 // @accept      json
 // @produce     json
-// @param       request body     api.DeleteJobApiRequest true "All fields required"
-// @success     200     {object} api.DefaultApiResponse  "Success message"
+// @param       request body     api.DeleteJobAPIRequest true "All fields required"
+// @success     200     {object} api.DefaultAPIResponse  "Success message"
 // @failure     400     {object} api.ErrorResponse          "Bad Request"
 // @failure     401     {object} api.ErrorResponse          "Unauthorized"
 // @failure     403     {object} api.ErrorResponse          "Forbidden"
@@ -852,7 +916,7 @@ func (api *RestAPI) deleteJobByRequest(rw http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	err = api.JobRepository.DeleteJobById(*job.ID)
+	err = api.JobRepository.DeleteJobByID(*job.ID)
 	if err != nil {
 		handleError(fmt.Errorf("deleting job failed: %w", err), http.StatusUnprocessableEntity, rw)
 		return
@@ -861,7 +925,7 @@ func (api *RestAPI) deleteJobByRequest(rw http.ResponseWriter, r *http.Request) 
 	rw.Header().Add("Content-Type", "application/json")
 	rw.WriteHeader(http.StatusOK)
 	if err := json.NewEncoder(rw).Encode(DefaultAPIResponse{
-		Message: fmt.Sprintf("Successfully deleted job %d", job.ID),
+		Message: fmt.Sprintf("Successfully deleted job %d", *job.ID),
 	}); err != nil {
 		cclog.Errorf("Failed to encode response: %v", err)
 	}
@@ -873,7 +937,7 @@ func (api *RestAPI) deleteJobByRequest(rw http.ResponseWriter, r *http.Request) 
 // @description Remove all jobs with start time before timestamp. The jobs will not be removed from the job archive.
 // @produce     json
 // @param       ts      path     int                   true "Unix epoch timestamp"
-// @success     200     {object} api.DefaultApiResponse  "Success message"
+// @success     200     {object} api.DefaultAPIResponse  "Success message"
 // @failure     400     {object} api.ErrorResponse          "Bad Request"
 // @failure     401     {object} api.ErrorResponse          "Unauthorized"
 // @failure     403     {object} api.ErrorResponse          "Forbidden"
@@ -886,9 +950,9 @@ func (api *RestAPI) deleteJobByRequest(rw http.ResponseWriter, r *http.Request) 
 func (api *RestAPI) deleteJobBefore(rw http.ResponseWriter, r *http.Request) {
 	var cnt int
 	// Fetch job (that will be stopped) from db
-	id, ok := mux.Vars(r)["ts"]
+	id := chi.URLParam(r, "ts")
 	var err error
-	if ok {
+	if id != "" {
 		ts, e := strconv.ParseInt(id, 10, 64)
 		if e != nil {
 			handleError(fmt.Errorf("integer expected in path for ts: %w", e), http.StatusBadRequest, rw)
@@ -896,11 +960,13 @@ func (api *RestAPI) deleteJobBefore(rw http.ResponseWriter, r *http.Request) {
 		}
 
 		// Check for omit-tagged query parameter
-		omitTagged := false
+		omitTagged := "none"
 		if omitTaggedStr := r.URL.Query().Get("omit-tagged"); omitTaggedStr != "" {
-			omitTagged, e = strconv.ParseBool(omitTaggedStr)
-			if e != nil {
-				handleError(fmt.Errorf("boolean expected for omit-tagged parameter: %w", e), http.StatusBadRequest, rw)
+			switch omitTaggedStr {
+			case "none", "all", "user":
+				omitTagged = omitTaggedStr
+			default:
+				handleError(fmt.Errorf("omit-tagged must be one of: none, all, user"), http.StatusBadRequest, rw)
 				return
 			}
 		}
@@ -924,20 +990,20 @@ func (api *RestAPI) deleteJobBefore(rw http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func (api *RestAPI) checkAndHandleStopJob(rw http.ResponseWriter, job *schema.Job, req StopJobAPIRequest) {
+func (api *RestAPI) checkAndHandleStopJob(rw http.ResponseWriter, job *schema.Job, req StopJobAPIRequest, isCached bool) {
 	// Sanity checks
 	if job.State != schema.JobStateRunning {
-		handleError(fmt.Errorf("jobId %d (id %d) on %s : job has already been stopped (state is: %s)", job.JobID, job.ID, job.Cluster, job.State), http.StatusUnprocessableEntity, rw)
+		handleError(fmt.Errorf("jobId %d (id %d) on %s : job has already been stopped (state is: %s)", job.JobID, *job.ID, job.Cluster, job.State), http.StatusUnprocessableEntity, rw)
 		return
 	}
 
 	if job.StartTime > req.StopTime {
-		handleError(fmt.Errorf("jobId %d (id %d) on %s : stopTime %d must be larger/equal than startTime %d", job.JobID, job.ID, job.Cluster, req.StopTime, job.StartTime), http.StatusBadRequest, rw)
+		handleError(fmt.Errorf("jobId %d (id %d) on %s : stopTime %d must be larger/equal than startTime %d", job.JobID, *job.ID, job.Cluster, req.StopTime, job.StartTime), http.StatusBadRequest, rw)
 		return
 	}
 
 	if req.State != "" && !req.State.Valid() {
-		handleError(fmt.Errorf("jobId %d (id %d) on %s : invalid requested job state: %#v", job.JobID, job.ID, job.Cluster, req.State), http.StatusBadRequest, rw)
+		handleError(fmt.Errorf("jobId %d (id %d) on %s : invalid requested job state: %#v", job.JobID, *job.ID, job.Cluster, req.State), http.StatusBadRequest, rw)
 		return
 	} else if req.State == "" {
 		req.State = schema.JobStateCompleted
@@ -949,14 +1015,24 @@ func (api *RestAPI) checkAndHandleStopJob(rw http.ResponseWriter, job *schema.Jo
 	api.JobRepository.Mutex.Lock()
 	defer api.JobRepository.Mutex.Unlock()
 
-	if err := api.JobRepository.Stop(*job.ID, job.Duration, job.State, job.MonitoringStatus); err != nil {
-		if err := api.JobRepository.StopCached(*job.ID, job.Duration, job.State, job.MonitoringStatus); err != nil {
-			handleError(fmt.Errorf("jobId %d (id %d) on %s : marking job as '%s' (duration: %d) in DB failed: %w", job.JobID, job.ID, job.Cluster, job.State, job.Duration, err), http.StatusInternalServerError, rw)
+	// If the job is still in job_cache, transfer it to the job table first
+	// so that job.ID always points to the job table for downstream code
+	if isCached {
+		newID, err := api.JobRepository.TransferCachedJobToMain(*job.ID)
+		if err != nil {
+			handleError(fmt.Errorf("jobId %d (id %d) on %s : transferring cached job failed: %w", job.JobID, *job.ID, job.Cluster, err), http.StatusInternalServerError, rw)
 			return
 		}
+		cclog.Infof("transferred cached job to main table: old id %d -> new id %d (jobId=%d)", *job.ID, newID, job.JobID)
+		job.ID = &newID
 	}
 
-	cclog.Infof("archiving job... (dbid: %d): cluster=%s, jobId=%d, user=%s, startTime=%d, duration=%d, state=%s", job.ID, job.Cluster, job.JobID, job.User, job.StartTime, job.Duration, job.State)
+	if err := api.JobRepository.Stop(*job.ID, job.Duration, job.State, job.MonitoringStatus); err != nil {
+		handleError(fmt.Errorf("jobId %d (id %d) on %s : marking job as '%s' (duration: %d) in DB failed: %w", job.JobID, *job.ID, job.Cluster, job.State, job.Duration, err), http.StatusInternalServerError, rw)
+		return
+	}
+
+	cclog.Infof("archiving job... (dbid: %d): cluster=%s, jobId=%d, user=%s, startTime=%d, duration=%d, state=%s", *job.ID, job.Cluster, job.JobID, job.User, job.StartTime, job.Duration, job.State)
 
 	// Send a response (with status OK). This means that errors that happen from here on forward
 	// can *NOT* be communicated to the client. If reading from a MetricDataRepository or
@@ -977,7 +1053,7 @@ func (api *RestAPI) checkAndHandleStopJob(rw http.ResponseWriter, job *schema.Jo
 }
 
 func (api *RestAPI) getJobMetrics(rw http.ResponseWriter, r *http.Request) {
-	id := mux.Vars(r)["id"]
+	id := chi.URLParam(r, "id")
 	metrics := r.URL.Query()["metric"]
 	var scopes []schema.MetricScope
 	for _, scope := range r.URL.Query()["scope"] {
@@ -1020,5 +1096,59 @@ func (api *RestAPI) getJobMetrics(rw http.ResponseWriter, r *http.Request) {
 		}{JobMetrics: data},
 	}); err != nil {
 		cclog.Errorf("Failed to encode response: %v", err)
+	}
+}
+
+// GetUsedNodesAPIResponse model
+type GetUsedNodesAPIResponse struct {
+	UsedNodes map[string][]string `json:"usedNodes"` // Map of cluster names to lists of used node hostnames
+}
+
+// getUsedNodes godoc
+// @summary     Lists used nodes by cluster
+// @tags Job query
+// @description Get a map of cluster names to lists of unique hostnames that are currently in use by running jobs that started before the specified timestamp.
+// @produce     json
+// @param       ts             query    int               true  "Unix timestamp to filter jobs (jobs with start_time < ts)"
+// @success     200            {object} api.GetUsedNodesAPIResponse  "Map of cluster names to hostname lists"
+// @failure     400            {object} api.ErrorResponse            "Bad Request"
+// @failure     401            {object} api.ErrorResponse            "Unauthorized"
+// @failure     403            {object} api.ErrorResponse            "Forbidden"
+// @failure     500            {object} api.ErrorResponse            "Internal Server Error"
+// @security    ApiKeyAuth
+// @router      /api/jobs/used_nodes [get]
+func (api *RestAPI) getUsedNodes(rw http.ResponseWriter, r *http.Request) {
+	if user := repository.GetUserFromContext(r.Context()); user != nil &&
+		!user.HasRole(schema.RoleAPI) {
+		handleError(fmt.Errorf("missing role: %v", schema.GetRoleString(schema.RoleAPI)), http.StatusForbidden, rw)
+		return
+	}
+
+	tsStr := r.URL.Query().Get("ts")
+	if tsStr == "" {
+		handleError(fmt.Errorf("missing required query parameter: ts"), http.StatusBadRequest, rw)
+		return
+	}
+
+	ts, err := strconv.ParseInt(tsStr, 10, 64)
+	if err != nil {
+		handleError(fmt.Errorf("invalid timestamp format: %w", err), http.StatusBadRequest, rw)
+		return
+	}
+
+	usedNodes, err := api.JobRepository.GetUsedNodes(ts)
+	if err != nil {
+		handleError(fmt.Errorf("failed to get used nodes: %w", err), http.StatusInternalServerError, rw)
+		return
+	}
+
+	rw.Header().Add("Content-Type", "application/json")
+	payload := GetUsedNodesAPIResponse{
+		UsedNodes: usedNodes,
+	}
+
+	if err := json.NewEncoder(rw).Encode(payload); err != nil {
+		handleError(err, http.StatusInternalServerError, rw)
+		return
 	}
 }

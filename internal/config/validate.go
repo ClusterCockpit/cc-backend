@@ -8,7 +8,7 @@ package config
 import (
 	"encoding/json"
 
-	cclog "github.com/ClusterCockpit/cc-lib/ccLogger"
+	cclog "github.com/ClusterCockpit/cc-lib/v2/ccLogger"
 	"github.com/santhosh-tekuri/jsonschema/v5"
 )
 

@@ -1,0 +1,6 @@
+calc_rate
+qmdffgen
+dynamic
+evbopt
+black_box
+poly_qmdff

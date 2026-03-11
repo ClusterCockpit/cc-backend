@@ -9,14 +9,14 @@ import (
 	"runtime"
 
 	"github.com/ClusterCockpit/cc-backend/internal/config"
-	cclog "github.com/ClusterCockpit/cc-lib/ccLogger"
+	cclog "github.com/ClusterCockpit/cc-lib/v2/ccLogger"
 	"github.com/go-co-op/gocron/v2"
 )
 
 func RegisterStopJobsExceedTime() {
 	cclog.Info("Register undead jobs service")
 
-	s.NewJob(gocron.DailyJob(1, gocron.NewAtTimes(gocron.NewAtTime(0o3, 0, 0))),
+	s.NewJob(gocron.DailyJob(1, gocron.NewAtTimes(gocron.NewAtTime(3, 0, 0))),
 		gocron.NewTask(
 			func() {
 				err := jobRepo.StopJobsExceedingWalltimeBy(config.Keys.StopJobsExceedingWalltime)

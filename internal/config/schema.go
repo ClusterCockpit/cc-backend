@@ -6,14 +6,14 @@
 package config
 
 var configSchema = `
-	{
+{
   "type": "object",
   "properties": {
     "addr": {
       "description": "Address where the http (or https) server will listen on (for example: 'localhost:80').",
       "type": "string"
     },
-    "apiAllowedIPs": {
+    "api-allowed-ips": {
       "description": "Addresses from which secured API endpoints can be reached",
       "type": "array",
       "items": {
@@ -41,12 +41,8 @@ var configSchema = `
       "type": "string"
     },
     "db": {
-      "description": "For sqlite3 a filename, for mysql a DSN in this format: https://github.com/go-sql-driver/mysql#dsn-data-source-name (Without query parameters!).",
+      "description": "Path to SQLite database file (e.g., './var/job.db')",
       "type": "string"
-    },
-    "disable-archive": {
-      "description": "Keep all metric data in the metric data repositories, do not write to the job-archive.",
-      "type": "boolean"
     },
     "enable-job-taggers": {
       "description": "Turn on automatic application and jobclass taggers",
@@ -81,28 +77,22 @@ var configSchema = `
       "type": "integer"
     },
     "emission-constant": {
-      "description": ".",
+      "description": "Energy mix CO2 emission constant [g/kWh]. If set, displays estimated CO2 emission for jobs.",
       "type": "integer"
     },
-    "cron-frequency": {
-      "description": "Frequency of cron job workers.",
-      "type": "object",
-      "properties": {
-        "duration-worker": {
-          "description": "Duration Update Worker [Defaults to '5m']",
-          "type": "string"
-        },
-        "footprint-worker": {
-          "description": "Metric-Footprint Update Worker [Defaults to '10m']",
-          "type": "string"
-        }
-      }
+    "machine-state-dir": {
+      "description": "Where to store MachineState files.",
+      "type": "string"
     },
-    "enable-resampling": {
+    "systemd-unit": {
+      "description": "Systemd unit name for log viewer (default: 'clustercockpit').",
+      "type": "string"
+    },
+    "resampling": {
       "description": "Enable dynamic zoom in frontend metric plots.",
       "type": "object",
       "properties": {
-        "minimumPoints": {
+        "minimum-points": {
           "description": "Minimum points to trigger resampling of time-series data.",
           "type": "integer"
         },
@@ -119,87 +109,74 @@ var configSchema = `
         }
       },
       "required": ["trigger", "resolutions"]
-    }
-	},
-  "required": ["apiAllowedIPs"]
-	}`
-
-var clustersSchema = `
-  {
-    "type": "array",
-    "items": {
+    },
+    "api-subjects": {
+      "description": "NATS subjects configuration for subscribing to job and node events.",
       "type": "object",
       "properties": {
-        "name": {
-          "description": "The name of the cluster.",
+        "subject-job-event": {
+          "description": "NATS subject for job events (start_job, stop_job)",
           "type": "string"
         },
-        "metricDataRepository": {
-          "description": "Type of the metric data repository for this cluster",
-          "type": "object",
-          "properties": {
-            "kind": {
-              "type": "string",
-                "enum": ["influxdb", "prometheus", "cc-metric-store", "cc-metric-store-internal", "test"]
-            },
-            "url": {
-              "type": "string"
-            },
-            "token": {
-              "type": "string"
-            }
-          },
-          "required": ["kind"]
-        },
-        "filterRanges": {
-          "description": "This option controls the slider ranges for the UI controls of numNodes, duration, and startTime.",
-          "type": "object",
-          "properties": {
-            "numNodes": {
-              "description": "UI slider range for number of nodes",
-              "type": "object",
-              "properties": {
-                "from": {
-                  "type": "integer"
-                },
-                "to": {
-                  "type": "integer"
-                }
-              },
-              "required": ["from", "to"]
-            },
-            "duration": {
-              "description": "UI slider range for duration",
-              "type": "object",
-              "properties": {
-                "from": {
-                  "type": "integer"
-                },
-                "to": {
-                  "type": "integer"
-                }
-              },
-              "required": ["from", "to"]
-            },
-            "startTime": {
-              "description": "UI slider range for start time",
-              "type": "object",
-              "properties": {
-                "from": {
-                  "type": "string",
-                  "format": "date-time"
-                },
-                "to": {
-                  "type": "null"
-                }
-              },
-              "required": ["from", "to"]
-            }
-          },
-          "required": ["numNodes", "duration", "startTime"]
+        "subject-node-state": {
+          "description": "NATS subject for node state updates",
+          "type": "string"
         }
       },
-      "required": ["name", "metricDataRepository", "filterRanges"],
-      "minItems": 1
+      "required": ["subject-job-event", "subject-node-state"]
+    },
+    "nodestate-retention": {
+      "description": "Node state retention configuration for cleaning up old node_state rows.",
+      "type": "object",
+      "properties": {
+        "policy": {
+          "description": "Retention policy: 'delete' to remove old rows, 'move' to archive to Parquet then delete.",
+          "type": "string",
+          "enum": ["delete", "move"]
+        },
+        "age": {
+          "description": "Retention age in hours (default: 24).",
+          "type": "integer"
+        },
+        "target-kind": {
+          "description": "Target kind for parquet archiving: 'file' or 's3'.",
+          "type": "string",
+          "enum": ["file", "s3"]
+        },
+        "target-path": {
+          "description": "Filesystem path for parquet file target.",
+          "type": "string"
+        },
+        "target-endpoint": {
+          "description": "S3 endpoint URL.",
+          "type": "string"
+        },
+        "target-bucket": {
+          "description": "S3 bucket name.",
+          "type": "string"
+        },
+        "target-access-key": {
+          "description": "S3 access key.",
+          "type": "string"
+        },
+        "target-secret-key": {
+          "description": "S3 secret key.",
+          "type": "string"
+        },
+        "target-region": {
+          "description": "S3 region.",
+          "type": "string"
+        },
+        "target-use-path-style": {
+          "description": "Use path-style S3 addressing.",
+          "type": "boolean"
+        },
+        "max-file-size-mb": {
+          "description": "Maximum parquet file size in MB (default: 128).",
+          "type": "integer"
+        }
+      },
+      "required": ["policy"]
     }
-  }`
+  }
+}`

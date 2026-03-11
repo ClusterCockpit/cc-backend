@@ -19,6 +19,7 @@ type Node {
   schedulerState: SchedulerState!
   healthState: MonitoringState!
   metaData: Any
+  healthData: Any
 }
 
 type NodeStates {
@@ -164,6 +165,13 @@ type JobMetricWithName {
   metric: JobMetric!
 }
 
+type ClusterMetricWithName {
+  name: String!
+  unit: Unit
+  timestep: Int!
+  data: [NullableFloat!]!
+}
+
 type JobMetric {
   unit: Unit
   timestep: Int!
@@ -267,6 +275,11 @@ type NodeMetrics {
   metrics: [JobMetricWithName!]!
 }
 
+type ClusterMetrics {
+  nodeCount: Int!
+  metrics: [ClusterMetricWithName!]!
+}
+
 type NodesResultList {
   items: [NodeMetrics!]!
   offset: Int
@@ -316,6 +329,7 @@ type Query {
   ## Node Queries New
   node(id: ID!): Node
   nodes(filter: [NodeFilter!], order: OrderByInput): NodeStateResultList!
+  nodesWithMeta(filter: [NodeFilter!], order: OrderByInput): NodeStateResultList!
   nodeStates(filter: [NodeFilter!]): [NodeStates!]!
   nodeStatesTimed(filter: [NodeFilter!], type: String!): [NodeStatesTimed!]!
 
@@ -385,6 +399,13 @@ type Query {
     page: PageRequest
     resolution: Int
   ): NodesResultList!
+
+  clusterMetrics(
+    cluster: String!
+    metrics: [String!]
+    from: Time!
+    to: Time!
+  ): ClusterMetrics!
 }
 
 type Mutation {
@@ -410,7 +431,7 @@ type TimeRangeOutput {
 input NodeFilter {
   hostname: StringInput
   cluster: StringInput
-  subcluster: StringInput
+  subCluster: StringInput
   schedulerState: SchedulerState
   healthState: MonitoringState
   timeStart: Int
@@ -425,6 +446,7 @@ input JobFilter {
   project: StringInput
   jobName: StringInput
   cluster: StringInput
+  subCluster: StringInput
   partition: StringInput
   duration: IntRange
   energy: FloatRange
@@ -439,6 +461,7 @@ input JobFilter {
   state: [JobState!]
   metricStats: [MetricStatItem!]
   shared: String
+  schedule: String
   node: StringInput
 }
 

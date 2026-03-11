@@ -10,9 +10,9 @@ import (
 	"testing"
 
 	"github.com/ClusterCockpit/cc-backend/internal/config"
-	ccconf "github.com/ClusterCockpit/cc-lib/ccConfig"
-	cclog "github.com/ClusterCockpit/cc-lib/ccLogger"
-	"github.com/ClusterCockpit/cc-lib/schema"
+	ccconf "github.com/ClusterCockpit/cc-lib/v2/ccConfig"
+	cclog "github.com/ClusterCockpit/cc-lib/v2/ccLogger"
+	"github.com/ClusterCockpit/cc-lib/v2/schema"
 	_ "github.com/mattn/go-sqlite3"
 )
 
@@ -20,33 +20,40 @@ func setupUserTest(t *testing.T) *UserCfgRepo {
 	const testconfig = `{
 	"main": {
 	 "addr":   "0.0.0.0:8080",
-   "apiAllowedIPs": [
+   "api-allowed-ips": [
      "*"
    ]
   },
 	"archive": {
 		"kind": "file",
 		"path": "./var/job-archive"
-	},
-	"clusters": [
-	{
-	   "name": "testcluster",
-	   "metricDataRepository": {"kind": "test", "url": "bla:8081"},
-	   "filterRanges": {
-		"numNodes": { "from": 1, "to": 64 },
-		"duration": { "from": 0, "to": 86400 },
-		"startTime": { "from": "2022-01-01T00:00:00Z", "to": null }
 	}
-	}]
 }`
 
 	cclog.Init("info", true)
-	dbfilepath := "testdata/job.db"
-	err := MigrateDB("sqlite3", dbfilepath)
+
+	// Copy test DB to a temp file for test isolation
+	srcData, err := os.ReadFile("testdata/job.db")
 	if err != nil {
 		t.Fatal(err)
 	}
-	Connect("sqlite3", dbfilepath)
+	dbfilepath := filepath.Join(t.TempDir(), "job.db")
+	if err := os.WriteFile(dbfilepath, srcData, 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := ResetConnection(); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() {
+		ResetConnection()
+	})
+
+	err = MigrateDB(dbfilepath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	Connect(dbfilepath)
 
 	tmpdir := t.TempDir()
 	cfgFilePath := filepath.Join(tmpdir, "config.json")
@@ -58,11 +65,7 @@ func setupUserTest(t *testing.T) *UserCfgRepo {
 
 	// Load and check main configuration
 	if cfg := ccconf.GetPackageConfig("main"); cfg != nil {
-		if clustercfg := ccconf.GetPackageConfig("clusters"); clustercfg != nil {
-			config.Init(cfg, clustercfg)
-		} else {
-			t.Fatal("Cluster configuration must be present")
-		}
+		config.Init(cfg)
 	} else {
 		t.Fatal("Main configuration must be present")
 	}

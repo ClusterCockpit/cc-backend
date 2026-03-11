@@ -8,19 +8,15 @@ package config
 import (
 	"testing"
 
-	ccconf "github.com/ClusterCockpit/cc-lib/ccConfig"
-	cclog "github.com/ClusterCockpit/cc-lib/ccLogger"
+	ccconf "github.com/ClusterCockpit/cc-lib/v2/ccConfig"
+	cclog "github.com/ClusterCockpit/cc-lib/v2/ccLogger"
 )
 
 func TestInit(t *testing.T) {
 	fp := "../../configs/config.json"
 	ccconf.Init(fp)
 	if cfg := ccconf.GetPackageConfig("main"); cfg != nil {
-		if clustercfg := ccconf.GetPackageConfig("clusters"); clustercfg != nil {
-			Init(cfg, clustercfg)
-		} else {
-			cclog.Abort("Cluster configuration must be present")
-		}
+		Init(cfg)
 	} else {
 		cclog.Abort("Main configuration must be present")
 	}
@@ -34,11 +30,7 @@ func TestInitMinimal(t *testing.T) {
 	fp := "../../configs/config-demo.json"
 	ccconf.Init(fp)
 	if cfg := ccconf.GetPackageConfig("main"); cfg != nil {
-		if clustercfg := ccconf.GetPackageConfig("clusters"); clustercfg != nil {
-			Init(cfg, clustercfg)
-		} else {
-			cclog.Abort("Cluster configuration must be present")
-		}
+		Init(cfg)
 	} else {
 		cclog.Abort("Main configuration must be present")
 	}

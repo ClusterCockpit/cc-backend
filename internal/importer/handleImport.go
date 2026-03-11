@@ -2,6 +2,7 @@
 // All rights reserved. This file is part of cc-backend.
 // Use of this source code is governed by a MIT-style
 // license that can be found in the LICENSE file.
+
 package importer
 
 import (
@@ -14,8 +15,8 @@ import (
 	"github.com/ClusterCockpit/cc-backend/internal/config"
 	"github.com/ClusterCockpit/cc-backend/internal/repository"
 	"github.com/ClusterCockpit/cc-backend/pkg/archive"
-	cclog "github.com/ClusterCockpit/cc-lib/ccLogger"
-	"github.com/ClusterCockpit/cc-lib/schema"
+	cclog "github.com/ClusterCockpit/cc-lib/v2/ccLogger"
+	"github.com/ClusterCockpit/cc-lib/v2/schema"
 )
 
 // HandleImportFlag imports jobs from file pairs specified in a comma-separated flag string.
@@ -37,7 +38,7 @@ import (
 func HandleImportFlag(flag string) error {
 	r := repository.GetJobRepository()
 
-	for _, pair := range strings.Split(flag, ",") {
+	for pair := range strings.SplitSeq(flag, ",") {
 		files := strings.Split(pair, ":")
 		if len(files) != 2 {
 			return fmt.Errorf("REPOSITORY/INIT > invalid import flag format")
@@ -101,7 +102,7 @@ func HandleImportFlag(flag string) error {
 			return err
 		}
 
-		id, err := r.InsertJob(&job)
+		id, err := r.InsertJobDirect(&job)
 		if err != nil {
 			cclog.Warn("Error while job db insert")
 			return err

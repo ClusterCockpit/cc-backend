@@ -59,7 +59,20 @@
       'rgb(135,133,0)',
       'rgb(0,167,108)',
       'rgb(189,189,189)',
-    ]
+    ],
+    nodeStates: {
+      allocated: "rgba(0, 128, 0, 0.75)",
+      down: "rgba(255, 0, 0, 0.75)",
+      idle: "rgba(0, 0, 255, 0.75)",
+      reserved: "rgba(255, 0, 255, 0.75)",
+      mixed: "rgba(255, 215, 0, 0.75)",
+      unknown: "rgba(0, 0, 0, 0.75)"
+    },
+    healthStates: {
+      full: "rgba(0, 128, 0, 0.75)",
+      failed: "rgba(255, 0, 0, 0.75)",
+      partial: "rgba(255, 215, 0, 0.75)",
+    }
   }
 </script>
 
@@ -77,6 +90,7 @@
     entities,
     displayLegend = false,
     useAltColors = false,
+    fixColors = null
   } = $props();
 
   /* Const Init */
@@ -86,6 +100,7 @@
     animation: false,
     plugins: {
       legend: {
+        // svelte-ignore state_referenced_locally
         display: displayLegend
       }
     }
@@ -98,6 +113,8 @@
       c = [...colors['colorblind']];
     } else if (useAltColors) {
       c = [...colors['alternative']];
+    } else if (fixColors?.length > 0) {
+      c = [...fixColors];
     } else {
       c = [...colors['default']];
     }

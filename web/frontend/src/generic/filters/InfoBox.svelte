@@ -20,7 +20,7 @@
   } = $props();
 </script>
 
-<Button class="mr-2 mb-1" outline color={modified ? "warning" : "primary"} {onclick}>
+<Button class="mb-1" outline color={modified ? "warning" : "primary"} {onclick}>
   <Icon name={icon} />
   {#if children}
     <!-- Note: Ignore '@' Error in IDE -->

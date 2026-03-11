@@ -9,13 +9,13 @@
   - `hostnameFilter String?`: The active hoststatefilter [Default: ""]
   - `from Date?`: The selected "from" date [Default: null]
   - `to Date?`: The selected "to" date [Default: null]
+  - `globalMetrics [Obj]`: Includes the backend supplied availabilities for cluster and subCluster
 -->
 
  <script>
-  import { getContext } from "svelte";
   import { queryStore, gql, getContextClient } from "@urql/svelte";
-  import { Row, Col, Card, Spinner, Badge } from "@sveltestrap/sveltestrap";
-  import { checkMetricDisabled } from "../generic/utils.js";
+  import { Row, Col, Card, CardHeader, CardBody, Spinner, Badge } from "@sveltestrap/sveltestrap";
+  import { checkMetricAvailability } from "../generic/utils.js";
   import MetricPlot from "../generic/plots/MetricPlot.svelte";
 
   /* Svelte 5 Props */
@@ -26,11 +26,11 @@
     hostnameFilter = "",
     hoststateFilter = "",
     from = null,
-    to = null
+    to = null,
+    globalMetrics
   } = $props();
 
   /* Const Init */
-  const initialized = getContext("initialized");
   const client = getContextClient();
   // Node State Colors
   const stateColors = {
@@ -87,7 +87,8 @@
     },
   }));
 
-  const mappedData = $derived(handleQueryData($initialized, $nodesQuery?.data));
+  const notConfigured = $derived(checkMetricAvailability(globalMetrics, selectedMetric, cluster) == "none");
+  const mappedData = $derived(handleQueryData($nodesQuery?.data));
   const filteredData = $derived(mappedData.filter((h) => {
     if (hostnameFilter) {
       if (hoststateFilter == 'all') return h.host.includes(hostnameFilter)
@@ -99,7 +100,7 @@
   }));
 
   /* Functions */
-  function handleQueryData(isInitialized, queryData) {
+  function handleQueryData(queryData) {
     let rawData = []
     if (queryData) { 
       rawData = queryData.nodeMetrics.filter((h) => {
@@ -110,7 +111,7 @@
         };
       });
     };
-    
+
     let pendingMapped = [];
     if (rawData.length > 0) {
       pendingMapped = rawData.map((h) => ({
@@ -120,11 +121,11 @@
         data: h.metrics.filter(
           (m) => m?.name == selectedMetric && m.scope == "node",
         ),
-        disabled: isInitialized ? checkMetricDisabled(selectedMetric, cluster, h.subCluster) : null,
+        availability: checkMetricAvailability(globalMetrics, selectedMetric, cluster, h.subCluster),
       }))
       .sort((a, b) => a.host.localeCompare(b.host))
     }
-    
+
     return pendingMapped;
   }
 </script>
@@ -156,17 +157,23 @@
               >
             </h4>
             <span style="margin-right: 0.5rem;">
-              <Badge color={stateColors[item?.state? item.state : 'notindb']}>{item?.state? item.state : 'notindb'}</Badge>
+              <Badge color={stateColors[item?.state? item.state : 'notindb']}>
+                State: {item?.state? item.state.charAt(0).toUpperCase() + item.state.slice(1) : 'Not in DB'}
+              </Badge>
             </span>
           </div>
-          {#if item.disabled === true}
-            <Card body class="mx-3" color="info"
-              >Metric disabled for subcluster <code
-                >{selectedMetric}:{item.subCluster}</code
-              ></Card
-            >
-          {:else if item.disabled === false}
-            <!-- "No Data"-Warning included in MetricPlot-Component   -->
+          {#if item?.availability == "disabled"}
+            <Card color="info">
+              <CardHeader class="mb-0">
+                <b>Disabled Metric</b>
+              </CardHeader>
+              <CardBody>
+                <p>No dataset(s) returned for <b>{selectedMetric}</b></p>
+                <p class="mb-1">Metric has been disabled for subcluster <b>{item.subCluster}</b>.</p>
+              </CardBody>
+            </Card>
+          {:else if item?.data}
+            <!-- "Empty Series"-Warning included in MetricPlot-Component   -->
             <!-- #key: X-axis keeps last selected timerange otherwise -->
             {#key item.data[0].metric.series[0].data.length}
               <MetricPlot
@@ -179,14 +186,56 @@
                 enableFlip
               />
             {/key}
-          {:else if item.disabled === null}
-            <Card body class="mx-3" color="info">
-              Global Metric List Not Initialized
-              Can not determine {selectedMetric} availability: Please Reload Page
+          {:else}
+            <!-- Should Not Appear -->
+            <Card color="warning">
+              <CardHeader class="mb-0">
+                <b>Missing Metric</b>
+              </CardHeader>
+              <CardBody>
+                <p>No dataset(s) returned for <b>{selectedMetric}</b>.</p>
+                <p class="mb-1">Metric was not found in metric store for host <b>{item.host}</b>.</p>
+              </CardBody>
             </Card>
           {/if}
         </Col>
       {/each}
     {/key}
+  </Row>
+{:else if hostnameFilter || hoststateFilter != 'all'}
+  <Row class="mx-1">
+    <Card class="px-0">
+      <CardHeader>
+        <b>Empty Filter Return</b>
+      </CardHeader>
+      <CardBody>
+        <p>No datasets returned for <b>{selectedMetric}</b>.</p>
+        <p class="mb-1">Hostname filter and/or host state filter returned no matches.</p>
+      </CardBody>
+    </Card>
+  </Row>
+{:else if notConfigured}
+  <Row class="mx-1">
+    <Card class="px-0" color="light">
+      <CardHeader>
+        <b>Metric not configured</b>
+      </CardHeader>
+      <CardBody>
+        <p>No datasets returned for <b>{selectedMetric}</b>.</p>
+        <p class="mb-1">Metric is not configured for cluster <b>{cluster}</b>.</p>
+      </CardBody>
+    </Card>
+  </Row>
+{:else}
+  <Row class="mx-1">
+    <Card class="px-0" color="warning">
+      <CardHeader>
+        <b>Missing Metric</b>
+      </CardHeader>
+      <CardBody>
+        <p>No datasets returned for <b>{selectedMetric}</b>.</p>
+        <p class="mb-1">Metric was not found in metric store for cluster <b>{cluster}</b>.</p>
+      </CardBody>
+    </Card>
   </Row>
 {/if}

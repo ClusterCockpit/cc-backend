@@ -6,6 +6,7 @@
   - `ìsOpen Bool`: Is selection opened [Bindable]
   - `configName String`: The config id string to be updated in database on selection change
   - `presetSelectedHistograms [String]`: The currently selected metrics to display as histogram
+  - `globalMetrics [Obj]`: Includes the backend supplied availabilities for cluster and subCluster
   - `applyChange Func`: The callback function to apply current selection
 -->
 
@@ -24,10 +25,11 @@
 
   /* Svelte 5 Props */
   let {
-    cluster,
+    cluster = "",
     isOpen = $bindable(),
     configName,
     presetSelectedHistograms,
+    globalMetrics,
     applyChange
   } = $props();
 
@@ -42,11 +44,11 @@
   function loadHistoMetrics(thisCluster) {
     // isInit Check Removed: Parent Component has finished Init-Query: Globalmetrics available here.
     if (!thisCluster) {
-      return getContext("globalMetrics")
+      return globalMetrics
       .filter((gm) => gm?.footprint)
       .map((fgm) => { return fgm.name })
     } else {
-      return getContext("globalMetrics")
+      return globalMetrics
       .filter((gm) => gm?.availability.find((av) => av.cluster == thisCluster))
       .filter((agm) => agm?.footprint)
       .map((afgm) => { return afgm.name })

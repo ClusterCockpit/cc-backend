@@ -13,17 +13,30 @@ import (
 	"github.com/ClusterCockpit/cc-backend/internal/auth"
 	"github.com/ClusterCockpit/cc-backend/internal/config"
 	"github.com/ClusterCockpit/cc-backend/internal/repository"
-	cclog "github.com/ClusterCockpit/cc-lib/ccLogger"
+	cclog "github.com/ClusterCockpit/cc-lib/v2/ccLogger"
 	"github.com/go-co-op/gocron/v2"
+)
+
+const (
+	DefaultCompressOlderThan = 7
 )
 
 // Retention defines the configuration for job retention policies.
 type Retention struct {
-	Policy     string `json:"policy"`
-	Location   string `json:"location"`
-	Age        int    `json:"age"`
-	IncludeDB  bool   `json:"includeDB"`
-	OmitTagged bool   `json:"omitTagged"`
+	Policy             string `json:"policy"`
+	Format             string `json:"format"`
+	Age                int    `json:"age"`
+	IncludeDB          bool   `json:"include-db"`
+	OmitTagged         string `json:"omit-tagged"`
+	TargetKind         string `json:"target-kind"`
+	TargetPath         string `json:"target-path"`
+	TargetEndpoint     string `json:"target-endpoint"`
+	TargetBucket       string `json:"target-bucket"`
+	TargetAccessKey    string `json:"target-access-key"`
+	TargetSecretKey    string `json:"target-secret-key"`
+	TargetRegion       string `json:"target-region"`
+	TargetUsePathStyle bool   `json:"target-use-path-style"`
+	MaxFileSizeMB      int    `json:"max-file-size-mb"`
 }
 
 // CronFrequency defines the execution intervals for various background workers.
@@ -60,6 +73,33 @@ func parseDuration(s string) (time.Duration, error) {
 	return interval, nil
 }
 
+func initArchiveServices(config json.RawMessage) {
+	var cfg struct {
+		Retention   Retention `json:"retention"`
+		Compression int       `json:"compression"`
+	}
+	cfg.Retention.IncludeDB = true
+
+	if err := json.Unmarshal(config, &cfg); err != nil {
+		cclog.Errorf("error while unmarshaling raw config json: %v", err)
+	}
+
+	switch cfg.Retention.Policy {
+	case "delete":
+		RegisterRetentionDeleteService(cfg.Retention)
+	case "copy":
+		RegisterRetentionCopyService(cfg.Retention)
+	case "move":
+		RegisterRetentionMoveService(cfg.Retention)
+	}
+
+	if cfg.Compression > 0 {
+		RegisterCompressionService(cfg.Compression)
+	} else {
+		RegisterCompressionService(DefaultCompressOlderThan)
+	}
+}
+
 // Start initializes the task manager, parses configurations, and registers background tasks.
 // It starts the gocron scheduler.
 func Start(cronCfg, archiveConfig json.RawMessage) {
@@ -80,32 +120,11 @@ func Start(cronCfg, archiveConfig json.RawMessage) {
 		cclog.Errorf("error while decoding cron config: %v", err)
 	}
 
-	var cfg struct {
-		Retention   Retention `json:"retention"`
-		Compression int       `json:"compression"`
-	}
-	cfg.Retention.IncludeDB = true
-
-	if err := json.Unmarshal(archiveConfig, &cfg); err != nil {
-		cclog.Warn("Error while unmarshaling raw config json")
-	}
-
-	switch cfg.Retention.Policy {
-	case "delete":
-		RegisterRetentionDeleteService(
-			cfg.Retention.Age,
-			cfg.Retention.IncludeDB,
-			cfg.Retention.OmitTagged)
-	case "move":
-		RegisterRetentionMoveService(
-			cfg.Retention.Age,
-			cfg.Retention.IncludeDB,
-			cfg.Retention.Location,
-			cfg.Retention.OmitTagged)
-	}
-
-	if cfg.Compression > 0 {
-		RegisterCompressionService(cfg.Compression)
+	if archiveConfig != nil {
+		initArchiveServices(archiveConfig)
+	} else {
+		// Always enable compression
+		RegisterCompressionService(DefaultCompressOlderThan)
 	}
 
 	lc := auth.Keys.LdapConfig
@@ -118,7 +137,28 @@ func Start(cronCfg, archiveConfig json.RawMessage) {
 	RegisterUpdateDurationWorker()
 	RegisterCommitJobService()
 
+	if config.Keys.NodeStateRetention != nil && config.Keys.NodeStateRetention.Policy != "" {
+		initNodeStateRetention()
+	}
+
 	s.Start()
+}
+
+func initNodeStateRetention() {
+	cfg := config.Keys.NodeStateRetention
+	age := cfg.Age
+	if age <= 0 {
+		age = 24
+	}
+
+	switch cfg.Policy {
+	case "delete":
+		RegisterNodeStateRetentionDeleteService(age)
+	case "move":
+		RegisterNodeStateRetentionMoveService(cfg)
+	default:
+		cclog.Warnf("Unknown nodestate-retention policy: %s", cfg.Policy)
+	}
 }
 
 // Shutdown stops the task manager and its scheduler.

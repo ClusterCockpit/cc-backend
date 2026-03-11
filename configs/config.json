@@ -5,46 +5,93 @@
     "https-key-file": "/etc/letsencrypt/live/url/privkey.pem",
     "user": "clustercockpit",
     "group": "clustercockpit",
-    "validate": false,
-    "apiAllowedIPs": ["*"],
+    "api-allowed-ips": ["*"],
     "short-running-jobs-duration": 300,
+    "enable-job-taggers": true,
+    "nodestate-retention": {
+      "policy": "move",
+      "target-kind": "file",
+      "target-path": "./var/nodestate-archive"
+    },
     "resampling": {
-      "trigger": 30,
-      "resolutions": [600, 300, 120, 60]
+      "minimum-points": 600,
+      "trigger": 180,
+      "resolutions": [240, 60]
+    },
+    "api-subjects": {
+      "subject-job-event": "cc.job.event",
+      "subject-node-state": "cc.node.state"
+    }
+  },
+  "nats": {
+    "address": "nats://0.0.0.0:4222",
+    "username": "root",
+    "password": "root"
+  },
+  "auth": {
+    "jwts": {
+      "max-age": "2000h"
     }
   },
   "cron": {
-    "commit-job-worker": "2m",
+    "commit-job-worker": "1m",
     "duration-worker": "5m",
     "footprint-worker": "10m"
   },
   "archive": {
-    "kind": "file",
-    "path": "./var/job-archive"
-  },
-  "clusters": [
-    {
-      "name": "test",
-      "metricDataRepository": {
-        "kind": "cc-metric-store",
-        "url": "http://localhost:8082",
-        "token": "eyJhbGciOiJF-E-pQBQ"
-      },
-      "filterRanges": {
-        "numNodes": {
-          "from": 1,
-          "to": 64
-        },
-        "duration": {
-          "from": 0,
-          "to": 86400
-        },
-        "startTime": {
-          "from": "2022-01-01T00:00:00Z",
-          "to": null
-        }
-      }
+    "kind": "s3",
+    "endpoint": "http://x.x.x.x",
+    "bucket": "jobarchive",
+    "access-key": "xx",
+    "secret-key": "xx",
+    "retention": {
+      "policy": "move",
+      "age": 365,
+      "location": "./var/archive"
     }
-  ]
+  },
+  "metric-store-external": [
+    {
+      "scope": "*",
+      "url": "http://x.x.x.x:8082",
+      "token": "MySecret"
+    },
+    {
+      "scope": "fritz",
+      "url": "http://x.x.x.x:8084",
+      "token": "MySecret"
+    },
+    {
+      "scope": "fritz-spr1tb",
+      "url": "http://x.x.x.x:8083",
+      "token": "MySecret"
+    },
+    {
+      "scope": "alex",
+      "url": "http://x.x.x.x:8084",
+      "token": "MySecret"
+    }
+  ],
+  "metric-store": {
+    "checkpoints": {
+      "directory": "./var/checkpoints"
+    },
+    "memory-cap": 100,
+    "retention-in-memory": "24h",
+    "cleanup": {
+      "mode": "archive",
+      "directory": "./var/archive"
+    },
+    "nats-subscriptions": [
+      {
+        "subscribe-to": "hpc-nats",
+        "cluster-tag": "fritz"
+      },
+      {
+        "subscribe-to": "hpc-nats",
+        "cluster-tag": "alex"
+      }
+    ]
+  },
+  "ui-file": "ui-config.json"
 }
-

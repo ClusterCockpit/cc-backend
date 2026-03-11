@@ -5,11 +5,11 @@
   - `presetSorting Object?`: The latest sort selection state
     - Default { field: "startTime", type: "col", order: "DESC" }
   - `isOpen Bool?`: Is modal opened [Bindable, Default: false]
+  - `globalMetrics [Obj]`: Includes the backend supplied availabilities for cluster and subCluster
   - `applySorting Func`: The callback function to apply current selection
 -->
 
 <script>
-  import { getContext, onMount } from "svelte";
   import {
     Icon,
     Button,
@@ -25,12 +25,11 @@
   let {
     isOpen = $bindable(false),
     presetSorting = { field: "startTime", type: "col", order: "DESC" },
+    globalMetrics,
     applySorting
   } = $props();
 
   /* Const Init */
-  const initialized = getContext("initialized");
-  const globalMetrics = getContext("globalMetrics");
   const fixedSortables = $state([ 
     { field: "startTime", type: "col", text: "Start Time (Default)", order: "DESC" },
     { field: "duration", type: "col", text: "Duration", order: "DESC" },
@@ -41,23 +40,12 @@
   ]);
 
   /* State Init */
-  let sorting = $state({...presetSorting})
   let activeColumnIdx = $state(0);
-  let metricSortables = $state([]);
 
   /* Derived */
-  let sortableColumns = $derived([...fixedSortables, ...metricSortables]);
-
-  /* Effect */
-  $effect(() => {
-    if ($initialized) {
-      loadMetricSortables();
-    };
-  });
-
-  /* Functions */  
-  function loadMetricSortables() {
-    metricSortables = globalMetrics.map((gm) => {
+  let sorting = $derived({...presetSorting})
+  let metricSortables = $derived.by(() => {
+    return globalMetrics.map((gm) => {
         if (gm?.footprint) {
             return { 
                 field: gm.name + '_' + gm.footprint,
@@ -68,8 +56,10 @@
         }
         return null
     }).filter((r) => r != null)
-  };
+  });
+  let sortableColumns = $derived([...fixedSortables, ...metricSortables]);
 
+  /* Functions */  
   function loadActiveIndex() {
     activeColumnIdx = sortableColumns.findIndex(
       (col) => col.field == sorting.field,

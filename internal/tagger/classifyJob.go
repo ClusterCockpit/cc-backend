@@ -2,29 +2,39 @@
 // All rights reserved. This file is part of cc-backend.
 // Use of this source code is governed by a MIT-style
 // license that can be found in the LICENSE file.
+
 package tagger
 
 import (
 	"bytes"
-	"embed"
 	"encoding/json"
 	"fmt"
 	"maps"
+	"math"
 	"os"
+	"path/filepath"
 	"strings"
 	"text/template"
 
 	"github.com/ClusterCockpit/cc-backend/internal/repository"
 	"github.com/ClusterCockpit/cc-backend/pkg/archive"
-	cclog "github.com/ClusterCockpit/cc-lib/ccLogger"
-	"github.com/ClusterCockpit/cc-lib/schema"
-	"github.com/ClusterCockpit/cc-lib/util"
+	cclog "github.com/ClusterCockpit/cc-lib/v2/ccLogger"
+	"github.com/ClusterCockpit/cc-lib/v2/schema"
+	"github.com/ClusterCockpit/cc-lib/v2/util"
 	"github.com/expr-lang/expr"
 	"github.com/expr-lang/expr/vm"
 )
 
-//go:embed jobclasses/*
-var jobClassFiles embed.FS
+const (
+	// defaultJobClassConfigPath is the default path for job classification configuration
+	defaultJobClassConfigPath = "./var/tagger/jobclasses"
+	// tagTypeJobClass is the tag type identifier for job classification tags
+	tagTypeJobClass = "jobClass"
+	// jobClassConfigDirMatch is the directory name used for matching filesystem events
+	jobClassConfigDirMatch = "jobclasses"
+	// parametersFileName is the name of the parameters configuration file
+	parametersFileName = "parameters.json"
+)
 
 // Variable defines a named expression that can be computed and reused in rules.
 // Variables are evaluated before the main rule and their results are added to the environment.
@@ -45,21 +55,21 @@ type ruleVariable struct {
 // and the final rule expression that determines if the job matches the classification.
 type RuleFormat struct {
 	// Name is a human-readable description of the rule
-	Name         string     `json:"name"`
+	Name string `json:"name"`
 	// Tag is the classification tag to apply if the rule matches
-	Tag          string     `json:"tag"`
+	Tag string `json:"tag"`
 	// Parameters are shared values referenced in the rule (e.g., thresholds)
-	Parameters   []string   `json:"parameters"`
+	Parameters []string `json:"parameters"`
 	// Metrics are the job metrics required for this rule (e.g., "cpu_load", "mem_used")
-	Metrics      []string   `json:"metrics"`
+	Metrics []string `json:"metrics"`
 	// Requirements are boolean expressions that must be true for the rule to apply
-	Requirements []string   `json:"requirements"`
+	Requirements []string `json:"requirements"`
 	// Variables are computed values used in the rule expression
-	Variables    []Variable `json:"variables"`
+	Variables []Variable `json:"variables"`
 	// Rule is the boolean expression that determines if the job matches
-	Rule         string     `json:"rule"`
+	Rule string `json:"rule"`
 	// Hint is a template string that generates a message when the rule matches
-	Hint         string     `json:"hint"`
+	Hint string `json:"hint"`
 }
 
 type ruleInfo struct {
@@ -75,31 +85,54 @@ type ruleInfo struct {
 // This interface allows for easier testing and decoupling from the concrete repository implementation.
 type JobRepository interface {
 	// HasTag checks if a job already has a specific tag
-	HasTag(jobId int64, tagType string, tagName string) bool
+	HasTag(jobID int64, tagType string, tagName string) bool
 	// AddTagOrCreateDirect adds a tag to a job or creates it if it doesn't exist
-	AddTagOrCreateDirect(jobId int64, tagType string, tagName string) (tagId int64, err error)
+	AddTagOrCreateDirect(jobID int64, tagType string, tagName string) (tagID int64, err error)
 	// UpdateMetadata updates job metadata with a key-value pair
 	UpdateMetadata(job *schema.Job, key, val string) (err error)
 }
 
 // JobClassTagger classifies jobs based on configurable rules that evaluate job metrics and properties.
-// Rules are loaded from embedded JSON files and can be dynamically reloaded from a watched directory.
+// Rules are loaded from an external configuration directory and can be dynamically reloaded when files change.
 // When a job matches a rule, it is tagged with the corresponding classification and an optional hint message.
 type JobClassTagger struct {
 	// rules maps classification tags to their compiled rule information
-	rules           map[string]ruleInfo
+	rules map[string]ruleInfo
 	// parameters are shared values (e.g., thresholds) used across multiple rules
-	parameters      map[string]any
+	parameters map[string]any
 	// tagType is the type of tag ("jobClass")
-	tagType         string
+	tagType string
 	// cfgPath is the path to watch for configuration changes
-	cfgPath         string
+	cfgPath string
 	// repo provides access to job database operations
-	repo            JobRepository
+	repo JobRepository
 	// getStatistics retrieves job statistics for analysis
-	getStatistics   func(job *schema.Job) (map[string]schema.JobStatistics, error)
+	getStatistics func(job *schema.Job) (map[string]schema.JobStatistics, error)
 	// getMetricConfig retrieves metric configuration (limits) for a cluster
 	getMetricConfig func(cluster, subCluster string) map[string]*schema.Metric
+}
+
+// roundEnv returns a copy of env with all float64 values rounded to 2 decimal places.
+// Nested map[string]any and map[string]float64 values are recursed into.
+func roundEnv(env map[string]any) map[string]any {
+	rounded := make(map[string]any, len(env))
+	for k, v := range env {
+		switch val := v.(type) {
+		case float64:
+			rounded[k] = math.Round(val*100) / 100
+		case map[string]any:
+			rounded[k] = roundEnv(val)
+		case map[string]float64:
+			rm := make(map[string]float64, len(val))
+			for mk, mv := range val {
+				rm[mk] = math.Round(mv*100) / 100
+			}
+			rounded[k] = rm
+		default:
+			rounded[k] = v
+		}
+	}
+	return rounded
 }
 
 func (t *JobClassTagger) prepareRule(b []byte, fns string) {
@@ -169,7 +202,7 @@ func (t *JobClassTagger) prepareRule(b []byte, fns string) {
 // EventMatch checks if a filesystem event should trigger configuration reload.
 // It returns true if the event path contains "jobclasses".
 func (t *JobClassTagger) EventMatch(s string) bool {
-	return strings.Contains(s, "jobclasses")
+	return strings.Contains(s, jobClassConfigDirMatch)
 }
 
 // EventCallback is triggered when the configuration directory changes.
@@ -181,9 +214,12 @@ func (t *JobClassTagger) EventCallback() {
 		cclog.Fatal(err)
 	}
 
-	if util.CheckFileExists(t.cfgPath + "/parameters.json") {
+	t.rules = make(map[string]ruleInfo)
+
+	parametersFile := filepath.Join(t.cfgPath, parametersFileName)
+	if util.CheckFileExists(parametersFile) {
 		cclog.Info("Merge parameters")
-		b, err := os.ReadFile(t.cfgPath + "/parameters.json")
+		b, err := os.ReadFile(parametersFile)
 		if err != nil {
 			cclog.Warnf("prepareRule() > open file error: %v", err)
 		}
@@ -198,13 +234,13 @@ func (t *JobClassTagger) EventCallback() {
 
 	for _, fn := range files {
 		fns := fn.Name()
-		if fns != "parameters.json" {
+		if fns != parametersFileName {
 			cclog.Debugf("Process: %s", fns)
-			filename := fmt.Sprintf("%s/%s", t.cfgPath, fns)
+			filename := filepath.Join(t.cfgPath, fns)
 			b, err := os.ReadFile(filename)
 			if err != nil {
 				cclog.Warnf("prepareRule() > open file error: %v", err)
-				return
+				continue
 			}
 			t.prepareRule(b, fns)
 		}
@@ -213,7 +249,8 @@ func (t *JobClassTagger) EventCallback() {
 
 func (t *JobClassTagger) initParameters() error {
 	cclog.Info("Initialize parameters")
-	b, err := jobClassFiles.ReadFile("jobclasses/parameters.json")
+	parametersFile := filepath.Join(t.cfgPath, parametersFileName)
+	b, err := os.ReadFile(parametersFile)
 	if err != nil {
 		cclog.Warnf("prepareRule() > open file error: %v", err)
 		return err
@@ -227,13 +264,20 @@ func (t *JobClassTagger) initParameters() error {
 	return nil
 }
 
-// Register initializes the JobClassTagger by loading parameters and classification rules.
-// It loads embedded configuration files and sets up a file watch on ./var/tagger/jobclasses
-// if it exists, allowing for dynamic configuration updates without restarting the application.
-// Returns an error if the embedded configuration files cannot be read or parsed.
+// Register initializes the JobClassTagger by loading parameters and classification rules from external folder.
+// It sets up a file watch on ./var/tagger/jobclasses if it exists, allowing for
+// dynamic configuration updates without restarting the application.
+// Returns an error if the configuration path does not exist or cannot be read.
 func (t *JobClassTagger) Register() error {
-	t.cfgPath = "./var/tagger/jobclasses"
-	t.tagType = "jobClass"
+	if t.cfgPath == "" {
+		t.cfgPath = defaultJobClassConfigPath
+	}
+	t.tagType = tagTypeJobClass
+	t.rules = make(map[string]ruleInfo)
+
+	if !util.CheckFileExists(t.cfgPath) {
+		return fmt.Errorf("configuration path does not exist: %s", t.cfgPath)
+	}
 
 	err := t.initParameters()
 	if err != nil {
@@ -241,31 +285,28 @@ func (t *JobClassTagger) Register() error {
 		return err
 	}
 
-	files, err := jobClassFiles.ReadDir("jobclasses")
+	files, err := os.ReadDir(t.cfgPath)
 	if err != nil {
-		return fmt.Errorf("error reading app folder: %#v", err)
+		return fmt.Errorf("error reading jobclasses folder: %#v", err)
 	}
-	t.rules = make(map[string]ruleInfo)
+
 	for _, fn := range files {
 		fns := fn.Name()
-		if fns != "parameters.json" {
-			filename := fmt.Sprintf("jobclasses/%s", fns)
+		if fns != parametersFileName {
 			cclog.Infof("Process: %s", fns)
+			filename := filepath.Join(t.cfgPath, fns)
 
-			b, err := jobClassFiles.ReadFile(filename)
+			b, err := os.ReadFile(filename)
 			if err != nil {
 				cclog.Warnf("prepareRule() > open file error: %v", err)
-				return err
+				continue
 			}
 			t.prepareRule(b, fns)
 		}
 	}
 
-	if util.CheckFileExists(t.cfgPath) {
-		t.EventCallback()
-		cclog.Infof("Setup file watch for %s", t.cfgPath)
-		util.AddListener(t.cfgPath, t)
-	}
+	cclog.Infof("Setup file watch for %s", t.cfgPath)
+	util.AddListener(t.cfgPath, t)
 
 	t.repo = repository.GetJobRepository()
 	t.getStatistics = archive.GetStatistics
@@ -286,21 +327,25 @@ func (t *JobClassTagger) Register() error {
 //   - Shared parameters defined in parameters.json
 //   - Computed variables from the rule definition
 //
-// Rules are evaluated in arbitrary order. If multiple rules match, only the first
-// encountered match is applied (FIXME: this should handle multiple matches).
+// Rules are evaluated in arbitrary order. Multiple rules can match and apply
+// their tags to the same job. Hint messages from all matching rules are collected
+// and stored as a combined message in the job metadata.
 func (t *JobClassTagger) Match(job *schema.Job) {
 	jobStats, err := t.getStatistics(job)
 	metricsList := t.getMetricConfig(job.Cluster, job.SubCluster)
-	cclog.Infof("Enter  match rule with %d rules for job %d", len(t.rules), job.JobID)
+	cclog.Debugf("Enter match rule with %d rules for job %d", len(t.rules), job.JobID)
 	if err != nil {
-		cclog.Errorf("job classification failed for job  %d: %#v", job.JobID, err)
+		cclog.Errorf("job classification failed for job %d: %#v", job.JobID, err)
 		return
 	}
+
+	id := *job.ID
+	var messages []string
 
 	for tag, ri := range t.rules {
 		env := make(map[string]any)
 		maps.Copy(env, ri.env)
-		cclog.Infof("Try to match rule %s for job %d", tag, job.JobID)
+		cclog.Debugf("Try to match rule %s for job %d", tag, job.JobID)
 
 		// Initialize environment
 		env["job"] = map[string]any{
@@ -314,11 +359,13 @@ func (t *JobClassTagger) Match(job *schema.Job) {
 		}
 
 		// add metrics to env
+		skipRule := false
 		for _, m := range ri.metrics {
 			stats, ok := jobStats[m]
 			if !ok {
-				cclog.Errorf("job classification failed for job %d: missing metric '%s'", job.JobID, m)
-				return
+				cclog.Errorf("job classification: missing metric '%s' for rule %s on job %d", m, tag, job.JobID)
+				skipRule = true
+				break
 			}
 			env[m] = map[string]any{
 				"min": stats.Min,
@@ -332,62 +379,71 @@ func (t *JobClassTagger) Match(job *schema.Job) {
 				},
 			}
 		}
+		if skipRule {
+			continue
+		}
 
 		// check rule requirements apply
+		requirementsMet := true
 		for _, r := range ri.requirements {
 			ok, err := expr.Run(r, env)
 			if err != nil {
 				cclog.Errorf("error running requirement for rule %s: %#v", tag, err)
-				return
+				requirementsMet = false
+				break
 			}
 			if !ok.(bool) {
-				cclog.Infof("requirement for rule %s not met", tag)
-				return
+				cclog.Debugf("requirement for rule %s not met", tag)
+				requirementsMet = false
+				break
 			}
 		}
+		if !requirementsMet {
+			continue
+		}
 
-		// validate rule expression
+		// evaluate rule variables
+		varError := false
 		for _, v := range ri.variables {
 			value, err := expr.Run(v.expr, env)
 			if err != nil {
-				cclog.Errorf("error running rule %s: %#v", tag, err)
-				return
+				cclog.Errorf("error evaluating variable %s for rule %s: %#v", v.name, tag, err)
+				varError = true
+				break
 			}
 			env[v.name] = value
 		}
-
-		// dump.P(env)
+		if varError {
+			continue
+		}
 
 		match, err := expr.Run(ri.rule, env)
 		if err != nil {
 			cclog.Errorf("error running rule %s: %#v", tag, err)
-			return
+			continue
 		}
 		if match.(bool) {
-			cclog.Info("Rule matches!")
-			id := *job.ID
 			if !t.repo.HasTag(id, t.tagType, tag) {
-				_, err := t.repo.AddTagOrCreateDirect(id, t.tagType, tag)
-				if err != nil {
-					return
+				if _, err := t.repo.AddTagOrCreateDirect(id, t.tagType, tag); err != nil {
+					cclog.Errorf("failed to add tag '%s' to job %d: %v", tag, id, err)
+					continue
 				}
 			}
 
 			// process hint template
 			var msg bytes.Buffer
-			if err := ri.hint.Execute(&msg, env); err != nil {
+			if err := ri.hint.Execute(&msg, roundEnv(env)); err != nil {
 				cclog.Errorf("Template error: %s", err.Error())
-				return
+				continue
 			}
+			messages = append(messages, msg.String())
+		}
+	}
 
-			// FIXME: Handle case where multiple tags apply
-			// FIXME: Handle case where multiple tags apply
-			err = t.repo.UpdateMetadata(job, "message", msg.String())
-			if err != nil {
-				return
-			}
-		} else {
-			cclog.Info("Rule does not match!")
+	if len(messages) > 0 {
+		combined := strings.Join(messages, "\n")
+		if err := t.repo.UpdateMetadata(job, "message", combined); err != nil {
+			cclog.Errorf("failed to update metadata for job %d: %v", *job.ID, err)
 		}
 	}
 }

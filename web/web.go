@@ -16,81 +16,81 @@ import (
 
 	"github.com/ClusterCockpit/cc-backend/internal/config"
 	"github.com/ClusterCockpit/cc-backend/pkg/archive"
-	cclog "github.com/ClusterCockpit/cc-lib/ccLogger"
-	"github.com/ClusterCockpit/cc-lib/schema"
-	"github.com/ClusterCockpit/cc-lib/util"
+	cclog "github.com/ClusterCockpit/cc-lib/v2/ccLogger"
+	"github.com/ClusterCockpit/cc-lib/v2/schema"
+	"github.com/ClusterCockpit/cc-lib/v2/util"
 )
 
 type WebConfig struct {
-	JobList           JobListConfig     `json:"jobList"`
-	NodeList          NodeListConfig    `json:"nodeList"`
-	JobView           JobViewConfig     `json:"jobView"`
-	MetricConfig      MetricConfig      `json:"metricConfig"`
-	PlotConfiguration PlotConfiguration `json:"plotConfiguration"`
+	JobList           JobListConfig     `json:"job-list"`
+	NodeList          NodeListConfig    `json:"node-list"`
+	JobView           JobViewConfig     `json:"job-view"`
+	MetricConfig      MetricConfig      `json:"metric-config"`
+	PlotConfiguration PlotConfiguration `json:"plot-configuration"`
 }
 
 type JobListConfig struct {
-	UsePaging     bool `json:"usePaging"`
-	ShowFootprint bool `json:"showFootprint"`
+	UsePaging     bool `json:"use-paging"`
+	ShowFootprint bool `json:"show-footprint"`
 }
 
 type NodeListConfig struct {
-	UsePaging bool `json:"usePaging"`
+	UsePaging bool `json:"use-paging"`
 }
 
 type JobViewConfig struct {
-	ShowPolarPlot bool `json:"showPolarPlot"`
-	ShowFootprint bool `json:"showFootprint"`
-	ShowRoofline  bool `json:"showRoofline"`
-	ShowStatTable bool `json:"showStatTable"`
+	ShowPolarPlot bool `json:"show-polar-plot"`
+	ShowFootprint bool `json:"show-footprint"`
+	ShowRoofline  bool `json:"show-roofline"`
+	ShowStatTable bool `json:"show-stat-table"`
 }
 
 type MetricConfig struct {
-	JobListMetrics      []string        `json:"jobListMetrics"`
-	JobViewPlotMetrics  []string        `json:"jobViewPlotMetrics"`
-	JobViewTableMetrics []string        `json:"jobViewTableMetrics"`
+	JobListMetrics      []string        `json:"job-list-metrics"`
+	JobViewPlotMetrics  []string        `json:"job-view-plot-metrics"`
+	JobViewTableMetrics []string        `json:"job-view-table-metrics"`
 	Clusters            []ClusterConfig `json:"clusters"`
 }
 
 type ClusterConfig struct {
 	Name                string             `json:"name"`
-	JobListMetrics      []string           `json:"jobListMetrics"`
-	JobViewPlotMetrics  []string           `json:"jobViewPlotMetrics"`
-	JobViewTableMetrics []string           `json:"jobViewTableMetrics"`
-	SubClusters         []SubClusterConfig `json:"subClusters"`
+	JobListMetrics      []string           `json:"job-list-metrics"`
+	JobViewPlotMetrics  []string           `json:"job-view-plot-metrics"`
+	JobViewTableMetrics []string           `json:"job-view-table-metrics"`
+	SubClusters         []SubClusterConfig `json:"sub-clusters"`
 }
 
 type SubClusterConfig struct {
 	Name                string   `json:"name"`
-	JobListMetrics      []string `json:"jobListMetrics"`
-	JobViewPlotMetrics  []string `json:"jobViewPlotMetrics"`
-	JobViewTableMetrics []string `json:"jobViewTableMetrics"`
+	JobListMetrics      []string `json:"job-list-metrics"`
+	JobViewPlotMetrics  []string `json:"job-view-plot-metrics"`
+	JobViewTableMetrics []string `json:"job-view-table-metrics"`
 }
 
 type PlotConfiguration struct {
-	ColorBackground bool     `json:"colorBackground"`
-	PlotsPerRow     int      `json:"plotsPerRow"`
-	LineWidth       int      `json:"lineWidth"`
-	ColorScheme     []string `json:"colorScheme"`
+	ColorBackground bool     `json:"color-background"`
+	PlotsPerRow     int      `json:"plots-per-row"`
+	LineWidth       int      `json:"line-width"`
+	ColorScheme     []string `json:"color-scheme"`
 }
 
 var UIDefaults = WebConfig{
 	JobList: JobListConfig{
 		UsePaging:     false,
-		ShowFootprint: true,
+		ShowFootprint: false,
 	},
 	NodeList: NodeListConfig{
-		UsePaging: true,
+		UsePaging: false,
 	},
 	JobView: JobViewConfig{
 		ShowPolarPlot: true,
-		ShowFootprint: true,
+		ShowFootprint: false,
 		ShowRoofline:  true,
 		ShowStatTable: true,
 	},
 	MetricConfig: MetricConfig{
-		JobListMetrics:      []string{"flops_any", "mem_bw", "mem_used"},
-		JobViewPlotMetrics:  []string{"flops_any", "mem_bw", "mem_used"},
+		JobListMetrics:      []string{"cpu_load", "flops_any", "mem_bw", "mem_used"},
+		JobViewPlotMetrics:  []string{"cpu_load", "flops_any", "mem_bw", "mem_used"},
 		JobViewTableMetrics: []string{"flops_any", "mem_bw", "mem_used"},
 	},
 	PlotConfiguration: PlotConfiguration{
@@ -186,6 +186,16 @@ func ServeFiles() http.Handler {
 	return http.FileServer(http.FS(publicFiles))
 }
 
+// StaticFileExists checks whether a static file exists in the embedded frontend FS.
+func StaticFileExists(path string) bool {
+	path = strings.TrimPrefix(path, "/")
+	if path == "" {
+		return false
+	}
+	_, err := fs.Stat(frontendFiles, "frontend/public/"+path)
+	return err == nil
+}
+
 //go:embed templates/*
 var templateFiles embed.FS
 
@@ -201,6 +211,10 @@ func init() {
 			return nil
 		}
 
+		if path == "templates/404.tmpl" {
+			templates[strings.TrimPrefix(path, "templates/")] = template.Must(template.ParseFS(templateFiles, path))
+			return nil
+		}
 		if path == "templates/login.tmpl" {
 			if util.CheckFileExists("./var/login.tmpl") {
 				cclog.Info("overwrite login.tmpl with local file")
@@ -245,7 +259,7 @@ type Page struct {
 	User          schema.User            // Information about the currently logged in user (Full User Info)
 	Roles         map[string]schema.Role // Available roles for frontend render checks
 	Build         Build                  // Latest information about the application
-	Clusters      []config.ClusterConfig // List of all clusters for use in the Header
+	Clusters      []string               // List of all cluster names
 	SubClusters   map[string][]string    // Map per cluster of all subClusters for use in the Header
 	FilterPresets map[string]any         // For pages with the Filter component, this can be used to set initial filters.
 	Infos         map[string]any         // For generic use (e.g. username for /monitoring/user/<id>, job id for /monitoring/job/<id>)
@@ -261,14 +275,14 @@ func RenderTemplate(rw http.ResponseWriter, file string, page *Page) {
 	}
 
 	if page.Clusters == nil {
-		for _, c := range config.Clusters {
-			page.Clusters = append(page.Clusters, config.ClusterConfig{Name: c.Name, FilterRanges: c.FilterRanges, MetricDataRepository: nil})
-		}
+		page.Clusters = make([]string, 0)
 	}
 
 	if page.SubClusters == nil {
 		page.SubClusters = make(map[string][]string)
 		for _, cluster := range archive.Clusters {
+			page.Clusters = append(page.Clusters, cluster.Name)
+
 			for _, sc := range cluster.SubClusters {
 				page.SubClusters[cluster.Name] = append(page.SubClusters[cluster.Name], sc.Name)
 			}

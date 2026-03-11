@@ -31,13 +31,15 @@
 //	  }
 //	}
 //
-// For S3 backend:
+// For S3 backend (endpoint, region, and usePathStyle are optional):
 //
 //	{
 //	  "archive": {
 //	    "kind": "s3",
+//	    "endpoint": "http://192.168.178.10",
 //	    "bucket": "my-job-archive",
 //	    "region": "us-east-1",
+//	    "usePathStyle": true,
 //	    "accessKey": "...",
 //	    "secretKey": "..."
 //	  }
@@ -85,9 +87,9 @@ import (
 	"sync"
 
 	"github.com/ClusterCockpit/cc-backend/internal/config"
-	cclog "github.com/ClusterCockpit/cc-lib/ccLogger"
-	"github.com/ClusterCockpit/cc-lib/lrucache"
-	"github.com/ClusterCockpit/cc-lib/schema"
+	cclog "github.com/ClusterCockpit/cc-lib/v2/ccLogger"
+	"github.com/ClusterCockpit/cc-lib/v2/lrucache"
+	"github.com/ClusterCockpit/cc-lib/v2/schema"
 )
 
 // Version is the current archive schema version.
@@ -179,11 +181,10 @@ type JobContainer struct {
 }
 
 var (
-	initOnce   sync.Once
-	cache      *lrucache.Cache = lrucache.New(128 * 1024 * 1024)
-	ar         ArchiveBackend
-	useArchive bool
-	mutex      sync.Mutex
+	initOnce sync.Once
+	cache    *lrucache.Cache = lrucache.New(128 * 1024 * 1024)
+	ar       ArchiveBackend
+	mutex    sync.Mutex
 )
 
 // Init initializes the archive backend with the provided configuration.
@@ -195,12 +196,10 @@ var (
 //
 // The configuration determines which backend is used (file, s3, or sqlite).
 // Returns an error if initialization fails or version is incompatible.
-func Init(rawConfig json.RawMessage, disableArchive bool) error {
+func Init(rawConfig json.RawMessage) error {
 	var err error
 
 	initOnce.Do(func() {
-		useArchive = !disableArchive
-
 		var cfg struct {
 			Kind string `json:"kind"`
 		}
@@ -376,7 +375,7 @@ func UpdateMetadata(job *schema.Job, metadata map[string]string) error {
 	mutex.Lock()
 	defer mutex.Unlock()
 
-	if job.State == schema.JobStateRunning || !useArchive {
+	if job.State == schema.JobStateRunning {
 		return nil
 	}
 
@@ -399,7 +398,7 @@ func UpdateTags(job *schema.Job, tags []*schema.Tag) error {
 	mutex.Lock()
 	defer mutex.Unlock()
 
-	if job.State == schema.JobStateRunning || !useArchive {
+	if job.State == schema.JobStateRunning {
 		return nil
 	}
 

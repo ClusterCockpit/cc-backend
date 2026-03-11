@@ -8,7 +8,7 @@ package auth
 import (
 	"testing"
 
-	"github.com/ClusterCockpit/cc-lib/schema"
+	"github.com/ClusterCockpit/cc-lib/v2/schema"
 	"github.com/golang-jwt/jwt/v5"
 )
 
@@ -19,7 +19,7 @@ func TestExtractStringFromClaims(t *testing.T) {
 		"email": "test@example.com",
 		"age":   25, // not a string
 	}
-	
+
 	tests := []struct {
 		name     string
 		key      string
@@ -30,7 +30,7 @@ func TestExtractStringFromClaims(t *testing.T) {
 		{"Non-existent key", "missing", ""},
 		{"Non-string value", "age", ""},
 	}
-	
+
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			result := extractStringFromClaims(claims, tt.key)
@@ -88,16 +88,16 @@ func TestExtractRolesFromClaims(t *testing.T) {
 			expected:      []string{},
 		},
 	}
-	
+
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			result := extractRolesFromClaims(tt.claims, tt.validateRoles)
-			
+
 			if len(result) != len(tt.expected) {
 				t.Errorf("Expected %d roles, got %d", len(tt.expected), len(result))
 				return
 			}
-			
+
 			for i, role := range result {
 				if i >= len(tt.expected) || role != tt.expected[i] {
 					t.Errorf("Expected role %s at position %d, got %s", tt.expected[i], i, role)
@@ -141,16 +141,16 @@ func TestExtractProjectsFromClaims(t *testing.T) {
 			expected: []string{"project1", "project2"}, // Should skip non-strings
 		},
 	}
-	
+
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			result := extractProjectsFromClaims(tt.claims)
-			
+
 			if len(result) != len(tt.expected) {
 				t.Errorf("Expected %d projects, got %d", len(tt.expected), len(result))
 				return
 			}
-			
+
 			for i, project := range result {
 				if i >= len(tt.expected) || project != tt.expected[i] {
 					t.Errorf("Expected project %s at position %d, got %s", tt.expected[i], i, project)
@@ -216,7 +216,7 @@ func TestExtractNameFromClaims(t *testing.T) {
 			expected: "123 Smith", // Should convert to string
 		},
 	}
-	
+
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			result := extractNameFromClaims(tt.claims)
@@ -235,29 +235,28 @@ func TestGetUserFromJWT_NoValidation(t *testing.T) {
 		"roles":    []any{"user", "admin"},
 		"projects": []any{"project1", "project2"},
 	}
-	
+
 	user, err := getUserFromJWT(claims, false, schema.AuthToken, -1)
-	
 	if err != nil {
 		t.Fatalf("Unexpected error: %v", err)
 	}
-	
+
 	if user.Username != "testuser" {
 		t.Errorf("Expected username 'testuser', got '%s'", user.Username)
 	}
-	
+
 	if user.Name != "Test User" {
 		t.Errorf("Expected name 'Test User', got '%s'", user.Name)
 	}
-	
+
 	if len(user.Roles) != 2 {
 		t.Errorf("Expected 2 roles, got %d", len(user.Roles))
 	}
-	
+
 	if len(user.Projects) != 2 {
 		t.Errorf("Expected 2 projects, got %d", len(user.Projects))
 	}
-	
+
 	if user.AuthType != schema.AuthToken {
 		t.Errorf("Expected AuthType %v, got %v", schema.AuthToken, user.AuthType)
 	}
@@ -268,13 +267,13 @@ func TestGetUserFromJWT_MissingSub(t *testing.T) {
 	claims := jwt.MapClaims{
 		"name": "Test User",
 	}
-	
+
 	_, err := getUserFromJWT(claims, false, schema.AuthToken, -1)
-	
+
 	if err == nil {
 		t.Error("Expected error for missing sub claim")
 	}
-	
+
 	if err.Error() != "missing 'sub' claim in JWT" {
 		t.Errorf("Expected specific error message, got: %v", err)
 	}

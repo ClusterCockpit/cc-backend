@@ -1,0 +1,22 @@
+{
+  "cluster": "fritz",
+  "jobId": 123000,
+  "jobState": "running",
+  "numAcc": 0,
+  "numHwthreads": 72,
+  "numNodes": 1,
+  "partition": "main",
+  "requestedMemory": 128000,
+  "resources": [{ "hostname": "f0726" }],
+  "startTime": 1649723812,
+  "subCluster": "main",
+  "submitTime": 1649723812,
+  "user": "k106eb10",
+  "project": "k106eb",
+  "walltime": 86400,
+  "metaData": {
+    "slurmInfo": "JobId=398759\nJobName=myJob\nUserId=dummyUser\nGroupId=dummyGroup\nAccount=dummyAccount\nQOS=normal Requeue=False Restarts=0 BatchFlag=True\nTimeLimit=1439'\nSubmitTime=2023-02-09T14:10:18\nPartition=singlenode\nNodeList=xx\nNumNodes=xx NumCPUs=72 NumTasks=72 CPUs/Task=1\nNTasksPerNode:Socket:Core=0:None:None\nTRES_req=cpu=72,mem=250000M,node=1,billing=72\nTRES_alloc=cpu=72,node=1,billing=72\nCommand=myCmd\nWorkDir=myDir\nStdErr=\nStdOut=\n",
+    "jobScript": "#!/bin/bash  -l\n#SBATCH --job-name=dummy_job\n#SBATCH --time=23:59:00\n#SBATCH --partition=singlenode\n#SBATCH --ntasks=72\n#SBATCH --hint=multithread\n#SBATCH --chdir=/home/atuin/k106eb/dummy/\n#SBATCH --export=NONE\nunset SLURM_EXPORT_ENV\n\n#This is a dummy job script\n./mybinary\n",
+    "jobName": "ams_pipeline"
+  }
+}

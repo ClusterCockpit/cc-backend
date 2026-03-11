@@ -36,8 +36,7 @@
 
   /* Const Init */
   const { query: initq } = init();
-  const ccconfig = getContext("cc-config");
-  const presetProject = filterPresets?.project ? filterPresets.project : ""
+  const matchedJobCompareLimit = 500;
 
   /* State Init */
   let filterComponent = $state(); // see why here: https://stackoverflow.com/questions/58287729/how-can-i-export-a-function-from-a-svelte-component-that-changes-a-value-in-the
@@ -51,15 +50,37 @@
   let showCompare = $state(false);
   let isMetricsSelectionOpen = $state(false);
   let sorting = $state({ field: "startTime", type: "col", order: "DESC" });
-  let selectedCluster = $state(filterPresets?.cluster ? filterPresets.cluster : null);
-  let metrics = $state(filterPresets.cluster
-    ? ccconfig[`metricConfig_jobListMetrics:${filterPresets.cluster}`] ||
-      ccconfig.metricConfig_jobListMetrics
-    : ccconfig.metricConfig_jobListMetrics
-  );
-  let showFootprint = $state(filterPresets.cluster
-    ? !!ccconfig[`jobList_showFootprint:${filterPresets.cluster}`]
-    : !!ccconfig.jobList_showFootprint
+
+  /* Derived Init Return */
+  const thisInit = $derived($initq?.data ? true : false);
+
+  /* Derived */
+  const ccconfig = $derived(thisInit ? getContext("cc-config") : null);
+  const globalMetrics = $derived(thisInit ? getContext("globalMetrics") : null);
+  let presetProject = $derived(filterPresets?.project ? filterPresets.project : "");
+  let selectedCluster = $derived(filterPresets?.cluster ? filterPresets.cluster : null);
+  let selectedSubCluster = $derived(filterPresets?.partition ? filterPresets.partition : null);
+  let metrics = $derived.by(() => {
+    if (thisInit && ccconfig) {
+      if (selectedCluster) {
+        if (selectedSubCluster) {
+          return ccconfig[`metricConfig_jobListMetrics:${selectedCluster}:${selectedSubCluster}`] ||
+            ccconfig[`metricConfig_jobListMetrics:${selectedCluster}`] ||
+            ccconfig.metricConfig_jobListMetrics
+        }
+        return ccconfig[`metricConfig_jobListMetrics:${selectedCluster}`] ||
+          ccconfig.metricConfig_jobListMetrics
+      }
+      return ccconfig.metricConfig_jobListMetrics
+    }
+    return [];
+  });
+
+  let showFootprint = $derived((thisInit && ccconfig)
+    ? selectedCluster
+      ? ccconfig[`jobList_showFootprint:${selectedCluster}`]
+      : ccconfig.jobList_showFootprint
+    : {}
   );
 
   /* Functions */
@@ -77,11 +98,6 @@
       // Unreactive : Apply Reset w/o starting infinite loop
       resetJobSelection()
     });
-	});
-
-  $effect(() => {
-    // Load Metric-Selection for last selected cluster
-    metrics = selectedCluster ? ccconfig[`metricConfig_jobListMetrics:${selectedCluster}`] : ccconfig.metricConfig_jobListMetrics
 	});
 
   /* On Mount */
@@ -126,11 +142,17 @@
     <Filters
       bind:this={filterComponent}
       {filterPresets}
+      startTimeQuickSelect
+      shortJobQuickSelect={(filterBuffer.length > 0)}
+      shortJobCutoff={ccconfig?.jobList_hideShortRunningJobs}
       showFilter={!showCompare}
       matchedJobs={showCompare? matchedCompareJobs: matchedListJobs}
       applyFilters={(detail) => {
         selectedCluster = detail.filters[0]?.cluster
           ? detail.filters[0].cluster.eq
+          : null;
+        selectedSubCluster = detail.filters[1]?.partition
+          ? detail.filters[1].partition.eq
           : null;
         filterBuffer = [...detail.filters]
         if (showCompare) {
@@ -145,8 +167,9 @@
     {#if !showCompare}
       <TextFilter
         {presetProject}
-        bind:authlevel
-        bind:roles
+        {authlevel}
+        {roles}
+        {filterBuffer}
         setFilter={(filter) => filterComponent.updateFilters(filter)}
       />
     {/if}
@@ -160,12 +183,12 @@
     {/if}
     <div class="mx-1"></div>
     <ButtonGroup class="w-50">
-      <Button color="primary" disabled={(matchedListJobs >= 500 && !(selectedJobs.length != 0)) || $initq.fetching} onclick={() => {
-        if (selectedJobs.length != 0) filterComponent.updateFilters({dbId: selectedJobs}, true)
+      <Button color="primary" disabled={(matchedListJobs >= matchedJobCompareLimit && !(selectedJobs.length != 0)) || $initq.fetching} onclick={() => {
+        if (selectedJobs.length != 0) filterComponent.updateFilters({dbId: selectedJobs})
         showCompare = !showCompare
       }} >
         {showCompare ? 'Return to List' : 
-           matchedListJobs >= 500 && selectedJobs.length == 0
+           matchedListJobs >= matchedJobCompareLimit && selectedJobs.length == 0
             ? 'Compare Disabled'
             : 'Compare' + (selectedJobs.length != 0 ? ` ${selectedJobs.length} ` : ' ') + 'Jobs'
         }
@@ -208,6 +231,7 @@
 <Sorting
   bind:isOpen={isSortingOpen}
   presetSorting={sorting}
+  {globalMetrics}
   applySorting={(newSort) =>
     sorting = {...newSort}
   }
@@ -218,8 +242,10 @@
     bind:showFootprint
     presetMetrics={metrics}
     cluster={selectedCluster}
+    subCluster={selectedSubCluster}
     configName="metricConfig_jobListMetrics"
     footprintSelect
+    {globalMetrics}
     applyMetrics={(newMetrics) => 
       metrics = [...newMetrics]
     }

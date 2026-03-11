@@ -25,9 +25,9 @@ import (
 
 	"github.com/ClusterCockpit/cc-backend/internal/config"
 	"github.com/ClusterCockpit/cc-backend/internal/repository"
-	cclog "github.com/ClusterCockpit/cc-lib/ccLogger"
-	"github.com/ClusterCockpit/cc-lib/schema"
-	"github.com/ClusterCockpit/cc-lib/util"
+	cclog "github.com/ClusterCockpit/cc-lib/v2/ccLogger"
+	"github.com/ClusterCockpit/cc-lib/v2/schema"
+	"github.com/ClusterCockpit/cc-lib/v2/util"
 	"github.com/gorilla/sessions"
 )
 
@@ -40,7 +40,7 @@ type Authenticator interface {
 	// authenticator should attempt the login. This method should not perform
 	// expensive operations or actual authentication.
 	CanLogin(user *schema.User, username string, rw http.ResponseWriter, r *http.Request) (*schema.User, bool)
-	
+
 	// Login performs the actually authentication for the user.
 	// It returns the authenticated user or an error if authentication fails.
 	// The user parameter may be nil if the user doesn't exist in the database yet.
@@ -65,13 +65,13 @@ var ipUserLimiters sync.Map
 func getIPUserLimiter(ip, username string) *rate.Limiter {
 	key := ip + ":" + username
 	now := time.Now()
-	
+
 	if entry, ok := ipUserLimiters.Load(key); ok {
 		rle := entry.(*rateLimiterEntry)
 		rle.lastUsed = now
 		return rle.limiter
 	}
-	
+
 	// More aggressive rate limiting: 5 attempts per 15 minutes
 	newLimiter := rate.NewLimiter(rate.Every(15*time.Minute/5), 5)
 	ipUserLimiters.Store(key, &rateLimiterEntry{
@@ -176,7 +176,7 @@ func (auth *Authentication) AuthViaSession(
 func Init(authCfg *json.RawMessage) {
 	initOnce.Do(func() {
 		authInstance = &Authentication{}
-		
+
 		// Start background cleanup of rate limiters
 		startRateLimiterCleanup()
 
@@ -263,7 +263,7 @@ func GetAuthInstance() *Authentication {
 }
 
 // handleUserSync syncs or updates a user in the database based on configuration.
-// This is used for both JWT and OIDC authentication when syncUserOnLogin or updateUserOnLogin is enabled.
+// This is used for LDAP, JWT and OIDC authentications when syncUserOnLogin or updateUserOnLogin is enabled.
 func handleUserSync(user *schema.User, syncUserOnLogin, updateUserOnLogin bool) {
 	r := repository.GetUserRepository()
 	dbUser, err := r.GetUser(user.Username)
@@ -272,7 +272,7 @@ func handleUserSync(user *schema.User, syncUserOnLogin, updateUserOnLogin bool) 
 		cclog.Errorf("Error while loading user '%s': %v", user.Username, err)
 		return
 	}
-	
+
 	if err == sql.ErrNoRows && syncUserOnLogin { // Add new user
 		if err := r.AddUser(user); err != nil {
 			cclog.Errorf("Error while adding user '%s' to DB: %v", user.Username, err)
@@ -294,6 +294,11 @@ func handleOIDCUser(OIDCUser *schema.User) {
 	handleUserSync(OIDCUser, Keys.OpenIDConfig.SyncUserOnLogin, Keys.OpenIDConfig.UpdateUserOnLogin)
 }
 
+// handleLdapUser syncs LDAP user with database
+func handleLdapUser(ldapUser *schema.User) {
+	handleUserSync(ldapUser, Keys.LdapConfig.SyncUserOnLogin, Keys.LdapConfig.UpdateUserOnLogin)
+}
+
 func (auth *Authentication) SaveSession(rw http.ResponseWriter, r *http.Request, user *schema.User) error {
 	session, err := auth.sessionStore.New(r, "session")
 	if err != nil {
@@ -305,8 +310,13 @@ func (auth *Authentication) SaveSession(rw http.ResponseWriter, r *http.Request,
 	if auth.SessionMaxAge != 0 {
 		session.Options.MaxAge = int(auth.SessionMaxAge.Seconds())
 	}
-	if config.Keys.HTTPSCertFile == "" && config.Keys.HTTPSKeyFile == "" {
-		cclog.Warn("HTTPS not configured - session cookies will not have Secure flag set (insecure for production)")
+	if r.TLS == nil && r.Header.Get("X-Forwarded-Proto") != "https" {
+		// If neither TLS or an encrypted reverse proxy are used, do not mark cookies as secure.
+		cclog.Warn("Authenticating with unencrypted request. Session cookies will not have Secure flag set (insecure for production)")
+		if r.Header.Get("X-Forwarded-Proto") == "" {
+			// This warning will not be printed if e.g. X-Forwarded-Proto == http
+			cclog.Warn("If you are using a reverse proxy, make sure X-Forwarded-Proto is set")
+		}
 		session.Options.Secure = false
 	}
 	session.Options.SameSite = http.SameSiteStrictMode
@@ -438,13 +448,13 @@ func (auth *Authentication) AuthAPI(
 		if user != nil {
 			switch {
 			case len(user.Roles) == 1:
-				if user.HasRole(schema.RoleApi) {
+				if user.HasRole(schema.RoleAPI) {
 					ctx := context.WithValue(r.Context(), repository.ContextUserKey, user)
 					onsuccess.ServeHTTP(rw, r.WithContext(ctx))
 					return
 				}
 			case len(user.Roles) >= 2:
-				if user.HasAllRoles([]schema.Role{schema.RoleAdmin, schema.RoleApi}) {
+				if user.HasAllRoles([]schema.Role{schema.RoleAdmin, schema.RoleAPI}) {
 					ctx := context.WithValue(r.Context(), repository.ContextUserKey, user)
 					onsuccess.ServeHTTP(rw, r.WithContext(ctx))
 					return
@@ -474,13 +484,13 @@ func (auth *Authentication) AuthUserAPI(
 		if user != nil {
 			switch {
 			case len(user.Roles) == 1:
-				if user.HasRole(schema.RoleApi) {
+				if user.HasRole(schema.RoleAPI) {
 					ctx := context.WithValue(r.Context(), repository.ContextUserKey, user)
 					onsuccess.ServeHTTP(rw, r.WithContext(ctx))
 					return
 				}
 			case len(user.Roles) >= 2:
-				if user.HasRole(schema.RoleApi) && user.HasAnyRole([]schema.Role{schema.RoleUser, schema.RoleManager, schema.RoleSupport, schema.RoleAdmin}) {
+				if user.HasRole(schema.RoleAPI) && user.HasAnyRole([]schema.Role{schema.RoleUser, schema.RoleManager, schema.RoleSupport, schema.RoleAdmin}) {
 					ctx := context.WithValue(r.Context(), repository.ContextUserKey, user)
 					onsuccess.ServeHTTP(rw, r.WithContext(ctx))
 					return
@@ -510,13 +520,13 @@ func (auth *Authentication) AuthMetricStoreAPI(
 		if user != nil {
 			switch {
 			case len(user.Roles) == 1:
-				if user.HasRole(schema.RoleApi) {
+				if user.HasRole(schema.RoleAPI) {
 					ctx := context.WithValue(r.Context(), repository.ContextUserKey, user)
 					onsuccess.ServeHTTP(rw, r.WithContext(ctx))
 					return
 				}
 			case len(user.Roles) >= 2:
-				if user.HasRole(schema.RoleApi) && user.HasAnyRole([]schema.Role{schema.RoleUser, schema.RoleManager, schema.RoleAdmin}) {
+				if user.HasRole(schema.RoleAPI) && user.HasAnyRole([]schema.Role{schema.RoleUser, schema.RoleManager, schema.RoleAdmin}) {
 					ctx := context.WithValue(r.Context(), repository.ContextUserKey, user)
 					onsuccess.ServeHTTP(rw, r.WithContext(ctx))
 					return
@@ -616,9 +626,9 @@ func securedCheck(user *schema.User, r *http.Request) error {
 	}
 	// If SplitHostPort fails, IPAddress is already just a host (no port)
 
-	// If nothing declared in config: deny all request to this api endpoint
+	// If nothing declared in config: Continue
 	if len(config.Keys.APIAllowedIPs) == 0 {
-		return fmt.Errorf("missing configuration key ApiAllowedIPs")
+		return nil
 	}
 	// If wildcard declared in config: Continue
 	if config.Keys.APIAllowedIPs[0] == "*" {

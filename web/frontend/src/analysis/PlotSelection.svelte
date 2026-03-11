@@ -49,10 +49,12 @@
   /* State Init */
   let isHistogramConfigOpen = $state(false);
   let isScatterPlotConfigOpen = $state(false);
-  let metricsInHistograms = $state(presetMetricsInHistograms);
-  let metricsInScatterplots = $state(presetMetricsInScatterplots);
   let selectedMetric1 = $state(null);
   let selectedMetric2 = $state(null);
+
+  /* Derived */
+  let metricsInHistograms = $derived(presetMetricsInHistograms);
+  let metricsInScatterplots = $derived(presetMetricsInScatterplots);
 
   /* Functions */
   function updateConfiguration(data) {

@@ -7,107 +7,158 @@ package tagger
 
 import (
 	"bufio"
-	"embed"
 	"fmt"
-	"io/fs"
 	"os"
 	"path/filepath"
 	"regexp"
 	"strings"
 
 	"github.com/ClusterCockpit/cc-backend/internal/repository"
-	cclog "github.com/ClusterCockpit/cc-lib/ccLogger"
-	"github.com/ClusterCockpit/cc-lib/schema"
-	"github.com/ClusterCockpit/cc-lib/util"
+	cclog "github.com/ClusterCockpit/cc-lib/v2/ccLogger"
+	"github.com/ClusterCockpit/cc-lib/v2/schema"
+	"github.com/ClusterCockpit/cc-lib/v2/util"
 )
 
-//go:embed apps/*
-var appFiles embed.FS
+func metadataKeys(m map[string]string) []string {
+	keys := make([]string, 0, len(m))
+	for k := range m {
+		keys = append(keys, k)
+	}
+	return keys
+}
+
+const (
+	// defaultConfigPath is the default path for application tagging configuration
+	defaultConfigPath = "./var/tagger/apps"
+	// tagTypeApp is the tag type identifier for application tags
+	tagTypeApp = "app"
+	// configDirMatch is the directory name used for matching filesystem events
+	configDirMatch = "apps"
+)
 
 type appInfo struct {
-	tag     string
-	strings []string
+	tag      string
+	patterns []*regexp.Regexp
 }
 
 // AppTagger detects applications by matching patterns in job scripts.
-// It loads application patterns from embedded files and can dynamically reload
-// configuration from a watched directory. When a job script matches a pattern,
+// It loads application patterns from an external configuration directory and can dynamically reload
+// configuration when files change. When a job script matches a pattern,
 // the corresponding application tag is automatically applied.
 type AppTagger struct {
-	// apps maps application tags to their matching patterns
-	apps    map[string]appInfo
+	// apps holds application patterns in deterministic order
+	apps []appInfo
 	// tagType is the type of tag ("app")
 	tagType string
 	// cfgPath is the path to watch for configuration changes
 	cfgPath string
 }
 
-func (t *AppTagger) scanApp(f fs.File, fns string) {
+func (t *AppTagger) scanApp(f *os.File, fns string) {
 	scanner := bufio.NewScanner(f)
-	ai := appInfo{tag: strings.TrimSuffix(fns, filepath.Ext(fns)), strings: make([]string, 0)}
+	tag := strings.TrimSuffix(fns, filepath.Ext(fns))
+	ai := appInfo{tag: tag, patterns: make([]*regexp.Regexp, 0)}
 
 	for scanner.Scan() {
-		ai.strings = append(ai.strings, scanner.Text())
+		line := strings.TrimSpace(scanner.Text())
+		if line == "" {
+			continue
+		}
+		// Wrap pattern to skip comment lines: match only if not preceded by # on the same line
+		wrapped := `(?m)^[^#]*` + line
+		re, err := regexp.Compile(wrapped)
+		if err != nil {
+			cclog.Errorf("invalid regex pattern '%s' (wrapped: '%s') in %s: %v", line, wrapped, fns, err)
+			continue
+		}
+		ai.patterns = append(ai.patterns, re)
 	}
-	delete(t.apps, ai.tag)
-	t.apps[ai.tag] = ai
+
+	// Remove existing entry for this tag if present
+	for i, a := range t.apps {
+		if a.tag == tag {
+			t.apps = append(t.apps[:i], t.apps[i+1:]...)
+			break
+		}
+	}
+
+	cclog.Infof("AppTagger loaded %d patterns for %s", len(ai.patterns), tag)
+	t.apps = append(t.apps, ai)
 }
 
 // EventMatch checks if a filesystem event should trigger configuration reload.
 // It returns true if the event path contains "apps".
 func (t *AppTagger) EventMatch(s string) bool {
-	return strings.Contains(s, "apps")
+	return strings.Contains(s, configDirMatch)
 }
 
 // EventCallback is triggered when the configuration directory changes.
 // It reloads all application pattern files from the watched directory.
-// FIXME: Only process the file that caused the event
 func (t *AppTagger) EventCallback() {
 	files, err := os.ReadDir(t.cfgPath)
 	if err != nil {
 		cclog.Fatal(err)
 	}
 
+	t.apps = make([]appInfo, 0)
+
 	for _, fn := range files {
+		if fn.IsDir() {
+			continue
+		}
 		fns := fn.Name()
 		cclog.Debugf("Process: %s", fns)
-		f, err := os.Open(fmt.Sprintf("%s/%s", t.cfgPath, fns))
+		f, err := os.Open(filepath.Join(t.cfgPath, fns))
 		if err != nil {
 			cclog.Errorf("error opening app file %s: %#v", fns, err)
+			continue
 		}
 		t.scanApp(f, fns)
+		if err := f.Close(); err != nil {
+			cclog.Errorf("error closing app file %s: %#v", fns, err)
+		}
 	}
 }
 
-// Register initializes the AppTagger by loading application patterns from embedded files.
-// It also sets up a file watch on ./var/tagger/apps if it exists, allowing for
+// Register initializes the AppTagger by loading application patterns from external folder.
+// It sets up a file watch on ./var/tagger/apps if it exists, allowing for
 // dynamic configuration updates without restarting the application.
-// Returns an error if the embedded application files cannot be read.
+// Returns an error if the configuration path does not exist or cannot be read.
 func (t *AppTagger) Register() error {
-	t.cfgPath = "./var/tagger/apps"
-	t.tagType = "app"
+	if t.cfgPath == "" {
+		t.cfgPath = defaultConfigPath
+	}
+	t.tagType = tagTypeApp
+	t.apps = make([]appInfo, 0)
 
-	files, err := appFiles.ReadDir("apps")
+	if !util.CheckFileExists(t.cfgPath) {
+		return fmt.Errorf("configuration path does not exist: %s", t.cfgPath)
+	}
+
+	files, err := os.ReadDir(t.cfgPath)
 	if err != nil {
 		return fmt.Errorf("error reading app folder: %#v", err)
 	}
-	t.apps = make(map[string]appInfo, 0)
+
 	for _, fn := range files {
+		if fn.IsDir() {
+			continue
+		}
 		fns := fn.Name()
 		cclog.Debugf("Process: %s", fns)
-		f, err := appFiles.Open(fmt.Sprintf("apps/%s", fns))
+		f, err := os.Open(filepath.Join(t.cfgPath, fns))
 		if err != nil {
-			return fmt.Errorf("error opening app file %s: %#v", fns, err)
+			cclog.Errorf("error opening app file %s: %#v", fns, err)
+			continue
 		}
-		defer f.Close()
 		t.scanApp(f, fns)
+		if err := f.Close(); err != nil {
+			cclog.Errorf("error closing app file %s: %#v", fns, err)
+		}
 	}
 
-	if util.CheckFileExists(t.cfgPath) {
-		t.EventCallback()
-		cclog.Infof("Setup file watch for %s", t.cfgPath)
-		util.AddListener(t.cfgPath, t)
-	}
+	cclog.Infof("Setup file watch for %s", t.cfgPath)
+	util.AddListener(t.cfgPath, t)
 
 	return nil
 }
@@ -116,33 +167,61 @@ func (t *AppTagger) Register() error {
 // It fetches the job metadata, extracts the job script, and matches it against
 // all configured application patterns using regular expressions.
 // If a match is found, the corresponding application tag is added to the job.
-// Only the first matching application is tagged.
+// Multiple application tags can be applied if patterns for different apps match.
 func (t *AppTagger) Match(job *schema.Job) {
 	r := repository.GetJobRepository()
+
+	if len(t.apps) == 0 {
+		cclog.Warn("AppTagger: no app patterns loaded, skipping match")
+		return
+	}
+
 	metadata, err := r.FetchMetadata(job)
 	if err != nil {
-		cclog.Infof("Cannot fetch metadata for job: %d on %s", job.JobID, job.Cluster)
+		cclog.Debugf("AppTagger: cannot fetch metadata for job %d on %s: %v", job.JobID, job.Cluster, err)
+		return
+	}
+
+	if metadata == nil {
+		cclog.Debugf("AppTagger: metadata is nil for job %d on %s", job.JobID, job.Cluster)
 		return
 	}
 
 	jobscript, ok := metadata["jobScript"]
-	if ok {
-		id := *job.ID
+	if !ok {
+		cclog.Debugf("AppTagger: no 'jobScript' key in metadata for job %d on %s (keys: %v)",
+			job.JobID, job.Cluster, metadataKeys(metadata))
+		return
+	}
 
-	out:
-		for _, a := range t.apps {
-			tag := a.tag
-			for _, s := range a.strings {
-				matched, _ := regexp.MatchString(s, strings.ToLower(jobscript))
-				if matched {
-					if !r.HasTag(id, t.tagType, tag) {
-						r.AddTagOrCreateDirect(id, t.tagType, tag)
-						break out
+	if len(jobscript) == 0 {
+		cclog.Debugf("AppTagger: empty jobScript for job %d on %s", job.JobID, job.Cluster)
+		return
+	}
+
+	id := *job.ID
+	jobscriptLower := strings.ToLower(jobscript)
+	cclog.Debugf("AppTagger: matching job %d (script length: %d) against %d apps", id, len(jobscriptLower), len(t.apps))
+
+	matched := false
+	for _, a := range t.apps {
+		for _, re := range a.patterns {
+			if re.MatchString(jobscriptLower) {
+				if r.HasTag(id, t.tagType, a.tag) {
+					cclog.Debugf("AppTagger: job %d already has tag %s:%s, skipping", id, t.tagType, a.tag)
+				} else {
+					cclog.Debugf("AppTagger: pattern '%s' matched for app '%s' on job %d", re.String(), a.tag, id)
+					if _, err := r.AddTagOrCreateDirect(id, t.tagType, a.tag); err != nil {
+						cclog.Errorf("AppTagger: failed to add tag '%s' to job %d: %v", a.tag, id, err)
 					}
 				}
+				matched = true
+				break // matched this app, move to next app
 			}
 		}
-	} else {
-		cclog.Infof("Cannot extract job script for job: %d on %s", job.JobID, job.Cluster)
+	}
+
+	if !matched {
+		cclog.Debugf("AppTagger: no pattern matched for job %d on %s", id, job.Cluster)
 	}
 }

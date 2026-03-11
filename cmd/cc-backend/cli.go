@@ -33,6 +33,6 @@ func cliInit() {
 	flag.StringVar(&flagDelUser, "del-user", "", "Remove a existing user. Argument format: <username>")
 	flag.StringVar(&flagGenJWT, "jwt", "", "Generate and print a JWT for the user specified by its `username`")
 	flag.StringVar(&flagImportJob, "import-job", "", "Import a job. Argument format: `<path-to-meta.json>:<path-to-data.json>,...`")
-	flag.StringVar(&flagLogLevel, "loglevel", "warn", "Sets the logging level: `[debug, info (default), warn, err, crit]`")
+	flag.StringVar(&flagLogLevel, "loglevel", "warn", "Sets the logging level: `[debug, info , warn (default), err, crit]`")
 	flag.Parse()
 }

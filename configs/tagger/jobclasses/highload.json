@@ -1,0 +1,21 @@
+{
+  "name": "Excessive CPU load",
+  "tag": "excessiveload",
+  "parameters": [
+    "excessivecpuload_threshold_factor",
+    "job_min_duration_seconds"
+  ],
+  "metrics": ["cpu_load"],
+  "requirements": [
+    "job.shared == \"none\"",
+    "job.duration > job_min_duration_seconds"
+  ],
+  "variables": [
+    {
+      "name": "load_threshold",
+      "expr": "cpu_load.limits.peak * excessivecpuload_threshold_factor"
+    }
+  ],
+  "rule": "cpu_load.avg > load_threshold",
+  "hint": "This job was detected as having excessive CPU load: average cpu load {{.cpu_load.avg}} exceeds the oversubscription threshold {{.load_threshold}} ({{.excessivecpuload_threshold_factor}} \u00d7 {{.cpu_load.limits.peak}} peak cores), indicating CPU contention."
+}

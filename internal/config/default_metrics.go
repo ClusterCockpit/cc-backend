@@ -15,7 +15,7 @@ import (
 
 type DefaultMetricsCluster struct {
 	Name           string `json:"name"`
-	DefaultMetrics string `json:"default_metrics"`
+	DefaultMetrics string `json:"default-metrics"`
 }
 
 type DefaultMetricsConfig struct {

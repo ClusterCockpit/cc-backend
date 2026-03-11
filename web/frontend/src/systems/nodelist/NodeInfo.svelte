@@ -38,10 +38,6 @@
   } = $props();
 
   /* Const Init */
-  // Not at least one returned, selected metric: NodeHealth warning
-  const healthWarn = !dataHealth.includes(true);
-  // At least one non-returned selected metric: Metric config error?
-  const metricWarn = dataHealth.includes(false);
   // Node State Colors
   const stateColors = {
     allocated: 'success',
@@ -54,6 +50,12 @@
   }
 
   /* Derived */
+  // Not at least one returned, selected metric: NodeHealth warning
+  const fetchInfo = $derived(dataHealth.includes('fetching'));
+  // Not at least one returned, selected metric: NodeHealth warning
+  const healthWarn = $derived(!dataHealth.includes(true));
+  // At least one non-returned selected metric: Metric config error?
+  const metricWarn = $derived(dataHealth.includes(false));
   const userList = $derived(nodeJobsData
     ? Array.from(new Set(nodeJobsData.jobs.items.map((j) => scrambleNames ? scramble(j.user) : j.user))).sort((a, b) => a.localeCompare(b))
     : []
@@ -84,10 +86,17 @@
     <Row cols={{xs: 1, lg: 2}}>
       <Col class="mb-2 mb-lg-0">
         <InputGroup size="sm">
-          {#if healthWarn}
+          {#if fetchInfo}
+            <InputGroupText class="flex-grow-1 flex-lg-grow-0">
+              <Icon name="arrow-clockwise" style="padding-right: 0.5rem;"/>
+            </InputGroupText>
+            <Button class="flex-grow-1" color="dark" outline disabled>
+              Fetching
+            </Button>
+          {:else if healthWarn}
             <InputGroupText class="flex-grow-1 flex-lg-grow-0">
               <Icon name="exclamation-circle" style="padding-right: 0.5rem;"/>
-              <span>Jobs</span>
+              <span>Info</span>
             </InputGroupText>
             <Button class="flex-grow-1" color="danger" disabled>
               No Metrics
@@ -95,7 +104,7 @@
           {:else if metricWarn}
             <InputGroupText class="flex-grow-1 flex-lg-grow-0">
               <Icon name="info-circle" style="padding-right: 0.5rem;"/>
-              <span>Jobs</span>
+              <span>Info</span>
             </InputGroupText>
             <Button class="flex-grow-1" color="warning" disabled>
               Missing Metric
@@ -171,7 +180,7 @@
         Users
       </InputGroupText>
       <Input class="flex-grow-1" style="background-color: white;" type="text" value="{userList?.length || 0} User{(userList?.length == 1) ? '': 's'}" disabled />
-      <a title="Show users active on this node" href="/monitoring/users/?cluster={cluster}&state=running&node={hostname}" target="_blank" class="btn btn-outline-primary" role="button" aria-disabled="true" >
+      <a title="Show users active on this node" href="/monitoring/users/?cluster={cluster}&state=running&startTime=last30d&node={hostname}" target="_blank" class="btn btn-outline-primary" role="button" aria-disabled="true" >
         <Icon name="view-list" /> 
         List
       </a>
@@ -192,7 +201,7 @@
         Projects
       </InputGroupText>
       <Input class="flex-grow-1" style="background-color: white;" type="text" value="{projectList?.length || 0} Project{(projectList?.length == 1) ? '': 's'}" disabled />
-      <a title="Show projects active on this node" href="/monitoring/projects/?cluster={cluster}&state=running&node={hostname}" target="_blank" class="btn btn-outline-primary" role="button" aria-disabled="true" >
+      <a title="Show projects active on this node" href="/monitoring/projects/?cluster={cluster}&state=running&startTime=last30d&node={hostname}" target="_blank" class="btn btn-outline-primary" role="button" aria-disabled="true" >
         <Icon name="view-list" /> 
         List
       </a>

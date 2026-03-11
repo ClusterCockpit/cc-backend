@@ -31,12 +31,15 @@
   } = $props();
 
   /* Derived */
-  const allTags = $derived(getContext("tags"))
-  const initialized = $derived(getContext("initialized"))
+  const initialized = $derived(getContext("initialized") || false)
+  const allTags = $derived($initialized ? getContext("tags") : [])
 
   /* State Init */
-  let pendingTags = $state(presetTags);
   let searchTerm = $state("");
+
+  /* Derived */
+  let pendingTags = $derived(presetTags);
+
 </script>
 
 <Modal {isOpen} toggle={() => (isOpen = !isOpen)}>

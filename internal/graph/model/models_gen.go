@@ -10,8 +10,20 @@ import (
 	"time"
 
 	"github.com/ClusterCockpit/cc-backend/internal/config"
-	"github.com/ClusterCockpit/cc-lib/schema"
+	"github.com/ClusterCockpit/cc-lib/v2/schema"
 )
+
+type ClusterMetricWithName struct {
+	Name     string         `json:"name"`
+	Unit     *schema.Unit   `json:"unit,omitempty"`
+	Timestep int            `json:"timestep"`
+	Data     []schema.Float `json:"data"`
+}
+
+type ClusterMetrics struct {
+	NodeCount int                      `json:"nodeCount"`
+	Metrics   []*ClusterMetricWithName `json:"metrics"`
+}
 
 type Count struct {
 	Name  string `json:"name"`
@@ -59,6 +71,7 @@ type JobFilter struct {
 	Project         *StringInput      `json:"project,omitempty"`
 	JobName         *StringInput      `json:"jobName,omitempty"`
 	Cluster         *StringInput      `json:"cluster,omitempty"`
+	SubCluster      *StringInput      `json:"subCluster,omitempty"`
 	Partition       *StringInput      `json:"partition,omitempty"`
 	Duration        *config.IntRange  `json:"duration,omitempty"`
 	Energy          *FloatRange       `json:"energy,omitempty"`
@@ -70,6 +83,7 @@ type JobFilter struct {
 	State           []schema.JobState `json:"state,omitempty"`
 	MetricStats     []*MetricStatItem `json:"metricStats,omitempty"`
 	Shared          *string           `json:"shared,omitempty"`
+	Schedule        *string           `json:"schedule,omitempty"`
 	Node            *StringInput      `json:"node,omitempty"`
 }
 
@@ -173,7 +187,7 @@ type NamedStatsWithScope struct {
 type NodeFilter struct {
 	Hostname       *StringInput           `json:"hostname,omitempty"`
 	Cluster        *StringInput           `json:"cluster,omitempty"`
-	Subcluster     *StringInput           `json:"subcluster,omitempty"`
+	SubCluster     *StringInput           `json:"subCluster,omitempty"`
 	SchedulerState *schema.SchedulerState `json:"schedulerState,omitempty"`
 	HealthState    *string                `json:"healthState,omitempty"`
 	TimeStart      *int                   `json:"timeStart,omitempty"`

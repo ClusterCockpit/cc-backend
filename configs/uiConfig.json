@@ -1,38 +1,38 @@
 {
-  "jobList": {
-    "usePaging": false,
-    "showFootprint":false
+  "job-list": {
+    "use-paging": false,
+    "show-footprint":false
   },
-  "jobView": {
-    "showPolarPlot": true,
-    "showFootprint": true,
-    "showRoofline": true,
-    "showStatTable": true
+  "job-view": {
+    "show-polar-plot": true,
+    "show-footprint": true,
+    "show-roofline": true,
+    "show-stat-table": true
   },
-  "metricConfig": {
-    "jobListMetrics": ["mem_bw", "flops_dp"],
-    "jobViewPlotMetrics": ["mem_bw", "flops_dp"],
-    "jobViewTableMetrics": ["mem_bw", "flops_dp"],
+  "metric-config": {
+    "job-list-metrics": ["mem_bw", "flops_dp"],
+    "job-view-plot-metrics": ["mem_bw", "flops_dp"],
+    "job-view-table-metrics": ["mem_bw", "flops_dp"],
     "clusters": [
       {
         "name": "test",
-        "subClusters": [
+        "sub-clusters": [
           {
             "name": "one",
-            "jobListMetrics": ["mem_used", "flops_sp"]
+            "job-list-metrics": ["mem_used", "flops_sp"]
           }
         ]
       }
     ]
   },
-  "nodeList": {
-    "usePaging": true
+  "node-list": {
+    "use-paging": true
   },
-  "plotConfiguration": {
-    "plotsPerRow": 3,
-    "colorBackground": true,
-    "lineWidth": 3,
-    "colorScheme": [
+  "plot-configuration": {
+    "plots-per-row": 3,
+    "color-background": true,
+    "line-width": 3,
+    "color-scheme": [
 	"#00bfff",
 	"#0000ff",
 	"#ff00ff",

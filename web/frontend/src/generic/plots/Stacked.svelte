@@ -2,7 +2,6 @@
   @component Node State/Health Data Stacked Plot Component, based on uPlot; states by timestamp
 
   Properties:
-  - `width Number?`: The plot width [Default: 0]
   - `height Number?`: The plot height [Default: 300]
   - `data [Array]`: The data object [Default: null]
   - `xlabel String?`: Plot X axis label [Default: ""]
@@ -15,15 +14,14 @@
 <script>
   import uPlot from "uplot";
   import { formatUnixTime } from "../units.js";
-  import { getContext, onMount, onDestroy } from "svelte";
+  import { getContext, onDestroy } from "svelte";
   import { Card } from "@sveltestrap/sveltestrap";
 
   /* Svelte 5 Props */
   let {
-    width = 0,
     height = 300,
     data = null,
-    xlabel = "",
+    xlabel = null,
     ylabel = "",
     yunit = "",
     title = "",
@@ -39,72 +37,66 @@
       label: "Full",
       scale: "y",
       width: lineWidth,
-      fill: cbmode ? "rgba(0, 110, 0, 0.4)" : "rgba(0, 128, 0, 0.4)",
+      fill: cbmode ? "rgba(0, 110, 0, 0.6)" : "rgba(0, 128, 0, 0.6)",
       stroke: cbmode ? "rgb(0, 110, 0)" : "green",
     },
     partial: {
       label: "Partial",
       scale: "y",
       width: lineWidth,
-      fill: cbmode ? "rgba(235, 172, 35, 0.4)" : "rgba(255, 215, 0, 0.4)",
+      fill: cbmode ? "rgba(235, 172, 35, 0.6)" : "rgba(255, 215, 0, 0.6)",
       stroke: cbmode ? "rgb(235, 172, 35)" : "gold",
     },
     failed: {
       label: "Failed",
       scale: "y",
       width: lineWidth,
-      fill: cbmode ? "rgb(181, 29, 20, 0.4)" : "rgba(255, 0, 0, 0.4)",
+      fill: cbmode ? "rgb(181, 29, 20, 0.6)" : "rgba(255, 0, 0, 0.6)",
       stroke: cbmode ? "rgb(181, 29, 20)" : "red",
     },
     idle: {
       label: "Idle",
       scale: "y",
       width: lineWidth,
-      fill: cbmode ? "rgba(0, 140, 249, 0.4)" : "rgba(0, 0, 255, 0.4)",
+      fill: cbmode ? "rgba(0, 140, 249, 0.6)" : "rgba(0, 0, 255, 0.6)",
       stroke: cbmode ? "rgb(0, 140, 249)" : "blue",
     },
     allocated: {
       label: "Allocated",
       scale: "y",
       width: lineWidth,
-      fill: cbmode ? "rgba(0, 110, 0, 0.4)" : "rgba(0, 128, 0, 0.4)",
+      fill: cbmode ? "rgba(0, 110, 0, 0.6)" : "rgba(0, 128, 0, 0.6)",
       stroke: cbmode ? "rgb(0, 110, 0)" : "green",
     },
     reserved: {
       label: "Reserved",
       scale: "y",
       width: lineWidth,
-      fill: cbmode ? "rgba(209, 99, 230, 0.4)" : "rgba(255, 0, 255, 0.4)",
+      fill: cbmode ? "rgba(209, 99, 230, 0.6)" : "rgba(255, 0, 255, 0.6)",
       stroke: cbmode ? "rgb(209, 99, 230)" : "magenta",
     },
     mixed: {
       label: "Mixed",
       scale: "y",
       width: lineWidth,
-      fill: cbmode ? "rgba(235, 172, 35, 0.4)" : "rgba(255, 215, 0, 0.4)",
+      fill: cbmode ? "rgba(235, 172, 35, 0.6)" : "rgba(255, 215, 0, 0.6)",
       stroke: cbmode ? "rgb(235, 172, 35)" : "gold",
     },
     down: {
       label: "Down",
       scale: "y",
       width: lineWidth,
-      fill: cbmode ? "rgba(181, 29 ,20, 0.4)" : "rgba(255, 0, 0, 0.4)",
+      fill: cbmode ? "rgba(181, 29 ,20, 0.6)" : "rgba(255, 0, 0, 0.6)",
       stroke: cbmode ? "rgb(181, 29, 20)" : "red",
     },
     unknown: {
       label: "Unknown",
       scale: "y",
       width: lineWidth,
-      fill: "rgba(0, 0, 0, 0.4)",
+      fill: "rgba(0, 0, 0, 0.6)",
       stroke: "black",
     }
   };
-
-  // Data Prep For uPlot
-  const sortedData = data.sort((a, b) => a.state.localeCompare(b.state));
-  const collectLabel = sortedData.map(d => d.state);
-  // Align Data to Timesteps, Introduces 'undefied' as placeholder, reiterate and set those to 0
-  const collectData  = uPlot.join(sortedData.map(d => [d.times, d.counts])).map(d => d.map(i => i ? i : 0));
 
   // STACKED CHART FUNCTIONS //
   function stack(data, omit) {
@@ -135,17 +127,17 @@
     };
   }
 
-  function getStackedOpts(title, width, height, series, data) {
+  function getStackedOpts(optTitle, optWidth, optHeight, optSeries, optData) {
     let opts = {
-      width,
-      height,
-      title,
+      width: optWidth,
+      height: optHeight,
+      title: optTitle,
       plugins: [legendAsTooltipPlugin()],
-      series,
+      series: optSeries,
       axes: [
         {
           scale: "x",
-          space: 25, // Tick Spacing
+          // space: 25, // Tick Spacing
           rotate: 30,
           show: true,
           label: xlabel,
@@ -156,7 +148,7 @@
         {
           scale: "y",
           grid: { show: true },
-          labelFont: "sans-serif",
+          // labelFont: "sans-serif",
           label: ylabel + (yunit ? ` (${yunit})` : ''),
           // values: (u, vals) => vals.map((v) => formatNumber(v)),
         },
@@ -174,25 +166,25 @@
       }
     };
 
-    let stacked = stack(data, i => false);
+    let stacked = stack(optData, i => false);
     opts.bands = stacked.bands;
 
     opts.cursor = opts.cursor || {};
     opts.cursor.dataIdx = (u, seriesIdx, closestIdx, xValue) => {
-      return data[seriesIdx][closestIdx] == null ? null : closestIdx;
+      return optData[seriesIdx][closestIdx] == null ? null : closestIdx;
     };
 
     opts.series.forEach(s => {
       // Format Time Info from Unix TS to LocalTimeString
-      s.value = (u, v, si, i) => (si === 0) ? formatUnixTime(data[si][i]) : data[si][i];
+      s.value = (u, v, si, i) => (si === 0) ? formatUnixTime(optData[si][i]) : optData[si][i];
 
       s.points = s.points || {};
 
-      // scan raw unstacked data to return only real points
+      // scan raw unstacked optData to return only real points
       s.points.filter = (u, seriesIdx, show, gaps) => {
         if (show) {
           let pts = [];
-          data[seriesIdx].forEach((v, i) => {
+          optData[seriesIdx].forEach((v, i) => {
             v != null && pts.push(i);
           });
           return pts;
@@ -212,7 +204,7 @@
     opts.hooks = {
       setSeries: [
         (u, i) => {
-          let stacked = stack(data, i => !u.series[i].show);
+          let stacked = stack(optData, i => !u.series[i].show);
           u.delBand(null);
           stacked.bands.forEach(b => u.addBand(b));
           u.setData(stacked.data);
@@ -287,21 +279,28 @@
     };
   }
 
-  // UPLOT SERIES INIT
-  const plotSeries = [
-    {
-      label: "Time",
-      scale: "x"
-    },
-    ...collectLabel.map(l => seriesConfig[l])
-  ]
+  // UPLOT SERIES INIT: DERIVED FROM PROPS
+  // Data Prep For uPlot
+  const sortedData = $derived(data?.sort((a, b) => a.state.localeCompare(b.state)) || []);
+  const collectLabel = $derived(sortedData.map(d => d.state));
+  // Align Data to Timesteps, Introduces 'undefied' as placeholder, reiterate and set those to 0
+  const collectData = $derived.by(() => {
+    if (sortedData.length > 0) {
+      return uPlot.join(sortedData.map(d => [d.times, d.counts])).map(d => d.map(i => i ? i : 0))
+    } else {
+      return [];
+    }
+  });
+  // Build Series
+  const plotSeries = $derived([{label: "Time", scale: "x"}, ...collectLabel.map(l => seriesConfig[l])]);
 
   /* Var Init */
   let timeoutId = null;
-  let uplot = null;
 
   /* State Init */
   let plotWrapper = $state(null);
+  let width = $state(0); // Wrapper Width
+  let uplot = $state(null);
 
   /* Effects */
   $effect(() => {
@@ -311,6 +310,14 @@
   });
 
   /* Functions */
+  function onSizeChange(chg_width, chg_height) {
+    if (timeoutId != null) clearTimeout(timeoutId);
+    timeoutId = setTimeout(() => {
+      timeoutId = null;
+      render(chg_width, chg_height);
+    }, 200);
+  }
+
   function render(ren_width, ren_height) {
     if (!uplot) {
       let { opts, data } = getStackedOpts(title, ren_width, ren_height, plotSeries, collectData);
@@ -320,22 +327,6 @@
     }
   }
 
-  function onSizeChange(chg_width, chg_height) {
-    if (!uplot) return;
-    if (timeoutId != null) clearTimeout(timeoutId);
-    timeoutId = setTimeout(() => {
-      timeoutId = null;
-      render(chg_width, chg_height);
-    }, 200);
-  }
-
-  /* On Mount */
-  onMount(() => {
-    if (plotWrapper) {
-      render(width, height);
-    }
-  });
-
   /* On Destroy */
   onDestroy(() => {
     if (timeoutId != null) clearTimeout(timeoutId);
@@ -344,7 +335,7 @@
 </script>
 
 <!-- Define $width Wrapper and NoData Card -->
-{#if data && collectData[0].length > 0}
+{#if data && collectData.length > 0}
   <div bind:this={plotWrapper} bind:clientWidth={width}
         style="background-color: rgba(255, 255, 255, 1.0);" class="rounded"
   ></div>

@@ -15,15 +15,17 @@ import (
 	"io"
 	"math"
 	"os"
+	"slices"
 	"strconv"
 	"strings"
+	"sync"
 	"text/tabwriter"
 	"time"
 
 	"github.com/ClusterCockpit/cc-backend/internal/config"
-	cclog "github.com/ClusterCockpit/cc-lib/ccLogger"
-	"github.com/ClusterCockpit/cc-lib/schema"
-	"github.com/ClusterCockpit/cc-lib/util"
+	cclog "github.com/ClusterCockpit/cc-lib/v2/ccLogger"
+	"github.com/ClusterCockpit/cc-lib/v2/schema"
+	"github.com/ClusterCockpit/cc-lib/v2/util"
 	"github.com/aws/aws-sdk-go-v2/aws"
 	awsconfig "github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/credentials"
@@ -33,12 +35,12 @@ import (
 
 // S3ArchiveConfig holds the configuration for the S3 archive backend.
 type S3ArchiveConfig struct {
-	Endpoint     string `json:"endpoint"`     // S3 endpoint URL (optional, for MinIO/localstack)
-	AccessKey    string `json:"accessKey"`    // AWS access key ID
-	SecretKey    string `json:"secretKey"`    // AWS secret access key
-	Bucket       string `json:"bucket"`       // S3 bucket name
-	Region       string `json:"region"`       // AWS region
-	UsePathStyle bool   `json:"usePathStyle"` // Use path-style URLs (required for MinIO)
+	Endpoint     string `json:"endpoint"`       // S3 endpoint URL (optional, for MinIO/localstack)
+	AccessKey    string `json:"access-key"`     // AWS access key ID
+	SecretKey    string `json:"secret-key"`     // AWS secret access key
+	Bucket       string `json:"bucket"`         // S3 bucket name
+	Region       string `json:"region"`         // AWS region
+	UsePathStyle bool   `json:"use-path-style"` // Use path-style URLs (required for MinIO)
 }
 
 // S3Archive implements ArchiveBackend using AWS S3 or S3-compatible object storage.
@@ -114,6 +116,7 @@ func (s3a *S3Archive) Init(rawConfig json.RawMessage) (uint64, error) {
 
 	// Create S3 client with path-style option and custom endpoint if specified
 	s3a.client = s3.NewFromConfig(awsCfg, func(o *s3.Options) {
+		o.DisableLogOutputChecksumValidationSkipped = true
 		o.UsePathStyle = cfg.UsePathStyle
 		if cfg.Endpoint != "" {
 			o.BaseEndpoint = aws.String(cfg.Endpoint)
@@ -467,7 +470,6 @@ func (s3a *S3Archive) StoreJobMeta(job *schema.Job) error {
 func (s3a *S3Archive) ImportJob(jobMeta *schema.Job, jobData *schema.JobData) error {
 	ctx := context.Background()
 
-	// Upload meta.json
 	metaKey := getS3Key(jobMeta, "meta.json")
 	var metaBuf bytes.Buffer
 	if err := EncodeJobMeta(&metaBuf, jobMeta); err != nil {
@@ -485,18 +487,37 @@ func (s3a *S3Archive) ImportJob(jobMeta *schema.Job, jobData *schema.JobData) er
 		return err
 	}
 
-	// Upload data.json
-	dataKey := getS3Key(jobMeta, "data.json")
 	var dataBuf bytes.Buffer
 	if err := EncodeJobData(&dataBuf, jobData); err != nil {
 		cclog.Error("S3Archive ImportJob() > encoding data error")
 		return err
 	}
 
+	var dataKey string
+	var dataBytes []byte
+
+	if dataBuf.Len() > 2000 {
+		dataKey = getS3Key(jobMeta, "data.json.gz")
+		var compressedBuf bytes.Buffer
+		gzipWriter := gzip.NewWriter(&compressedBuf)
+		if _, err := gzipWriter.Write(dataBuf.Bytes()); err != nil {
+			cclog.Errorf("S3Archive ImportJob() > gzip write error: %v", err)
+			return err
+		}
+		if err := gzipWriter.Close(); err != nil {
+			cclog.Errorf("S3Archive ImportJob() > gzip close error: %v", err)
+			return err
+		}
+		dataBytes = compressedBuf.Bytes()
+	} else {
+		dataKey = getS3Key(jobMeta, "data.json")
+		dataBytes = dataBuf.Bytes()
+	}
+
 	_, err = s3a.client.PutObject(ctx, &s3.PutObjectInput{
 		Bucket: aws.String(s3a.bucket),
 		Key:    aws.String(dataKey),
-		Body:   bytes.NewReader(dataBuf.Bytes()),
+		Body:   bytes.NewReader(dataBytes),
 	})
 	if err != nil {
 		cclog.Errorf("S3Archive ImportJob() > PutObject data error: %v", err)
@@ -795,29 +816,16 @@ func (s3a *S3Archive) Iter(loadMetricData bool) <-chan JobContainer {
 		ctx := context.Background()
 		defer close(ch)
 
-		for _, cluster := range s3a.clusters {
-			prefix := cluster + "/"
+		numWorkers := 4
+		metaKeys := make(chan string, numWorkers*2)
+		var wg sync.WaitGroup
 
-			paginator := s3.NewListObjectsV2Paginator(s3a.client, &s3.ListObjectsV2Input{
-				Bucket: aws.String(s3a.bucket),
-				Prefix: aws.String(prefix),
-			})
-
-			for paginator.HasMorePages() {
-				page, err := paginator.NextPage(ctx)
-				if err != nil {
-					cclog.Fatalf("S3Archive Iter() > list error: %s", err.Error())
-				}
-
-				for _, obj := range page.Contents {
-					if obj.Key == nil || !strings.HasSuffix(*obj.Key, "/meta.json") {
-						continue
-					}
-
-					// Load job metadata
+		for range numWorkers {
+			wg.Go(func() {
+				for metaKey := range metaKeys {
 					result, err := s3a.client.GetObject(ctx, &s3.GetObjectInput{
 						Bucket: aws.String(s3a.bucket),
-						Key:    obj.Key,
+						Key:    aws.String(metaKey),
 					})
 					if err != nil {
 						cclog.Errorf("S3Archive Iter() > GetObject meta error: %v", err)
@@ -849,8 +857,34 @@ func (s3a *S3Archive) Iter(loadMetricData bool) <-chan JobContainer {
 						ch <- JobContainer{Meta: job, Data: nil}
 					}
 				}
+			})
+		}
+
+		for _, cluster := range s3a.clusters {
+			prefix := cluster + "/"
+
+			paginator := s3.NewListObjectsV2Paginator(s3a.client, &s3.ListObjectsV2Input{
+				Bucket: aws.String(s3a.bucket),
+				Prefix: aws.String(prefix),
+			})
+
+			for paginator.HasMorePages() {
+				page, err := paginator.NextPage(ctx)
+				if err != nil {
+					cclog.Fatalf("S3Archive Iter() > list error: %s", err.Error())
+				}
+
+				for _, obj := range page.Contents {
+					if obj.Key == nil || !strings.HasSuffix(*obj.Key, "/meta.json") {
+						continue
+					}
+					metaKeys <- *obj.Key
+				}
 			}
 		}
+
+		close(metaKeys)
+		wg.Wait()
 	}()
 
 	return ch
@@ -877,13 +911,7 @@ func (s3a *S3Archive) StoreClusterCfg(name string, config *schema.Cluster) error
 	}
 
 	// Update clusters list if new
-	found := false
-	for _, c := range s3a.clusters {
-		if c == name {
-			found = true
-			break
-		}
-	}
+	found := slices.Contains(s3a.clusters, name)
 	if !found {
 		s3a.clusters = append(s3a.clusters, name)
 	}

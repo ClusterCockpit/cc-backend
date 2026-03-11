@@ -5,7 +5,7 @@
   - `polarMetrics [Object]?`: Metric names and scaled peak values for rendering polar plot [Default: [] ]
   - `polarData [GraphQL.JobMetricStatWithName]?`: Metric data [Default: null]
   - `canvasId String?`: Unique ID for correct parallel chart.js rendering [Default: "polar-default"]
-  - `height Number?`: Plot height [Default: 365]
+  - `showLegend Bool?`: Legend Display [Default: true]
 -->
 
 <script>
@@ -38,22 +38,28 @@
     polarMetrics = [],
     polarData = [],
     canvasId = "polar-default",
-    height = 350,
+    size = 375,
+    showLegend = true,
   } = $props();
 
-  /* Const Init */
-  const options = {
-    maintainAspectRatio: true,
+  /* Derived */
+  const options = $derived({
+    responsive: true, // Default
+    maintainAspectRatio: true, // Default
     animation: false,
     scales: { // fix scale
       r: {
         suggestedMin: 0.0,
         suggestedMax: 1.0
       }
+    },
+    plugins: {
+      legend: {
+        display: showLegend
+      }
     }
-  }
+  })
 
-  /* Derived */
   const labels = $derived(polarMetrics
     .filter((m) => (m.peak != null))
     .map(pm => pm.name)
@@ -77,7 +83,7 @@
       {
         label: 'Avg',
         data: loadData('avg'), // Node Scope Only
-        fill: 2,
+        fill: true, // fill: 2 if min active
         backgroundColor: 'rgba(255, 210, 0, 0.25)',
         borderColor: 'rgb(255, 210, 0)',
         pointBackgroundColor: 'rgb(255, 210, 0)',
@@ -85,17 +91,17 @@
         pointHoverBackgroundColor: '#fff',
         pointHoverBorderColor: 'rgb(255, 210, 0)'
       },
-      {
-        label: 'Min',
-        data: loadData('min'), // Node Scope Only
-        fill: true,
-        backgroundColor: 'rgba(255, 0, 0, 0.25)',
-        borderColor: 'rgb(255, 0, 0)',
-        pointBackgroundColor: 'rgb(255, 0, 0)',
-        pointBorderColor: '#fff',
-        pointHoverBackgroundColor: '#fff',
-        pointHoverBorderColor: 'rgb(255, 0, 0)'
-      }
+      // {
+      //   label: 'Min',
+      //   data: loadData('min'), // Node Scope Only
+      //   fill: true,
+      //   backgroundColor: 'rgba(255, 0, 0, 0.25)',
+      //   borderColor: 'rgb(255, 0, 0)',
+      //   pointBackgroundColor: 'rgb(255, 0, 0)',
+      //   pointBorderColor: '#fff',
+      //   pointHoverBackgroundColor: '#fff',
+      //   pointHoverBorderColor: 'rgb(255, 0, 0)'
+      // }
     ]
   });
 
@@ -127,15 +133,14 @@
       {
         type: 'radar',
         data: data,
-        options: options,
-        height: height
+        options: options
       }
     );
   });
 </script>
 
 <!-- <div style="width: 500px;"><canvas id="dimensions"></canvas></div><br/> -->
-<div class="chart-container">
+<div class="chart-container d-flex justify-content-center" style="--container-width: {size}px; --container-height: {size}px">
   <canvas id={canvasId}></canvas>
 </div>
 
@@ -143,5 +148,7 @@
   .chart-container {
     margin: auto;
     position: relative;
+    height: var(--container-height);
+    width: var(--container-width);
   }
 </style>

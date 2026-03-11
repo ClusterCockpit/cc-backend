@@ -11,8 +11,8 @@ import (
 	"testing"
 
 	"github.com/ClusterCockpit/cc-backend/pkg/archive"
-	"github.com/ClusterCockpit/cc-lib/schema"
-	"github.com/ClusterCockpit/cc-lib/util"
+	"github.com/ClusterCockpit/cc-lib/v2/schema"
+	"github.com/ClusterCockpit/cc-lib/v2/util"
 )
 
 var jobs []*schema.Job
@@ -23,7 +23,7 @@ func setup(t *testing.T) archive.ArchiveBackend {
 	util.CopyDir("./testdata/archive/", jobarchive)
 	archiveCfg := fmt.Sprintf("{\"kind\": \"file\",\"path\": \"%s\"}", jobarchive)
 
-	if err := archive.Init(json.RawMessage(archiveCfg), false); err != nil {
+	if err := archive.Init(json.RawMessage(archiveCfg)); err != nil {
 		t.Fatal(err)
 	}
 

@@ -133,7 +133,7 @@
   }
 </script>
 
-<Card class="mt-1 overflow-auto" style="width: {width}; height: {height}">
+<Card class="mx-2 overflow-auto" style="width: {width}; height: {height}">
   {#if displayTitle}
     <CardHeader>
       <CardTitle class="mb-0 d-flex justify-content-center">

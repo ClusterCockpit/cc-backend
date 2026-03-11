@@ -14,8 +14,8 @@ import (
 	"strings"
 	"time"
 
-	cclog "github.com/ClusterCockpit/cc-lib/ccLogger"
-	"github.com/ClusterCockpit/cc-lib/schema"
+	cclog "github.com/ClusterCockpit/cc-lib/v2/ccLogger"
+	"github.com/ClusterCockpit/cc-lib/v2/schema"
 	"github.com/golang-jwt/jwt/v5"
 )
 
@@ -25,20 +25,20 @@ type JWTAuthConfig struct {
 	MaxAge string `json:"max-age"`
 
 	// Specifies which cookie should be checked for a JWT token (if no authorization header is present)
-	CookieName string `json:"cookieName"`
+	CookieName string `json:"cookie-name"`
 
 	// Deny login for users not in database (but defined in JWT).
 	// Ignore user roles defined in JWTs ('roles' claim), get them from db.
-	ValidateUser bool `json:"validateUser"`
+	ValidateUser bool `json:"validate-user"`
 
 	// Specifies which issuer should be accepted when validating external JWTs ('iss' claim)
-	TrustedIssuer string `json:"trustedIssuer"`
+	TrustedIssuer string `json:"trusted-issuer"`
 
 	// Should an non-existent user be added to the DB based on the information in the token
-	SyncUserOnLogin bool `json:"syncUserOnLogin"`
+	SyncUserOnLogin bool `json:"sync-user-on-login"`
 
 	// Should an existent user be updated in the DB based on the information in the token
-	UpdateUserOnLogin bool `json:"updateUserOnLogin"`
+	UpdateUserOnLogin bool `json:"update-user-on-login"`
 }
 
 type JWTAuthenticator struct {
@@ -101,20 +101,20 @@ func (ja *JWTAuthenticator) AuthViaJWT(
 
 	// Token is valid, extract payload
 	claims := token.Claims.(jwt.MapClaims)
-	
+
 	// Use shared helper to get user from JWT claims
 	var user *schema.User
 	user, err = getUserFromJWT(claims, Keys.JwtConfig.ValidateUser, schema.AuthToken, -1)
 	if err != nil {
 		return nil, err
 	}
-	
+
 	// If not validating user, we only get roles from JWT (no projects for this auth method)
 	if !Keys.JwtConfig.ValidateUser {
 		user.Roles = extractRolesFromClaims(claims, false)
 		user.Projects = nil // Standard JWT auth doesn't include projects
 	}
-	
+
 	return user, nil
 }
 

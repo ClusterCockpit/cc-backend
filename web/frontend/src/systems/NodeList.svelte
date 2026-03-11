@@ -4,18 +4,17 @@
   Properties:
   - `cluster String`: The nodes' cluster
   - `subCluster String`: The nodes' subCluster [Default: ""]
-  - `ccconfig Object?`: The ClusterCockpit Config Context [Default: null]
-  - `selectedMetrics [String]`: The array of selected metrics [Default []]
+  - `pendingSelectedMetrics [String]`: The array of selected metrics [Default []]
   - `selectedResolution Number?`: The selected data resolution [Default: 0]
   - `hostnameFilter String?`: The active hostnamefilter [Default: ""]
   - `hoststateFilter String?`: The active hoststatefilter [Default: ""]
-  - `presetSystemUnits Object`: The object of metric units [Default: null]
+  - `systemUnits Object`: The object of metric units [Default: null]
   - `from Date?`: The selected "from" date [Default: null]
   - `to Date?`: The selected "to" date [Default: null]
 -->
 
 <script>
-  import { untrack } from "svelte";
+  import { untrack,  getContext } from "svelte";
   import { queryStore, gql, getContextClient, mutationStore } from "@urql/svelte";
   import { Row, Col, Card, Table, Spinner } from "@sveltestrap/sveltestrap";
   import { stickyHeader } from "../generic/utils.js";
@@ -26,19 +25,17 @@
   let {
     cluster,
     subCluster = "",
-    ccconfig = null,
-    selectedMetrics = [],
+    pendingSelectedMetrics = [],
     selectedResolution = 0,
     hostnameFilter = "",
     hoststateFilter = "",
-    presetSystemUnits = null,
+    systemUnits = null,
     from = null,
     to = null
   } = $props();
 
   /* Const Init */
   const client = getContextClient();
-  const usePaging = ccconfig?.nodeList_usePaging || false;
   const nodeListQuery = gql`
     query ($cluster: String!, $subCluster: String!, $nodeFilter: String!, $stateFilter: String!, $metrics: [String!],
            $scopes: [MetricScope!]!, $from: Time!, $to: Time!, $paging: PageRequest!, $selectedResolution: Int
@@ -95,13 +92,19 @@
   /* State Init */
   let nodes = $state([]);
   let page = $state(1);
-  let itemsPerPage = $state(usePaging ? (ccconfig?.nodeList_nodesPerPage || 10) : 10);
   let headerPaddingTop = $state(0);
-  let matchedNodes = $state(0);
 
   /* Derived */
-  const paging = $derived({ itemsPerPage, page });
-  const nodesQuery = $derived(queryStore({
+  const initialized = $derived(getContext("initialized") || false);
+  const ccconfig = $derived(initialized ? getContext("cc-config") : null);
+  const globalMetrics = $derived(initialized ? getContext("globalMetrics") : null);
+  const usePaging = $derived(ccconfig ? ccconfig.nodeList_usePaging : false);
+
+  let selectedMetrics = $derived(pendingSelectedMetrics);
+  let itemsPerPage = $derived(usePaging ? (ccconfig?.nodeList_nodesPerPage || 10) : 10);
+  let paging = $derived({ itemsPerPage, page });
+
+  const nodesStore = $derived(queryStore({
     client: client,
     query: nodeListQuery,
     variables: {
@@ -110,7 +113,7 @@
       stateFilter: hoststateFilter,
       nodeFilter: hostnameFilter,
       scopes: ["core", "socket", "accelerator"],
-      metrics: selectedMetrics,
+      metrics: pendingSelectedMetrics,
       from: from.toISOString(),
       to: to.toISOString(),
       paging: paging,
@@ -118,7 +121,9 @@
     },
     requestPolicy: "network-only", // Resolution queries are cached, but how to access them? For now: reload on every change
   }));
-  
+
+  const matchedNodes = $derived($nodesStore?.data?.nodeMetricsList?.totalNodes || 0);
+
   /* Effects */
   $effect(() => {
     if (!usePaging) {
@@ -130,7 +135,7 @@
         } = document.documentElement;
 
         // Add 100 px offset to trigger load earlier
-        if (scrollTop + clientHeight >= scrollHeight - 100  && $nodesQuery?.data?.nodeMetricsList?.hasNextPage) {
+        if (scrollTop + clientHeight >= scrollHeight - 100  && $nodesStore?.data?.nodeMetricsList?.hasNextPage) {
           page += 1
         };
       });
@@ -138,41 +143,50 @@
   });
 
   $effect(() => {
-    if ($nodesQuery?.data) {
+    if ($nodesStore?.data) {
       untrack(() => {
-        handleNodes($nodesQuery?.data?.nodeMetricsList);
+        handleNodes($nodesStore?.data?.nodeMetricsList?.items);
       });
+      selectedMetrics = [...pendingSelectedMetrics]; // Trigger Rerender in NodeListRow Only After Data is Fetched
     };
   });
 
   $effect(() => {
-    // Triggers (Except Paging)
+    // Update NodeListRows metrics only: Keep ordered nodes on page 1
     from, to
-    selectedMetrics, selectedResolution
+    pendingSelectedMetrics, selectedResolution
+    // Continous Scroll: Paging if parameters change: Existing entries will not match new selections
+    if (!usePaging) {
+      nodes = [];
+      page = 1;
+    }
+  });
+
+  $effect(() => {
+    // Update NodeListRows metrics only: Keep ordered nodes on page 1
     hostnameFilter, hoststateFilter
     // Continous Scroll: Paging if parameters change: Existing entries will not match new selections
-    // Nodes Array Reset in HandleNodes func
+    nodes = [];
     if (!usePaging) {
       page = 1;
     }
   });
 
   /* Functions */
-  function handleNodes(data) {
-    if (data) {
+  function handleNodes(newNodes) {
+    if (newNodes) {
       if (usePaging) {
         // console.log('New Paging', $state.snapshot(paging))
-        nodes = [...data.items].sort((a, b) => a.host.localeCompare(b.host));
+        nodes = [...newNodes].sort((a, b) => a.host.localeCompare(b.host));
       } else {
         if ($state.snapshot(page) == 1) {
           // console.log('Page 1 Reset', [...data.items])
-          nodes = [...data.items].sort((a, b) => a.host.localeCompare(b.host));
+          nodes = [...newNodes].sort((a, b) => a.host.localeCompare(b.host));
         } else {
           // console.log('Add Nodes', $state.snapshot(nodes), [...data.items])
-          nodes = nodes.concat([...data.items])
+          nodes = nodes.concat([...newNodes])
         }
       }
-      matchedNodes = data.totalNodes;
     };
   };
 
@@ -223,41 +237,43 @@
             style="padding-top: {headerPaddingTop}px;"
           >
             {cluster} Node Info
-            {#if $nodesQuery.fetching}
+            {#if $nodesStore.fetching}
               <Spinner size="sm" style="margin-left:10px;" secondary />
             {/if}
           </th>
 
-          {#each selectedMetrics as metric (metric)}
+          {#each pendingSelectedMetrics as metric (metric)}
             <th
               class="position-sticky top-0 text-center"
               scope="col"
               style="padding-top: {headerPaddingTop}px"
             >
-              {metric} ({presetSystemUnits[metric]})
+              {metric} ({systemUnits[metric]})
             </th>
           {/each}
         </tr>
       </thead>
       <tbody>
-        {#if $nodesQuery.error}
+        {#if $nodesStore.error}
           <Row>
             <Col>
-              <Card body color="danger">{$nodesQuery.error.message}</Card>
+              <Card body color="danger">{$nodesStore.error.message}</Card>
             </Col>
           </Row>
         {:else}
           {#each nodes as nodeData (nodeData.host)}
-            <NodeListRow {nodeData} {cluster} {selectedMetrics}/>
+            <NodeListRow {nodeData} {cluster} {selectedMetrics} {globalMetrics} nodeDataFetching={$nodesStore.fetching}/>
           {:else}
-            <tr>
-              <td colspan={selectedMetrics.length + 1}> No nodes found </td>
-            </tr>
+            {#if !$nodesStore.fetching}
+              <tr>
+                <td colspan={selectedMetrics.length + 1}> No nodes found </td>
+              </tr>
+            {/if}
           {/each}
         {/if}
-        {#if $nodesQuery.fetching || !$nodesQuery.data}
+        {#if $nodesStore.fetching || !$nodesStore.data}
           <tr>
-            <td colspan={selectedMetrics.length + 1}>
+            <td colspan={pendingSelectedMetrics.length + 1}>
               <div style="text-align:center;">
                 {#if !usePaging}
                   <p><b>

@@ -11,8 +11,8 @@ import (
 	"encoding/json"
 	"time"
 
-	cclog "github.com/ClusterCockpit/cc-lib/ccLogger"
-	"github.com/ClusterCockpit/cc-lib/resampler"
+	cclog "github.com/ClusterCockpit/cc-lib/v2/ccLogger"
+	"github.com/ClusterCockpit/cc-lib/v2/resampler"
 )
 
 type ProgramConfig struct {
@@ -20,7 +20,9 @@ type ProgramConfig struct {
 	Addr string `json:"addr"`
 
 	// Addresses from which secured admin API endpoints can be reached, can be wildcard "*"
-	APIAllowedIPs []string `json:"apiAllowedIPs"`
+	APIAllowedIPs []string `json:"api-allowed-ips"`
+
+	APISubjects *NATSConfig `json:"api-subjects"`
 
 	// Drop root permissions once .env was read and the port was taken.
 	User  string `json:"user"`
@@ -35,15 +37,8 @@ type ProgramConfig struct {
 	EmbedStaticFiles bool   `json:"embed-static-files"`
 	StaticFiles      string `json:"static-files"`
 
-	// 'sqlite3' or 'mysql' (mysql will work for mariadb as well)
-	DBDriver string `json:"db-driver"`
-
-	// For sqlite3 a filename, for mysql a DSN in this format: https://github.com/go-sql-driver/mysql#dsn-data-source-name (Without query parameters!).
+	// Path to SQLite database file
 	DB string `json:"db"`
-
-	// Keep all metric data in the metric data repositories,
-	// do not write to the job-archive.
-	DisableArchive bool `json:"disable-archive"`
 
 	EnableJobTaggers bool `json:"enable-job-taggers"`
 
@@ -76,15 +71,40 @@ type ProgramConfig struct {
 
 	// If exists, will enable dynamic zoom in frontend metric plots using the configured values
 	EnableResampling *ResampleConfig `json:"resampling"`
+
+	// Systemd unit name for log viewer (default: "clustercockpit")
+	SystemdUnit string `json:"systemd-unit"`
+
+	// Node state retention configuration
+	NodeStateRetention *NodeStateRetention `json:"nodestate-retention"`
+}
+
+type NodeStateRetention struct {
+	Policy             string `json:"policy"`      // "delete" or "move"
+	Age                int    `json:"age"`         // hours, default 24
+	TargetKind         string `json:"target-kind"` // "file" or "s3"
+	TargetPath         string `json:"target-path"`
+	TargetEndpoint     string `json:"target-endpoint"`
+	TargetBucket       string `json:"target-bucket"`
+	TargetAccessKey    string `json:"target-access-key"`
+	TargetSecretKey    string `json:"target-secret-key"`
+	TargetRegion       string `json:"target-region"`
+	TargetUsePathStyle bool   `json:"target-use-path-style"`
+	MaxFileSizeMB      int    `json:"max-file-size-mb"`
 }
 
 type ResampleConfig struct {
 	// Minimum number of points to trigger resampling of data
-	MinimumPoints int `json:"minimumPoints"`
+	MinimumPoints int `json:"minimum-points"`
 	// Array of resampling target resolutions, in seconds; Example: [600,300,60]
 	Resolutions []int `json:"resolutions"`
 	// Trigger next zoom level at less than this many visible datapoints
 	Trigger int `json:"trigger"`
+}
+
+type NATSConfig struct {
+	SubjectJobEvent  string `json:"subject-job-event"`
+	SubjectNodeState string `json:"subject-node-state"`
 }
 
 type IntRange struct {
@@ -100,48 +120,25 @@ type TimeRange struct {
 
 type FilterRanges struct {
 	Duration  *IntRange  `json:"duration"`
-	NumNodes  *IntRange  `json:"numNodes"`
-	StartTime *TimeRange `json:"startTime"`
+	NumNodes  *IntRange  `json:"num-nodes"`
+	StartTime *TimeRange `json:"start-time"`
 }
-
-type ClusterConfig struct {
-	Name                 string          `json:"name"`
-	FilterRanges         *FilterRanges   `json:"filterRanges"`
-	MetricDataRepository json.RawMessage `json:"metricDataRepository"`
-}
-
-var Clusters []*ClusterConfig
 
 var Keys ProgramConfig = ProgramConfig{
 	Addr:                      "localhost:8080",
-	DisableAuthentication:     false,
 	EmbedStaticFiles:          true,
-	DBDriver:                  "sqlite3",
 	DB:                        "./var/job.db",
-	DisableArchive:            false,
-	Validate:                  false,
 	SessionMaxAge:             "168h",
 	StopJobsExceedingWalltime: 0,
 	ShortRunningJobsDuration:  5 * 60,
 }
 
-func Init(mainConfig json.RawMessage, clusterConfig json.RawMessage) {
+func Init(mainConfig json.RawMessage) {
 	Validate(configSchema, mainConfig)
 	dec := json.NewDecoder(bytes.NewReader(mainConfig))
 	dec.DisallowUnknownFields()
 	if err := dec.Decode(&Keys); err != nil {
 		cclog.Abortf("Config Init: Could not decode config file '%s'.\nError: %s\n", mainConfig, err.Error())
-	}
-
-	Validate(clustersSchema, clusterConfig)
-	dec = json.NewDecoder(bytes.NewReader(clusterConfig))
-	dec.DisallowUnknownFields()
-	if err := dec.Decode(&Clusters); err != nil {
-		cclog.Abortf("Config Init: Could not decode config file '%s'.\nError: %s\n", mainConfig, err.Error())
-	}
-
-	if len(Clusters) < 1 {
-		cclog.Abort("Config Init: At least one cluster required in config. Exited with error.")
 	}
 
 	if Keys.EnableResampling != nil && Keys.EnableResampling.MinimumPoints > 0 {

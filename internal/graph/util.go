@@ -2,18 +2,20 @@
 // All rights reserved. This file is part of cc-backend.
 // Use of this source code is governed by a MIT-style
 // license that can be found in the LICENSE file.
+
 package graph
 
 import (
 	"context"
 	"fmt"
 	"math"
+	"slices"
 
 	"github.com/99designs/gqlgen/graphql"
 	"github.com/ClusterCockpit/cc-backend/internal/graph/model"
-	"github.com/ClusterCockpit/cc-backend/internal/metricDataDispatcher"
-	cclog "github.com/ClusterCockpit/cc-lib/ccLogger"
-	"github.com/ClusterCockpit/cc-lib/schema"
+	"github.com/ClusterCockpit/cc-backend/internal/metricdispatch"
+	cclog "github.com/ClusterCockpit/cc-lib/v2/ccLogger"
+	"github.com/ClusterCockpit/cc-lib/v2/schema"
 )
 
 const MAX_JOBS_FOR_ANALYSIS = 500
@@ -53,15 +55,15 @@ func (r *queryResolver) rooflineHeatmap(
 		// 	resolution = max(resolution, mc.Timestep)
 		// }
 
-		jobdata, err := metricDataDispatcher.LoadData(job, []string{"flops_any", "mem_bw"}, []schema.MetricScope{schema.MetricScopeNode}, ctx, 0)
+		jobdata, err := metricdispatch.LoadData(job, []string{"flops_any", "mem_bw"}, []schema.MetricScope{schema.MetricScopeNode}, ctx, 0)
 		if err != nil {
-			cclog.Errorf("Error while loading roofline metrics for job %d", job.ID)
+			cclog.Warnf("Error while loading roofline metrics for job %d", *job.ID)
 			return nil, err
 		}
 
 		flops_, membw_ := jobdata["flops_any"], jobdata["mem_bw"]
 		if flops_ == nil && membw_ == nil {
-			cclog.Infof("rooflineHeatmap(): 'flops_any' or 'mem_bw' missing for job %d", job.ID)
+			cclog.Warnf("rooflineHeatmap(): 'flops_any' or 'mem_bw' missing for job %d", *job.ID)
 			continue
 			// return nil, fmt.Errorf("GRAPH/UTIL > 'flops_any' or 'mem_bw' missing for job %d", job.ID)
 		}
@@ -126,7 +128,7 @@ func (r *queryResolver) jobsFootprints(ctx context.Context, filter []*model.JobF
 			continue
 		}
 
-		if err := metricDataDispatcher.LoadAverages(job, metrics, avgs, ctx); err != nil {
+		if err := metricdispatch.LoadAverages(job, metrics, avgs, ctx); err != nil {
 			cclog.Error("Error while loading averages for footprint")
 			return nil, err
 		}
@@ -185,11 +187,5 @@ func (r *queryResolver) jobsFootprints(ctx context.Context, filter []*model.JobF
 func requireField(ctx context.Context, name string) bool {
 	fields := graphql.CollectAllFields(ctx)
 
-	for _, f := range fields {
-		if f == name {
-			return true
-		}
-	}
-
-	return false
+	return slices.Contains(fields, name)
 }

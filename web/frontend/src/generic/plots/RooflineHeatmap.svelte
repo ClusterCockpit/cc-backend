@@ -23,9 +23,6 @@
     height = 300,
   } = $props();
 
-  /* Check Before */
-  console.assert(tiles, "you must provide tiles!")
-
   /* Const Init */
   const axesColor = '#aaaaaa';
   const tickFontSize = 10;
@@ -42,10 +39,10 @@
   /* State Init */
   let ctx = $state();
   let canvasElement = $state();
-  let prevWidth = $state(width);
-  let prevHeight = $state(height);
 
   /* Derived */
+  let prevWidth = $derived(width);
+  let prevHeight = $derived(height);
   const data = $derived({
     tiles: tiles,
     xLabel: 'Intensity [FLOPS/byte]',

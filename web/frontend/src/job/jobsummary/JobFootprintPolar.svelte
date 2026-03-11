@@ -3,6 +3,7 @@
 
   Properties:
   - `job Object`: The GQL job object
+  - `showLegend Bool?`: Polar Legend Display
 -->
 
 <script>
@@ -22,7 +23,8 @@
 
   /* Svelte 5 Props */
   let {
-    job
+    job,
+    showLegend
   } = $props();
 
   /* Const Init */
@@ -47,8 +49,8 @@
       jobStats(id: $dbid, metrics: $selectedMetrics) {
         name
         data {
-          min
           avg
+          ## min
           max
         }
       }
@@ -63,7 +65,7 @@
   }));
 </script>
 
-<CardBody>
+<CardBody class="py-0 overflow-hidden">
   {#if $polarData.fetching}
     <Spinner />
   {:else if $polarData.error}
@@ -71,6 +73,7 @@
   {:else}
     <Polar
       {polarMetrics}
+      {showLegend}
       polarData={$polarData.data.jobStats}
     />
   {/if}

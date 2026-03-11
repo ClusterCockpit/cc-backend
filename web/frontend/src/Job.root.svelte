@@ -30,7 +30,7 @@
   import {
     init,
     groupByScope,
-    checkMetricDisabled,
+    checkMetricAvailability,
   } from "./generic/utils.js";
   import Metric from "./job/Metric.svelte";
   import MetricSelection from "./generic/select/MetricSelection.svelte";
@@ -52,6 +52,7 @@
 
   /* Const Init */
   // Important: init() needs to be first const declaration or contextclient will not be initialized before "const client = ..."
+  // svelte-ignore state_referenced_locally
   const { query: initq } = init(`
     job(id: "${dbid}") {
       id, jobId, user, project, cluster, startTime,
@@ -67,12 +68,8 @@
       energyFootprint { hardware, metric, value }
     }
   `);
-  const client = getContextClient();
-  const ccconfig = getContext("cc-config");
-  const showRoofline = !!ccconfig[`jobView_showRoofline`];
-  const showStatsTable = !!ccconfig[`jobView_showStatTable`];
-
   /* Note: Actual metric data queried in <Metric> Component, only require base infos here -> reduce backend load by requesting just stats */
+  const client = getContextClient();
   const query = gql`
     query ($dbid: ID!, $selectedMetrics: [String!]!, $selectedScopes: [MetricScope!]!) {
       scopedJobStats(id: $dbid, metrics: $selectedMetrics, scopes: $selectedScopes) {
@@ -88,38 +85,83 @@
   /* State Init */
   let plots = $state({});
   let isMetricsSelectionOpen = $state(false);
-  let selectedMetrics = $state([]);
-  let selectedScopes = $state([]);
   let totalMetrics = $state(0);
 
-  /* Derived */
+  /* Derived Init Return */
+  const thisJob = $derived($initq?.data ? $initq.data.job : null);
+
+  /* Derived Settings */
+  const globalMetrics = $derived(thisJob ? getContext("globalMetrics") : null);
+  const clusterInfo = $derived(thisJob ? getContext("clusters") : null);
+  const ccconfig = $derived(thisJob ? getContext("cc-config") : null);
+  const showRoofline = $derived(ccconfig ? !!ccconfig[`jobView_showRoofline`] : false);
+  const showStatsTable = $derived(ccconfig ? !!ccconfig[`jobView_showStatTable`] : false);
+  const showSummary = $derived(ccconfig ? (!!ccconfig[`jobView_showFootprint`] || !!ccconfig[`jobView_showPolarPlot`]) : false)
+
+  /* Derived Var Preprocessing*/
+  let selectedMetrics = $derived.by(() => {
+    if(thisJob && ccconfig) {
+      if (thisJob.cluster) {
+        if (thisJob.subCluster) {
+          return ccconfig[`metricConfig_jobViewPlotMetrics:${thisJob.cluster}:${thisJob.subCluster}`] ||
+            ccconfig[`metricConfig_jobViewPlotMetrics:${thisJob.cluster}`] ||
+            ccconfig.metricConfig_jobViewPlotMetrics
+        }
+        return ccconfig[`metricConfig_jobViewPlotMetrics:${thisJob.cluster}`] ||
+          ccconfig.metricConfig_jobViewPlotMetrics
+      }
+      return ccconfig.metricConfig_jobViewPlotMetrics
+    }
+    return [];
+  });
+
+  let selectedScopes = $derived.by(() => {
+    const pendingScopes = ["node"]
+    if (thisJob) {
+      const accScopeDefault = [...selectedMetrics].some(function (m) {
+        const thisCluster = clusterInfo.find((c) => c.name == thisJob.cluster);
+        const subCluster = thisCluster.subClusters.find((sc) => sc.name == thisJob.subCluster);
+        return subCluster.metricConfig.find((smc) => smc.name == m)?.scope === "accelerator";
+      });
+
+      
+      if (accScopeDefault) pendingScopes.push("accelerator")
+      if (thisJob.numNodes === 1) {
+        pendingScopes.push("socket")
+        pendingScopes.push("core")
+      }
+    }
+    return[...new Set(pendingScopes)]; 
+  });
+
+  /* Derived Query and Postprocessing*/
   const jobMetrics = $derived(queryStore({
       client: client,
       query: query,
       variables: { dbid, selectedMetrics, selectedScopes },
     })
   );
-  
+
   const missingMetrics = $derived.by(() => {
-    if ($initq?.data && $jobMetrics?.data) {
-      let job = $initq.data.job;
+    if (thisJob && $jobMetrics?.data) {
       let metrics = $jobMetrics.data.scopedJobStats;
-      let metricNames = $initq.data.globalMetrics.reduce((names, gm) => {
-          if (gm.availability.find((av) => av.cluster === job.cluster)) {
+      let metricNames = globalMetrics.reduce((names, gm) => {
+          if (gm.availability.find((av) => av.cluster === thisJob.cluster)) {
               names.push(gm.name);
           }
           return names;
         }, []);
-
+      // 
       return metricNames.filter(
         (metric) =>
           !metrics.some((jm) => jm.name == metric) &&
           selectedMetrics.includes(metric) && 
-          !checkMetricDisabled(
+          (checkMetricAvailability(
+            globalMetrics,
             metric,
-            $initq.data.job.cluster,
-            $initq.data.job.subCluster,
-          ),
+            thisJob.cluster,
+            thisJob.subCluster,
+          ) == "configured")
       );
     } else {
       return []
@@ -127,17 +169,16 @@
   });
 
   const missingHosts = $derived.by(() => {
-    if ($initq?.data && $jobMetrics?.data) {
-      let job = $initq.data.job;
+    if (thisJob && $jobMetrics?.data) {
       let metrics = $jobMetrics.data.scopedJobStats;
-      let metricNames = $initq.data.globalMetrics.reduce((names, gm) => {
-          if (gm.availability.find((av) => av.cluster === job.cluster)) {
+      let metricNames = globalMetrics.reduce((names, gm) => {
+          if (gm.availability.find((av) => av.cluster === thisJob.cluster)) {
               names.push(gm.name);
           }
           return names;
         }, []);
 
-      return job.resources
+      return thisJob.resources
         .map(({ hostname }) => ({
           hostname: hostname,
           metrics: metricNames.filter(
@@ -163,51 +204,19 @@
       ? "Loading..."
       : $initq?.error
         ? "Error"
-        : `Job ${$initq.data.job.jobId} - ClusterCockpit`;
-  });
-
-  /* On Init */
-  getContext("on-init")(() => {    
-    let job = $initq.data.job;
-    if (!job) return;
-    const pendingMetrics = (
-      ccconfig[`metricConfig_jobViewPlotMetrics:${job.cluster}:${job.subCluster}`] ||
-      ccconfig[`metricConfig_jobViewPlotMetrics:${job.cluster}`]
-    ) || 
-    $initq.data.globalMetrics.reduce((names, gm) => {
-      if (gm.availability.find((av) => av.cluster === job.cluster && av.subClusters.includes(job.subCluster))) {
-        names.push(gm.name);
-      }
-      return names;
-    }, [])
-
-    // Select default Scopes to load: Check before if any metric has accelerator scope by default
-    const accScopeDefault = [...pendingMetrics].some(function (m) {
-      const cluster = $initq.data.clusters.find((c) => c.name == job.cluster);
-      const subCluster = cluster.subClusters.find((sc) => sc.name == job.subCluster);
-      return subCluster.metricConfig.find((smc) => smc.name == m)?.scope === "accelerator";
-    });
-
-    const pendingScopes = ["node"]
-    if (accScopeDefault) pendingScopes.push("accelerator")
-    if (job.numNodes === 1) {
-      pendingScopes.push("socket")
-      pendingScopes.push("core")
-    }
-
-    selectedMetrics = [...new Set(pendingMetrics)];
-    selectedScopes = [...new Set(pendingScopes)];
+        : `Job ${thisJob.jobId} - ClusterCockpit`;
   });
 
   /* Functions */
-  const orderAndMap = (grouped, selectedMetrics) =>
-    selectedMetrics.map((metric) => ({
+  const orderAndMap = (grouped, inputMetrics) =>
+    inputMetrics.map((metric) => ({
       metric: metric,
       data: grouped.find((group) => group[0].name == metric),
-      disabled: checkMetricDisabled(
+      availability: checkMetricAvailability(
+        globalMetrics,
         metric,
-        $initq.data.job.cluster,
-        $initq.data.job.subCluster,
+        thisJob.cluster,
+        thisJob.subCluster,
       ),
     }));
 </script>
@@ -217,34 +226,34 @@
   <Col xs={12} md={6} xl={3} class="mb-3 mb-xxl-0">
     {#if $initq.error}
       <Card body color="danger">{$initq.error.message}</Card>
-    {:else if $initq?.data}
-      <Card class="overflow-auto" style="height: 400px;">
+    {:else if thisJob}
+      <Card class="overflow-auto" style="height: auto;">
         <TabContent> <!-- on:tab={(e) => (status = e.detail)} -->
-          {#if $initq.data?.job?.metaData?.message}
+          {#if thisJob?.metaData?.message}
             <TabPane tabId="admin-msg" tab="Admin Note" active>
               <CardBody>
                 <Card body class="mb-2" color="warning">
-                  <h5>Job {$initq.data?.job?.jobId} ({$initq.data?.job?.cluster})</h5>
+                  <h5>Job {thisJob?.jobId} ({thisJob?.cluster})</h5>
                   The following note was added by administrators:
                 </Card>
                 <Card body>
-                  {@html $initq.data.job.metaData.message}
+                  {@html thisJob.metaData.message}
                 </Card>
               </CardBody>
             </TabPane>
           {/if}
-          <TabPane tabId="meta-info" tab="Job Info" active={$initq.data?.job?.metaData?.message?false:true}>
+          <TabPane tabId="meta-info" tab="Job Info" active={thisJob?.metaData?.message?false:true}>
             <CardBody class="pb-2">
-              <JobInfo job={$initq.data.job} {username} {authlevel} {roles} showTagEdit/>
+              <JobInfo job={thisJob} {username} {authlevel} {roles} showTagEdit/>
             </CardBody>
           </TabPane>
-          {#if $initq.data.job.concurrentJobs != null && $initq.data.job.concurrentJobs.items.length != 0}
+          {#if thisJob.concurrentJobs != null && thisJob.concurrentJobs.items.length != 0}
             <TabPane  tabId="shared-jobs">
               <span slot="tab">
-                {$initq.data.job.concurrentJobs.items.length} Concurrent Jobs
+                {thisJob.concurrentJobs.items.length} Concurrent Jobs
               </span>
               <CardBody>
-                <ConcurrentJobs cJobs={$initq.data.job.concurrentJobs} showLinks={(authlevel > roles.manager)}/>
+                <ConcurrentJobs cJobs={thisJob.concurrentJobs} showLinks={(authlevel > roles.manager)}/>
               </CardBody>
             </TabPane>
           {/if}
@@ -259,8 +268,10 @@
   <Col xs={12} md={6} xl={4} xxl={3} class="mb-3 mb-xxl-0">
     {#if $initq.error}
       <Card body color="danger">{$initq.error.message}</Card>
-    {:else if $initq?.data}
-      <JobSummary job={$initq.data.job}/>
+    {:else if thisJob}
+      {#if showSummary}
+        <JobSummary job={thisJob}/>
+      {/if}
     {:else}
       <Spinner secondary />
     {/if}
@@ -270,9 +281,9 @@
   <Col xs={12} md={12} xl={5} xxl={6}>
     {#if $initq.error}
       <Card body color="danger">{$initq.error.message}</Card>
-    {:else if $initq?.data}
+    {:else if thisJob}
       {#if showRoofline}
-        <JobRoofline job={$initq.data.job} clusters={$initq.data.clusters}/>
+        <JobRoofline job={thisJob} {clusterInfo}/>
       {/if}    
     {:else}
       <Spinner secondary />
@@ -281,10 +292,10 @@
 </Row>
 
 <!-- Row 2: Energy Information if available -->
-{#if $initq?.data && $initq.data.job.energyFootprint.length != 0}
+{#if thisJob && thisJob?.energyFootprint?.length != 0}
   <Row class="mb-3">
     <Col>
-      <EnergySummary jobId={$initq.data.job.jobId} jobEnergy={$initq.data.job.energy} jobEnergyFootprint={$initq.data.job.energyFootprint}/>
+      <EnergySummary jobId={thisJob.jobId} jobEnergy={thisJob.energy} jobEnergyFootprint={thisJob.energyFootprint}/>
     </Col>
   </Row>
 {/if}
@@ -293,7 +304,7 @@
 <Card class="mb-3">
   <CardBody>
     <Row class="mb-2">
-      {#if $initq?.data}
+      {#if thisJob}
         <Col xs="auto">
             <Button outline onclick={() => (isMetricsSelectionOpen = true)} color="primary">
               Select Metrics (Selected {selectedMetrics.length} of {totalMetrics} available)
@@ -306,7 +317,7 @@
     {#if $jobMetrics.error}
       <Row class="mt-2">
         <Col>
-          {#if $initq?.data && ($initq.data.job?.monitoringStatus == 0 || $initq.data.job?.monitoringStatus == 2)}
+          {#if thisJob && (thisJob?.monitoringStatus == 0 || thisJob?.monitoringStatus == 2)}
             <Card body color="warning">Not monitored or archiving failed</Card>
             <br />
           {/if}
@@ -319,36 +330,48 @@
           <Spinner secondary />
         </Col>
       </Row>
-    {:else if $initq?.data && $jobMetrics?.data?.scopedJobStats}
+    {:else if thisJob && $jobMetrics?.data?.scopedJobStats}
       <!-- Note: Ignore '#snippet' Error in IDE -->
       {#snippet gridContent(item)}
-        {#if item.data}
-          <Metric
-            bind:this={plots[item.metric]}
-            job={$initq.data.job}
-            metricName={item.metric}
-            metricUnit={$initq.data.globalMetrics.find((gm) => gm.name == item.metric)?.unit}
-            nativeScope={$initq.data.globalMetrics.find((gm) => gm.name == item.metric)?.scope}
-            presetScopes={item.data.map((x) => x.scope)}
-            isShared={$initq.data.job.shared != "none"}
-          />
-        {:else if item.disabled == true}
-          <Card color="info">
+        {#if item.availability == "none"}
+          <Card color="light" class="mt-2">
+            <CardHeader class="mb-0">
+              <b>Metric not configured</b>
+            </CardHeader>
+            <CardBody>
+              <p>No datasets returned for <b>{item.metric}</b>.</p>
+              <p class="mb-1">Metric is not configured for cluster <b>{thisJob.cluster}</b>.</p>
+            </CardBody>
+          </Card>
+        {:else if item.availability == "disabled"}
+          <Card color="info" class="mt-2">
             <CardHeader class="mb-0">
               <b>Disabled Metric</b>
             </CardHeader>
             <CardBody>
-              <p>Metric <b>{item.metric}</b> is disabled for subcluster <b>{$initq.data.job.subCluster}</b>.</p>
-              <p class="mb-1">To remove this card, open metric selection and press "Close and Apply".</p>
+              <p>No dataset(s) returned for <b>{item.metric}</b></p>
+              <p class="mb-1">Metric has been disabled for subcluster <b>{thisJob.subCluster}</b>.</p>
+              <p class="mb-1">To remove this card, open metric selection, de-select the metric, and press "Close and Apply".</p>
             </CardBody>
           </Card>
+        {:else if item?.data}
+          <Metric
+            bind:this={plots[item.metric]}
+            job={thisJob}
+            metricName={item.metric}
+            metricUnit={globalMetrics.find((gm) => gm.name == item.metric)?.unit}
+            nativeScope={globalMetrics.find((gm) => gm.name == item.metric)?.scope}
+            presetScopes={item.data.map((x) => x.scope)}
+            isShared={thisJob.shared != "none"}
+          />
         {:else}
           <Card color="warning" class="mt-2">
             <CardHeader class="mb-0">
               <b>Missing Metric</b>
             </CardHeader>
             <CardBody>
-              <p class="mb-1">No dataset returned for <b>{item.metric}</b>.</p>
+              <p>No dataset(s) returned for <b>{item.metric}</b>.</p>
+              <p class="mb-1">Metric was not found in metric store for cluster <b>{thisJob.cluster}</b>.</p>
             </CardBody>
           </Card>
         {/if}
@@ -369,7 +392,7 @@
 <!-- Metadata && Statistcics Table -->
 <Row class="mb-3">
   <Col>
-    {#if $initq?.data}
+    {#if thisJob}
       <Card>
         <TabContent>
           {#if somethingMissing}
@@ -382,17 +405,17 @@
                   <CardBody>
                     {#if missingMetrics.length > 0}
                       <p>
-                        No data at all is available for the metrics: {missingMetrics.join(
+                        No datasets were returned for the metrics: <b>{missingMetrics.join(
                           ", ",
-                        )}
+                        )}</b>
                       </p>
                     {/if}
                     {#if missingHosts.length > 0}
-                      <p>Some metrics are missing for the following hosts:</p>
+                      <p>Metrics are missing for the following hosts:</p>
                       <ul>
                         {#each missingHosts as missing}
                           <li>
-                            {missing.hostname}: {missing.metrics.join(", ")}
+                            <b>{missing.hostname}</b>: {missing.metrics.join(", ")}
                           </li>
                         {/each}
                       </ul>
@@ -404,12 +427,12 @@
           {/if}
           {#if showStatsTable}
             <!-- Includes <TabPane> Statistics Table with Independent GQL Query -->
-            <StatsTab job={$initq.data.job} clusters={$initq.data.clusters} tabActive={!somethingMissing}/>
+            <StatsTab job={thisJob} {clusterInfo} {globalMetrics} {ccconfig} tabActive={!somethingMissing}/>
           {/if}
           <TabPane tabId="job-script" tab="Job Script">
             <div class="pre-wrapper">
-              {#if $initq.data.job.metaData?.jobScript}
-                <pre><code>{$initq.data.job.metaData?.jobScript}</code></pre>
+              {#if thisJob.metaData?.jobScript}
+                <pre><code>{thisJob.metaData?.jobScript}</code></pre>
               {:else}
                 <Card body color="warning">No job script available</Card>
               {/if}
@@ -417,8 +440,8 @@
           </TabPane>
           <TabPane tabId="slurm-info" tab="Slurm Info">
             <div class="pre-wrapper">
-              {#if $initq.data.job.metaData?.slurmInfo}
-                <pre><code>{$initq.data.job.metaData?.slurmInfo}</code></pre>
+              {#if thisJob.metaData?.slurmInfo}
+                <pre><code>{thisJob.metaData?.slurmInfo}</code></pre>
               {:else}
                 <Card body color="warning"
                   >No additional slurm information available</Card
@@ -432,15 +455,15 @@
   </Col>
 </Row>
 
-{#if $initq?.data}
+{#if thisJob}
   <MetricSelection
     bind:isOpen={isMetricsSelectionOpen}
     bind:totalMetrics
     presetMetrics={selectedMetrics}
-    cluster={$initq.data.job.cluster}
-    subCluster={$initq.data.job.subCluster}
+    cluster={thisJob.cluster}
+    subCluster={thisJob.subCluster}
     configName="metricConfig_jobViewPlotMetrics"
-    preInitialized
+    {globalMetrics}
     applyMetrics={(newMetrics) => 
       selectedMetrics = [...newMetrics]
     }

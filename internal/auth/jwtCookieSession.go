@@ -12,8 +12,8 @@ import (
 	"net/http"
 	"os"
 
-	cclog "github.com/ClusterCockpit/cc-lib/ccLogger"
-	"github.com/ClusterCockpit/cc-lib/schema"
+	cclog "github.com/ClusterCockpit/cc-lib/v2/ccLogger"
+	"github.com/ClusterCockpit/cc-lib/v2/schema"
 	"github.com/golang-jwt/jwt/v5"
 )
 
@@ -146,13 +146,13 @@ func (ja *JWTCookieSessionAuthenticator) Login(
 	}
 
 	claims := token.Claims.(jwt.MapClaims)
-	
+
 	// Use shared helper to get user from JWT claims
 	user, err = getUserFromJWT(claims, jc.ValidateUser, schema.AuthSession, schema.AuthViaToken)
 	if err != nil {
 		return nil, err
 	}
-	
+
 	// Sync or update user if configured
 	if !jc.ValidateUser && (jc.SyncUserOnLogin || jc.UpdateUserOnLogin) {
 		handleTokenUser(user)

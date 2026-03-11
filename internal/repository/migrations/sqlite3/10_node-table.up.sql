@@ -23,6 +23,7 @@ CREATE TABLE "node_state" (
     CHECK (health_state IN (
         'full', 'partial', 'failed'
     )),
+    health_metrics TEXT,          -- JSON array of strings
     node_id INTEGER,
     FOREIGN KEY (node_id) REFERENCES node (id)
 );
@@ -33,12 +34,11 @@ CREATE INDEX IF NOT EXISTS nodes_cluster_subcluster ON node (cluster, subcluster
 
 -- Add NEW Indices For New Node_State Table Fields
 CREATE INDEX IF NOT EXISTS nodestates_timestamp ON node_state (time_stamp);
-CREATE INDEX IF NOT EXISTS nodestates_state ON node_state (node_state);
-CREATE INDEX IF NOT EXISTS nodestates_health ON node_state (health_state);
 CREATE INDEX IF NOT EXISTS nodestates_state_timestamp ON node_state (node_state, time_stamp);
 CREATE INDEX IF NOT EXISTS nodestates_health_timestamp ON node_state (health_state, time_stamp);
 CREATE INDEX IF NOT EXISTS nodestates_nodeid_state ON node_state (node_id, node_state);
 CREATE INDEX IF NOT EXISTS nodestates_nodeid_health ON node_state (node_id, health_state);
+CREATE INDEX IF NOT EXISTS nodestates_nodeid_timestamp ON node_state (node_id, time_stamp DESC);
 
 -- Add NEW Indices For Increased Amounts of Tags
 CREATE INDEX IF NOT EXISTS tags_jobid ON jobtag (job_id);

@@ -17,13 +17,13 @@ import (
 	"github.com/ClusterCockpit/cc-backend/internal/graph/model"
 	"github.com/ClusterCockpit/cc-backend/internal/repository"
 	"github.com/ClusterCockpit/cc-backend/web"
-	cclog "github.com/ClusterCockpit/cc-lib/ccLogger"
-	"github.com/ClusterCockpit/cc-lib/schema"
-	"github.com/ClusterCockpit/cc-lib/util"
-	"github.com/gorilla/mux"
+	cclog "github.com/ClusterCockpit/cc-lib/v2/ccLogger"
+	"github.com/ClusterCockpit/cc-lib/v2/schema"
+	"github.com/ClusterCockpit/cc-lib/v2/util"
+	"github.com/go-chi/chi/v5"
 )
 
-type InfoType map[string]interface{}
+type InfoType map[string]any
 
 type Route struct {
 	Route    string
@@ -47,7 +47,10 @@ var routes []Route = []Route{
 	{"/monitoring/systems/list/{cluster}/{subcluster}", "monitoring/systems.tmpl", "Cluster <ID> <SID> Node List - ClusterCockpit", false, setupClusterListRoute},
 	{"/monitoring/node/{cluster}/{hostname}", "monitoring/node.tmpl", "Node <ID> - ClusterCockpit", false, setupNodeRoute},
 	{"/monitoring/analysis/{cluster}", "monitoring/analysis.tmpl", "Analysis - ClusterCockpit", true, setupAnalysisRoute},
-	{"/monitoring/status/{cluster}", "monitoring/status.tmpl", "Status of <ID> - ClusterCockpit", false, setupClusterStatusRoute},
+	{"/monitoring/status/{cluster}", "monitoring/status.tmpl", "<ID> Dashboard - ClusterCockpit", false, setupClusterStatusRoute},
+	{"/monitoring/status/detail/{cluster}", "monitoring/status.tmpl", "Status of <ID> - ClusterCockpit", false, setupClusterDetailRoute},
+	{"/monitoring/dashboard/{cluster}", "monitoring/dashboard.tmpl", "<ID> Dashboard - ClusterCockpit", false, setupDashboardRoute},
+	{"/monitoring/logs", "monitoring/logs.tmpl", "Logs - ClusterCockpit", false, func(i InfoType, r *http.Request) InfoType { return i }},
 }
 
 func setupHomeRoute(i InfoType, r *http.Request) InfoType {
@@ -94,7 +97,7 @@ func setupConfigRoute(i InfoType, r *http.Request) InfoType {
 }
 
 func setupJobRoute(i InfoType, r *http.Request) InfoType {
-	i["id"] = mux.Vars(r)["id"]
+	i["id"] = chi.URLParam(r, "id")
 	if config.Keys.EmissionConstant != 0 {
 		i["emission"] = config.Keys.EmissionConstant
 	}
@@ -102,7 +105,7 @@ func setupJobRoute(i InfoType, r *http.Request) InfoType {
 }
 
 func setupUserRoute(i InfoType, r *http.Request) InfoType {
-	username := mux.Vars(r)["id"]
+	username := chi.URLParam(r, "id")
 	i["id"] = username
 	i["username"] = username
 	// TODO: If forbidden (== err exists), redirect to error page
@@ -114,21 +117,33 @@ func setupUserRoute(i InfoType, r *http.Request) InfoType {
 }
 
 func setupClusterStatusRoute(i InfoType, r *http.Request) InfoType {
-	vars := mux.Vars(r)
-	i["id"] = vars["cluster"]
-	i["cluster"] = vars["cluster"]
-	from, to := r.URL.Query().Get("from"), r.URL.Query().Get("to")
-	if from != "" || to != "" {
-		i["from"] = from
-		i["to"] = to
-	}
+	cluster := chi.URLParam(r, "cluster")
+	i["id"] = cluster
+	i["cluster"] = cluster
+	i["displayType"] = "DASHBOARD"
+	return i
+}
+
+func setupClusterDetailRoute(i InfoType, r *http.Request) InfoType {
+	cluster := chi.URLParam(r, "cluster")
+	i["id"] = cluster
+	i["cluster"] = cluster
+	i["displayType"] = "DETAILS"
+	return i
+}
+
+func setupDashboardRoute(i InfoType, r *http.Request) InfoType {
+	cluster := chi.URLParam(r, "cluster")
+	i["id"] = cluster
+	i["cluster"] = cluster
+	i["displayType"] = "PUBLIC" // Used in Main Template
 	return i
 }
 
 func setupClusterOverviewRoute(i InfoType, r *http.Request) InfoType {
-	vars := mux.Vars(r)
-	i["id"] = vars["cluster"]
-	i["cluster"] = vars["cluster"]
+	cluster := chi.URLParam(r, "cluster")
+	i["id"] = cluster
+	i["cluster"] = cluster
 	i["displayType"] = "OVERVIEW"
 
 	from, to := r.URL.Query().Get("from"), r.URL.Query().Get("to")
@@ -140,11 +155,12 @@ func setupClusterOverviewRoute(i InfoType, r *http.Request) InfoType {
 }
 
 func setupClusterListRoute(i InfoType, r *http.Request) InfoType {
-	vars := mux.Vars(r)
-	i["id"] = vars["cluster"]
-	i["cluster"] = vars["cluster"]
-	i["sid"] = vars["subcluster"]
-	i["subCluster"] = vars["subcluster"]
+	cluster := chi.URLParam(r, "cluster")
+	subcluster := chi.URLParam(r, "subcluster")
+	i["id"] = cluster
+	i["cluster"] = cluster
+	i["sid"] = subcluster
+	i["subCluster"] = subcluster
 	i["displayType"] = "LIST"
 
 	from, to := r.URL.Query().Get("from"), r.URL.Query().Get("to")
@@ -156,10 +172,11 @@ func setupClusterListRoute(i InfoType, r *http.Request) InfoType {
 }
 
 func setupNodeRoute(i InfoType, r *http.Request) InfoType {
-	vars := mux.Vars(r)
-	i["cluster"] = vars["cluster"]
-	i["hostname"] = vars["hostname"]
-	i["id"] = fmt.Sprintf("%s (%s)", vars["cluster"], vars["hostname"])
+	cluster := chi.URLParam(r, "cluster")
+	hostname := chi.URLParam(r, "hostname")
+	i["cluster"] = cluster
+	i["hostname"] = hostname
+	i["id"] = fmt.Sprintf("%s (%s)", cluster, hostname)
 	from, to := r.URL.Query().Get("from"), r.URL.Query().Get("to")
 	if from != "" && to != "" {
 		i["from"] = from
@@ -169,14 +186,14 @@ func setupNodeRoute(i InfoType, r *http.Request) InfoType {
 }
 
 func setupAnalysisRoute(i InfoType, r *http.Request) InfoType {
-	i["cluster"] = mux.Vars(r)["cluster"]
+	i["cluster"] = chi.URLParam(r, "cluster")
 	return i
 }
 
 func setupTaglistRoute(i InfoType, r *http.Request) InfoType {
 	jobRepo := repository.GetJobRepository()
 	tags, counts, err := jobRepo.CountTags(repository.GetUserFromContext(r.Context()))
-	tagMap := make(map[string][]map[string]interface{})
+	tagMap := make(map[string][]map[string]any)
 	if err != nil {
 		cclog.Warnf("GetTags failed: %s", err.Error())
 		i["tagmap"] = tagMap
@@ -187,19 +204,19 @@ func setupTaglistRoute(i InfoType, r *http.Request) InfoType {
 	// Uses tag.ID as second Map-Key component to differentiate tags with identical names
 	if userAuthlevel >= 4 { // Support+ : Show tags for all scopes, regardless of count
 		for _, tag := range tags {
-			tagItem := map[string]interface{}{
+			tagItem := map[string]any{
 				"id":    tag.ID,
 				"name":  tag.Name,
 				"scope": tag.Scope,
-				"count": counts[fmt.Sprint(tag.Name, tag.ID)],
+				"count": counts[fmt.Sprint(tag.Type, tag.Name, tag.ID)],
 			}
 			tagMap[tag.Type] = append(tagMap[tag.Type], tagItem)
 		}
 	} else if userAuthlevel < 4 && userAuthlevel >= 2 { // User+ : Show global and admin scope only if at least 1 tag used, private scope regardless of count
 		for _, tag := range tags {
-			tagCount := counts[fmt.Sprint(tag.Name, tag.ID)]
+			tagCount := counts[fmt.Sprint(tag.Type, tag.Name, tag.ID)]
 			if ((tag.Scope == "global" || tag.Scope == "admin") && tagCount >= 1) || (tag.Scope != "global" && tag.Scope != "admin") {
-				tagItem := map[string]interface{}{
+				tagItem := map[string]any{
 					"id":    tag.ID,
 					"name":  tag.Name,
 					"scope": tag.Scope,
@@ -215,8 +232,8 @@ func setupTaglistRoute(i InfoType, r *http.Request) InfoType {
 }
 
 // FIXME: Lots of redundant code. Needs refactoring
-func buildFilterPresets(query url.Values) map[string]interface{} {
-	filterPresets := map[string]interface{}{}
+func buildFilterPresets(query url.Values) map[string]any {
+	filterPresets := map[string]any{}
 
 	if query.Get("cluster") != "" {
 		filterPresets["cluster"] = query.Get("cluster")
@@ -243,6 +260,12 @@ func buildFilterPresets(query url.Values) map[string]interface{} {
 	if len(query["state"]) != 0 {
 		filterPresets["state"] = query["state"]
 	}
+	if query.Get("shared") != "" {
+		filterPresets["shared"] = query.Get("shared")
+	}
+	if query.Get("schedule") != "" {
+		filterPresets["schedule"] = query.Get("schedule")
+	}
 	if rawtags, ok := query["tag"]; ok {
 		tags := make([]int, len(rawtags))
 		for i, tid := range rawtags {
@@ -257,10 +280,22 @@ func buildFilterPresets(query url.Values) map[string]interface{} {
 	if query.Get("duration") != "" {
 		parts := strings.Split(query.Get("duration"), "-")
 		if len(parts) == 2 {
-			a, e1 := strconv.Atoi(parts[0])
-			b, e2 := strconv.Atoi(parts[1])
-			if e1 == nil && e2 == nil {
-				filterPresets["duration"] = map[string]int{"from": a, "to": b}
+			if parts[0] == "lessthan" {
+				lt, lte := strconv.Atoi(parts[1])
+				if lte == nil {
+					filterPresets["duration"] = map[string]int{"lessThan": lt, "from": 0, "to": 0}
+				}
+			} else if parts[0] == "morethan" {
+				mt, mte := strconv.Atoi(parts[1])
+				if mte == nil {
+					filterPresets["duration"] = map[string]int{"moreThan": mt, "from": 0, "to": 0}
+				}
+			} else {
+				a, e1 := strconv.Atoi(parts[0])
+				b, e2 := strconv.Atoi(parts[1])
+				if e1 == nil && e2 == nil {
+					filterPresets["duration"] = map[string]int{"from": a, "to": b}
+				}
 			}
 		}
 	}
@@ -270,30 +305,66 @@ func buildFilterPresets(query url.Values) map[string]interface{} {
 	if query.Get("numNodes") != "" {
 		parts := strings.Split(query.Get("numNodes"), "-")
 		if len(parts) == 2 {
-			a, e1 := strconv.Atoi(parts[0])
-			b, e2 := strconv.Atoi(parts[1])
-			if e1 == nil && e2 == nil {
-				filterPresets["numNodes"] = map[string]int{"from": a, "to": b}
+			if parts[0] == "lessthan" {
+				lt, lte := strconv.Atoi(parts[1])
+				if lte == nil {
+					filterPresets["numNodes"] = map[string]int{"from": 1, "to": lt}
+				}
+			} else if parts[0] == "morethan" {
+				mt, mte := strconv.Atoi(parts[1])
+				if mte == nil {
+					filterPresets["numNodes"] = map[string]int{"from": mt, "to": 0}
+				}
+			} else {
+				a, e1 := strconv.Atoi(parts[0])
+				b, e2 := strconv.Atoi(parts[1])
+				if e1 == nil && e2 == nil {
+					filterPresets["numNodes"] = map[string]int{"from": a, "to": b}
+				}
 			}
 		}
 	}
 	if query.Get("numHWThreads") != "" {
 		parts := strings.Split(query.Get("numHWThreads"), "-")
 		if len(parts) == 2 {
-			a, e1 := strconv.Atoi(parts[0])
-			b, e2 := strconv.Atoi(parts[1])
-			if e1 == nil && e2 == nil {
-				filterPresets["numHWThreads"] = map[string]int{"from": a, "to": b}
+			if parts[0] == "lessthan" {
+				lt, lte := strconv.Atoi(parts[1])
+				if lte == nil {
+					filterPresets["numHWThreads"] = map[string]int{"from": 1, "to": lt}
+				}
+			} else if parts[0] == "morethan" {
+				mt, mte := strconv.Atoi(parts[1])
+				if mte == nil {
+					filterPresets["numHWThreads"] = map[string]int{"from": mt, "to": 0}
+				}
+			} else {
+				a, e1 := strconv.Atoi(parts[0])
+				b, e2 := strconv.Atoi(parts[1])
+				if e1 == nil && e2 == nil {
+					filterPresets["numHWThreads"] = map[string]int{"from": a, "to": b}
+				}
 			}
 		}
 	}
 	if query.Get("numAccelerators") != "" {
 		parts := strings.Split(query.Get("numAccelerators"), "-")
 		if len(parts) == 2 {
-			a, e1 := strconv.Atoi(parts[0])
-			b, e2 := strconv.Atoi(parts[1])
-			if e1 == nil && e2 == nil {
-				filterPresets["numAccelerators"] = map[string]int{"from": a, "to": b}
+			if parts[0] == "lessthan" {
+				lt, lte := strconv.Atoi(parts[1])
+				if lte == nil {
+					filterPresets["numAccelerators"] = map[string]int{"from": 1, "to": lt}
+				}
+			} else if parts[0] == "morethan" {
+				mt, mte := strconv.Atoi(parts[1])
+				if mte == nil {
+					filterPresets["numAccelerators"] = map[string]int{"from": mt, "to": 0}
+				}
+			} else {
+				a, e1 := strconv.Atoi(parts[0])
+				b, e2 := strconv.Atoi(parts[1])
+				if e1 == nil && e2 == nil {
+					filterPresets["numAccelerators"] = map[string]int{"from": a, "to": b}
+				}
 			}
 		}
 	}
@@ -334,27 +405,61 @@ func buildFilterPresets(query url.Values) map[string]interface{} {
 	if query.Get("energy") != "" {
 		parts := strings.Split(query.Get("energy"), "-")
 		if len(parts) == 2 {
-			a, e1 := strconv.Atoi(parts[0])
-			b, e2 := strconv.Atoi(parts[1])
-			if e1 == nil && e2 == nil {
-				filterPresets["energy"] = map[string]int{"from": a, "to": b}
+			if parts[0] == "lessthan" {
+				lt, lte := strconv.Atoi(parts[1])
+				if lte == nil {
+					filterPresets["energy"] = map[string]int{"from": 1, "to": lt}
+				}
+			} else if parts[0] == "morethan" {
+				mt, mte := strconv.Atoi(parts[1])
+				if mte == nil {
+					filterPresets["energy"] = map[string]int{"from": mt, "to": 0}
+				}
+			} else {
+				a, e1 := strconv.Atoi(parts[0])
+				b, e2 := strconv.Atoi(parts[1])
+				if e1 == nil && e2 == nil {
+					filterPresets["energy"] = map[string]int{"from": a, "to": b}
+				}
 			}
 		}
 	}
 	if len(query["stat"]) != 0 {
-		statList := make([]map[string]interface{}, 0)
+		statList := make([]map[string]any, 0)
 		for _, statEntry := range query["stat"] {
 			parts := strings.Split(statEntry, "-")
 			if len(parts) == 3 { // Metric Footprint Stat Field, from - to
-				a, e1 := strconv.ParseInt(parts[1], 10, 64)
-				b, e2 := strconv.ParseInt(parts[2], 10, 64)
-				if e1 == nil && e2 == nil {
-					statEntry := map[string]interface{}{
-						"field": parts[0],
-						"from":  a,
-						"to":    b,
+				if parts[1] == "lessthan" {
+					lt, lte := strconv.ParseInt(parts[2], 10, 64)
+					if lte == nil {
+						statEntry := map[string]any{
+							"field": parts[0],
+							"from":  1,
+							"to":    lt,
+						}
+						statList = append(statList, statEntry)
 					}
-					statList = append(statList, statEntry)
+				} else if parts[1] == "morethan" {
+					mt, mte := strconv.ParseInt(parts[2], 10, 64)
+					if mte == nil {
+						statEntry := map[string]any{
+							"field": parts[0],
+							"from":  mt,
+							"to":    0,
+						}
+						statList = append(statList, statEntry)
+					}
+				} else {
+					a, e1 := strconv.ParseInt(parts[1], 10, 64)
+					b, e2 := strconv.ParseInt(parts[2], 10, 64)
+					if e1 == nil && e2 == nil {
+						statEntry := map[string]any{
+							"field": parts[0],
+							"from":  a,
+							"to":    b,
+						}
+						statList = append(statList, statEntry)
+					}
 				}
 			}
 		}
@@ -363,10 +468,9 @@ func buildFilterPresets(query url.Values) map[string]interface{} {
 	return filterPresets
 }
 
-func SetupRoutes(router *mux.Router, buildInfo web.Build) {
+func SetupRoutes(router chi.Router, buildInfo web.Build) {
 	userCfgRepo := repository.GetUserCfgRepo()
 	for _, route := range routes {
-		route := route
 		router.HandleFunc(route.Route, func(rw http.ResponseWriter, r *http.Request) {
 			conf, err := userCfgRepo.GetUIConfig(repository.GetUserFromContext(r.Context()))
 			if err != nil {
@@ -375,7 +479,7 @@ func SetupRoutes(router *mux.Router, buildInfo web.Build) {
 			}
 
 			title := route.Title
-			infos := route.Setup(map[string]interface{}{}, r)
+			infos := route.Setup(map[string]any{}, r)
 			if id, ok := infos["id"]; ok {
 				title = strings.Replace(route.Title, "<ID>", id.(string), 1)
 				if sid, ok := infos["sid"]; ok { // 2nd ID element
@@ -436,7 +540,7 @@ func HandleSearchBar(rw http.ResponseWriter, r *http.Request, buildInfo web.Buil
 				http.Redirect(rw, r, "/monitoring/jobs/?startTime="+fromTime+"-"+untilTime+"&arrayJobId="+url.QueryEscape(strings.Trim(splitSearch[1], " ")), http.StatusFound) // All Users: Redirect to Tablequery
 			case "username":
 				if user.HasAnyRole([]schema.Role{schema.RoleAdmin, schema.RoleSupport, schema.RoleManager}) {
-					http.Redirect(rw, r, "/monitoring/users/?user="+url.QueryEscape(strings.Trim(splitSearch[1], " ")), http.StatusFound)
+					http.Redirect(rw, r, "/monitoring/users/?user="+url.QueryEscape(strings.Trim(splitSearch[1], " "))+"&startTime=last30d", http.StatusFound)
 				} else {
 					web.RenderTemplate(rw, "message.tmpl", &web.Page{Title: "Error", MsgType: "alert-danger", Message: "Missing Access Rights", User: *user, Roles: availableRoles, Build: buildInfo})
 				}
@@ -444,10 +548,10 @@ func HandleSearchBar(rw http.ResponseWriter, r *http.Request, buildInfo web.Buil
 				usernames, _ := repo.FindColumnValues(user, strings.Trim(splitSearch[1], " "), "user", "username", "name")
 				if len(usernames) != 0 {
 					joinedNames := strings.Join(usernames, "&user=")
-					http.Redirect(rw, r, "/monitoring/users/?user="+joinedNames, http.StatusFound)
+					http.Redirect(rw, r, "/monitoring/users/?user="+joinedNames+"&startTime=last30d", http.StatusFound)
 				} else {
 					if user.HasAnyRole([]schema.Role{schema.RoleAdmin, schema.RoleSupport, schema.RoleManager}) {
-						http.Redirect(rw, r, "/monitoring/users/?user=NoUserNameFound", http.StatusPermanentRedirect)
+						http.Redirect(rw, r, "/monitoring/users/?user=NoUserNameFound&startTime=last30d", http.StatusPermanentRedirect)
 					} else {
 						web.RenderTemplate(rw, "message.tmpl", &web.Page{Title: "Error", MsgType: "alert-danger", Message: "Missing Access Rights", User: *user, Roles: availableRoles, Build: buildInfo})
 					}

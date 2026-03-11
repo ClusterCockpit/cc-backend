@@ -73,6 +73,7 @@
   ]
 
   // UPLOT SCALES INIT //
+  // svelte-ignore state_referenced_locally
   if (forResources) {
     const resSeries = [
       {
@@ -136,8 +137,11 @@
 
   // UPLOT OPTIONS //
   const opts = {
+    // svelte-ignore state_referenced_locally
     width,
+    // svelte-ignore state_referenced_locally
     height,
+    // svelte-ignore state_referenced_locally
     title,
     plugins: [legendAsTooltipPlugin()],
     series: plotSeries,
@@ -147,6 +151,7 @@
         space: 25, // Tick Spacing
         rotate: 30,
         show: true,
+        // svelte-ignore state_referenced_locally
         label: xlabel,
         values(self, splits) {
           return splits.map(s => xticks[s]);
@@ -164,16 +169,19 @@
         scale: "y",
         grid: { show: true },
         labelFont: "sans-serif",
+        // svelte-ignore state_referenced_locally
         label: ylabel + (yunit ? ` (${yunit})` : ''),
         values: (u, vals) => vals.map((v) => formatNumber(v)),
       },
     ],
+    // svelte-ignore state_referenced_locally
     bands: forResources ? [] : plotBands,
     padding: [5, 10, 0, 0],
     hooks: {
       draw: [
         (u) => {
           // Draw plot type label:
+          // svelte-ignore state_referenced_locally
           let textl = forResources ? "Job Resources by Type" : "Metric Min/Avg/Max for Job Duration";
           let textr = "Earlier <- StartTime -> Later";
           u.ctx.save();
@@ -196,6 +204,7 @@
       x: { time: false },
       xst: { time: false },
       xrt: { time: false },
+      // svelte-ignore state_referenced_locally
       y: {auto: true, distr: forResources ? 3 : 1},
     },
     legend: {

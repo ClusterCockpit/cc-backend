@@ -3,7 +3,7 @@
 
   Properties:
   - `job Object`: The GQL job object
-  - `clusters Array`: The GQL clusters array
+  - `clusterInfo Array`: The GQL clusters array
 -->
 
  <script>
@@ -24,7 +24,7 @@
   /* Svelte 5 Props */
   let {
     job,
-    clusters,
+    clusterInfo,
   } = $props();
 
   /* Const Init */
@@ -58,11 +58,11 @@
 {#if $roofMetrics.error}
   <Card body color="danger">{$roofMetrics.error.message}</Card>
 {:else if $roofMetrics?.data}
-  <Card style="height: 400px;">
+  <Card style="height: auto;"> <!-- 400px -->
     <div bind:clientWidth={roofWidth}>
       <Roofline
         width={roofWidth}
-        subCluster={clusters
+        subCluster={clusterInfo
           .find((c) => c.name == job.cluster)
           .subClusters.find((sc) => sc.name == job.subCluster)}
         data={transformDataForRoofline(

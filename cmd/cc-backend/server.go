@@ -2,6 +2,7 @@
 // All rights reserved. This file is part of cc-backend.
 // Use of this source code is governed by a MIT-style
 // license that can be found in the LICENSE file.
+
 // Package main provides the entry point for the ClusterCockpit backend server.
 // This file contains HTTP server setup, routing configuration, and
 // authentication middleware integration.
@@ -13,7 +14,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io"
 	"net"
 	"net/http"
 	"os"
@@ -29,13 +29,15 @@ import (
 	"github.com/ClusterCockpit/cc-backend/internal/config"
 	"github.com/ClusterCockpit/cc-backend/internal/graph"
 	"github.com/ClusterCockpit/cc-backend/internal/graph/generated"
-	"github.com/ClusterCockpit/cc-backend/internal/memorystore"
 	"github.com/ClusterCockpit/cc-backend/internal/routerConfig"
+	"github.com/ClusterCockpit/cc-backend/pkg/metricstore"
 	"github.com/ClusterCockpit/cc-backend/web"
-	cclog "github.com/ClusterCockpit/cc-lib/ccLogger"
-	"github.com/ClusterCockpit/cc-lib/runtimeEnv"
-	"github.com/gorilla/handlers"
-	"github.com/gorilla/mux"
+	cclog "github.com/ClusterCockpit/cc-lib/v2/ccLogger"
+	"github.com/ClusterCockpit/cc-lib/v2/nats"
+	"github.com/ClusterCockpit/cc-lib/v2/runtime"
+	"github.com/go-chi/chi/v5"
+	"github.com/go-chi/chi/v5/middleware"
+	"github.com/go-chi/cors"
 	httpSwagger "github.com/swaggo/http-swagger"
 )
 
@@ -48,9 +50,10 @@ const (
 
 // Server encapsulates the HTTP server state and dependencies
 type Server struct {
-	router    *mux.Router
-	server    *http.Server
-	apiHandle *api.RestAPI
+	router        chi.Router
+	server        *http.Server
+	restAPIHandle *api.RestAPI
+	natsAPIHandle *api.NatsAPI
 }
 
 func onFailureResponse(rw http.ResponseWriter, r *http.Request, err error) {
@@ -67,7 +70,7 @@ func NewServer(version, commit, buildDate string) (*Server, error) {
 	buildInfo = web.Build{Version: version, Hash: commit, Buildtime: buildDate}
 
 	s := &Server{
-		router: mux.NewRouter(),
+		router: chi.NewRouter(),
 	}
 
 	if err := s.init(); err != nil {
@@ -103,7 +106,28 @@ func (s *Server) init() error {
 
 	authHandle := auth.GetAuthInstance()
 
-	s.apiHandle = api.New()
+	// Middleware must be defined before routes in chi
+	s.router.Use(func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(rw http.ResponseWriter, r *http.Request) {
+			start := time.Now()
+			ww := middleware.NewWrapResponseWriter(rw, r.ProtoMajor)
+			next.ServeHTTP(ww, r)
+			cclog.Debugf("%s %s (%d, %.02fkb, %dms)",
+				r.Method, r.URL.RequestURI(),
+				ww.Status(), float32(ww.BytesWritten())/1024,
+				time.Since(start).Milliseconds())
+		})
+	})
+	s.router.Use(middleware.Compress(5))
+	s.router.Use(middleware.Recoverer)
+	s.router.Use(cors.Handler(cors.Options{
+		AllowCredentials: true,
+		AllowedHeaders:   []string{"X-Requested-With", "Content-Type", "Authorization", "Origin"},
+		AllowedMethods:   []string{"GET", "POST", "HEAD", "OPTIONS"},
+		AllowedOrigins:   []string{"*"},
+	}))
+
+	s.restAPIHandle = api.New()
 
 	info := map[string]any{}
 	info["hasOpenIDConnect"] = false
@@ -114,11 +138,11 @@ func (s *Server) init() error {
 		info["hasOpenIDConnect"] = true
 	}
 
-	s.router.HandleFunc("/login", func(rw http.ResponseWriter, r *http.Request) {
+	s.router.Get("/login", func(rw http.ResponseWriter, r *http.Request) {
 		rw.Header().Add("Content-Type", "text/html; charset=utf-8")
 		cclog.Debugf("##%v##", info)
 		web.RenderTemplate(rw, "login.tmpl", &web.Page{Title: "Login", Build: buildInfo, Infos: info})
-	}).Methods(http.MethodGet)
+	})
 	s.router.HandleFunc("/imprint", func(rw http.ResponseWriter, r *http.Request) {
 		rw.Header().Add("Content-Type", "text/html; charset=utf-8")
 		web.RenderTemplate(rw, "imprint.tmpl", &web.Page{Title: "Imprint", Build: buildInfo})
@@ -127,13 +151,6 @@ func (s *Server) init() error {
 		rw.Header().Add("Content-Type", "text/html; charset=utf-8")
 		web.RenderTemplate(rw, "privacy.tmpl", &web.Page{Title: "Privacy", Build: buildInfo})
 	})
-
-	secured := s.router.PathPrefix("/").Subrouter()
-	securedapi := s.router.PathPrefix("/api").Subrouter()
-	userapi := s.router.PathPrefix("/userapi").Subrouter()
-	configapi := s.router.PathPrefix("/config").Subrouter()
-	frontendapi := s.router.PathPrefix("/frontend").Subrouter()
-	metricstoreapi := s.router.PathPrefix("/metricstore").Subrouter()
 
 	if !config.Keys.DisableAuthentication {
 		// Create login failure handler (used by both /login and /jwt-login)
@@ -149,10 +166,10 @@ func (s *Server) init() error {
 			})
 		}
 
-		s.router.Handle("/login", authHandle.Login(loginFailureHandler)).Methods(http.MethodPost)
-		s.router.Handle("/jwt-login", authHandle.Login(loginFailureHandler))
+		s.router.Post("/login", authHandle.Login(loginFailureHandler).ServeHTTP)
+		s.router.HandleFunc("/jwt-login", authHandle.Login(loginFailureHandler).ServeHTTP)
 
-		s.router.Handle("/logout", authHandle.Logout(
+		s.router.Post("/logout", authHandle.Logout(
 			http.HandlerFunc(func(rw http.ResponseWriter, r *http.Request) {
 				rw.Header().Add("Content-Type", "text/html; charset=utf-8")
 				rw.WriteHeader(http.StatusOK)
@@ -163,110 +180,157 @@ func (s *Server) init() error {
 					Build:   buildInfo,
 					Infos:   info,
 				})
-			}))).Methods(http.MethodPost)
-
-		secured.Use(func(next http.Handler) http.Handler {
-			return authHandle.Auth(
-				// On success;
-				next,
-
-				// On failure:
-				func(rw http.ResponseWriter, r *http.Request, err error) {
-					rw.WriteHeader(http.StatusUnauthorized)
-					web.RenderTemplate(rw, "login.tmpl", &web.Page{
-						Title:    "Authentication failed - ClusterCockpit",
-						MsgType:  "alert-danger",
-						Message:  err.Error(),
-						Build:    buildInfo,
-						Infos:    info,
-						Redirect: r.RequestURI,
-					})
-				})
-		})
-
-		securedapi.Use(func(next http.Handler) http.Handler {
-			return authHandle.AuthAPI(
-				// On success;
-				next,
-				// On failure: JSON Response
-				onFailureResponse)
-		})
-
-		userapi.Use(func(next http.Handler) http.Handler {
-			return authHandle.AuthUserAPI(
-				// On success;
-				next,
-				// On failure: JSON Response
-				onFailureResponse)
-		})
-
-		metricstoreapi.Use(func(next http.Handler) http.Handler {
-			return authHandle.AuthMetricStoreAPI(
-				// On success;
-				next,
-				// On failure: JSON Response
-				onFailureResponse)
-		})
-
-		configapi.Use(func(next http.Handler) http.Handler {
-			return authHandle.AuthConfigAPI(
-				// On success;
-				next,
-				// On failure: JSON Response
-				onFailureResponse)
-		})
-
-		frontendapi.Use(func(next http.Handler) http.Handler {
-			return authHandle.AuthFrontendAPI(
-				// On success;
-				next,
-				// On failure: JSON Response
-				onFailureResponse)
-		})
+			})).ServeHTTP)
 	}
 
 	if flagDev {
 		s.router.Handle("/playground", playground.Handler("GraphQL playground", "/query"))
-		s.router.PathPrefix("/swagger/").Handler(httpSwagger.Handler(
-			httpSwagger.URL("http://" + config.Keys.Addr + "/swagger/doc.json"))).Methods(http.MethodGet)
+		s.router.Get("/swagger/*", httpSwagger.Handler(
+			httpSwagger.URL("http://"+config.Keys.Addr+"/swagger/doc.json")))
 	}
-	secured.Handle("/query", graphQLServer)
 
-	// Send a searchId and then reply with a redirect to a user, or directly send query to job table for jobid and project.
-	secured.HandleFunc("/search", func(rw http.ResponseWriter, r *http.Request) {
-		routerConfig.HandleSearchBar(rw, r, buildInfo)
+	// Secured routes (require authentication)
+	s.router.Group(func(secured chi.Router) {
+		if !config.Keys.DisableAuthentication {
+			secured.Use(func(next http.Handler) http.Handler {
+				return authHandle.Auth(
+					next,
+					func(rw http.ResponseWriter, r *http.Request, err error) {
+						rw.WriteHeader(http.StatusUnauthorized)
+						web.RenderTemplate(rw, "login.tmpl", &web.Page{
+							Title:    "Authentication failed - ClusterCockpit",
+							MsgType:  "alert-danger",
+							Message:  err.Error(),
+							Build:    buildInfo,
+							Infos:    info,
+							Redirect: r.RequestURI,
+						})
+					})
+			})
+		}
+
+		secured.Handle("/query", graphQLServer)
+
+		secured.HandleFunc("/search", func(rw http.ResponseWriter, r *http.Request) {
+			routerConfig.HandleSearchBar(rw, r, buildInfo)
+		})
+
+		routerConfig.SetupRoutes(secured, buildInfo)
 	})
 
-	// Mount all /monitoring/... and /api/... routes.
-	routerConfig.SetupRoutes(secured, buildInfo)
-	s.apiHandle.MountAPIRoutes(securedapi)
-	s.apiHandle.MountUserAPIRoutes(userapi)
-	s.apiHandle.MountConfigAPIRoutes(configapi)
-	s.apiHandle.MountFrontendAPIRoutes(frontendapi)
+	// API routes (JWT token auth)
+	s.router.Route("/api", func(apiRouter chi.Router) {
+		// Main API routes with API auth
+		apiRouter.Group(func(securedapi chi.Router) {
+			if !config.Keys.DisableAuthentication {
+				securedapi.Use(func(next http.Handler) http.Handler {
+					return authHandle.AuthAPI(next, onFailureResponse)
+				})
+			}
+			s.restAPIHandle.MountAPIRoutes(securedapi)
+		})
 
-	if memorystore.InternalCCMSFlag {
-		s.apiHandle.MountMetricStoreAPIRoutes(metricstoreapi)
+		// Metric store API routes with separate auth
+		apiRouter.Group(func(metricstoreapi chi.Router) {
+			if !config.Keys.DisableAuthentication {
+				metricstoreapi.Use(func(next http.Handler) http.Handler {
+					return authHandle.AuthMetricStoreAPI(next, onFailureResponse)
+				})
+			}
+			s.restAPIHandle.MountMetricStoreAPIRoutes(metricstoreapi)
+		})
+	})
+
+	// User API routes
+	s.router.Route("/userapi", func(userapi chi.Router) {
+		if !config.Keys.DisableAuthentication {
+			userapi.Use(func(next http.Handler) http.Handler {
+				return authHandle.AuthUserAPI(next, onFailureResponse)
+			})
+		}
+		s.restAPIHandle.MountUserAPIRoutes(userapi)
+	})
+
+	// Config API routes (uses Group with full paths to avoid shadowing
+	// the /config page route that is registered in the secured group)
+	s.router.Group(func(configapi chi.Router) {
+		if !config.Keys.DisableAuthentication {
+			configapi.Use(func(next http.Handler) http.Handler {
+				return authHandle.AuthConfigAPI(next, onFailureResponse)
+			})
+		}
+		s.restAPIHandle.MountConfigAPIRoutes(configapi)
+	})
+
+	// Frontend API routes
+	s.router.Route("/frontend", func(frontendapi chi.Router) {
+		if !config.Keys.DisableAuthentication {
+			frontendapi.Use(func(next http.Handler) http.Handler {
+				return authHandle.AuthFrontendAPI(next, onFailureResponse)
+			})
+		}
+		s.restAPIHandle.MountFrontendAPIRoutes(frontendapi)
+	})
+
+	if config.Keys.APISubjects != nil {
+		s.natsAPIHandle = api.NewNatsAPI()
+		if err := s.natsAPIHandle.StartSubscriptions(); err != nil {
+			return fmt.Errorf("starting NATS subscriptions: %w", err)
+		}
 	}
+
+	// 404 handler for pages and API routes
+	notFoundHandler := func(rw http.ResponseWriter, r *http.Request) {
+		if strings.HasPrefix(r.URL.Path, "/api/") || strings.HasPrefix(r.URL.Path, "/userapi/") ||
+			strings.HasPrefix(r.URL.Path, "/frontend/") || strings.HasPrefix(r.URL.Path, "/config/") {
+			rw.Header().Set("Content-Type", "application/json")
+			rw.WriteHeader(http.StatusNotFound)
+			json.NewEncoder(rw).Encode(map[string]string{
+				"status": "Resource not found",
+				"error":  "the requested endpoint does not exist",
+			})
+			return
+		}
+		rw.Header().Set("Content-Type", "text/html; charset=utf-8")
+		rw.WriteHeader(http.StatusNotFound)
+		web.RenderTemplate(rw, "404.tmpl", &web.Page{
+			Title: "Page Not Found",
+			Build: buildInfo,
+		})
+	}
+
+	// Set NotFound on the router so chi uses it for all unmatched routes,
+	// including those under subrouters like /api, /userapi, /frontend, etc.
+	s.router.NotFound(notFoundHandler)
 
 	if config.Keys.EmbedStaticFiles {
 		if i, err := os.Stat("./var/img"); err == nil {
 			if i.IsDir() {
 				cclog.Info("Use local directory for static images")
-				s.router.PathPrefix("/img/").Handler(http.StripPrefix("/img/", http.FileServer(http.Dir("./var/img"))))
+				s.router.Handle("/img/*", http.StripPrefix("/img/", http.FileServer(http.Dir("./var/img"))))
 			}
 		}
-		s.router.PathPrefix("/").Handler(http.StripPrefix("/", web.ServeFiles()))
+		fileServer := http.StripPrefix("/", web.ServeFiles())
+		s.router.Handle("/*", http.HandlerFunc(func(rw http.ResponseWriter, r *http.Request) {
+			if web.StaticFileExists(r.URL.Path) {
+				fileServer.ServeHTTP(rw, r)
+				return
+			}
+			notFoundHandler(rw, r)
+		}))
 	} else {
-		s.router.PathPrefix("/").Handler(http.FileServer(http.Dir(config.Keys.StaticFiles)))
+		staticDir := http.Dir(config.Keys.StaticFiles)
+		fileServer := http.FileServer(staticDir)
+		s.router.Handle("/*", http.HandlerFunc(func(rw http.ResponseWriter, r *http.Request) {
+			f, err := staticDir.Open(r.URL.Path)
+			if err == nil {
+				f.Close()
+				fileServer.ServeHTTP(rw, r)
+				return
+			}
+			notFoundHandler(rw, r)
+		}))
 	}
-
-	s.router.Use(handlers.CompressHandler)
-	s.router.Use(handlers.RecoveryHandler(handlers.PrintRecoveryStack(true)))
-	s.router.Use(handlers.CORS(
-		handlers.AllowCredentials(),
-		handlers.AllowedHeaders([]string{"X-Requested-With", "Content-Type", "Authorization", "Origin"}),
-		handlers.AllowedMethods([]string{"GET", "POST", "HEAD", "OPTIONS"}),
-		handlers.AllowedOrigins([]string{"*"})))
 
 	return nil
 }
@@ -278,20 +342,6 @@ const (
 )
 
 func (s *Server) Start(ctx context.Context) error {
-	handler := handlers.CustomLoggingHandler(io.Discard, s.router, func(_ io.Writer, params handlers.LogFormatterParams) {
-		if strings.HasPrefix(params.Request.RequestURI, "/api/") {
-			cclog.Debugf("%s %s (%d, %.02fkb, %dms)",
-				params.Request.Method, params.URL.RequestURI(),
-				params.StatusCode, float32(params.Size)/1024,
-				time.Since(params.TimeStamp).Milliseconds())
-		} else {
-			cclog.Debugf("%s %s (%d, %.02fkb, %dms)",
-				params.Request.Method, params.URL.RequestURI(),
-				params.StatusCode, float32(params.Size)/1024,
-				time.Since(params.TimeStamp).Milliseconds())
-		}
-	})
-
 	// Use configurable timeouts with defaults
 	readTimeout := time.Duration(defaultReadTimeout) * time.Second
 	writeTimeout := time.Duration(defaultWriteTimeout) * time.Second
@@ -299,7 +349,7 @@ func (s *Server) Start(ctx context.Context) error {
 	s.server = &http.Server{
 		ReadTimeout:  readTimeout,
 		WriteTimeout: writeTimeout,
-		Handler:      handler,
+		Handler:      s.router,
 		Addr:         config.Keys.Addr,
 	}
 
@@ -338,7 +388,7 @@ func (s *Server) Start(ctx context.Context) error {
 	// Because this program will want to bind to a privileged port (like 80), the listener must
 	// be established first, then the user can be changed, and after that,
 	// the actual http server can be started.
-	if err := runtimeEnv.DropPrivileges(config.Keys.Group, config.Keys.User); err != nil {
+	if err := runtime.DropPrivileges(config.Keys.Group, config.Keys.User); err != nil {
 		return fmt.Errorf("dropping privileges: %w", err)
 	}
 
@@ -363,14 +413,21 @@ func (s *Server) Shutdown(ctx context.Context) {
 	shutdownCtx, cancel := context.WithTimeout(ctx, 30*time.Second)
 	defer cancel()
 
+	nc := nats.GetClient()
+	if nc != nil {
+		nc.Close()
+	}
+
 	// First shut down the server gracefully (waiting for all ongoing requests)
 	if err := s.server.Shutdown(shutdownCtx); err != nil {
 		cclog.Errorf("Server shutdown error: %v", err)
 	}
 
 	// Archive all the metric store data
-	if memorystore.InternalCCMSFlag {
-		memorystore.Shutdown()
+	ms := metricstore.GetMemoryStore()
+
+	if ms != nil {
+		metricstore.Shutdown()
 	}
 
 	// Shutdown archiver with 10 second timeout for fast shutdown

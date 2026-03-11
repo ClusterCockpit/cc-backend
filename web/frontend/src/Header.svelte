@@ -4,8 +4,8 @@
   Properties:
   - `username String`: Empty string if auth. is disabled, otherwise the username as string
   - `authlevel Number`: The current users authentication level
-  - `clusters [String]`: List of cluster names
-  - `subClusters [String]`: List of subCluster names
+  - `clusterNames [String]`: List of cluster names
+  - `subclusterMap map[String][]string`: Map of subclusters by cluster names
   - `roles [Number]`: Enum containing available roles
 -->
 
@@ -28,8 +28,8 @@
   let { 
     username,
     authlevel,
-    clusters,
-    subClusters,
+    clusterNames,
+    subclusterMap,
     roles
   } = $props();
 
@@ -53,7 +53,9 @@
   const views = [
     {
       title: "My Jobs",
+      // svelte-ignore state_referenced_locally
       requiredRole: roles.user,
+      // svelte-ignore state_referenced_locally
       href: `/monitoring/user/${username}`,
       icon: "bar-chart-line",
       perCluster: false,
@@ -61,7 +63,9 @@
       menu: "none",
     },
     {
+      // svelte-ignore state_referenced_locally
       title: jobsTitle.get(authlevel),
+      // svelte-ignore state_referenced_locally
       requiredRole: roles.user,
       href: `/monitoring/jobs/`,
       icon: "card-list",
@@ -71,6 +75,7 @@
     },
     {
       title: "Tags",
+      // svelte-ignore state_referenced_locally
       requiredRole: roles.user,
       href: "/monitoring/tags/",
       icon: "tags",
@@ -79,7 +84,9 @@
       menu: "Jobs",
     },
     {
+      // svelte-ignore state_referenced_locally
       title: usersTitle.get(authlevel),
+      // svelte-ignore state_referenced_locally
       requiredRole: roles.manager,
       href: "/monitoring/users/",
       icon: "people",
@@ -88,7 +95,9 @@
       menu: "Groups",
     },
     {
+      // svelte-ignore state_referenced_locally
       title: projectsTitle.get(authlevel),
+      // svelte-ignore state_referenced_locally
       requiredRole: roles.manager,
       href: "/monitoring/projects/",
       icon: "journals",
@@ -98,6 +107,7 @@
     },
     {
       title: "Nodes",
+      // svelte-ignore state_referenced_locally
       requiredRole: roles.support,
       href: "/monitoring/systems/",
       icon: "hdd-rack",
@@ -107,6 +117,7 @@
     },
     {
       title: "Analysis",
+      // svelte-ignore state_referenced_locally
       requiredRole: roles.support,
       href: "/monitoring/analysis/",
       icon: "graph-up",
@@ -116,10 +127,21 @@
     },
     {
       title: "Status",
+      // svelte-ignore state_referenced_locally
       requiredRole: roles.admin,
       href: "/monitoring/status/",
       icon: "clipboard-data",
       perCluster: true,
+      listOptions: true,
+      menu: "Info",
+    },
+    {
+      title: "Logs",
+      // svelte-ignore state_referenced_locally
+      requiredRole: roles.admin,
+      href: "/monitoring/logs",
+      icon: "journal-text",
+      perCluster: false,
       listOptions: false,
       menu: "Info",
     },
@@ -152,15 +174,15 @@
     <Nav navbar>
       {#if showMax || showBrg}
         <NavbarLinks
-          {clusters}
-          {subClusters}
+          {clusterNames}
+          {subclusterMap}
           links={views.filter((item) => item.requiredRole <= authlevel)}
         />
 
       {:else if showMid}
         <NavbarLinks
-          {clusters}
-          {subClusters}
+          {clusterNames}
+          {subclusterMap}
           links={views.filter(
             (item) => item.requiredRole <= authlevel && item.menu != "Info",
           )}
@@ -173,8 +195,8 @@
             </DropdownToggle>
             <DropdownMenu class="dropdown-menu-lg-end">
               <NavbarLinks
-                {clusters}
-                {subClusters}
+                {clusterNames}
+                {subclusterMap}
                 direction="right"
                 links={views.filter(
                   (item) =>
@@ -187,8 +209,8 @@
 
       {:else if showSml}
         <NavbarLinks
-          {clusters}
-          {subClusters}
+          {clusterNames}
+          {subclusterMap}
           links={views.filter(
             (item) => item.requiredRole <= authlevel && item.menu == "none",
           )}
@@ -200,8 +222,8 @@
             </DropdownToggle>
             <DropdownMenu class="dropdown-menu-lg-end">
               <NavbarLinks
-                {clusters}
-                {subClusters}
+                {clusterNames}
+                {subclusterMap}
                 direction="right"
                 links={views.filter(
                   (item) => item.requiredRole <= authlevel && item.menu == 'Jobs',
@@ -217,8 +239,8 @@
             </DropdownToggle>
             <DropdownMenu class="dropdown-menu-lg-end">
               <NavbarLinks
-                {clusters}
-                {subClusters}
+                {clusterNames}
+                {subclusterMap}
                 direction="right"
                 links={views.filter(
                   (item) => item.requiredRole <= authlevel && item.menu == 'Groups',
@@ -234,8 +256,8 @@
             </DropdownToggle>
             <DropdownMenu class="dropdown-menu-lg-end">
               <NavbarLinks
-                {clusters}
-                {subClusters}
+                {clusterNames}
+                {subclusterMap}
                 direction="right"
                 links={views.filter(
                   (item) => item.requiredRole <= authlevel && item.menu == 'Info',

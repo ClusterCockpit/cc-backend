@@ -22,8 +22,8 @@ import (
 
 	"github.com/ClusterCockpit/cc-backend/internal/repository"
 	"github.com/ClusterCockpit/cc-backend/pkg/archive"
-	cclog "github.com/ClusterCockpit/cc-lib/ccLogger"
-	"github.com/ClusterCockpit/cc-lib/schema"
+	cclog "github.com/ClusterCockpit/cc-lib/v2/ccLogger"
+	"github.com/ClusterCockpit/cc-lib/v2/schema"
 )
 
 const (
@@ -111,18 +111,22 @@ func InitDB() error {
 			continue
 		}
 
-		id, err := r.TransactionAddNamed(t,
+		id, jobErr := r.TransactionAddNamed(t,
 			repository.NamedJobInsert, jobMeta)
-		if err != nil {
-			cclog.Errorf("repository initDB(): %v", err)
+		if jobErr != nil {
+			cclog.Errorf("repository initDB(): %v", jobErr)
 			errorOccured++
 			continue
 		}
+
+		// Job successfully inserted, increment counter
+		i += 1
 
 		for _, tag := range jobMeta.Tags {
 			tagstr := tag.Name + ":" + tag.Type
 			tagID, ok := tags[tagstr]
 			if !ok {
+				var err error
 				tagID, err = r.TransactionAdd(t,
 					addTagQuery,
 					tag.Name, tag.Type)
@@ -137,10 +141,6 @@ func InitDB() error {
 			r.TransactionAdd(t,
 				setTagQuery,
 				id, tagID)
-		}
-
-		if err == nil {
-			i += 1
 		}
 	}
 
@@ -216,7 +216,7 @@ func enrichJobMetadata(job *schema.Job) error {
 				metricEnergy = math.Round(rawEnergy*100.0) / 100.0
 			}
 		} else {
-			cclog.Warnf("Error while collecting energy metric %s for job, DB ID '%v', return '0.0'", fp, job.ID)
+			cclog.Warnf("Error while collecting energy metric %s for job, DB ID '%v', return '0.0'", fp, *job.ID)
 		}
 
 		job.EnergyFootprint[fp] = metricEnergy
@@ -225,7 +225,7 @@ func enrichJobMetadata(job *schema.Job) error {
 
 	job.Energy = (math.Round(totalEnergy*100.0) / 100.0)
 	if job.RawEnergyFootprint, err = json.Marshal(job.EnergyFootprint); err != nil {
-		cclog.Warnf("Error while marshaling energy footprint for job INTO BYTES, DB ID '%v'", job.ID)
+		cclog.Warnf("Error while marshaling energy footprint for job INTO BYTES, DB ID '%v'", *job.ID)
 		return err
 	}
 
