@@ -1,27 +1,9 @@
-All passes. Here's a summary of findings and fixes:
 
----
 
-## Findings
+The plan reduces 79 indexes to 20 by:
 
-### Bug 1: Missing `defer rows.Close()` in `user.go:GetLdapUsernames()` (line 100)
-**Fixed.** Every call leaked a database connection and its buffers.
+- **Eliminating entire categories**: all `shared`-prefixed (16), all user/project sort variants (11), all standalone single-filter sorts (11)
+- **Consolidating**: cluster+jobstate sort variants replaced by `(cluster, sort_col)` which works for any state combo with LIMIT
+- **Keeping what matters**: the indexes SQLite actually picks with ANALYZE — `jobs_starttime`, `jobs_cluster_starttime_duration`, `jobs_user_starttime_duration`, `jobs_cluster_jobstate_duration_starttime`, and a few secondary sort indexes
 
-### Bug 2: SQLite never runs `ANALYZE` — wrong index selection
-**Fixed.** Added `ANALYZE` to `setupSqlite()` in `dbConnection.go`.
-
-Without statistics in `sqlite_stat1`, SQLite's query planner **guessed** and chose `jobs_jobstate_energy` (a terrible index for this query) instead of scanning `jobs_starttime` in reverse. The result:
-
-| | Before ANALYZE | After ANALYZE |
-|---|---|---|
-| Index used | `jobs_jobstate_energy` | `jobs_starttime` |
-| Sort | **TEMP B-TREE** (materializes ALL rows) | None (index order) |
-| Memory | Proportional to total matching rows | Constant |
-| I/O | Full scan of all matching rows | Stops at OFFSET+LIMIT |
-
-### Bug 3: `IN` clause + `ORDER BY` is fundamentally incompatible with composite indexes
-
-Even with the "correct" index `(job_state, start_time)`, SQLite **cannot** merge-sort across 3 separate index range scans for `IN ('completed','running','failed')`. It always falls back to a temp B-tree sort. The only efficient plan is to use the standalone `jobs_starttime` index — which SQLite does automatically **after ANALYZE** because it realizes the 3 states cover virtually all rows, making the WHERE clause nearly a no-op.
-
-### Observation: 79 indexes on the `job` table
-This is excessive and actively harmful — it confuses the query planner (especially without ANALYZE) and slows writes. The `jobs_jobstate_starttime` index from migration 08 is also missing from the actual DB (only the 3-column `jobs_jobstate_starttime_duration` exists). This is worth investigating separately but is a schema/migration concern, not a code bug.
+Key trade-off: ~20% of queries that sort by rare columns (num_hwthreads, num_acc, energy) with a state filter will now do a cheap per-row state check instead of using a 3-column composite. With LIMIT this is negligible.

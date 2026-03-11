@@ -21,10 +21,11 @@ import (
 // is added to internal/repository/migrations/sqlite3/.
 //
 // Version history:
-//   - Version 10: Current version
+//   - Version 11: Optimize job table indexes (reduce from ~78 to 20)
+//   - Version 10: Node table
 //
 // Migration files are embedded at build time from the migrations directory.
-const Version uint = 10
+const Version uint = 11
 
 //go:embed migrations/*
 var migrationFiles embed.FS
