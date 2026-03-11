@@ -1,0 +1,1 @@
+There are memory leaks in production on queries that trigger a full scan. Review all queries for missing close and other bugs that could cause memory leaks in the sqlite-3 driver. Example for a query that triggers a massive allocation is a specific jobstate list with sorting on start_time on all jobs.

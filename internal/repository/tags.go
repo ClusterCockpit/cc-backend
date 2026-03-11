@@ -283,6 +283,7 @@ func (r *JobRepository) CountTags(user *schema.User) (tags []schema.Tag, counts 
 	if err != nil {
 		return nil, nil, err
 	}
+	defer xrows.Close()
 
 	for xrows.Next() {
 		var t schema.Tag
@@ -298,6 +299,10 @@ func (r *JobRepository) CountTags(user *schema.User) (tags []schema.Tag, counts 
 		if readable {
 			tags = append(tags, t)
 		}
+	}
+
+	if err := xrows.Err(); err != nil {
+		return nil, nil, err
 	}
 
 	// Query and Count Jobs with attached Tags
@@ -334,6 +339,7 @@ func (r *JobRepository) CountTags(user *schema.User) (tags []schema.Tag, counts 
 	if err != nil {
 		return nil, nil, err
 	}
+	defer rows.Close()
 
 	counts = make(map[string]int)
 	for rows.Next() {
@@ -511,6 +517,7 @@ func (r *JobRepository) GetTags(user *schema.User, job *int64) ([]*schema.Tag, e
 		cclog.Errorf("Error get tags with %s: %v", s, err)
 		return nil, err
 	}
+	defer rows.Close()
 
 	tags := make([]*schema.Tag, 0)
 	for rows.Next() {
@@ -529,6 +536,10 @@ func (r *JobRepository) GetTags(user *schema.User, job *int64) ([]*schema.Tag, e
 		}
 	}
 
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+
 	return tags, nil
 }
 
@@ -544,6 +555,7 @@ func (r *JobRepository) GetTagsDirect(job *int64) ([]*schema.Tag, error) {
 		cclog.Errorf("Error get tags with %s: %v", s, err)
 		return nil, err
 	}
+	defer rows.Close()
 
 	tags := make([]*schema.Tag, 0)
 	for rows.Next() {
@@ -553,6 +565,10 @@ func (r *JobRepository) GetTagsDirect(job *int64) ([]*schema.Tag, error) {
 			return nil, err
 		}
 		tags = append(tags, tag)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, err
 	}
 
 	return tags, nil
@@ -582,6 +598,7 @@ func (r *JobRepository) getArchiveTags(job *int64) ([]*schema.Tag, error) {
 		cclog.Errorf("Error get tags with %s: %v", s, err)
 		return nil, err
 	}
+	defer rows.Close()
 
 	tags := make([]*schema.Tag, 0)
 	for rows.Next() {
@@ -591,6 +608,10 @@ func (r *JobRepository) getArchiveTags(job *int64) ([]*schema.Tag, error) {
 			return nil, err
 		}
 		tags = append(tags, tag)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, err
 	}
 
 	return tags, nil

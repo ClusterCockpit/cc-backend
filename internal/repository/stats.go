@@ -235,6 +235,7 @@ func (r *JobRepository) JobsStatsGrouped(
 		cclog.Warn("Error while querying DB for job statistics")
 		return nil, err
 	}
+	defer rows.Close()
 
 	stats := make([]*model.JobsStatistics, 0, 100)
 
@@ -318,6 +319,10 @@ func (r *JobRepository) JobsStatsGrouped(
 					})
 			}
 		}
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, err
 	}
 
 	cclog.Debugf("Timer JobsStatsGrouped %s", time.Since(start))
@@ -440,6 +445,7 @@ func (r *JobRepository) JobCountGrouped(
 		cclog.Warn("Error while querying DB for job statistics")
 		return nil, err
 	}
+	defer rows.Close()
 
 	stats := make([]*model.JobsStatistics, 0, 100)
 
@@ -457,6 +463,10 @@ func (r *JobRepository) JobCountGrouped(
 					TotalJobs: int(cnt.Int64),
 				})
 		}
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, err
 	}
 
 	cclog.Debugf("Timer JobCountGrouped %s", time.Since(start))
@@ -496,6 +506,7 @@ func (r *JobRepository) AddJobCountGrouped(
 		cclog.Warn("Error while querying DB for job statistics")
 		return nil, err
 	}
+	defer rows.Close()
 
 	counts := make(map[string]int)
 
@@ -509,6 +520,10 @@ func (r *JobRepository) AddJobCountGrouped(
 		if id.Valid {
 			counts[id.String] = int(cnt.Int64)
 		}
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, err
 	}
 
 	switch kind {
@@ -550,23 +565,13 @@ func (r *JobRepository) AddJobCount(
 	if err != nil {
 		return nil, err
 	}
-	rows, err := query.RunWith(r.DB).Query()
-	if err != nil {
-		cclog.Warn("Error while querying DB for job statistics")
+	var cnt sql.NullInt64
+	if err := query.RunWith(r.DB).QueryRow().Scan(&cnt); err != nil {
+		cclog.Warn("Error while querying DB for job count")
 		return nil, err
 	}
 
-	var count int
-
-	for rows.Next() {
-		var cnt sql.NullInt64
-		if err := rows.Scan(&cnt); err != nil {
-			cclog.Warn("Error while scanning rows")
-			return nil, err
-		}
-
-		count = int(cnt.Int64)
-	}
+	count := int(cnt.Int64)
 
 	switch kind {
 	case "running":
@@ -755,6 +760,7 @@ func (r *JobRepository) jobsStatisticsHistogram(
 		cclog.Error("Error while running query")
 		return nil, err
 	}
+	defer rows.Close()
 
 	points := make([]*model.HistoPoint, 0)
 	// is it possible to introduce zero values here? requires info about bincount
@@ -767,6 +773,11 @@ func (r *JobRepository) jobsStatisticsHistogram(
 
 		points = append(points, &point)
 	}
+
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+
 	cclog.Debugf("Timer jobsStatisticsHistogram %s", time.Since(start))
 	return points, nil
 }
@@ -823,6 +834,7 @@ func (r *JobRepository) jobsDurationStatisticsHistogram(
 		cclog.Error("Error while running query")
 		return nil, err
 	}
+	defer rows.Close()
 
 	// Match query results to pre-initialized bins.
 	// point.Value from query is the bin number; multiply by binSizeSeconds to match bin.Value.
@@ -839,6 +851,10 @@ func (r *JobRepository) jobsDurationStatisticsHistogram(
 				break
 			}
 		}
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, err
 	}
 
 	cclog.Debugf("Timer jobsStatisticsHistogram %s", time.Since(start))
@@ -948,6 +964,7 @@ func (r *JobRepository) jobsMetricStatisticsHistogram(
 		cclog.Errorf("Error while running mainQuery: %s", err)
 		return nil, err
 	}
+	defer rows.Close()
 
 	// Pre-initialize bins with calculated min/max ranges.
 	// Example: peak=1000, bins=10 -> bin 1=[0,100), bin 2=[100,200), ..., bin 10=[900,1000]
@@ -974,6 +991,10 @@ func (r *JobRepository) jobsMetricStatisticsHistogram(
 				break
 			}
 		}
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, err
 	}
 
 	result := model.MetricHistoPoints{Metric: metric, Unit: unit, Stat: &footprintStat, Data: points}

@@ -63,7 +63,7 @@ func (r *JobRepository) QueryJobs(
 			}
 		} else {
 			// Order by footprint JSON field values
-			query = query.Where("JSON_VALID(meta_data)")
+			query = query.Where("JSON_VALID(footprint)")
 			switch order.Order {
 			case model.SortDirectionEnumAsc:
 				query = query.OrderBy(fmt.Sprintf("JSON_EXTRACT(footprint, \"$.%s\") ASC", field))
@@ -335,14 +335,14 @@ func buildTimeCondition(field string, cond *config.TimeRange, query sq.SelectBui
 }
 
 // buildFloatJSONCondition creates a filter on a numeric field within the footprint JSON column, using BETWEEN only if required.
-func buildFloatJSONCondition(field string, cond *model.FloatRange, query sq.SelectBuilder) sq.SelectBuilder {
+func buildFloatJSONCondition(jsonField string, cond *model.FloatRange, query sq.SelectBuilder) sq.SelectBuilder {
 	query = query.Where("JSON_VALID(footprint)")
 	if cond.From != 1.0 && cond.To != 0.0 {
-		return query.Where("JSON_EXTRACT(footprint, \"$."+field+"\") BETWEEN ? AND ?", cond.From, cond.To)
+		return query.Where("JSON_EXTRACT(footprint, \"$."+jsonField+"\") BETWEEN ? AND ?", cond.From, cond.To)
 	} else if cond.From != 1.0 && cond.To == 0.0 {
-		return query.Where("JSON_EXTRACT(footprint, \"$."+field+"\") >= ?", cond.From)
+		return query.Where("JSON_EXTRACT(footprint, \"$."+jsonField+"\") >= ?", cond.From)
 	} else if cond.From == 1.0 && cond.To != 0.0 {
-		return query.Where("JSON_EXTRACT(footprint, \"$."+field+"\") <= ?", cond.To)
+		return query.Where("JSON_EXTRACT(footprint, \"$."+jsonField+"\") <= ?", cond.To)
 	} else {
 		return query
 	}

@@ -167,7 +167,7 @@
       <InputGroup>
         <InputGroupText><Icon name="hdd" /></InputGroupText>
         <InputGroupText>Selected Node</InputGroupText>
-        <Input style="background-color: white;" type="text" value="{hostname} [{cluster} {$nodeMetricsData?.data ? `(${$nodeMetricsData.data.nodeMetrics[0].subCluster})` : ''}]" disabled/>
+        <Input style="background-color: white;" type="text" value="{hostname} [{cluster} {$nodeMetricsData?.data?.nodeMetrics[0] ? `(${$nodeMetricsData.data.nodeMetrics[0].subCluster})` : ''}]" disabled/>
       </InputGroup>
     </Col>
     <!-- State Col -->
@@ -259,7 +259,7 @@
             </CardHeader>
             <CardBody>
               <p>No dataset(s) returned for <b>{item.name}</b></p>
-              <p class="mb-1">Metric has been disabled for subcluster <b>{$nodeMetricsData.data.nodeMetrics[0].subCluster}</b>.</p>
+              <p class="mb-1">Metric has been disabled for subcluster <b>{$nodeMetricsData?.data?.nodeMetrics[0]?.subCluster}</b>.</p>
             </CardBody>
           </Card>
         {:else if item?.metric}
@@ -267,7 +267,7 @@
             metric={item.name}
             timestep={item.metric.timestep}
             cluster={clusterInfos.find((c) => c.name == cluster)}
-            subCluster={$nodeMetricsData.data.nodeMetrics[0].subCluster}
+            subCluster={$nodeMetricsData?.data?.nodeMetrics[0]?.subCluster}
             series={item.metric.series}
             enableFlip
             forNode
@@ -286,17 +286,17 @@
       {/snippet}
 
       <PlotGrid
-        items={$nodeMetricsData.data.nodeMetrics[0].metrics
+        items={$nodeMetricsData?.data?.nodeMetrics[0]?.metrics
           .map((m) => ({
             ...m,
             availability: checkMetricAvailability(
               globalMetrics,
               m.name,
               cluster,
-              $nodeMetricsData.data.nodeMetrics[0].subCluster,
+              $nodeMetricsData?.data?.nodeMetrics[0]?.subCluster,
             ),
           }))
-          .sort((a, b) => a.name.localeCompare(b.name))}
+          .sort((a, b) => a.name.localeCompare(b.name)) || []}
         itemsPerRow={ccconfig.plotConfiguration_plotsPerRow}
         {gridContent}
       />

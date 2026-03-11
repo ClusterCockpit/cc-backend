@@ -102,6 +102,7 @@ func (r *UserRepository) GetLdapUsernames() ([]string, error) {
 		cclog.Warn("Error while querying usernames")
 		return nil, err
 	}
+	defer rows.Close()
 
 	for rows.Next() {
 		var username string
