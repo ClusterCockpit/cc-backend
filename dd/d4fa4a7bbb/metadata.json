@@ -1,0 +1,26 @@
+{
+  "cli_version": "0.4.8",
+  "checkpoint_id": "ddd4fa4a7bbb",
+  "strategy": "manual-commit",
+  "branch": "hotfix",
+  "checkpoints_count": 2,
+  "files_touched": [
+    "internal/repository/node.go"
+  ],
+  "sessions": [
+    {
+      "metadata": "/dd/d4fa4a7bbb/0/metadata.json",
+      "transcript": "/dd/d4fa4a7bbb/0/full.jsonl",
+      "context": "/dd/d4fa4a7bbb/0/context.md",
+      "content_hash": "/dd/d4fa4a7bbb/0/content_hash.txt",
+      "prompt": "/dd/d4fa4a7bbb/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 20,
+    "cache_creation_tokens": 117849,
+    "cache_read_tokens": 888905,
+    "output_tokens": 4998,
+    "api_call_count": 16
+  }
+}

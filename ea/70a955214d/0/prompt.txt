@@ -1,0 +1,101 @@
+Implement the following plan:
+
+# Fix Missing `rows.Close()` Memory Leaks in SQLite3 Queries
+
+## Context
+
+Production memory leaks traced to queries that do full table scans (e.g., job state list sorted by `start_time` on all jobs). The root cause is `sql.Rows` objects not being closed after query execution. In Go's `database/sql`, every `rows` returned by `.Query()` holds a database connection and associated buffers until `rows.Close()` is called. Without `defer rows.Close()`, these leak on every code path (both success and error returns).
+
+## Findings
+
+**22 total `.Query()` calls** across the repository layer. **15 have `defer rows.Close()`**. **7 do not** (listed below). Additionally, 1 `Queryx` call in `tags.go` is also missing close.
+
+In `node.go`, `QueryNodes` and `QueryNodesWithMeta` have partial `rows.Close()` only in error paths but **not on the success path** and not via `defer`.
+
+`CountStates` and `CountStatesTimed` in `node.go` also lack `defer rows.Close()` (same partial pattern as above for CountStates, none at all for CountStatesTimed).
+
+## Changes Required
+
+### 1. `internal/repository/stats.go` — 6 functions missing `defer rows.Close()`
+
+Add `defer rows.Close()` immediately after the `if err != nil` check for each:
+
+| Line | Function |
+|------|----------|
+| 233 | `JobsStatsGrouped` |
+| 438 | `JobCountGrouped` |
+| 494 | `AddJobCountGrouped` |
+| 553 | `AddJobCount` |
+| 753 | `jobsStatisticsHistogram` |
+| 821 | `jobsDurationStatisticsHistogram` |
+| 946 | `jobsMetricStatisticsHistogram` |
+
+Pattern — after each `Query()` error check, add:
+```go
+rows, err := query.RunWith(r.DB).Query()
+if err != nil {
+    ...
+    return nil, err
+}
+defer rows.Close()   // <-- ADD THIS
+```
+
+### 2. `internal/repository/tags.go` — 2 leaks in `CountTags()`
+
+**Line 282**: `xrows` from `r.DB.Queryx(...)` — add `defer xrows.Close()` after error check.
+
+**Line 333**: `rows` from `q.RunWith(r.stmtCache).Query()` — add `defer rows.Close()` after error check.
+
+### 3. `internal/repository/tags.go` — 3 leaks in `GetTags`, `GetTagsDirect`, `getArchiveTags`
+
+**Line 508** (`GetTags`): add `defer rows.Close()` after error check.
+**Line 541** (`GetTagsDirect`): add `defer rows.Close()` after error check.
+**Line 579** (`getArchiveTags`): add `defer rows.Close()` after error check.
+
+### 4. `internal/repository/node.go` — 4 functions missing `defer rows.Close()`
+
+**Line 363** (`QueryNodes`): Replace the manual `rows.Close()` in the error path with `defer rows.Close()` immediately after the error check. Remove the explicit `rows.Close()` call on line 375.
+
+**Line 412** (`QueryNodesWithMeta`): Same pattern — add `defer rows.Close()` after error check, remove explicit `rows.Close()` on line 427.
+
+**Line 558** (`CountStates`): Add `defer rows.Close()` after error check. Remove explicit `rows.Close()` on line 569.
+
+**Line 620** (`CountStatesTimed`): Add `defer rows.Close()` after error check. Remove explicit `rows.Close()` on line 633.
+
+## Summary of All Edits
+
+| File | Function | Action |
+|------|----------|--------|
+| `stats.go:237` | `JobsStatsGrouped` | Add `defer rows.Close()` |
+| `stats.go:442` | `JobCountGrouped` | Add `defer rows.Close()` |
+| `stats.go:498` | `AddJobCountGrouped` | Add `defer rows.Close()` |
+| `stats.go:557` | `AddJobCount` | Add `defer rows.Close()` |
+| `stats.go:757` | `jobsStatisticsHistogram` | Add `defer rows.Close()` |
+| `stats.go:825` | `jobsDurationStatisticsHistogram` | Add `defer rows.Close()` |
+| `stats.go:950` | `jobsMetricStatisticsHistogram` | Add `defer rows.Close()` |
+| `tags.go:284` | `CountTags` (xrows) | Add `defer xrows.Close()` |
+| `tags.go:336` | `CountTags` (rows) | Add `defer rows.Close()` |
+| `tags.go:513` | `GetTags` | Add `defer rows.Close()` |
+| `tags.go:546` | `GetTagsDirect` | Add `defer rows.Close()` |
+| `tags.go:584` | `getArchiveTags` | Add `defer rows.Close()` |
+| `node.go:368` | `QueryNodes` | Add `defer rows.Close()`, remove manual close on L375 |
+| `node.go:417` | `QueryNodesWithMeta` | Add `defer rows.Close()`, remove manual close on L427 |
+| `node.go:563` | `CountStates` | Add `defer rows.Close()`, remove manual close on L569 |
+| `node.go:625` | `CountStatesTimed` | Add `defer rows.Close()`, remove manual close on L633 |
+
+## Verification
+
+1. `go build ./...` — ensure it compiles
+2. `go test ./internal/repository/...` — run repository tests
+3. `go vet ./internal/repository/...` — static analysis
+
+
+If you need specific details from before exiting plan mode (like exact code snippets, error messages, or content you generated), read the full transcript at: /Users/jan/.claude/projects/-Users-jan-prg-CC-cc-backend/28147033-ddc8-4056-b064-e0558fbc614e.jsonl
+
+---
+
+Check if the fixes are correctly merged in nodes.go
+
+---
+
+There also have to be bugs in jobQuery.go . Especially the following query triggers the memory leak: SELECT * FROM job WHERE job.job_state IN ("completed", "running", "failed") ORDER BY job.start_time DESC LIMIT 1 OFFSET 10; Dig deeper to find the cause. Also investigate why no existing index is used for this query.
