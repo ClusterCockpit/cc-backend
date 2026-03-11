@@ -133,6 +133,71 @@ ln -s <your-existing-job-archive> ./var/job-archive
 ./cc-backend -help
 ```
 
+## Database Configuration
+
+cc-backend uses SQLite as its database. For large installations, SQLite memory
+usage can be tuned via the optional `db-config` section in config.json under
+`main`:
+
+```json
+{
+  "main": {
+    "db": "./var/job.db",
+    "db-config": {
+      "cache-size-mb": 2048,
+      "soft-heap-limit-mb": 16384,
+      "max-open-connections": 4,
+      "max-idle-connections": 4,
+      "max-idle-time-minutes": 10
+    }
+  }
+}
+```
+
+All fields are optional. If `db-config` is omitted entirely, built-in defaults
+are used.
+
+### Options
+
+| Option | Default | Description |
+|--------|---------|-------------|
+| `cache-size-mb` | 2048 | SQLite page cache size per connection in MB. Maps to `PRAGMA cache_size`. Total cache memory is up to `cache-size-mb × max-open-connections`. |
+| `soft-heap-limit-mb` | 16384 | Process-wide SQLite soft heap limit in MB. SQLite will try to release cache pages to stay under this limit. Queries won't fail if exceeded, but cache eviction becomes more aggressive. |
+| `max-open-connections` | 4 | Maximum number of open database connections. |
+| `max-idle-connections` | 4 | Maximum number of idle database connections kept in the pool. |
+| `max-idle-time-minutes` | 10 | Maximum time in minutes a connection can sit idle before being closed. |
+
+### Sizing Guidelines
+
+- **cache-size-mb**: Set to `DB_size_in_MB / max-open-connections` to allow the
+  entire database to be cached in memory. For example, an 80GB database with 8
+  connections needs at least 10240 MB (10GB) per connection.
+- **soft-heap-limit-mb**: Should be >= `cache-size-mb × max-open-connections` to
+  avoid cache thrashing. This is the total SQLite memory budget for the process.
+- On small installations the defaults work well. On servers with large databases
+  (tens of GB) and plenty of RAM, increasing these values significantly improves
+  query performance by reducing disk I/O.
+
+### Example: Large Server (512GB RAM, 80GB database)
+
+```json
+{
+  "main": {
+    "db-config": {
+      "cache-size-mb": 16384,
+      "soft-heap-limit-mb": 131072,
+      "max-open-connections": 8,
+      "max-idle-time-minutes": 30
+    }
+  }
+}
+```
+
+This allows the entire 80GB database to be cached (8 × 16GB = 128GB page cache)
+with a 128GB soft heap limit, using about 25% of available RAM.
+
+The effective configuration is logged at startup for verification.
+
 ## Project file structure
 
 - [`.github/`](https://github.com/ClusterCockpit/cc-backend/tree/master/.github)
