@@ -1,0 +1,136 @@
+Implement the following plan:
+
+# Fix SQLite Memory Not Released After Query Timeout
+
+## Context
+
+On the production 20M-row database, when a query runs into a timeout (due to full-table scan with wrong index), the memory allocated by SQLite is **not released afterwards**. The process stays bloated until restarted. This is caused by three compounding issues in the current SQLite configuration.
+
+## Root Cause Analysis
+
+### 1. `_cache_size=1000000000` is effectively unlimited (~4TB)
+
+**File:** `internal/repository/dbConnection.go:82`
+
+```go
+connectionURLParams.Add("_cache_size", "1000000000")
+```
+
+SQLite's `cache_size` PRAGMA interprets **positive values as page count** (default page size = 4KB). So 1,000,000,000 pages × 4KB = ~4TB. In practice, this means "never evict cached pages." After a full-table scan of 20M rows, every page touched stays in SQLite's page cache. With 4 connections (`MaxOpenConns=4`), each can independently cache gigabytes.
+
+For comparison, the SQLite archive backend in `pkg/archive/sqliteBackend.go` uses `PRAGMA cache_size=-64000` (64MB — negative = KiB).
+
+### 2. No query context/timeout — queries run indefinitely
+
+**File:** `internal/repository/jobQuery.go:87`
+
+```go
+rows, err := query.RunWith(r.stmtCache).Query()  // No context!
+```
+
+The `ctx` parameter is available but never passed to the database layer. Squirrel supports `.QueryContext(ctx)` but it's not used. If the HTTP request times out or the client disconnects, the query keeps running and scanning pages into cache.
+
+### 3. No SQLite memory limit — no `soft_heap_limit` or `shrink_memory`
+
+SQLite has built-in memory management PRAGMAs that are not configured:
+- **`soft_heap_limit`** — asks SQLite to keep heap usage below N bytes (best-effort, releases cache pages to stay under limit)
+- **`hard_heap_limit`** — hard cap, queries fail with SQLITE_NOMEM if exceeded
+- **`shrink_memory`** — immediately releases all unused memory back to the OS
+
+None of these are set, so SQLite allocates freely and never releases.
+
+### 4. `temp_store = memory` amplifies the problem
+
+**File:** `internal/repository/dbConnection.go:41`
+
+Temporary B-tree sorts (exactly what happens during ORDER BY on a full-table scan) are stored in RAM. With 20M rows and no sort optimization, this can be gigabytes of temporary memory on top of the page cache.
+
+### 5. Connections live for 1 hour after use
+
+`ConnMaxIdleTime = 1 hour` means a connection that just did a massive full-table scan sits idle in the pool for up to an hour, holding all its cached pages.
+
+## Proposed Changes
+
+### Fix 1: Set reasonable `cache_size` (high impact, low risk)
+
+**File:** `internal/repository/dbConnection.go:82`
+
+Change from `1000000000` (1B pages ≈ 4TB) to `-200000` (200MB in KiB notation, per connection):
+
+```go
+connectionURLParams.Add("_cache_size", "-200000")  // 200MB per connection
+```
+
+With 4 max connections: 4 × 200MB = 800MB max page cache. This is generous enough for normal queries but prevents runaway memory after full-table scans.
+
+### Fix 2: Add `soft_heap_limit` (high impact, low risk)
+
+**File:** `internal/repository/dbConnection.go`, in `setupSqlite()`:
+
+```go
+"soft_heap_limit = 1073741824",  // 1GB soft limit across all connections
+```
+
+This is a **process-wide** limit (not per-connection). SQLite will try to release cache pages to stay under 1GB total. It's a soft limit — it won't abort queries, just evicts cache more aggressively.
+
+### Fix 3: Pass context to database queries (medium impact, medium effort)
+
+Change `.Query()` to `.QueryContext(ctx)`, `.QueryRow()` to `.QueryRowContext(ctx)`, and `.Scan()` to `.ScanContext(ctx)` for all query methods that already receive a `ctx` parameter. This allows HTTP request cancellation to stop the SQLite query.
+
+**Note:** The `stmtCache` from squirrel supports `QueryContext`/`QueryRowContext`. Only methods that already have `ctx` are changed — no signature changes needed.
+
+**Call sites to update** (methods that have `ctx` and call `.Query()`/`.QueryRow()`/`.Scan()`):
+
+| File | Method | Line | Change |
+|------|--------|------|--------|
+| `jobQuery.go` | `QueryJobs` | 87 | `.Query()` → `.QueryContext(ctx)` |
+| `jobQuery.go` | `CountJobs` | 129 | `.Scan()` → `.ScanContext(ctx)` |
+| `stats.go` | `JobsStatsGrouped` | 233 | `.Query()` → `.QueryContext(ctx)` |
+| `stats.go` | `JobsStats` | 358 | `.QueryRow()` → `.QueryRowContext(ctx)` |
+| `stats.go` | `JobCountGrouped` | 443 | `.Query()` → `.QueryContext(ctx)` |
+| `stats.go` | `AddJobCountGrouped` | 504 | `.Query()` → `.QueryContext(ctx)` |
+| `stats.go` | `AddJobCount` | 569 | `.Scan()` → `.ScanContext(ctx)` |
+| `stats.go` | `jobsStatisticsHistogram` | 758 | `.Query()` → `.QueryContext(ctx)` |
+| `stats.go` | `jobsDurationStatisticsHistogram` | 832 | `.Query()` → `.QueryContext(ctx)` |
+| `stats.go` | `jobsMetricStatisticsHistogram` | 962 | `.Query()` → `.QueryContext(ctx)` |
+| `jobFind.go` | `FindByID` | 174 | `.QueryRow()` → `.QueryRowContext(ctx)` |
+| `jobFind.go` | `FindByJobID` | 220 | `.QueryRow()` → `.QueryRowContext(ctx)` |
+| `job.go` | `CountGroupedJobs` | 410 | `.Scan()` → `.ScanContext(ctx)` (needs ctx added to signature) |
+| `job.go` | `GetJobList` | 751 | `.Query()` → `.QueryContext(ctx)` (needs ctx added to signature) |
+
+Methods without `ctx` in their signature (e.g., `GetJobList`, `CountGroupedJobs`) can either have `ctx` added or be left for a follow-up. The priority is the methods already accepting `ctx`.
+
+### Fix 4: Reduce `ConnMaxIdleTime`
+
+**File:** `internal/repository/config.go`
+
+Reduce `ConnectionMaxIdleTime` from 1 hour to 10 minutes. Idle connections with cached pages are released sooner.
+
+## Scope — All Four Fixes
+
+All fixes are complementary, independent, and low-risk. No disadvantages to applying all together.
+
+## Files to Modify
+
+- `internal/repository/dbConnection.go` — cache_size, soft_heap_limit (Fixes 1 & 2)
+- `internal/repository/jobQuery.go` — QueryContext (Fix 3)
+- `internal/repository/job.go` — QueryContext for other query methods (Fix 3)
+- `internal/repository/stats.go` — QueryContext for stats queries (Fix 3)
+- `internal/repository/config.go` — ConnMaxIdleTime (Fix 4, optional)
+
+## Verification
+
+1. `go build ./...` — compiles
+2. `go test ./internal/repository/...` — tests pass
+3. Monitor RSS memory before/after on production:
+   - Trigger a heavy query, observe memory spike
+   - Verify memory drops back down within seconds (not hours)
+4. `PRAGMA cache_size;` in sqlite3 CLI on running DB — should show `-200000`
+5. `PRAGMA soft_heap_limit;` — should show `1073741824`
+
+
+If you need specific details from before exiting plan mode (like exact code snippets, error messages, or content you generated), read the full transcript at: /Users/jan/.claude/projects/-Users-jan-prg-CC-cc-backend/c31c699a-f492-48f7-bcf0-35d3ceeac243.jsonl
+
+---
+
+Our server has 512GB main memory. Does it make sense to make cache_size and soft_heap_limit configurable to make use of the main memory capacity?
