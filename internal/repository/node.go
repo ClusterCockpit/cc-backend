@@ -373,7 +373,6 @@ func (r *NodeRepository) QueryNodes(
 		node := schema.Node{}
 		if err := rows.Scan(&node.Hostname, &node.Cluster, &node.SubCluster,
 			&node.NodeState, &node.HealthState); err != nil {
-			rows.Close()
 			cclog.Warn("Error while scanning rows (QueryNodes)")
 			return nil, err
 		}
@@ -461,81 +460,6 @@ func (r *NodeRepository) QueryNodesWithMeta(
 
 	if err := rows.Err(); err != nil {
 		return nil, err
-	}
-
-	return nodes, nil
-}
-
-// QueryNodesWithMeta returns a list of nodes based on a node filter. It always operates
-// on the last state (largest timestamp). It includes both (!) optional JSON column data
-func (r *NodeRepository) QueryNodesWithMeta(
-	ctx context.Context,
-	filters []*model.NodeFilter,
-	page *model.PageRequest,
-	order *model.OrderByInput, // Currently unused!
-) ([]*schema.Node, error) {
-	query, qerr := AccessCheck(ctx,
-		sq.Select("node.hostname", "node.cluster", "node.subcluster",
-			"node_state.node_state", "node_state.health_state",
-			"node.meta_data", "node_state.health_metrics").
-			From("node").
-			Join("node_state ON node_state.node_id = node.id").
-			Where(latestStateCondition()))
-	if qerr != nil {
-		return nil, qerr
-	}
-
-	query = applyNodeFilters(query, filters)
-	query = query.OrderBy("node.hostname ASC")
-
-	if page != nil && page.ItemsPerPage != -1 {
-		limit := uint64(page.ItemsPerPage)
-		query = query.Offset((uint64(page.Page) - 1) * limit).Limit(limit)
-	}
-
-	rows, err := query.RunWith(r.stmtCache).Query()
-	if err != nil {
-		queryString, queryVars, _ := query.ToSql()
-		cclog.Errorf("Error while running query '%s' %v: %v", queryString, queryVars, err)
-		return nil, err
-	}
-
-	nodes := make([]*schema.Node, 0)
-	for rows.Next() {
-		node := schema.Node{}
-		RawMetaData := make([]byte, 0)
-		RawMetricHealth := make([]byte, 0)
-
-		if err := rows.Scan(&node.Hostname, &node.Cluster, &node.SubCluster,
-			&node.NodeState, &node.HealthState, &RawMetaData, &RawMetricHealth); err != nil {
-			rows.Close()
-			cclog.Warn("Error while scanning rows (QueryNodes)")
-			return nil, err
-		}
-
-		if len(RawMetaData) == 0 {
-			node.MetaData = nil
-		} else {
-			metaData := make(map[string]string)
-			if err := json.Unmarshal(RawMetaData, &metaData); err != nil {
-				cclog.Warn("Error while unmarshaling raw metadata json")
-				return nil, err
-			}
-			node.MetaData = metaData
-		}
-
-		if len(RawMetricHealth) == 0 {
-			node.HealthData = nil
-		} else {
-			healthData := make(map[string][]string)
-			if err := json.Unmarshal(RawMetricHealth, &healthData); err != nil {
-				cclog.Warn("Error while unmarshaling raw healthdata json")
-				return nil, err
-			}
-			node.HealthData = healthData
-		}
-
-		nodes = append(nodes, &node)
 	}
 
 	return nodes, nil
@@ -629,10 +553,11 @@ func (r *NodeRepository) MapNodes(cluster string) (map[string]string, error) {
 
 func (r *NodeRepository) CountStates(ctx context.Context, filters []*model.NodeFilter, column string) ([]*model.NodeStates, error) {
 	query, qerr := AccessCheck(ctx,
-		sq.Select(column).
+		sq.Select(column, "COUNT(*) as count").
 			From("node").
 			Join("node_state ON node_state.node_id = node.id").
-			Where(latestStateCondition()))
+			Where(latestStateCondition()).
+			GroupBy(column))
 	if qerr != nil {
 		return nil, qerr
 	}
@@ -646,18 +571,6 @@ func (r *NodeRepository) CountStates(ctx context.Context, filters []*model.NodeF
 		return nil, err
 	}
 	defer rows.Close()
-
-	stateMap := map[string]int{}
-	for rows.Next() {
-		var state string
-		if err := rows.Scan(&state); err != nil {
-			rows.Close()
-			cclog.Warn("Error while scanning rows (CountStates)")
-			return nil, err
-		}
-
-		stateMap[state] += 1
-	}
 
 	nodes := make([]*model.NodeStates, 0)
 	for rows.Next() {
