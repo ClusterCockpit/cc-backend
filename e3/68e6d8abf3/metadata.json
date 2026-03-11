@@ -1,0 +1,33 @@
+{
+  "cli_version": "0.4.8",
+  "checkpoint_id": "e368e6d8abf3",
+  "strategy": "manual-commit",
+  "branch": "optimize-db-indices",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "cmd/cc-backend/main.go",
+    "internal/config/config.go",
+    "internal/config/schema.go",
+    "internal/repository/config.go",
+    "internal/repository/dbConnection.go",
+    "internal/repository/jobFind.go",
+    "internal/repository/jobQuery.go",
+    "internal/repository/stats.go"
+  ],
+  "sessions": [
+    {
+      "metadata": "/e3/68e6d8abf3/0/metadata.json",
+      "transcript": "/e3/68e6d8abf3/0/full.jsonl",
+      "context": "/e3/68e6d8abf3/0/context.md",
+      "content_hash": "/e3/68e6d8abf3/0/content_hash.txt",
+      "prompt": "/e3/68e6d8abf3/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 15,
+    "cache_creation_tokens": 27408,
+    "cache_read_tokens": 402383,
+    "output_tokens": 3673,
+    "api_call_count": 13
+  }
+}
