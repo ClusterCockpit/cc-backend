@@ -48,6 +48,14 @@ func setupSqlite(db *sql.DB) error {
 		}
 	}
 
+	// Update query planner statistics so SQLite picks optimal indexes.
+	// Without this, SQLite guesses row distributions and often chooses wrong
+	// indexes for queries with IN clauses + ORDER BY, causing full table sorts
+	// in temp B-trees instead of using covering indexes.
+	if _, err := db.Exec("ANALYZE"); err != nil {
+		cclog.Warnf("Failed to run ANALYZE: %v", err)
+	}
+
 	return nil
 }
 
