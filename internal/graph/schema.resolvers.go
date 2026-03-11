@@ -652,8 +652,10 @@ func (r *queryResolver) JobsStatistics(ctx context.Context, filter []*model.JobF
 	defaultDurationBins := "1h"
 	defaultMetricBins := 10
 
-	if requireField(ctx, "totalJobs") || requireField(ctx, "totalUsers") || requireField(ctx, "totalWalltime") || requireField(ctx, "totalNodes") || requireField(ctx, "totalCores") ||
-		requireField(ctx, "totalAccs") || requireField(ctx, "totalNodeHours") || requireField(ctx, "totalCoreHours") || requireField(ctx, "totalAccHours") {
+	fetchedMainStats := requireField(ctx, "totalJobs") || requireField(ctx, "totalUsers") || requireField(ctx, "totalWalltime") || requireField(ctx, "totalNodes") || requireField(ctx, "totalCores") ||
+		requireField(ctx, "totalAccs") || requireField(ctx, "totalNodeHours") || requireField(ctx, "totalCoreHours") || requireField(ctx, "totalAccHours")
+
+	if fetchedMainStats {
 		if groupBy == nil {
 			stats, err = r.Repo.JobsStats(ctx, filter)
 		} else {
@@ -664,19 +666,23 @@ func (r *queryResolver) JobsStatistics(ctx context.Context, filter []*model.JobF
 		stats = append(stats, &model.JobsStatistics{})
 	}
 
-	if groupBy != nil {
-		if requireField(ctx, "shortJobs") {
-			stats, err = r.Repo.AddJobCountGrouped(ctx, filter, groupBy, stats, "short")
-		}
-		if requireField(ctx, "runningJobs") {
-			stats, err = r.Repo.AddJobCountGrouped(ctx, filter, groupBy, stats, "running")
-		}
-	} else {
-		if requireField(ctx, "shortJobs") {
-			stats, err = r.Repo.AddJobCount(ctx, filter, stats, "short")
-		}
-		if requireField(ctx, "runningJobs") {
-			stats, err = r.Repo.AddJobCount(ctx, filter, stats, "running")
+	// runningJobs and shortJobs are already inlined in JobsStats/JobsStatsGrouped.
+	// Only run separate count queries if main stats were not fetched.
+	if !fetchedMainStats {
+		if groupBy != nil {
+			if requireField(ctx, "shortJobs") {
+				stats, err = r.Repo.AddJobCountGrouped(ctx, filter, groupBy, stats, "short")
+			}
+			if requireField(ctx, "runningJobs") {
+				stats, err = r.Repo.AddJobCountGrouped(ctx, filter, groupBy, stats, "running")
+			}
+		} else {
+			if requireField(ctx, "shortJobs") {
+				stats, err = r.Repo.AddJobCount(ctx, filter, stats, "short")
+			}
+			if requireField(ctx, "runningJobs") {
+				stats, err = r.Repo.AddJobCount(ctx, filter, stats, "running")
+			}
 		}
 	}
 

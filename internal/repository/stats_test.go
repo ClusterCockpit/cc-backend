@@ -14,7 +14,7 @@ import (
 
 func TestBuildJobStatsQuery(t *testing.T) {
 	r := setup(t)
-	q := r.buildStatsQuery(nil, "USER")
+	q := r.buildStatsQuery(nil, "USER", 300)
 
 	sql, _, err := q.ToSql()
 	noErr(t, err)
