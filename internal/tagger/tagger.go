@@ -67,20 +67,18 @@ type JobTagger struct {
 func newTagger() {
 	jobTagger = &JobTagger{}
 	jobTagger.startTaggers = make([]Tagger, 0)
+	jobTagger.startTaggers = append(jobTagger.startTaggers, &AppTagger{})
 	jobTagger.stopTaggers = make([]Tagger, 0)
+	jobTagger.stopTaggers = append(jobTagger.stopTaggers, &JobClassTagger{})
 
-	for _, t := range []Tagger{&AppTagger{}} {
-		if err := t.Register(); err != nil {
+	for _, tagger := range jobTagger.startTaggers {
+		if err := tagger.Register(); err != nil {
 			cclog.Errorf("failed to register start tagger: %s", err)
-		} else {
-			jobTagger.startTaggers = append(jobTagger.startTaggers, t)
 		}
 	}
-	for _, t := range []Tagger{&JobClassTagger{}} {
-		if err := t.Register(); err != nil {
+	for _, tagger := range jobTagger.stopTaggers {
+		if err := tagger.Register(); err != nil {
 			cclog.Errorf("failed to register stop tagger: %s", err)
-		} else {
-			jobTagger.stopTaggers = append(jobTagger.stopTaggers, t)
 		}
 	}
 }
