@@ -1,0 +1,28 @@
+{
+  "cli_version": "0.4.8",
+  "checkpoint_id": "af7afc9a29ff",
+  "strategy": "manual-commit",
+  "branch": "optimize-db-indices",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "internal/repository/migration.go",
+    "internal/repository/migrations/sqlite3/11_optimize-indexes.down.sql",
+    "internal/repository/migrations/sqlite3/11_optimize-indexes.up.sql"
+  ],
+  "sessions": [
+    {
+      "metadata": "/af/7afc9a29ff/0/metadata.json",
+      "transcript": "/af/7afc9a29ff/0/full.jsonl",
+      "context": "/af/7afc9a29ff/0/context.md",
+      "content_hash": "/af/7afc9a29ff/0/content_hash.txt",
+      "prompt": "/af/7afc9a29ff/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 9,
+    "cache_creation_tokens": 28556,
+    "cache_read_tokens": 187757,
+    "output_tokens": 8980,
+    "api_call_count": 7
+  }
+}
