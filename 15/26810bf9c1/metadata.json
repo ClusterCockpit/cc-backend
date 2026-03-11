@@ -1,0 +1,26 @@
+{
+  "cli_version": "0.4.8",
+  "checkpoint_id": "1526810bf9c1",
+  "strategy": "manual-commit",
+  "branch": "optimize-db-indices",
+  "checkpoints_count": 2,
+  "files_touched": [
+    "README.md"
+  ],
+  "sessions": [
+    {
+      "metadata": "/15/26810bf9c1/0/metadata.json",
+      "transcript": "/15/26810bf9c1/0/full.jsonl",
+      "context": "/15/26810bf9c1/0/context.md",
+      "content_hash": "/15/26810bf9c1/0/content_hash.txt",
+      "prompt": "/15/26810bf9c1/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 20,
+    "cache_creation_tokens": 60054,
+    "cache_read_tokens": 488339,
+    "output_tokens": 4643,
+    "api_call_count": 16
+  }
+}

@@ -1,0 +1,192 @@
+Implement the following plan:
+
+# Make SQLite Memory Limits Configurable via config.json
+
+## Context
+
+Fixes 1-4 for the SQLite memory leak are already implemented on this branch. The hardcoded defaults (200MB cache per connection, 1GB soft heap limit) are conservative. On the production server with 512GB RAM, these could be tuned higher for better query performance. Additionally, `RepositoryConfig` and `SetConfig()` exist but are **never wired up** — there's currently no way to override any repository defaults from config.json.
+
+## Current State (already implemented on this branch)
+
+- `_cache_size = -200000` (200MB per connection, hardcoded) — **too low for 80GB DB, will be made configurable**
+- `soft_heap_limit = 1073741824` (1GB process-wide, hardcoded) — **too low, will be made configurable**
+- `ConnectionMaxIdleTime = 10 * time.Minute` (hardcoded default)
+- `MaxOpenConnections = 4` (hardcoded default)
+- Context propagation to all query call sites (already done)
+
+## Problem
+
+`repository.SetConfig()` exists but is never called from `main.go`. The `initDatabase()` function (line 110) just calls `repository.Connect(config.Keys.DB)` directly. There's no `"db-config"` section in `ProgramConfig` or the JSON schema.
+
+## Proposed Changes
+
+### 1. Add SQLite memory fields to `RepositoryConfig`
+
+**File:** `internal/repository/config.go`
+
+Add two new fields with sensible defaults:
+
+```go
+type RepositoryConfig struct {
+    // ... existing fields ...
+
+    // DbCacheSizeMB is the SQLite page cache size per connection in MB.
+    // Uses negative PRAGMA cache_size notation (KiB). With MaxOpenConnections=4
+    // and DbCacheSizeMB=200, total page cache is up to 800MB.
+    // Default: 200 (MB)
+    DbCacheSizeMB int
+
+    // DbSoftHeapLimitMB is the process-wide SQLite soft heap limit in MB.
+    // SQLite will try to release cache pages to stay under this limit.
+    // It's a soft limit — queries won't fail, but cache eviction becomes more aggressive.
+    // Default: 1024 (1GB)
+    DbSoftHeapLimitMB int
+}
+```
+
+Update `DefaultConfig()`:
+```go
+DbCacheSizeMB:     2048,  // 2GB per connection
+DbSoftHeapLimitMB: 16384, // 16GB process-wide
+```
+
+**Rationale for defaults:** With an 80GB production database on a 512GB server, we want the cache to hold a significant portion of the DB. At 4 connections × 2GB = 8GB default page cache, plus 16GB soft heap limit. The previous 200MB/1GB hardcoded values were too conservative and would hurt query performance by forcing excessive cache eviction. These defaults use ~5% of a 512GB server — still safe for smaller machines, while enabling good performance on production.
+
+### 2. Use config values in `Connect()` and `setupSqlite()`
+
+**File:** `internal/repository/dbConnection.go`
+
+In `Connect()`, replace the hardcoded cache_size:
+```go
+cacheSizeKiB := repoConfig.DbCacheSizeMB * 1024  // Convert MB to KiB
+connectionURLParams.Add("_cache_size", fmt.Sprintf("-%d", cacheSizeKiB))
+```
+
+Change `setupSqlite()` to accept the config and use it for soft_heap_limit:
+```go
+func setupSqlite(db *sql.DB, cfg *RepositoryConfig) error {
+    pragmas := []string{
+        "temp_store = memory",
+        fmt.Sprintf("soft_heap_limit = %d", cfg.DbSoftHeapLimitMB*1024*1024),
+    }
+    // ...
+}
+```
+
+Update the call site in `Connect()`:
+```go
+err = setupSqlite(dbHandle.DB, &opts)  // was: setupSqlite(dbHandle.DB)
+```
+
+### 3. Add `"db-config"` section to `ProgramConfig` and JSON schema
+
+**File:** `internal/config/config.go`
+
+Add a new struct and field to `ProgramConfig`:
+
+```go
+type DbConfig struct {
+    CacheSizeMB       int `json:"cache-size-mb"`
+    SoftHeapLimitMB   int `json:"soft-heap-limit-mb"`
+    MaxOpenConnections int `json:"max-open-connections"`
+    MaxIdleConnections int `json:"max-idle-connections"`
+    ConnectionMaxIdleTimeMins int `json:"max-idle-time-minutes"`
+}
+
+type ProgramConfig struct {
+    // ... existing fields ...
+    DbConfig *DbConfig `json:"db-config"`
+}
+```
+
+**File:** `internal/config/schema.go`
+
+Add the schema section for validation.
+
+### 4. Wire `SetConfig()` in `initDatabase()`
+
+**File:** `cmd/cc-backend/main.go`
+
+```go
+func initDatabase() error {
+    if config.Keys.DbConfig != nil {
+        cfg := repository.DefaultConfig()
+        dc := config.Keys.DbConfig
+        if dc.CacheSizeMB > 0 {
+            cfg.DbCacheSizeMB = dc.CacheSizeMB
+        }
+        if dc.SoftHeapLimitMB > 0 {
+            cfg.DbSoftHeapLimitMB = dc.SoftHeapLimitMB
+        }
+        if dc.MaxOpenConnections > 0 {
+            cfg.MaxOpenConnections = dc.MaxOpenConnections
+        }
+        if dc.MaxIdleConnections > 0 {
+            cfg.MaxIdleConnections = dc.MaxIdleConnections
+        }
+        if dc.ConnectionMaxIdleTimeMins > 0 {
+            cfg.ConnectionMaxIdleTime = time.Duration(dc.ConnectionMaxIdleTimeMins) * time.Minute
+        }
+        repository.SetConfig(cfg)
+    }
+    repository.Connect(config.Keys.DB)
+    return nil
+}
+```
+
+### 5. Log effective values on startup
+
+**File:** `internal/repository/dbConnection.go`
+
+After setting PRAGMAs, log the effective values so operators can verify:
+```go
+cclog.Infof("SQLite config: cache_size=%dMB/conn, soft_heap_limit=%dMB, max_conns=%d",
+    repoConfig.DbCacheSizeMB, repoConfig.DbSoftHeapLimitMB, repoConfig.MaxOpenConnections)
+```
+
+## Example config.json (for 512GB server with 80GB database)
+
+```json
+{
+  "main": {
+    "db": "./var/job.db",
+    "db-config": {
+      "cache-size-mb": 16384,
+      "soft-heap-limit-mb": 131072,
+      "max-open-connections": 8,
+      "max-idle-time-minutes": 30
+    }
+  }
+}
+```
+
+This would give: 8 connections × 16GB cache = 128GB max page cache, with a 128GB soft heap limit. The entire 80GB database can be cached in memory. On a 512GB server that's ~25% of RAM.
+
+**Sizing guidance (for documentation):**
+- `cache-size-mb`: Set to `DB_size / max-open-connections` to allow the entire DB to be cached. E.g., 80GB DB with 8 connections → 10GB per connection minimum.
+- `soft-heap-limit-mb`: Set to total desired SQLite memory budget. Should be ≥ `cache-size-mb × max-open-connections` to avoid cache thrashing.
+
+## Files to Modify
+
+| File | Changes |
+|------|---------|
+| `internal/repository/config.go` | Add `DbCacheSizeMB`, `DbSoftHeapLimitMB` fields + defaults |
+| `internal/repository/dbConnection.go` | Use config values instead of hardcoded; pass config to `setupSqlite`; add startup log |
+| `internal/config/config.go` | Add `DbConfig` struct and field to `ProgramConfig` |
+| `internal/config/schema.go` | Add `"db-config"` JSON schema section |
+| `cmd/cc-backend/main.go` | Wire `SetConfig()` in `initDatabase()` |
+
+## Verification
+
+1. `go build ./...` — compiles
+2. `go test ./internal/repository/... ./internal/config/...` — tests pass
+3. Without `db-config` in config.json: defaults apply (200MB cache, 1GB heap) — backwards compatible
+4. With `db-config`: verify with `PRAGMA cache_size;` and `PRAGMA soft_heap_limit;` in sqlite3 CLI
+5. Check startup log shows effective values
+
+
+If you need specific details from before exiting plan mode (like exact code snippets, error messages, or content you generated), read the full transcript at: /Users/jan/.claude/projects/-Users-jan-prg-CC-cc-backend/520afa6a-6a70-437b-96c1-35c40ed3ec48.jsonl
+
+---
+
+Also add a section in the README.md discussing and documenting the new db options.
