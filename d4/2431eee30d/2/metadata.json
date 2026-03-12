@@ -1,0 +1,34 @@
+{
+  "cli_version": "0.5.0",
+  "checkpoint_id": "d42431eee30d",
+  "session_id": "6dbc68b3-c35d-4697-b545-0298c2b303cb",
+  "strategy": "manual-commit",
+  "created_at": "2026-03-12T19:16:55.531557Z",
+  "branch": "optimize-stats-query",
+  "checkpoints_count": 0,
+  "files_touched": [
+    "internal/graph/schema.resolvers.go",
+    "internal/repository/migration.go",
+    "internal/repository/migrations/sqlite3/12_stats-covering-index.down.sql",
+    "internal/repository/migrations/sqlite3/12_stats-covering-index.up.sql",
+    "internal/repository/stats.go",
+    "internal/repository/stats_test.go",
+    "web/frontend/src/List.root.svelte"
+  ],
+  "agent": "Claude Code",
+  "turn_id": "b4fcf9c93908",
+  "checkpoint_transcript_start": 51,
+  "transcript_lines_at_start": 51,
+  "session_metrics": {
+    "turn_count": 1
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-03-12T19:16:55.530549Z",
+    "agent_lines": 193,
+    "human_added": 4,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 197,
+    "agent_percentage": 97.96954314720813
+  }
+}
