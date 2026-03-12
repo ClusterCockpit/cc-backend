@@ -645,6 +645,7 @@ func (r *queryResolver) Jobs(ctx context.Context, filter []*model.JobFilter, pag
 
 // JobsStatistics is the resolver for the jobsStatistics field.
 func (r *queryResolver) JobsStatistics(ctx context.Context, filter []*model.JobFilter, metrics []string, page *model.PageRequest, sortBy *model.SortByAggregate, groupBy *model.Aggregate, numDurationBins *string, numMetricBins *int) ([]*model.JobsStatistics, error) {
+	startOverall := time.Now()
 	var err error
 	var stats []*model.JobsStatistics
 
@@ -652,14 +653,27 @@ func (r *queryResolver) JobsStatistics(ctx context.Context, filter []*model.JobF
 	defaultDurationBins := "1h"
 	defaultMetricBins := 10
 
-	fetchedMainStats := requireField(ctx, "totalJobs") || requireField(ctx, "totalUsers") || requireField(ctx, "totalWalltime") || requireField(ctx, "totalNodes") || requireField(ctx, "totalCores") ||
-		requireField(ctx, "totalAccs") || requireField(ctx, "totalNodeHours") || requireField(ctx, "totalCoreHours") || requireField(ctx, "totalAccHours")
+	// Build requested fields map for selective column computation
+	statsFields := []string{"totalJobs", "totalUsers", "totalWalltime", "totalNodes", "totalCores",
+		"totalAccs", "totalNodeHours", "totalCoreHours", "totalAccHours", "runningJobs", "shortJobs"}
+	reqFields := make(map[string]bool, len(statsFields))
+	fetchedMainStats := false
+	for _, f := range statsFields {
+		if requireField(ctx, f) {
+			reqFields[f] = true
+			if f != "runningJobs" && f != "shortJobs" {
+				fetchedMainStats = true
+			}
+		}
+	}
 
 	if fetchedMainStats {
 		if groupBy == nil {
-			stats, err = r.Repo.JobsStats(ctx, filter)
+			stats, err = r.Repo.JobsStats(ctx, filter, reqFields)
 		} else {
-			stats, err = r.Repo.JobsStatsGrouped(ctx, filter, page, sortBy, groupBy)
+			startGrouped := time.Now()
+			stats, err = r.Repo.JobsStatsGrouped(ctx, filter, page, sortBy, groupBy, reqFields)
+			cclog.Infof("Timer JobsStatsGrouped call: %s", time.Since(startGrouped))
 		}
 	} else {
 		stats = make([]*model.JobsStatistics, 0, 1)
@@ -722,6 +736,7 @@ func (r *queryResolver) JobsStatistics(ctx context.Context, filter []*model.JobF
 		}
 	}
 
+	cclog.Infof("Timer JobsStatistics overall: %s", time.Since(startOverall))
 	return stats, nil
 }
 

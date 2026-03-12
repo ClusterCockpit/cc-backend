@@ -34,6 +34,7 @@
     formatDurationTime
   } from "./generic/units.js";
   import Filters from "./generic/Filters.svelte";
+  import Pagination from "./generic/joblist/Pagination.svelte";
 
   /* Svelte 5 Props */
   let {
@@ -51,6 +52,8 @@
   let jobFilters = $state([]);
   let nameFilter = $state("");
   let sorting = $state({ field: "totalJobs", direction: "desc" });
+  let page = $state(1);
+  let itemsPerPage = $state(25);
 
   /* Derived Vars */
   const fetchRunning = $derived(jobFilters.some(jf => jf?.state?.length == 1 && jf?.state?.includes("running")));
@@ -64,6 +67,12 @@
   const sortedRows = $derived(
     $stats.data ? sort($stats.data.rows, sorting, nameFilter) : []
   );
+  const paginatedRows = $derived(
+    sortedRows.slice((page - 1) * itemsPerPage, page * itemsPerPage)
+  );
+
+  /* Reset page when sorting or filter changes */
+  $effect(() => { sorting; nameFilter; page = 1; });
 
   let stats = $derived(
     queryStore({
@@ -360,7 +369,7 @@
         >
       </tr>
     {:else if $stats.data}
-      {#each sort($stats.data.rows, sorting, nameFilter) as row (row.id)}
+      {#each paginatedRows as row (row.id)}
         <tr>
           <td>
             {#if type == "USER"}
@@ -402,3 +411,16 @@
     {/if}
   </tbody>
 </Table>
+{#if sortedRows.length > 0}
+  <Pagination
+    {page}
+    {itemsPerPage}
+    totalItems={sortedRows.length}
+    itemText={type === 'USER' ? 'Users' : 'Projects'}
+    pageSizes={[25, 50, 100]}
+    updatePaging={(detail) => {
+      itemsPerPage = detail.itemsPerPage;
+      page = detail.page;
+    }}
+  />
+{/if}

@@ -14,7 +14,7 @@ import (
 
 func TestBuildJobStatsQuery(t *testing.T) {
 	r := setup(t)
-	q := r.buildStatsQuery(nil, "USER", 300)
+	q := r.buildStatsQuery(nil, "USER", 300, nil)
 
 	sql, _, err := q.ToSql()
 	noErr(t, err)
@@ -29,7 +29,7 @@ func TestJobStats(t *testing.T) {
 	err := r.DB.QueryRow(`SELECT COUNT(*) FROM job`).Scan(&expectedCount)
 	noErr(t, err)
 
-	stats, err := r.JobsStats(getContext(t), []*model.JobFilter{})
+	stats, err := r.JobsStats(getContext(t), []*model.JobFilter{}, nil)
 	noErr(t, err)
 
 	if stats[0].TotalJobs != expectedCount {
