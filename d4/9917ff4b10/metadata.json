@@ -3,7 +3,7 @@
   "checkpoint_id": "d49917ff4b10",
   "strategy": "manual-commit",
   "branch": "hotfix",
-  "checkpoints_count": 2,
+  "checkpoints_count": 3,
   "files_touched": [
     "cmd/cc-backend/cli.go",
     "cmd/cc-backend/main.go",
@@ -21,13 +21,19 @@
       "transcript": "/d4/9917ff4b10/1/full.jsonl",
       "content_hash": "/d4/9917ff4b10/1/content_hash.txt",
       "prompt": "/d4/9917ff4b10/1/prompt.txt"
+    },
+    {
+      "metadata": "/d4/9917ff4b10/2/metadata.json",
+      "transcript": "/d4/9917ff4b10/2/full.jsonl",
+      "content_hash": "/d4/9917ff4b10/2/content_hash.txt",
+      "prompt": ""
     }
   ],
   "token_usage": {
-    "input_tokens": 524,
-    "cache_creation_tokens": 58724,
-    "cache_read_tokens": 816177,
-    "output_tokens": 11560,
-    "api_call_count": 24
+    "input_tokens": 532,
+    "cache_creation_tokens": 83619,
+    "cache_read_tokens": 999953,
+    "output_tokens": 14077,
+    "api_call_count": 30
   }
 }
