@@ -1,0 +1,35 @@
+{
+  "cli_version": "0.5.0",
+  "checkpoint_id": "15cc90a0347a",
+  "session_id": "ff9dfa67-f76a-4fef-88c2-6f742aa095ee",
+  "strategy": "manual-commit",
+  "created_at": "2026-03-12T05:40:36.523558Z",
+  "branch": "hotfix",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "Makefile",
+    "ReleaseNotes.md"
+  ],
+  "agent": "Claude Code",
+  "model": "claude-opus-4-6",
+  "turn_id": "1a27777398be",
+  "token_usage": {
+    "input_tokens": 6,
+    "cache_creation_tokens": 18228,
+    "cache_read_tokens": 71462,
+    "output_tokens": 1499,
+    "api_call_count": 4
+  },
+  "session_metrics": {
+    "turn_count": 1
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-03-12T05:40:36.483727Z",
+    "agent_lines": 27,
+    "human_added": 0,
+    "human_modified": 5,
+    "human_removed": 0,
+    "total_committed": 32,
+    "agent_percentage": 84.375
+  }
+}
