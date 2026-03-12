@@ -509,6 +509,20 @@ func run() error {
 		return err
 	}
 
+	// Optimize database if requested
+	if flagOptimizeDB {
+		db := repository.GetConnection()
+		cclog.Print("Running VACUUM to reclaim space and defragment database...")
+		if _, err := db.DB.Exec("VACUUM"); err != nil {
+			return fmt.Errorf("VACUUM failed: %w", err)
+		}
+		cclog.Print("Running ANALYZE to update query planner statistics...")
+		if _, err := db.DB.Exec("ANALYZE"); err != nil {
+			return fmt.Errorf("ANALYZE failed: %w", err)
+		}
+		cclog.Exitf("OptimizeDB Success: Database '%s' optimized (VACUUM + ANALYZE).\n", config.Keys.DB)
+	}
+
 	// Handle user commands (add, delete, sync, JWT)
 	if err := handleUserCommands(); err != nil {
 		return err
