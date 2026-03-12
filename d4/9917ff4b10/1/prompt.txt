@@ -1,0 +1,1 @@
+The buildStatsQuery is still very slow and does not return. This is the endpoint http://localhost:8080/monitoring/users/?cluster=woody&startTime=last30d . Check again the query and find improvements.
