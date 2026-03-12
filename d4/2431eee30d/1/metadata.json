@@ -1,0 +1,39 @@
+{
+  "cli_version": "0.5.0",
+  "checkpoint_id": "d42431eee30d",
+  "session_id": "3f83174b-0ec7-4466-8bc9-b6b52eb8bbfb",
+  "strategy": "manual-commit",
+  "created_at": "2026-03-12T19:16:55.505341Z",
+  "branch": "optimize-stats-query",
+  "checkpoints_count": 0,
+  "files_touched": [
+    "internal/graph/schema.resolvers.go",
+    "internal/repository/migration.go",
+    "internal/repository/stats.go",
+    "internal/repository/stats_test.go",
+    "web/frontend/src/List.root.svelte"
+  ],
+  "agent": "Claude Code",
+  "turn_id": "2e3d903acb82",
+  "checkpoint_transcript_start": 180,
+  "transcript_lines_at_start": 180,
+  "token_usage": {
+    "input_tokens": 0,
+    "cache_creation_tokens": 0,
+    "cache_read_tokens": 0,
+    "output_tokens": 0,
+    "api_call_count": 0
+  },
+  "session_metrics": {
+    "turn_count": 1
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-03-12T19:16:55.342732Z",
+    "agent_lines": 182,
+    "human_added": 15,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 197,
+    "agent_percentage": 92.38578680203045
+  }
+}
