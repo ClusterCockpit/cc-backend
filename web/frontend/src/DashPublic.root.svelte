@@ -302,11 +302,11 @@
 
     if (subclusterData) {
       for (let i = 0; i < subclusterData.length; i++) {
-        const flopsData = subclusterData[i].metrics.find((s) => s.name == "flops_any")
-        const memBwData = subclusterData[i].metrics.find((s) => s.name == "mem_bw")
+        const flopsData = subclusterData[i]?.metrics?.find((s) => s.name == "flops_any")
+        const memBwData = subclusterData[i]?.metrics?.find((s) => s.name == "mem_bw")
 
-        const f = flopsData.metric.series[0].statistics.avg
-        const m = memBwData.metric.series[0].statistics.avg
+        const f = flopsData?.metric?.series[0]?.statistics?.avg || 0;
+        const m = memBwData?.metric?.series[0]?.statistics?.avg || 0;
 
         let intensity = f / m
         if (Number.isNaN(intensity) || !Number.isFinite(intensity)) {
