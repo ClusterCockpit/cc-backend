@@ -1,17 +1,21 @@
 # `cc-backend` version 1.5.1
 
-Supports job archive version 3 and database version 12.
+Supports job archive version 3 and database version 11.
 
 This is a bugfix release of `cc-backend`, the API backend and frontend
 implementation of ClusterCockpit.
 For release specific notes visit the [ClusterCockpit Documentation](https://clusterockpit.org/docs/release/).
+If you are upgrading from v1.5.0 you need to do another DB migration. This
+should not take long. For optimal database performance after the migration it is
+recommended to apply the new `optimize-db` flag, which runs the sqlite `ANALYZE`
+and `VACUUM` commands. Depending on your database size (more then 40GB) the
+`VACUUM` may take up to 2h.
 
 ## Changes in 1.5.1
 
 ### Database
 
-- **New migration (version 12)**: Added covering index for stats queries for significantly improved query performance
-- **New migration (version 11)**: Optimized database index count for better performance
+- **New migration (version 11)**: Optimized database index count and added covering indexes for stats queries for significantly improved query performance
 - **Migration 9 fix**: Removed redundant indices from migration 9 that are superseded by migration 11
 - **Optional DB optimization flag**: Added `-optimize-db` CLI flag to run `ANALYZE` on demand; removed automatic ANALYZE on startup
 - **Selective stats queries**: Stats queries are now selective, reducing unnecessary computation
@@ -41,7 +45,7 @@ For release specific notes visit the [ClusterCockpit Documentation](https://clus
 
 ---
 
-*The sections below document all features and changes introduced in the 1.5.0 major release, which 1.5.1 is based on.*
+_The sections below document all features and changes introduced in the 1.5.0 major release, which 1.5.1 is based on._
 
 ## Breaking changes
 
