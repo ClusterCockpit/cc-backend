@@ -163,7 +163,6 @@
         jobsStatistics(
           filter: $jobFilter
           page: $paging
-          sortBy: TOTALJOBS
           groupBy: SUBCLUSTER
         ) {
           id
