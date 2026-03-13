@@ -72,7 +72,7 @@
       }
     `,
     variables: {
-      filter: [{ state: ["running"] }, { cluster: { eq: cluster} }],
+      filter: [{ cluster: { eq: cluster} }, { state: ["running"] }],
       selectedHistograms: selectedHistograms
     },
     requestPolicy: "network-only"
@@ -129,9 +129,9 @@
       />
     {/snippet}
     
-    {#key $metricStatusQuery.data.jobsStatistics[0].histMetrics}
+    {#key $metricStatusQuery?.data?.jobsStatistics[0]?.histMetrics}
       <PlotGrid
-        items={$metricStatusQuery.data.jobsStatistics[0].histMetrics}
+        items={$metricStatusQuery?.data?.jobsStatistics[0]?.histMetrics}
         itemsPerRow={2}
         {gridContent}
       />

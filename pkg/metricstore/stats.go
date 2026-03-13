@@ -42,7 +42,7 @@ func (b *buffer) stats(from, to int64) (Stats, int64, int64, error) {
 			if b == nil {
 				break
 			}
-			idx = 0
+			idx = int((t - b.start) / b.frequency)
 		}
 
 		if t < b.start || idx >= len(b.data) {

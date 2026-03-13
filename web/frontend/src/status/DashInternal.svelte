@@ -155,7 +155,6 @@
         jobsStatistics(
           filter: $jobFilter
           page: $paging
-          sortBy: TOTALJOBS
           groupBy: CLUSTER
         ) {
           id
@@ -190,7 +189,7 @@
       from: from.toISOString(),
       to: to.toISOString(),
       clusterFrom: clusterFrom.toISOString(),
-      jobFilter: [{ state: ["running"] }, { cluster: { eq: presetCluster } }],
+      jobFilter: [{ cluster: { eq: presetCluster } }, { state: ["running"] }],
       paging: { itemsPerPage: -1, page: 1 }, // Get all: -1
       sorting: { field: "startTime", type: "col", order: "DESC" }
     },
@@ -216,7 +215,7 @@
       }
     `,
     variables: {
-      filter: [{ state: ["running"] }, { cluster: { eq: presetCluster} }],
+      filter: [{ cluster: { eq: presetCluster} }, { state: ["running"] }],
       paging: pagingState // Top 10
     },
     requestPolicy: "network-only"

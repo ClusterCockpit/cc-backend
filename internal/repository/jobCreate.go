@@ -96,13 +96,13 @@ func (r *JobRepository) SyncJobs() ([]*schema.Job, error) {
 	_, err = r.DB.Exec(
 		"INSERT OR IGNORE INTO job (job_id, cluster, subcluster, start_time, hpc_user, project, cluster_partition, array_job_id, num_nodes, num_hwthreads, num_acc, shared, monitoring_status, smt, job_state, duration, walltime, footprint, energy, energy_footprint, resources, meta_data) SELECT job_id, cluster, subcluster, start_time, hpc_user, project, cluster_partition, array_job_id, num_nodes, num_hwthreads, num_acc, shared, monitoring_status, smt, job_state, duration, walltime, footprint, energy, energy_footprint, resources, meta_data FROM job_cache")
 	if err != nil {
-		cclog.Warnf("Error while Job sync: %v", err)
+		cclog.Errorf("Error while Job sync: %v", err)
 		return nil, err
 	}
 
 	_, err = r.DB.Exec("DELETE FROM job_cache")
 	if err != nil {
-		cclog.Warnf("Error while Job cache clean: %v", err)
+		cclog.Errorf("Error while Job cache clean: %v", err)
 		return nil, err
 	}
 
@@ -211,4 +211,3 @@ func (r *JobRepository) Stop(
 	_, err = stmt.RunWith(r.stmtCache).Exec()
 	return err
 }
-

@@ -1066,7 +1066,7 @@ func (r *JobRepository) GetUsedNodes(ts int64) (map[string][]string, error) {
 	// Note: Query expects index on (job_state, start_time) for optimal performance
 	q := sq.Select("job.cluster", "job.resources").From("job").
 		Where("job.start_time < ?", ts).
-		Where(sq.Eq{"job.job_state": "running"})
+		Where("job.job_state = 'running'")
 
 	rows, err := q.RunWith(r.stmtCache).Query()
 	if err != nil {

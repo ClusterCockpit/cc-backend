@@ -63,7 +63,7 @@ func (r *JobRepository) QueryJobs(
 			}
 		} else {
 			// Order by footprint JSON field values
-			query = query.Where("JSON_VALID(meta_data)")
+			query = query.Where("JSON_VALID(footprint)")
 			switch order.Order {
 			case model.SortDirectionEnumAsc:
 				query = query.OrderBy(fmt.Sprintf("JSON_EXTRACT(footprint, \"$.%s\") ASC", field))
@@ -84,7 +84,7 @@ func (r *JobRepository) QueryJobs(
 		query = BuildWhereClause(f, query)
 	}
 
-	rows, err := query.RunWith(r.stmtCache).Query()
+	rows, err := query.RunWith(r.stmtCache).QueryContext(ctx)
 	if err != nil {
 		queryString, queryVars, _ := query.ToSql()
 		return nil, fmt.Errorf("query failed [%s] %v: %w", queryString, queryVars, err)
@@ -126,7 +126,7 @@ func (r *JobRepository) CountJobs(
 	}
 
 	var count int
-	if err := query.RunWith(r.DB).Scan(&count); err != nil {
+	if err := query.RunWith(r.DB).QueryRowContext(ctx).Scan(&count); err != nil {
 		return 0, fmt.Errorf("failed to count jobs: %w", err)
 	}
 
@@ -197,14 +197,22 @@ func BuildWhereClause(filter *model.JobFilter, query sq.SelectBuilder) sq.Select
 		query = buildStringCondition("job.cluster_partition", filter.Partition, query)
 	}
 	if filter.State != nil {
-		states := make([]string, len(filter.State))
-		for i, val := range filter.State {
-			states[i] = string(val)
+		if len(filter.State) == 1 {
+			// Inline literal value so SQLite can match partial indexes (WHERE job_state = 'running').
+			// Safe: values come from validated GraphQL enum (model.JobState).
+			singleStat := string(filter.State[0])
+			query = query.Where(fmt.Sprintf("job.job_state = '%s'", singleStat))
+		} else {
+			states := make([]string, len(filter.State))
+			for i, val := range filter.State {
+				states[i] = string(val)
+			}
+			query = query.Where(sq.Eq{"job.job_state": states})
 		}
-		query = query.Where(sq.Eq{"job.job_state": states})
 	}
 	if filter.Shared != nil {
-		query = query.Where("job.shared = ?", *filter.Shared)
+		// Inline literal value so SQLite can match partial indexes (see above).
+		query = query.Where(fmt.Sprintf("job.shared = '%s'", *filter.Shared))
 	}
 	if filter.Project != nil {
 		query = buildStringCondition("job.project", filter.Project, query)
@@ -222,7 +230,8 @@ func BuildWhereClause(filter *model.JobFilter, query sq.SelectBuilder) sq.Select
 		query = buildIntCondition("job.num_hwthreads", filter.NumHWThreads, query)
 	}
 	if filter.ArrayJobID != nil {
-		query = query.Where("job.array_job_id = ?", *filter.ArrayJobID)
+		// Inline literal value so SQLite can match partial indexes (see above).
+		query = query.Where(fmt.Sprintf("job.array_job_id = %d", *filter.ArrayJobID))
 	}
 	if filter.StartTime != nil {
 		query = buildTimeCondition("job.start_time", filter.StartTime, query)
@@ -276,28 +285,26 @@ func BuildWhereClause(filter *model.JobFilter, query sq.SelectBuilder) sq.Select
 	return query
 }
 
-// buildIntCondition creates a BETWEEN clause for integer range filters.
-// Reminder: BETWEEN Queries are slower and dont use indices as frequently: Only use if both conditions required
+// buildIntCondition creates clauses for integer range filters, using BETWEEN only if required.
 func buildIntCondition(field string, cond *config.IntRange, query sq.SelectBuilder) sq.SelectBuilder {
-	if cond.From != 0 && cond.To != 0 {
+	if cond.From != 1 && cond.To != 0 {
 		return query.Where(field+" BETWEEN ? AND ?", cond.From, cond.To)
-	} else if cond.From != 0 {
+	} else if cond.From != 1 && cond.To == 0 {
 		return query.Where(field+" >= ?", cond.From)
-	} else if cond.To != 0 {
+	} else if cond.From == 1 && cond.To != 0 {
 		return query.Where(field+" <= ?", cond.To)
 	} else {
 		return query
 	}
 }
 
-// buildFloatCondition creates a BETWEEN clause for float range filters.
-// Reminder: BETWEEN Queries are slower and dont use indices as frequently: Only use if both conditions required
+// buildFloatCondition creates a clauses for float range filters, using BETWEEN only if required.
 func buildFloatCondition(field string, cond *model.FloatRange, query sq.SelectBuilder) sq.SelectBuilder {
-	if cond.From != 0.0 && cond.To != 0.0 {
+	if cond.From != 1.0 && cond.To != 0.0 {
 		return query.Where(field+" BETWEEN ? AND ?", cond.From, cond.To)
-	} else if cond.From != 0.0 {
+	} else if cond.From != 1.0 && cond.To == 0.0 {
 		return query.Where(field+" >= ?", cond.From)
-	} else if cond.To != 0.0 {
+	} else if cond.From == 1.0 && cond.To != 0.0 {
 		return query.Where(field+" <= ?", cond.To)
 	} else {
 		return query
@@ -336,16 +343,15 @@ func buildTimeCondition(field string, cond *config.TimeRange, query sq.SelectBui
 	}
 }
 
-// buildFloatJSONCondition creates a filter on a numeric field within the footprint JSON column.
-// Reminder: BETWEEN Queries are slower and dont use indices as frequently: Only use if both conditions required
-func buildFloatJSONCondition(condName string, condRange *model.FloatRange, query sq.SelectBuilder) sq.SelectBuilder {
+// buildFloatJSONCondition creates a filter on a numeric field within the footprint JSON column, using BETWEEN only if required.
+func buildFloatJSONCondition(jsonField string, cond *model.FloatRange, query sq.SelectBuilder) sq.SelectBuilder {
 	query = query.Where("JSON_VALID(footprint)")
-	if condRange.From != 0.0 && condRange.To != 0.0 {
-		return query.Where("JSON_EXTRACT(footprint, \"$."+condName+"\") BETWEEN ? AND ?", condRange.From, condRange.To)
-	} else if condRange.From != 0.0 {
-		return query.Where("JSON_EXTRACT(footprint, \"$."+condName+"\") >= ?", condRange.From)
-	} else if condRange.To != 0.0 {
-		return query.Where("JSON_EXTRACT(footprint, \"$."+condName+"\") <= ?", condRange.To)
+	if cond.From != 1.0 && cond.To != 0.0 {
+		return query.Where("JSON_EXTRACT(footprint, \"$."+jsonField+"\") BETWEEN ? AND ?", cond.From, cond.To)
+	} else if cond.From != 1.0 && cond.To == 0.0 {
+		return query.Where("JSON_EXTRACT(footprint, \"$."+jsonField+"\") >= ?", cond.From)
+	} else if cond.From == 1.0 && cond.To != 0.0 {
+		return query.Where("JSON_EXTRACT(footprint, \"$."+jsonField+"\") <= ?", cond.To)
 	} else {
 		return query
 	}

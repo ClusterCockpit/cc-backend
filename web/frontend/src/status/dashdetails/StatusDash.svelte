@@ -163,7 +163,6 @@
         jobsStatistics(
           filter: $jobFilter
           page: $paging
-          sortBy: TOTALJOBS
           groupBy: SUBCLUSTER
         ) {
           id
@@ -179,7 +178,7 @@
       metrics: ["flops_any", "mem_bw"], // Fixed names for roofline and status bars
       from: from.toISOString(),
       to: to.toISOString(),
-      jobFilter: [{ state: ["running"] }, { cluster: { eq: cluster } }],
+      jobFilter: [{ cluster: { eq: cluster } }, { state: ["running"] }],
       nodeFilter: { cluster: { eq: cluster }},
       paging: { itemsPerPage: -1, page: 1 }, // Get all: -1
       sorting: { field: "startTime", type: "col", order: "DESC" }
@@ -295,8 +294,8 @@
         const flopsData = subclusterData[i].metrics.find((s) => s.name == "flops_any")
         const memBwData = subclusterData[i].metrics.find((s) => s.name == "mem_bw")
 
-        const f = flopsData.metric.series[0].statistics.avg
-        const m = memBwData.metric.series[0].statistics.avg
+        const f = flopsData?.metric?.series[0]?.statistics?.avg || 0
+        const m = memBwData?.metric?.series[0]?.statistics?.avg || 0
 
         let intensity = f / m
         if (Number.isNaN(intensity) || !Number.isFinite(intensity)) {

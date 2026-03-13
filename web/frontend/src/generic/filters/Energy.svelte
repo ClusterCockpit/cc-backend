@@ -29,7 +29,7 @@
 
   /* Const */
   const minEnergyPreset = 1;
-  const maxEnergyPreset = 1000;
+  const maxEnergyPreset = 100;
 
   /* Derived */
   // Pending

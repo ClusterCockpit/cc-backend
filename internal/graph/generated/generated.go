@@ -13209,6 +13209,10 @@ func (ec *executionContext) fieldContext___Type_isOneOf(_ context.Context, field
 
 func (ec *executionContext) unmarshalInputFloatRange(ctx context.Context, obj any) (model.FloatRange, error) {
 	var it model.FloatRange
+	if obj == nil {
+		return it, nil
+	}
+
 	asMap := map[string]any{}
 	for k, v := range obj.(map[string]any) {
 		asMap[k] = v
@@ -13242,6 +13246,10 @@ func (ec *executionContext) unmarshalInputFloatRange(ctx context.Context, obj an
 
 func (ec *executionContext) unmarshalInputIntRange(ctx context.Context, obj any) (config.IntRange, error) {
 	var it config.IntRange
+	if obj == nil {
+		return it, nil
+	}
+
 	asMap := map[string]any{}
 	for k, v := range obj.(map[string]any) {
 		asMap[k] = v
@@ -13275,6 +13283,10 @@ func (ec *executionContext) unmarshalInputIntRange(ctx context.Context, obj any)
 
 func (ec *executionContext) unmarshalInputJobFilter(ctx context.Context, obj any) (model.JobFilter, error) {
 	var it model.JobFilter
+	if obj == nil {
+		return it, nil
+	}
+
 	asMap := map[string]any{}
 	for k, v := range obj.(map[string]any) {
 		asMap[k] = v
@@ -13448,6 +13460,10 @@ func (ec *executionContext) unmarshalInputJobFilter(ctx context.Context, obj any
 
 func (ec *executionContext) unmarshalInputMetricStatItem(ctx context.Context, obj any) (model.MetricStatItem, error) {
 	var it model.MetricStatItem
+	if obj == nil {
+		return it, nil
+	}
+
 	asMap := map[string]any{}
 	for k, v := range obj.(map[string]any) {
 		asMap[k] = v
@@ -13481,6 +13497,10 @@ func (ec *executionContext) unmarshalInputMetricStatItem(ctx context.Context, ob
 
 func (ec *executionContext) unmarshalInputNodeFilter(ctx context.Context, obj any) (model.NodeFilter, error) {
 	var it model.NodeFilter
+	if obj == nil {
+		return it, nil
+	}
+
 	asMap := map[string]any{}
 	for k, v := range obj.(map[string]any) {
 		asMap[k] = v
@@ -13542,6 +13562,10 @@ func (ec *executionContext) unmarshalInputNodeFilter(ctx context.Context, obj an
 
 func (ec *executionContext) unmarshalInputOrderByInput(ctx context.Context, obj any) (model.OrderByInput, error) {
 	var it model.OrderByInput
+	if obj == nil {
+		return it, nil
+	}
+
 	asMap := map[string]any{}
 	for k, v := range obj.(map[string]any) {
 		asMap[k] = v
@@ -13586,6 +13610,10 @@ func (ec *executionContext) unmarshalInputOrderByInput(ctx context.Context, obj 
 
 func (ec *executionContext) unmarshalInputPageRequest(ctx context.Context, obj any) (model.PageRequest, error) {
 	var it model.PageRequest
+	if obj == nil {
+		return it, nil
+	}
+
 	asMap := map[string]any{}
 	for k, v := range obj.(map[string]any) {
 		asMap[k] = v
@@ -13619,6 +13647,10 @@ func (ec *executionContext) unmarshalInputPageRequest(ctx context.Context, obj a
 
 func (ec *executionContext) unmarshalInputStringInput(ctx context.Context, obj any) (model.StringInput, error) {
 	var it model.StringInput
+	if obj == nil {
+		return it, nil
+	}
+
 	asMap := map[string]any{}
 	for k, v := range obj.(map[string]any) {
 		asMap[k] = v
@@ -13680,6 +13712,10 @@ func (ec *executionContext) unmarshalInputStringInput(ctx context.Context, obj a
 
 func (ec *executionContext) unmarshalInputTimeRange(ctx context.Context, obj any) (config.TimeRange, error) {
 	var it config.TimeRange
+	if obj == nil {
+		return it, nil
+	}
+
 	asMap := map[string]any{}
 	for k, v := range obj.(map[string]any) {
 		asMap[k] = v

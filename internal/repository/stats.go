@@ -55,6 +55,7 @@ import (
 	cclog "github.com/ClusterCockpit/cc-lib/v2/ccLogger"
 	"github.com/ClusterCockpit/cc-lib/v2/schema"
 	sq "github.com/Masterminds/squirrel"
+	"golang.org/x/sync/errgroup"
 )
 
 // groupBy2column maps GraphQL Aggregate enum values to their corresponding database column names.
@@ -105,14 +106,14 @@ func (r *JobRepository) buildCountQuery(
 	var query sq.SelectBuilder
 
 	if col != "" {
-		query = sq.Select(col, "COUNT(job.id)").From("job").GroupBy(col)
+		query = sq.Select(col, "COUNT(*)").From("job").GroupBy(col)
 	} else {
-		query = sq.Select("COUNT(job.id)").From("job")
+		query = sq.Select("COUNT(*)").From("job")
 	}
 
 	switch kind {
 	case "running":
-		query = query.Where("job.job_state = ?", "running")
+		query = query.Where("job.job_state = 'running'")
 	case "short":
 		query = query.Where("job.duration < ?", config.Keys.ShortRunningJobsDuration)
 	}
@@ -124,59 +125,100 @@ func (r *JobRepository) buildCountQuery(
 	return query
 }
 
-// buildStatsQuery constructs a SQL query to compute comprehensive job statistics with optional grouping.
+// buildStatsQuery constructs a SQL query to compute job statistics with optional grouping.
+// Only requested columns are computed; unrequested columns select 0 as placeholder.
 //
 // Parameters:
 //   - filter: Job filters to apply (cluster, user, time range, etc.)
 //   - col: Column name to GROUP BY; empty string for overall statistics without grouping
-//
-// Returns a SelectBuilder that produces comprehensive statistics:
-//   - totalJobs: Count of jobs
-//   - totalUsers: Count of distinct users (always 0 when grouping by user)
-//   - totalWalltime: Sum of job durations in hours
-//   - totalNodes: Sum of nodes used across all jobs
-//   - totalNodeHours: Sum of (duration × num_nodes) in hours
-//   - totalCores: Sum of hardware threads used across all jobs
-//   - totalCoreHours: Sum of (duration × num_hwthreads) in hours
-//   - totalAccs: Sum of accelerators used across all jobs
-//   - totalAccHours: Sum of (duration × num_acc) in hours
-//
-// Special handling:
-//   - Running jobs: Duration calculated as (now - start_time) instead of stored duration
-//   - Grouped queries: Also select grouping column and user's display name from hpc_user table
-//   - All time values converted from seconds to hours (÷ 3600) and rounded
+//   - shortThreshold: Duration threshold in seconds for counting short-running jobs
+//   - reqFields: Set of requested field names; nil means compute all fields
 func (r *JobRepository) buildStatsQuery(
 	filter []*model.JobFilter,
 	col string,
+	shortThreshold int,
+	reqFields map[string]bool,
 ) sq.SelectBuilder {
-	var query sq.SelectBuilder
+	now := time.Now().Unix()
+
+	// Helper: return real expression if field is requested (or reqFields is nil), else "0 as alias"
+	need := func(field string) bool {
+		return reqFields == nil || reqFields[field]
+	}
+	durationExpr := fmt.Sprintf(`(CASE WHEN job.job_state = 'running' THEN %d - job.start_time ELSE job.duration END)`, now)
+
+	// Build column list
+	columns := make([]string, 0, 14)
 
 	if col != "" {
-		query = sq.Select(
-			col,
-			"name",
-			"COUNT(job.id) as totalJobs",
-			"COUNT(DISTINCT job.hpc_user) AS totalUsers",
-			fmt.Sprintf(`CAST(ROUND(SUM((CASE WHEN job.job_state = "running" THEN %d - job.start_time ELSE job.duration END)) / 3600) as int) as totalWalltime`, time.Now().Unix()),
-			`CAST(SUM(job.num_nodes) as int) as totalNodes`,
-			fmt.Sprintf(`CAST(ROUND(SUM((CASE WHEN job.job_state = "running" THEN %d - job.start_time ELSE job.duration END) * job.num_nodes) / 3600) as int) as totalNodeHours`, time.Now().Unix()),
-			`CAST(SUM(job.num_hwthreads) as int) as totalCores`,
-			fmt.Sprintf(`CAST(ROUND(SUM((CASE WHEN job.job_state = "running" THEN %d - job.start_time ELSE job.duration END) * job.num_hwthreads) / 3600) as int) as totalCoreHours`, time.Now().Unix()),
-			`CAST(SUM(job.num_acc) as int) as totalAccs`,
-			fmt.Sprintf(`CAST(ROUND(SUM((CASE WHEN job.job_state = "running" THEN %d - job.start_time ELSE job.duration END) * job.num_acc) / 3600) as int) as totalAccHours`, time.Now().Unix()),
-		).From("job").LeftJoin("hpc_user ON hpc_user.username = job.hpc_user").GroupBy(col)
+		columns = append(columns, col)
+	}
+
+	columns = append(columns, "COUNT(*) as totalJobs")
+
+	if need("totalUsers") && col != "job.hpc_user" {
+		columns = append(columns, "COUNT(DISTINCT job.hpc_user) AS totalUsers")
 	} else {
-		query = sq.Select(
-			"COUNT(job.id) as totalJobs",
-			"COUNT(DISTINCT job.hpc_user) AS totalUsers",
-			fmt.Sprintf(`CAST(ROUND(SUM((CASE WHEN job.job_state = "running" THEN %d - job.start_time ELSE job.duration END)) / 3600) as int)`, time.Now().Unix()),
-			`CAST(SUM(job.num_nodes) as int)`,
-			fmt.Sprintf(`CAST(ROUND(SUM((CASE WHEN job.job_state = "running" THEN %d - job.start_time ELSE job.duration END) * job.num_nodes) / 3600) as int)`, time.Now().Unix()),
-			`CAST(SUM(job.num_hwthreads) as int)`,
-			fmt.Sprintf(`CAST(ROUND(SUM((CASE WHEN job.job_state = "running" THEN %d - job.start_time ELSE job.duration END) * job.num_hwthreads) / 3600) as int)`, time.Now().Unix()),
-			`CAST(SUM(job.num_acc) as int)`,
-			fmt.Sprintf(`CAST(ROUND(SUM((CASE WHEN job.job_state = "running" THEN %d - job.start_time ELSE job.duration END) * job.num_acc) / 3600) as int)`, time.Now().Unix()),
-		).From("job")
+		columns = append(columns, "0 AS totalUsers")
+	}
+
+	if need("totalWalltime") {
+		columns = append(columns, fmt.Sprintf(`CAST(ROUND(SUM(%s) / 3600) as int) as totalWalltime`, durationExpr))
+	} else {
+		columns = append(columns, "0 as totalWalltime")
+	}
+
+	if need("totalNodes") {
+		columns = append(columns, `CAST(SUM(job.num_nodes) as int) as totalNodes`)
+	} else {
+		columns = append(columns, "0 as totalNodes")
+	}
+
+	if need("totalNodeHours") {
+		columns = append(columns, fmt.Sprintf(`CAST(ROUND(SUM(%s * job.num_nodes) / 3600) as int) as totalNodeHours`, durationExpr))
+	} else {
+		columns = append(columns, "0 as totalNodeHours")
+	}
+
+	if need("totalCores") {
+		columns = append(columns, `CAST(SUM(job.num_hwthreads) as int) as totalCores`)
+	} else {
+		columns = append(columns, "0 as totalCores")
+	}
+
+	if need("totalCoreHours") {
+		columns = append(columns, fmt.Sprintf(`CAST(ROUND(SUM(%s * job.num_hwthreads) / 3600) as int) as totalCoreHours`, durationExpr))
+	} else {
+		columns = append(columns, "0 as totalCoreHours")
+	}
+
+	if need("totalAccs") {
+		columns = append(columns, `CAST(SUM(job.num_acc) as int) as totalAccs`)
+	} else {
+		columns = append(columns, "0 as totalAccs")
+	}
+
+	if need("totalAccHours") {
+		columns = append(columns, fmt.Sprintf(`CAST(ROUND(SUM(%s * job.num_acc) / 3600) as int) as totalAccHours`, durationExpr))
+	} else {
+		columns = append(columns, "0 as totalAccHours")
+	}
+
+	if need("runningJobs") {
+		columns = append(columns, `COUNT(CASE WHEN job.job_state = 'running' THEN 1 END) as runningJobs`)
+	} else {
+		columns = append(columns, "0 as runningJobs")
+	}
+
+	if need("shortJobs") {
+		columns = append(columns, fmt.Sprintf(`COUNT(CASE WHEN job.duration < %d THEN 1 END) as shortJobs`, shortThreshold))
+	} else {
+		columns = append(columns, "0 as shortJobs")
+	}
+
+	query := sq.Select(columns...).From("job")
+	if col != "" {
+		query = query.GroupBy(col)
 	}
 
 	for _, f := range filter {
@@ -186,35 +228,19 @@ func (r *JobRepository) buildStatsQuery(
 	return query
 }
 
-// JobsStatsGrouped computes comprehensive job statistics grouped by a dimension (user, project, cluster, or subcluster).
-//
-// This is the primary method for generating aggregated statistics views in the UI, providing
-// metrics like total jobs, walltime, and resource usage broken down by the specified grouping.
-//
-// Parameters:
-//   - ctx: Context for security checks and cancellation
-//   - filter: Filters to apply (time range, cluster, job state, etc.)
-//   - page: Optional pagination (ItemsPerPage: -1 disables pagination)
-//   - sortBy: Optional sort column (totalJobs, totalWalltime, totalCoreHours, etc.)
-//   - groupBy: Required grouping dimension (User, Project, Cluster, or SubCluster)
-//
-// Returns a slice of JobsStatistics, one per group, with:
-//   - ID: The group identifier (username, project name, cluster name, etc.)
-//   - Name: Display name (for users, from hpc_user.name; empty for other groups)
-//   - Statistics: totalJobs, totalUsers, totalWalltime, resource usage metrics
-//
-// Security: Respects user roles via SecurityCheck - users see only their own data unless admin/support.
-// Performance: Results are sorted in SQL and pagination applied before scanning rows.
+// JobsStatsGrouped computes job statistics grouped by a dimension (user, project, cluster, or subcluster).
+// Only columns listed in reqFields are computed; others return 0. User display names are looked up
+// in a separate lightweight query to avoid JOIN overhead on the main aggregation.
 func (r *JobRepository) JobsStatsGrouped(
 	ctx context.Context,
 	filter []*model.JobFilter,
 	page *model.PageRequest,
 	sortBy *model.SortByAggregate,
 	groupBy *model.Aggregate,
+	reqFields map[string]bool,
 ) ([]*model.JobsStatistics, error) {
-	start := time.Now()
 	col := groupBy2column[*groupBy]
-	query := r.buildStatsQuery(filter, col)
+	query := r.buildStatsQuery(filter, col, config.Keys.ShortRunningJobsDuration, reqFields)
 
 	query, err := SecurityCheck(ctx, query)
 	if err != nil {
@@ -230,97 +256,75 @@ func (r *JobRepository) JobsStatsGrouped(
 		query = query.Offset((uint64(page.Page) - 1) * limit).Limit(limit)
 	}
 
-	rows, err := query.RunWith(r.DB).Query()
+	rows, err := query.RunWith(r.DB).QueryContext(ctx)
 	if err != nil {
 		cclog.Warn("Error while querying DB for job statistics")
 		return nil, err
 	}
+	defer rows.Close()
 
 	stats := make([]*model.JobsStatistics, 0, 100)
 
 	for rows.Next() {
 		var id sql.NullString
-		var name sql.NullString
-		var jobs, users, walltime, nodes, nodeHours, cores, coreHours, accs, accHours sql.NullInt64
-		if err := rows.Scan(&id, &name, &jobs, &users, &walltime, &nodes, &nodeHours, &cores, &coreHours, &accs, &accHours); err != nil {
+		var jobs, users, walltime, nodes, nodeHours, cores, coreHours, accs, accHours, runningJobs, shortJobs sql.NullInt64
+		if err := rows.Scan(&id, &jobs, &users, &walltime, &nodes, &nodeHours, &cores, &coreHours, &accs, &accHours, &runningJobs, &shortJobs); err != nil {
 			cclog.Warnf("Error while scanning rows: %s", err.Error())
 			return nil, err
 		}
 
 		if id.Valid {
-			var totalJobs, totalUsers, totalWalltime, totalNodes, totalNodeHours, totalCores, totalCoreHours, totalAccs, totalAccHours int
-			var personName string
+			stats = append(stats,
+				&model.JobsStatistics{
+					ID:             id.String,
+					TotalJobs:      int(jobs.Int64),
+					TotalUsers:     int(users.Int64),
+					TotalWalltime:  int(walltime.Int64),
+					TotalNodes:     int(nodes.Int64),
+					TotalNodeHours: int(nodeHours.Int64),
+					TotalCores:     int(cores.Int64),
+					TotalCoreHours: int(coreHours.Int64),
+					TotalAccs:      int(accs.Int64),
+					TotalAccHours:  int(accHours.Int64),
+					RunningJobs:    int(runningJobs.Int64),
+					ShortJobs:      int(shortJobs.Int64),
+				})
+		}
+	}
 
-			if name.Valid {
-				personName = name.String
-			}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
 
-			if jobs.Valid {
-				totalJobs = int(jobs.Int64)
-			}
+	// Post-query name lookup for user grouping (avoids LEFT JOIN on aggregation query)
+	if col == "job.hpc_user" && len(stats) > 0 {
+		usernames := make([]any, len(stats))
+		for i, s := range stats {
+			usernames[i] = s.ID
+		}
 
-			if users.Valid {
-				totalUsers = int(users.Int64)
+		nameQuery := sq.Select("username", "name").From("hpc_user").Where(sq.Eq{"username": usernames})
+		nameRows, err := nameQuery.RunWith(r.DB).QueryContext(ctx)
+		if err != nil {
+			cclog.Warnf("Error looking up user names: %s", err.Error())
+			// Non-fatal: stats are still valid without display names
+		} else {
+			defer nameRows.Close()
+			nameMap := make(map[string]string, len(stats))
+			for nameRows.Next() {
+				var username, name string
+				if err := nameRows.Scan(&username, &name); err == nil {
+					nameMap[username] = name
+				}
 			}
-
-			if walltime.Valid {
-				totalWalltime = int(walltime.Int64)
-			}
-
-			if nodes.Valid {
-				totalNodes = int(nodes.Int64)
-			}
-			if cores.Valid {
-				totalCores = int(cores.Int64)
-			}
-			if accs.Valid {
-				totalAccs = int(accs.Int64)
-			}
-
-			if nodeHours.Valid {
-				totalNodeHours = int(nodeHours.Int64)
-			}
-			if coreHours.Valid {
-				totalCoreHours = int(coreHours.Int64)
-			}
-			if accHours.Valid {
-				totalAccHours = int(accHours.Int64)
-			}
-
-			if col == "job.hpc_user" {
-				// name := r.getUserName(ctx, id.String)
-				stats = append(stats,
-					&model.JobsStatistics{
-						ID:             id.String,
-						Name:           personName,
-						TotalJobs:      totalJobs,
-						TotalWalltime:  totalWalltime,
-						TotalNodes:     totalNodes,
-						TotalNodeHours: totalNodeHours,
-						TotalCores:     totalCores,
-						TotalCoreHours: totalCoreHours,
-						TotalAccs:      totalAccs,
-						TotalAccHours:  totalAccHours,
-					})
-			} else {
-				stats = append(stats,
-					&model.JobsStatistics{
-						ID:             id.String,
-						TotalJobs:      totalJobs,
-						TotalUsers:     totalUsers,
-						TotalWalltime:  totalWalltime,
-						TotalNodes:     totalNodes,
-						TotalNodeHours: totalNodeHours,
-						TotalCores:     totalCores,
-						TotalCoreHours: totalCoreHours,
-						TotalAccs:      totalAccs,
-						TotalAccHours:  totalAccHours,
-					})
+			for _, s := range stats {
+				if name, ok := nameMap[s.ID]; ok {
+					s.Name = name
+				}
 			}
 		}
 	}
 
-	cclog.Debugf("Timer JobsStatsGrouped %s", time.Since(start))
 	return stats, nil
 }
 
@@ -342,19 +346,20 @@ func (r *JobRepository) JobsStatsGrouped(
 func (r *JobRepository) JobsStats(
 	ctx context.Context,
 	filter []*model.JobFilter,
+	reqFields map[string]bool,
 ) ([]*model.JobsStatistics, error) {
 	start := time.Now()
-	query := r.buildStatsQuery(filter, "")
+	query := r.buildStatsQuery(filter, "", config.Keys.ShortRunningJobsDuration, reqFields)
 	query, err := SecurityCheck(ctx, query)
 	if err != nil {
 		return nil, err
 	}
 
-	row := query.RunWith(r.DB).QueryRow()
+	row := query.RunWith(r.DB).QueryRowContext(ctx)
 	stats := make([]*model.JobsStatistics, 0, 1)
 
-	var jobs, users, walltime, nodes, nodeHours, cores, coreHours, accs, accHours sql.NullInt64
-	if err := row.Scan(&jobs, &users, &walltime, &nodes, &nodeHours, &cores, &coreHours, &accs, &accHours); err != nil {
+	var jobs, users, walltime, nodes, nodeHours, cores, coreHours, accs, accHours, runningJobs, shortJobs sql.NullInt64
+	if err := row.Scan(&jobs, &users, &walltime, &nodes, &nodeHours, &cores, &coreHours, &accs, &accHours, &runningJobs, &shortJobs); err != nil {
 		cclog.Warn("Error while scanning rows")
 		return nil, err
 	}
@@ -379,6 +384,8 @@ func (r *JobRepository) JobsStats(
 				TotalNodeHours: totalNodeHours,
 				TotalCoreHours: totalCoreHours,
 				TotalAccHours:  totalAccHours,
+				RunningJobs:    int(runningJobs.Int64),
+				ShortJobs:      int(shortJobs.Int64),
 			})
 	}
 
@@ -435,11 +442,12 @@ func (r *JobRepository) JobCountGrouped(
 	if err != nil {
 		return nil, err
 	}
-	rows, err := query.RunWith(r.DB).Query()
+	rows, err := query.RunWith(r.DB).QueryContext(ctx)
 	if err != nil {
 		cclog.Warn("Error while querying DB for job statistics")
 		return nil, err
 	}
+	defer rows.Close()
 
 	stats := make([]*model.JobsStatistics, 0, 100)
 
@@ -457,6 +465,10 @@ func (r *JobRepository) JobCountGrouped(
 					TotalJobs: int(cnt.Int64),
 				})
 		}
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, err
 	}
 
 	cclog.Debugf("Timer JobCountGrouped %s", time.Since(start))
@@ -491,11 +503,12 @@ func (r *JobRepository) AddJobCountGrouped(
 	if err != nil {
 		return nil, err
 	}
-	rows, err := query.RunWith(r.DB).Query()
+	rows, err := query.RunWith(r.DB).QueryContext(ctx)
 	if err != nil {
 		cclog.Warn("Error while querying DB for job statistics")
 		return nil, err
 	}
+	defer rows.Close()
 
 	counts := make(map[string]int)
 
@@ -509,6 +522,10 @@ func (r *JobRepository) AddJobCountGrouped(
 		if id.Valid {
 			counts[id.String] = int(cnt.Int64)
 		}
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, err
 	}
 
 	switch kind {
@@ -550,23 +567,13 @@ func (r *JobRepository) AddJobCount(
 	if err != nil {
 		return nil, err
 	}
-	rows, err := query.RunWith(r.DB).Query()
-	if err != nil {
-		cclog.Warn("Error while querying DB for job statistics")
+	var cnt sql.NullInt64
+	if err := query.RunWith(r.DB).QueryRowContext(ctx).Scan(&cnt); err != nil {
+		cclog.Warn("Error while querying DB for job count")
 		return nil, err
 	}
 
-	var count int
-
-	for rows.Next() {
-		var cnt sql.NullInt64
-		if err := rows.Scan(&cnt); err != nil {
-			cclog.Warn("Error while scanning rows")
-			return nil, err
-		}
-
-		count = int(cnt.Int64)
-	}
+	count := int(cnt.Int64)
 
 	switch kind {
 	case "running":
@@ -634,30 +641,45 @@ func (r *JobRepository) AddHistograms(
 		targetBinSize = 3600
 	}
 
-	var err error
-	// Return X-Values always as seconds, will be formatted into minutes and hours in frontend
-	value := fmt.Sprintf(`CAST(ROUND(((CASE WHEN job.job_state = "running" THEN %d - job.start_time ELSE job.duration END) / %d) + 1) as int) as value`, time.Now().Unix(), targetBinSize)
-	stat.HistDuration, err = r.jobsDurationStatisticsHistogram(ctx, value, filter, targetBinSize, &targetBinCount)
-	if err != nil {
-		cclog.Warn("Error while loading job statistics histogram: job duration")
-		return nil, err
-	}
+	// Run all 4 histogram queries in parallel — each writes a distinct struct field.
+	g, gctx := errgroup.WithContext(ctx)
 
-	stat.HistNumNodes, err = r.jobsStatisticsHistogram(ctx, "job.num_nodes as value", filter)
-	if err != nil {
-		cclog.Warn("Error while loading job statistics histogram: num nodes")
-		return nil, err
-	}
+	value := fmt.Sprintf(`CAST(ROUND(((CASE WHEN job.job_state = 'running' THEN %d - job.start_time ELSE job.duration END) / %d) + 1) as int) as value`, time.Now().Unix(), targetBinSize)
 
-	stat.HistNumCores, err = r.jobsStatisticsHistogram(ctx, "job.num_hwthreads as value", filter)
-	if err != nil {
-		cclog.Warn("Error while loading job statistics histogram: num hwthreads")
-		return nil, err
-	}
+	g.Go(func() error {
+		var err error
+		stat.HistDuration, err = r.jobsDurationStatisticsHistogram(gctx, value, filter, targetBinSize, &targetBinCount)
+		if err != nil {
+			cclog.Warn("Error while loading job statistics histogram: job duration")
+		}
+		return err
+	})
+	g.Go(func() error {
+		var err error
+		stat.HistNumNodes, err = r.jobsStatisticsHistogram(gctx, "job.num_nodes as value", filter)
+		if err != nil {
+			cclog.Warn("Error while loading job statistics histogram: num nodes")
+		}
+		return err
+	})
+	g.Go(func() error {
+		var err error
+		stat.HistNumCores, err = r.jobsStatisticsHistogram(gctx, "job.num_hwthreads as value", filter)
+		if err != nil {
+			cclog.Warn("Error while loading job statistics histogram: num hwthreads")
+		}
+		return err
+	})
+	g.Go(func() error {
+		var err error
+		stat.HistNumAccs, err = r.jobsStatisticsHistogram(gctx, "job.num_acc as value", filter)
+		if err != nil {
+			cclog.Warn("Error while loading job statistics histogram: num acc")
+		}
+		return err
+	})
 
-	stat.HistNumAccs, err = r.jobsStatisticsHistogram(ctx, "job.num_acc as value", filter)
-	if err != nil {
-		cclog.Warn("Error while loading job statistics histogram: num acc")
+	if err := g.Wait(); err != nil {
 		return nil, err
 	}
 
@@ -740,7 +762,7 @@ func (r *JobRepository) jobsStatisticsHistogram(
 ) ([]*model.HistoPoint, error) {
 	start := time.Now()
 	query, qerr := SecurityCheck(ctx,
-		sq.Select(value, "COUNT(job.id) AS count").From("job"))
+		sq.Select(value, "COUNT(*) AS count").From("job"))
 
 	if qerr != nil {
 		return nil, qerr
@@ -750,11 +772,12 @@ func (r *JobRepository) jobsStatisticsHistogram(
 		query = BuildWhereClause(f, query)
 	}
 
-	rows, err := query.GroupBy("value").RunWith(r.DB).Query()
+	rows, err := query.GroupBy("value").RunWith(r.DB).QueryContext(ctx)
 	if err != nil {
 		cclog.Error("Error while running query")
 		return nil, err
 	}
+	defer rows.Close()
 
 	points := make([]*model.HistoPoint, 0)
 	// is it possible to introduce zero values here? requires info about bincount
@@ -767,6 +790,11 @@ func (r *JobRepository) jobsStatisticsHistogram(
 
 		points = append(points, &point)
 	}
+
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+
 	cclog.Debugf("Timer jobsStatisticsHistogram %s", time.Since(start))
 	return points, nil
 }
@@ -800,7 +828,7 @@ func (r *JobRepository) jobsDurationStatisticsHistogram(
 ) ([]*model.HistoPoint, error) {
 	start := time.Now()
 	query, qerr := SecurityCheck(ctx,
-		sq.Select(value, "COUNT(job.id) AS count").From("job"))
+		sq.Select(value, "COUNT(*) AS count").From("job"))
 
 	if qerr != nil {
 		return nil, qerr
@@ -808,24 +836,31 @@ func (r *JobRepository) jobsDurationStatisticsHistogram(
 
 	// Each bin represents a duration range: bin N = [N*binSizeSeconds, (N+1)*binSizeSeconds)
 	// Example: binSizeSeconds=3600 (1 hour), bin 1 = 0-1h, bin 2 = 1-2h, etc.
-	points := make([]*model.HistoPoint, 0)
+	points := make([]*model.HistoPoint, 0, *targetBinCount)
 	for i := 1; i <= *targetBinCount; i++ {
 		point := model.HistoPoint{Value: i * binSizeSeconds, Count: 0}
 		points = append(points, &point)
+	}
+
+	// Build a map from bin value (seconds) to slice index for O(1) lookup.
+	binMap := make(map[int]int, len(points))
+	for i, p := range points {
+		binMap[p.Value] = i
 	}
 
 	for _, f := range filters {
 		query = BuildWhereClause(f, query)
 	}
 
-	rows, err := query.GroupBy("value").RunWith(r.DB).Query()
+	rows, err := query.GroupBy("value").RunWith(r.DB).QueryContext(ctx)
 	if err != nil {
 		cclog.Error("Error while running query")
 		return nil, err
 	}
+	defer rows.Close()
 
-	// Match query results to pre-initialized bins.
-	// point.Value from query is the bin number; multiply by binSizeSeconds to match bin.Value.
+	// Match query results to pre-initialized bins using map lookup.
+	// point.Value from query is the bin number; multiply by binSizeSeconds to get bin key.
 	for rows.Next() {
 		point := model.HistoPoint{}
 		if err := rows.Scan(&point.Value, &point.Count); err != nil {
@@ -833,12 +868,13 @@ func (r *JobRepository) jobsDurationStatisticsHistogram(
 			return nil, err
 		}
 
-		for _, e := range points {
-			if e.Value == (point.Value * binSizeSeconds) {
-				e.Count = point.Count
-				break
-			}
+		if idx, ok := binMap[point.Value*binSizeSeconds]; ok {
+			points[idx].Count = point.Count
 		}
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, err
 	}
 
 	cclog.Debugf("Timer jobsStatisticsHistogram %s", time.Since(start))
@@ -943,24 +979,34 @@ func (r *JobRepository) jobsMetricStatisticsHistogram(
 
 	mainQuery = mainQuery.GroupBy("bin").OrderBy("bin")
 
-	rows, err := mainQuery.RunWith(r.DB).Query()
+	rows, err := mainQuery.RunWith(r.DB).QueryContext(ctx)
 	if err != nil {
 		cclog.Errorf("Error while running mainQuery: %s", err)
 		return nil, err
 	}
+	defer rows.Close()
 
 	// Pre-initialize bins with calculated min/max ranges.
 	// Example: peak=1000, bins=10 -> bin 1=[0,100), bin 2=[100,200), ..., bin 10=[900,1000]
-	points := make([]*model.MetricHistoPoint, 0)
+	points := make([]*model.MetricHistoPoint, 0, *bins)
 	binStep := int(peak) / *bins
 	for i := 1; i <= *bins; i++ {
 		binMin := (binStep * (i - 1))
 		binMax := (binStep * i)
-		epoint := model.MetricHistoPoint{Bin: &i, Count: 0, Min: &binMin, Max: &binMax}
+		idx := i
+		epoint := model.MetricHistoPoint{Bin: &idx, Count: 0, Min: &binMin, Max: &binMax}
 		points = append(points, &epoint)
 	}
 
-	// Match query results to pre-initialized bins.
+	// Build a map from bin number to slice index for O(1) lookup.
+	binMap := make(map[int]int, len(points))
+	for i, p := range points {
+		if p.Bin != nil {
+			binMap[*p.Bin] = i
+		}
+	}
+
+	// Match query results to pre-initialized bins using map lookup.
 	for rows.Next() {
 		rpoint := model.MetricHistoPoint{}
 		if err := rows.Scan(&rpoint.Bin, &rpoint.Count); err != nil {
@@ -968,12 +1014,15 @@ func (r *JobRepository) jobsMetricStatisticsHistogram(
 			return nil, err
 		}
 
-		for _, e := range points {
-			if e.Bin != nil && rpoint.Bin != nil && *e.Bin == *rpoint.Bin {
-				e.Count = rpoint.Count
-				break
+		if rpoint.Bin != nil {
+			if idx, ok := binMap[*rpoint.Bin]; ok {
+				points[idx].Count = rpoint.Count
 			}
 		}
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, err
 	}
 
 	result := model.MetricHistoPoints{Metric: metric, Unit: unit, Stat: &footprintStat, Data: points}

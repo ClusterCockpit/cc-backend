@@ -177,6 +177,32 @@ var configSchema = `
         }
       },
       "required": ["policy"]
+    },
+    "db-config": {
+      "description": "SQLite database tuning configuration.",
+      "type": "object",
+      "properties": {
+        "cache-size-mb": {
+          "description": "SQLite page cache size per connection in MB (default: 2048).",
+          "type": "integer"
+        },
+        "soft-heap-limit-mb": {
+          "description": "Process-wide SQLite soft heap limit in MB (default: 16384).",
+          "type": "integer"
+        },
+        "max-open-connections": {
+          "description": "Maximum number of open database connections (default: 4).",
+          "type": "integer"
+        },
+        "max-idle-connections": {
+          "description": "Maximum number of idle database connections (default: 4).",
+          "type": "integer"
+        },
+        "max-idle-time-minutes": {
+          "description": "Maximum idle time for a connection in minutes (default: 10).",
+          "type": "integer"
+        }
+      }
     }
   }
 }`

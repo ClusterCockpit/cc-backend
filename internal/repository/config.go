@@ -27,13 +27,25 @@ type RepositoryConfig struct {
 	ConnectionMaxLifetime time.Duration
 
 	// ConnectionMaxIdleTime is the maximum amount of time a connection may be idle.
-	// Default: 1 hour
+	// Default: 10 minutes
 	ConnectionMaxIdleTime time.Duration
 
 	// MinRunningJobDuration is the minimum duration in seconds for a job to be
 	// considered in "running jobs" queries. This filters out very short jobs.
 	// Default: 600 seconds (10 minutes)
 	MinRunningJobDuration int
+
+	// DbCacheSizeMB is the SQLite page cache size per connection in MB.
+	// Uses negative PRAGMA cache_size notation (KiB). With MaxOpenConnections=4
+	// and DbCacheSizeMB=2048, total page cache is up to 8GB.
+	// Default: 2048 (2GB)
+	DbCacheSizeMB int
+
+	// DbSoftHeapLimitMB is the process-wide SQLite soft heap limit in MB.
+	// SQLite will try to release cache pages to stay under this limit.
+	// It's a soft limit — queries won't fail, but cache eviction becomes more aggressive.
+	// Default: 16384 (16GB)
+	DbSoftHeapLimitMB int
 }
 
 // DefaultConfig returns the default repository configuration.
@@ -44,8 +56,10 @@ func DefaultConfig() *RepositoryConfig {
 		MaxOpenConnections:    4,
 		MaxIdleConnections:    4,
 		ConnectionMaxLifetime: time.Hour,
-		ConnectionMaxIdleTime: time.Hour,
+		ConnectionMaxIdleTime: 10 * time.Minute,
 		MinRunningJobDuration: 600, // 10 minutes
+		DbCacheSizeMB:        2048,  // 2GB per connection
+		DbSoftHeapLimitMB:    16384, // 16GB process-wide
 	}
 }
 

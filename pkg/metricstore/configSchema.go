@@ -54,6 +54,10 @@ const configSchema = `{
       "description": "Keep the metrics within memory for given time interval. Retention for X hours, then the metrics would be freed.",
       "type": "string"
     },
+    "checkpoint-interval": {
+      "description": "Interval between checkpoints as a Go duration string (e.g., '12h', '6h', '30m'). Default is '12h'.",
+      "type": "string"
+    },
     "memory-cap": {
       "description": "Upper memory capacity limit used by metricstore in GB",
       "type": "integer"

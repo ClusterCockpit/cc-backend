@@ -366,17 +366,21 @@ func (r *NodeRepository) QueryNodes(
 		cclog.Errorf("Error while running query '%s' %v: %v", queryString, queryVars, err)
 		return nil, err
 	}
+	defer rows.Close()
 
 	nodes := make([]*schema.Node, 0)
 	for rows.Next() {
 		node := schema.Node{}
 		if err := rows.Scan(&node.Hostname, &node.Cluster, &node.SubCluster,
 			&node.NodeState, &node.HealthState); err != nil {
-			rows.Close()
 			cclog.Warn("Error while scanning rows (QueryNodes)")
 			return nil, err
 		}
 		nodes = append(nodes, &node)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, err
 	}
 
 	return nodes, nil
@@ -415,6 +419,7 @@ func (r *NodeRepository) QueryNodesWithMeta(
 		cclog.Errorf("Error while running query '%s' %v: %v", queryString, queryVars, err)
 		return nil, err
 	}
+	defer rows.Close()
 
 	nodes := make([]*schema.Node, 0)
 	for rows.Next() {
@@ -424,7 +429,6 @@ func (r *NodeRepository) QueryNodesWithMeta(
 
 		if err := rows.Scan(&node.Hostname, &node.Cluster, &node.SubCluster,
 			&node.NodeState, &node.HealthState, &RawMetaData, &RawMetricHealth); err != nil {
-			rows.Close()
 			cclog.Warn("Error while scanning rows (QueryNodes)")
 			return nil, err
 		}
@@ -452,6 +456,10 @@ func (r *NodeRepository) QueryNodesWithMeta(
 		}
 
 		nodes = append(nodes, &node)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, err
 	}
 
 	return nodes, nil
@@ -545,10 +553,11 @@ func (r *NodeRepository) MapNodes(cluster string) (map[string]string, error) {
 
 func (r *NodeRepository) CountStates(ctx context.Context, filters []*model.NodeFilter, column string) ([]*model.NodeStates, error) {
 	query, qerr := AccessCheck(ctx,
-		sq.Select(column).
+		sq.Select(column, "COUNT(*) as count").
 			From("node").
 			Join("node_state ON node_state.node_id = node.id").
-			Where(latestStateCondition()))
+			Where(latestStateCondition()).
+			GroupBy(column))
 	if qerr != nil {
 		return nil, qerr
 	}
@@ -561,23 +570,21 @@ func (r *NodeRepository) CountStates(ctx context.Context, filters []*model.NodeF
 		cclog.Errorf("Error while running query '%s' %v: %v", queryString, queryVars, err)
 		return nil, err
 	}
+	defer rows.Close()
 
-	stateMap := map[string]int{}
+	nodes := make([]*model.NodeStates, 0)
 	for rows.Next() {
 		var state string
-		if err := rows.Scan(&state); err != nil {
-			rows.Close()
+		var count int
+		if err := rows.Scan(&state, &count); err != nil {
 			cclog.Warn("Error while scanning rows (CountStates)")
 			return nil, err
 		}
-
-		stateMap[state] += 1
+		nodes = append(nodes, &model.NodeStates{State: state, Count: count})
 	}
 
-	nodes := make([]*model.NodeStates, 0)
-	for state, counts := range stateMap {
-		node := model.NodeStates{State: state, Count: counts}
-		nodes = append(nodes, &node)
+	if err := rows.Err(); err != nil {
+		return nil, err
 	}
 
 	return nodes, nil
@@ -623,6 +630,7 @@ func (r *NodeRepository) CountStatesTimed(ctx context.Context, filters []*model.
 		cclog.Errorf("Error while running query '%s' %v: %v", queryString, queryVars, err)
 		return nil, err
 	}
+	defer rows.Close()
 
 	rawData := make(map[string][][]int)
 	for rows.Next() {
@@ -630,7 +638,6 @@ func (r *NodeRepository) CountStatesTimed(ctx context.Context, filters []*model.
 		var timestamp, count int
 
 		if err := rows.Scan(&state, &timestamp, &count); err != nil {
-			rows.Close()
 			cclog.Warnf("Error while scanning rows (CountStatesTimed) at time '%d'", timestamp)
 			return nil, err
 		}
@@ -641,6 +648,10 @@ func (r *NodeRepository) CountStatesTimed(ctx context.Context, filters []*model.
 
 		rawData[state][0] = append(rawData[state][0], timestamp)
 		rawData[state][1] = append(rawData[state][1], count)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, err
 	}
 
 	timedStates := make([]*model.NodeStatesTimed, 0)

@@ -127,7 +127,7 @@ func (data *APIMetricData) AddStats() {
 // This is commonly used for unit conversion (e.g., bytes to gigabytes).
 // Scaling by 0 or 1 is a no-op for performance reasons.
 func (data *APIMetricData) ScaleBy(f schema.Float) {
-	if f == 0 || f == 1 {
+	if f == 1 {
 		return
 	}
 
