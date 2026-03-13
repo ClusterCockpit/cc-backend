@@ -645,7 +645,6 @@ func (r *queryResolver) Jobs(ctx context.Context, filter []*model.JobFilter, pag
 
 // JobsStatistics is the resolver for the jobsStatistics field.
 func (r *queryResolver) JobsStatistics(ctx context.Context, filter []*model.JobFilter, metrics []string, page *model.PageRequest, sortBy *model.SortByAggregate, groupBy *model.Aggregate, numDurationBins *string, numMetricBins *int) ([]*model.JobsStatistics, error) {
-	startOverall := time.Now()
 	var err error
 	var stats []*model.JobsStatistics
 
@@ -654,8 +653,10 @@ func (r *queryResolver) JobsStatistics(ctx context.Context, filter []*model.JobF
 	defaultMetricBins := 10
 
 	// Build requested fields map for selective column computation
-	statsFields := []string{"totalJobs", "totalUsers", "totalWalltime", "totalNodes", "totalCores",
-		"totalAccs", "totalNodeHours", "totalCoreHours", "totalAccHours", "runningJobs", "shortJobs"}
+	statsFields := []string{
+		"totalJobs", "totalUsers", "totalWalltime", "totalNodes", "totalCores",
+		"totalAccs", "totalNodeHours", "totalCoreHours", "totalAccHours", "runningJobs", "shortJobs",
+	}
 	reqFields := make(map[string]bool, len(statsFields))
 	fetchedMainStats := false
 	for _, f := range statsFields {
@@ -736,7 +737,6 @@ func (r *queryResolver) JobsStatistics(ctx context.Context, filter []*model.JobF
 		}
 	}
 
-	cclog.Infof("Timer JobsStatistics overall: %s", time.Since(startOverall))
 	return stats, nil
 }
 
@@ -1052,10 +1052,12 @@ func (r *Resolver) Query() generated.QueryResolver { return &queryResolver{r} }
 // SubCluster returns generated.SubClusterResolver implementation.
 func (r *Resolver) SubCluster() generated.SubClusterResolver { return &subClusterResolver{r} }
 
-type clusterResolver struct{ *Resolver }
-type jobResolver struct{ *Resolver }
-type metricValueResolver struct{ *Resolver }
-type mutationResolver struct{ *Resolver }
-type nodeResolver struct{ *Resolver }
-type queryResolver struct{ *Resolver }
-type subClusterResolver struct{ *Resolver }
+type (
+	clusterResolver     struct{ *Resolver }
+	jobResolver         struct{ *Resolver }
+	metricValueResolver struct{ *Resolver }
+	mutationResolver    struct{ *Resolver }
+	nodeResolver        struct{ *Resolver }
+	queryResolver       struct{ *Resolver }
+	subClusterResolver  struct{ *Resolver }
+)
