@@ -8,7 +8,7 @@
   - `useAltColors Bool?`: Use alternative color set [Default: false]
 -->
 
- <script>
+<script>
   import {
     Row,
     Col,
@@ -19,13 +19,9 @@
     Tooltip,
     Input,
     InputGroup,
-    InputGroupText
+    InputGroupText,
   } from "@sveltestrap/sveltestrap";
-  import {
-    queryStore,
-    gql,
-    getContextClient,
-  } from "@urql/svelte";
+  import { queryStore, gql, getContextClient } from "@urql/svelte";
   import {
     scramble,
     scrambleNames,
@@ -46,186 +42,168 @@
 
   /* Const Init */
   const client = getContextClient();
-  const durationBinOptions = ["1m","10m","1h","6h","12h"];
+  const durationBinOptions = ["1m", "10m", "1h", "6h", "12h"];
 
   /* State Init */
-  let pagingState = $state({page: 1, itemsPerPage: 10}) // Top 10
-  let selectedHistograms = $state([]) // Dummy For Refresh 
+  let pagingState = $state({ page: 1, itemsPerPage: 10 }); // Top 10
+  let selectedHistograms = $state([]); // Dummy For Refresh
   let colWidthJobs = $state(0);
   let colWidthNodes = $state(0);
   let colWidthAccs = $state(0);
   let numDurationBins = $state("1h");
 
   /* Derived */
-  const canvasPrefix = $derived(`${presetCluster}-${presetSubCluster ? presetSubCluster : ''}`)
-
-  const statusFilter = $derived(presetSubCluster
-      ? [{ state: ["running"] }, { cluster: { eq: presetCluster} }, { subCluster: { eq: presetSubCluster } }]
-      : [{ state: ["running"] }, { cluster: { eq: presetCluster} }] 
+  const canvasPrefix = $derived(
+    `${presetCluster}-${presetSubCluster ? presetSubCluster : ""}`,
   );
-  const topJobsQuery = $derived(loadMe ? queryStore({
-    client: client,
-    query: gql`
-      query (
-        $filter: [JobFilter!]!
-        $paging: PageRequest!
-      ) {
-        topUser: jobsStatistics(
-          filter: $filter
-          page: $paging
-          sortBy: TOTALJOBS
-          groupBy: USER
-        ) {
-          id
-          name
-          totalJobs
-        }
-        topProjects: jobsStatistics(
-          filter: $filter
-          page: $paging
-          sortBy: TOTALJOBS
-          groupBy: PROJECT
-        ) {
-          id
-          totalJobs
-        }
-      }
-    `,
-    variables: {
-      filter: statusFilter,
-      paging: pagingState // Top 10
-    },
-    requestPolicy: "network-only"
-  }) : null);
 
-  const topNodesQuery = $derived(loadMe ? queryStore({
-    client: client,
-    query: gql`
-      query (
-        $filter: [JobFilter!]!
-        $paging: PageRequest!
-      ) {
-        topUser: jobsStatistics(
-          filter: $filter
-          page: $paging
-          sortBy: TOTALNODES
-          groupBy: USER
-        ) {
-          id
-          name
-          totalNodes
-        }
-        topProjects: jobsStatistics(
-          filter: $filter
-          page: $paging
-          sortBy: TOTALNODES
-          groupBy: PROJECT
-        ) {
-          id
-          totalNodes
-        }
-      }
-    `,
-    variables: {
-      filter: statusFilter,
-      paging: pagingState
-    },
-    requestPolicy: "network-only"
-  }) : null);
-
-  const topAccsQuery = $derived(loadMe ? queryStore({
-    client: client,
-    query: gql`
-      query (
-        $filter: [JobFilter!]!
-        $paging: PageRequest!
-      ) {
-        topUser: jobsStatistics(
-          filter: $filter
-          page: $paging
-          sortBy: TOTALACCS
-          groupBy: USER
-        ) {
-          id
-          name
-          totalAccs
-        }
-        topProjects: jobsStatistics(
-          filter: $filter
-          page: $paging
-          sortBy: TOTALACCS
-          groupBy: PROJECT
-        ) {
-          id
-          totalAccs
-        }
-      }
-    `,
-    variables: {
-      filter: statusFilter,
-      paging: pagingState
-    },
-    requestPolicy: "network-only"
-  }): null);
+  const statusFilter = $derived(
+    presetSubCluster
+      ? [
+          { state: ["running"] },
+          { cluster: { eq: presetCluster } },
+          { subCluster: { eq: presetSubCluster } },
+        ]
+      : [{ state: ["running"] }, { cluster: { eq: presetCluster } }],
+  );
+  const topStatsQuery = $derived(
+    loadMe
+      ? queryStore({
+          client: client,
+          query: gql`
+            query ($filter: [JobFilter!]!, $paging: PageRequest!) {
+              topUserJobs: jobsStatistics(
+                filter: $filter
+                page: $paging
+                sortBy: TOTALJOBS
+                groupBy: USER
+              ) {
+                id
+                name
+                totalJobs
+              }
+              topProjectJobs: jobsStatistics(
+                filter: $filter
+                page: $paging
+                sortBy: TOTALJOBS
+                groupBy: PROJECT
+              ) {
+                id
+                totalJobs
+              }
+              topUserNodes: jobsStatistics(
+                filter: $filter
+                page: $paging
+                sortBy: TOTALNODES
+                groupBy: USER
+              ) {
+                id
+                name
+                totalNodes
+              }
+              topProjectNodes: jobsStatistics(
+                filter: $filter
+                page: $paging
+                sortBy: TOTALNODES
+                groupBy: PROJECT
+              ) {
+                id
+                totalNodes
+              }
+              topUserAccs: jobsStatistics(
+                filter: $filter
+                page: $paging
+                sortBy: TOTALACCS
+                groupBy: USER
+              ) {
+                id
+                name
+                totalAccs
+              }
+              topProjectAccs: jobsStatistics(
+                filter: $filter
+                page: $paging
+                sortBy: TOTALACCS
+                groupBy: PROJECT
+              ) {
+                id
+                totalAccs
+              }
+            }
+          `,
+          variables: {
+            filter: statusFilter,
+            paging: pagingState, // Top 10
+          },
+          requestPolicy: "network-only",
+        })
+      : null,
+  );
 
   // Note: nodeMetrics are requested on configured $timestep resolution
-  const nodeStatusQuery = $derived(loadMe ? queryStore({
-    client: client,
-    query: gql`
-      query (
-        $filter: [JobFilter!]!
-        $selectedHistograms: [String!]
-        $numDurationBins: String
-      ) {
-        jobsStatistics(filter: $filter, metrics: $selectedHistograms, numDurationBins: $numDurationBins) {
-          histDuration {
-            count
-            value
-          }
-          histNumNodes {
-            count
-            value
-          }
-          histNumAccs {
-            count
-            value
-          }
-        }
-      }
-    `,
-    variables: {
-      filter: statusFilter,
-      selectedHistograms: selectedHistograms, // No Metrics requested for node hardware stats
-      numDurationBins: numDurationBins,
-    },
-    requestPolicy: "network-only"
-  }) : null);
+  const nodeStatusQuery = $derived(
+    loadMe
+      ? queryStore({
+          client: client,
+          query: gql`
+            query (
+              $filter: [JobFilter!]!
+              $selectedHistograms: [String!]
+              $numDurationBins: String
+            ) {
+              jobsStatistics(
+                filter: $filter
+                metrics: $selectedHistograms
+                numDurationBins: $numDurationBins
+              ) {
+                histDuration {
+                  count
+                  value
+                }
+                histNumNodes {
+                  count
+                  value
+                }
+                histNumAccs {
+                  count
+                  value
+                }
+              }
+            }
+          `,
+          variables: {
+            filter: statusFilter,
+            selectedHistograms: selectedHistograms, // No Metrics requested for node hardware stats
+            numDurationBins: numDurationBins,
+          },
+          requestPolicy: "network-only",
+        })
+      : null,
+  );
 
   /* Functions */
   function legendColors(targetIdx) {
     // Reuses first color if targetIdx overflows
     let c;
-      if (useCbColors) {
-        c = [...colors['colorblind']];
-      } else if (useAltColors) {
-        c = [...colors['alternative']];
-      } else {
-        c = [...colors['default']];
-      }
-    return  c[(c.length + targetIdx) % c.length];
+    if (useCbColors) {
+      c = [...colors["colorblind"]];
+    } else if (useAltColors) {
+      c = [...colors["alternative"]];
+    } else {
+      c = [...colors["default"]];
+    }
+    return c[(c.length + targetIdx) % c.length];
   }
 </script>
 
 <!-- Refresher and space for other options -->
 <Row class="justify-content-between">
-    <Col class="mb-2 mb-md-0" xs="12" md="5" lg="4" xl="3">
+  <Col class="mb-2 mb-md-0" xs="12" md="5" lg="4" xl="3">
     <InputGroup>
       <InputGroupText>
         <Icon name="bar-chart-line-fill" />
       </InputGroupText>
-      <InputGroupText>
-        Duration Bin Size
-      </InputGroupText>
+      <InputGroupText>Duration Bin Size</InputGroupText>
       <Input type="select" bind:value={numDurationBins}>
         {#each durationBinOptions as dbin}
           <option value={dbin}>{dbin}</option>
@@ -237,24 +215,26 @@
     <Refresher
       initially={120}
       onRefresh={() => {
-        pagingState = { page:1, itemsPerPage: 10 };
+        pagingState = { page: 1, itemsPerPage: 10 };
         selectedHistograms = [...$state.snapshot(selectedHistograms)];
       }}
     />
   </Col>
 </Row>
 
-<hr/>
+<hr />
 
 <!-- Job Duration, Top Users and Projects-->
-{#if $topJobsQuery?.fetching || $nodeStatusQuery?.fetching}
+{#if $topStatsQuery?.fetching || $nodeStatusQuery?.fetching}
   <Spinner />
-{:else if $topJobsQuery?.data && $nodeStatusQuery?.data}
+{:else if $topStatsQuery?.data && $nodeStatusQuery?.data}
   <Row>
     <Col xs="12" lg="4" class="p-2">
       {#key $nodeStatusQuery.data.jobsStatistics[0].histDuration}
         <Histogram
-          data={convert2uplot($nodeStatusQuery.data.jobsStatistics[0].histDuration)}
+          data={convert2uplot(
+            $nodeStatusQuery.data.jobsStatistics[0].histDuration,
+          )}
           title="Duration Distribution"
           xlabel="Current Job Runtimes"
           xunit="Runtime"
@@ -269,18 +249,18 @@
     </Col>
     <Col xs="6" md="3" lg="2" class="p-2">
       <div bind:clientWidth={colWidthJobs}>
-        <h4 class="text-center">
-          Top Users: Jobs
-        </h4>
+        <h4 class="text-center">Top Users: Jobs</h4>
         <Pie
           {useAltColors}
           canvasId="{canvasPrefix}-hpcpie-jobs-users"
           size={colWidthJobs * 0.75}
           sliceLabel="Jobs"
-          quantities={$topJobsQuery.data.topUser.map(
-            (tu) => tu['totalJobs'],
+          quantities={$topStatsQuery.data.topUserJobs.map(
+            (tu) => tu["totalJobs"],
           )}
-          entities={$topJobsQuery.data.topUser.map((tu) => scrambleNames ? scramble(tu.id) : tu.id)}
+          entities={$topStatsQuery.data.topUserJobs.map((tu) =>
+            scrambleNames ? scramble(tu.id) : tu.id,
+          )}
         />
       </div>
     </Col>
@@ -291,11 +271,17 @@
           <th style="padding-left: 0.5rem;">User</th>
           <th>Jobs</th>
         </tr>
-        {#each $topJobsQuery.data.topUser as tu, i}
+        {#each $topStatsQuery.data.topUserJobs as tu, i}
           <tr>
-            <td><Icon name="circle-fill" style="color: {legendColors(i)};" /></td>
+            <td
+              ><Icon name="circle-fill" style="color: {legendColors(i)};" /></td
+            >
             <td id="{canvasPrefix}-topName-jobs-{tu.id}">
-              <a target="_blank" href="/monitoring/user/{tu.id}?cluster={presetCluster}{presetSubCluster ? '&partition='+presetSubCluster : ''}&state=running"
+              <a
+                target="_blank"
+                href="/monitoring/user/{tu.id}?cluster={presetCluster}{presetSubCluster
+                  ? '&partition=' + presetSubCluster
+                  : ''}&state=running"
                 >{scrambleNames ? scramble(tu.id) : tu.id}
               </a>
             </td>
@@ -306,25 +292,25 @@
                 >{scrambleNames ? scramble(tu.name) : tu.name}</Tooltip
               >
             {/if}
-            <td>{tu['totalJobs']}</td>
+            <td>{tu["totalJobs"]}</td>
           </tr>
         {/each}
       </Table>
     </Col>
 
     <Col xs="6" md="3" lg="2" class="p-2">
-      <h4 class="text-center">
-        Top Projects: Jobs
-      </h4>
+      <h4 class="text-center">Top Projects: Jobs</h4>
       <Pie
         {useAltColors}
         canvasId="{canvasPrefix}-hpcpie-jobs-projects"
         size={colWidthJobs * 0.75}
-        sliceLabel={'Jobs'}
-        quantities={$topJobsQuery.data.topProjects.map(
-          (tp) => tp['totalJobs'],
+        sliceLabel={"Jobs"}
+        quantities={$topStatsQuery.data.topProjectJobs.map(
+          (tp) => tp["totalJobs"],
         )}
-        entities={$topJobsQuery.data.topProjects.map((tp) => scrambleNames ? scramble(tp.id) : tp.id)}
+        entities={$topStatsQuery.data.topProjectJobs.map((tp) =>
+          scrambleNames ? scramble(tp.id) : tp.id,
+        )}
       />
     </Col>
     <Col xs="6" md="3" lg="2" class="p-2">
@@ -334,34 +320,44 @@
           <th style="padding-left: 0.5rem;">Project</th>
           <th>Jobs</th>
         </tr>
-        {#each $topJobsQuery.data.topProjects as tp, i}
+        {#each $topStatsQuery.data.topProjectJobs as tp, i}
           <tr>
-            <td><Icon name="circle-fill" style="color: {legendColors(i)};" /></td>
+            <td
+              ><Icon name="circle-fill" style="color: {legendColors(i)};" /></td
+            >
             <td>
-              <a target="_blank" href="/monitoring/jobs/?cluster={presetCluster}{presetSubCluster ? '&partition='+presetSubCluster : ''}&state=running&project={tp.id}&projectMatch=eq"
+              <a
+                target="_blank"
+                href="/monitoring/jobs/?cluster={presetCluster}{presetSubCluster
+                  ? '&partition=' + presetSubCluster
+                  : ''}&state=running&project={tp.id}&projectMatch=eq"
                 >{scrambleNames ? scramble(tp.id) : tp.id}
               </a>
             </td>
-            <td>{tp['totalJobs']}</td>
+            <td>{tp["totalJobs"]}</td>
           </tr>
         {/each}
       </Table>
     </Col>
   </Row>
 {:else}
-  <Card class="mx-4" body color="warning">Cannot render job status charts: No data!</Card>
+  <Card class="mx-4" body color="warning"
+    >Cannot render job status charts: No data!</Card
+  >
 {/if}
 
-<hr/>
+<hr />
 
 <!-- Node Distribution, Top Users and Projects-->
-{#if $topNodesQuery?.fetching || $nodeStatusQuery?.fetching}
+{#if $topStatsQuery?.fetching || $nodeStatusQuery?.fetching}
   <Spinner />
-{:else if $topNodesQuery?.data && $nodeStatusQuery?.data}
+{:else if $topStatsQuery?.data && $nodeStatusQuery?.data}
   <Row>
     <Col xs="12" lg="4" class="p-2">
       <Histogram
-        data={convert2uplot($nodeStatusQuery.data.jobsStatistics[0].histNumNodes)}
+        data={convert2uplot(
+          $nodeStatusQuery.data.jobsStatistics[0].histNumNodes,
+        )}
         title="Number of Nodes Distribution"
         xlabel="Allocated Nodes"
         xunit="Nodes"
@@ -373,18 +369,18 @@
     </Col>
     <Col xs="6" md="3" lg="2" class="p-2">
       <div bind:clientWidth={colWidthNodes}>
-        <h4 class="text-center">
-          Top Users: Nodes
-        </h4>
+        <h4 class="text-center">Top Users: Nodes</h4>
         <Pie
           {useAltColors}
           canvasId="{canvasPrefix}-hpcpie-nodes-users"
           size={colWidthNodes * 0.75}
           sliceLabel="Nodes"
-          quantities={$topNodesQuery.data.topUser.map(
-            (tu) => tu['totalNodes'],
+          quantities={$topStatsQuery.data.topUserNodes.map(
+            (tu) => tu["totalNodes"],
           )}
-          entities={$topNodesQuery.data.topUser.map((tu) => scrambleNames ? scramble(tu.id) : tu.id)}
+          entities={$topStatsQuery.data.topUserNodes.map((tu) =>
+            scrambleNames ? scramble(tu.id) : tu.id,
+          )}
         />
       </div>
     </Col>
@@ -395,11 +391,17 @@
           <th style="padding-left: 0.5rem;">User</th>
           <th>Nodes</th>
         </tr>
-        {#each $topNodesQuery.data.topUser as tu, i}
+        {#each $topStatsQuery.data.topUserNodes as tu, i}
           <tr>
-            <td><Icon name="circle-fill" style="color: {legendColors(i)};" /></td>
+            <td
+              ><Icon name="circle-fill" style="color: {legendColors(i)};" /></td
+            >
             <td id="{canvasPrefix}-topName-nodes-{tu.id}">
-              <a target="_blank" href="/monitoring/user/{tu.id}?cluster={presetCluster}{presetSubCluster ? '&partition='+presetSubCluster : ''}&state=running"
+              <a
+                target="_blank"
+                href="/monitoring/user/{tu.id}?cluster={presetCluster}{presetSubCluster
+                  ? '&partition=' + presetSubCluster
+                  : ''}&state=running"
                 >{scrambleNames ? scramble(tu.id) : tu.id}
               </a>
             </td>
@@ -410,25 +412,25 @@
                 >{scrambleNames ? scramble(tu.name) : tu.name}</Tooltip
               >
             {/if}
-            <td>{tu['totalNodes']}</td>
+            <td>{tu["totalNodes"]}</td>
           </tr>
         {/each}
       </Table>
     </Col>
 
     <Col xs="6" md="3" lg="2" class="p-2">
-      <h4 class="text-center">
-        Top Projects: Nodes
-      </h4>
+      <h4 class="text-center">Top Projects: Nodes</h4>
       <Pie
         {useAltColors}
         canvasId="{canvasPrefix}-hpcpie-nodes-projects"
         size={colWidthNodes * 0.75}
-        sliceLabel={'Nodes'}
-        quantities={$topNodesQuery.data.topProjects.map(
-          (tp) => tp['totalNodes'],
+        sliceLabel={"Nodes"}
+        quantities={$topStatsQuery.data.topProjectNodes.map(
+          (tp) => tp["totalNodes"],
         )}
-        entities={$topNodesQuery.data.topProjects.map((tp) => scrambleNames ? scramble(tp.id) : tp.id)}
+        entities={$topStatsQuery.data.topProjectNodes.map((tp) =>
+          scrambleNames ? scramble(tp.id) : tp.id,
+        )}
       />
     </Col>
     <Col xs="6" md="3" lg="2" class="p-2">
@@ -438,34 +440,44 @@
           <th style="padding-left: 0.5rem;">Project</th>
           <th>Nodes</th>
         </tr>
-        {#each $topNodesQuery.data.topProjects as tp, i}
+        {#each $topStatsQuery.data.topProjectNodes as tp, i}
           <tr>
-            <td><Icon name="circle-fill" style="color: {legendColors(i)};" /></td>
+            <td
+              ><Icon name="circle-fill" style="color: {legendColors(i)};" /></td
+            >
             <td>
-              <a target="_blank" href="/monitoring/jobs/?cluster={presetCluster}{presetSubCluster ? '&partition='+presetSubCluster : ''}&state=running&project={tp.id}&projectMatch=eq"
+              <a
+                target="_blank"
+                href="/monitoring/jobs/?cluster={presetCluster}{presetSubCluster
+                  ? '&partition=' + presetSubCluster
+                  : ''}&state=running&project={tp.id}&projectMatch=eq"
                 >{scrambleNames ? scramble(tp.id) : tp.id}
               </a>
             </td>
-            <td>{tp['totalNodes']}</td>
+            <td>{tp["totalNodes"]}</td>
           </tr>
         {/each}
       </Table>
     </Col>
   </Row>
 {:else}
-  <Card class="mx-4" body color="warning">Cannot render node status charts: No data!</Card>
+  <Card class="mx-4" body color="warning"
+    >Cannot render node status charts: No data!</Card
+  >
 {/if}
 
-<hr/>
+<hr />
 
 <!-- Acc Distribution, Top Users and Projects-->
-{#if $topAccsQuery?.fetching || $nodeStatusQuery?.fetching}
+{#if $topStatsQuery?.fetching || $nodeStatusQuery?.fetching}
   <Spinner />
-{:else if $topAccsQuery?.data && $nodeStatusQuery?.data}
+{:else if $topStatsQuery?.data && $nodeStatusQuery?.data}
   <Row>
     <Col xs="12" lg="4" class="p-2">
       <Histogram
-        data={convert2uplot($nodeStatusQuery.data.jobsStatistics[0].histNumAccs)}
+        data={convert2uplot(
+          $nodeStatusQuery.data.jobsStatistics[0].histNumAccs,
+        )}
         title="Number of Accelerators Distribution"
         xlabel="Allocated Accs"
         xunit="Accs"
@@ -477,18 +489,18 @@
     </Col>
     <Col xs="6" md="3" lg="2" class="p-2">
       <div bind:clientWidth={colWidthAccs}>
-        <h4 class="text-center">
-          Top Users: GPUs
-        </h4>
+        <h4 class="text-center">Top Users: GPUs</h4>
         <Pie
           {useAltColors}
           canvasId="{canvasPrefix}-hpcpie-accs-users"
           size={colWidthAccs * 0.75}
           sliceLabel="GPUs"
-          quantities={$topAccsQuery.data.topUser.map(
-            (tu) => tu['totalAccs'],
+          quantities={$topStatsQuery.data.topUserAccs.map(
+            (tu) => tu["totalAccs"],
           )}
-          entities={$topAccsQuery.data.topUser.map((tu) => scrambleNames ? scramble(tu.id) : tu.id)}
+          entities={$topStatsQuery.data.topUserAccs.map((tu) =>
+            scrambleNames ? scramble(tu.id) : tu.id,
+          )}
         />
       </div>
     </Col>
@@ -499,11 +511,17 @@
           <th style="padding-left: 0.5rem;">User</th>
           <th>GPUs</th>
         </tr>
-        {#each $topAccsQuery.data.topUser as tu, i}
+        {#each $topStatsQuery.data.topUserAccs as tu, i}
           <tr>
-            <td><Icon name="circle-fill" style="color: {legendColors(i)};" /></td>
+            <td
+              ><Icon name="circle-fill" style="color: {legendColors(i)};" /></td
+            >
             <td id="{canvasPrefix}-topName-accs-{tu.id}">
-              <a target="_blank" href="/monitoring/user/{tu.id}?cluster={presetCluster}{presetSubCluster ? '&partition='+presetSubCluster : ''}&state=running"
+              <a
+                target="_blank"
+                href="/monitoring/user/{tu.id}?cluster={presetCluster}{presetSubCluster
+                  ? '&partition=' + presetSubCluster
+                  : ''}&state=running"
                 >{scrambleNames ? scramble(tu.id) : tu.id}
               </a>
             </td>
@@ -514,25 +532,25 @@
                 >{scrambleNames ? scramble(tu.name) : tu.name}</Tooltip
               >
             {/if}
-            <td>{tu['totalAccs']}</td>
+            <td>{tu["totalAccs"]}</td>
           </tr>
         {/each}
       </Table>
     </Col>
 
     <Col xs="6" md="3" lg="2" class="p-2">
-      <h4 class="text-center">
-        Top Projects: GPUs
-      </h4>
+      <h4 class="text-center">Top Projects: GPUs</h4>
       <Pie
         {useAltColors}
         canvasId="{canvasPrefix}-hpcpie-accs-projects"
         size={colWidthAccs * 0.75}
-        sliceLabel={'GPUs'}
-        quantities={$topAccsQuery.data.topProjects.map(
-          (tp) => tp['totalAccs'],
+        sliceLabel={"GPUs"}
+        quantities={$topStatsQuery.data.topProjectAccs.map(
+          (tp) => tp["totalAccs"],
         )}
-        entities={$topAccsQuery.data.topProjects.map((tp) => scrambleNames ? scramble(tp.id) : tp.id)}
+        entities={$topStatsQuery.data.topProjectAccs.map((tp) =>
+          scrambleNames ? scramble(tp.id) : tp.id,
+        )}
       />
     </Col>
     <Col xs="6" md="3" lg="2" class="p-2">
@@ -542,20 +560,29 @@
           <th style="padding-left: 0.5rem;">Project</th>
           <th>GPUs</th>
         </tr>
-        {#each $topAccsQuery.data.topProjects as tp, i}
+        {#each $topStatsQuery.data.topProjectAccs as tp, i}
           <tr>
-            <td><Icon name="circle-fill" style="color: {legendColors(i)};" /></td>
+            <td
+              ><Icon name="circle-fill" style="color: {legendColors(i)};" /></td
+            >
             <td>
-              <a target="_blank" href="/monitoring/jobs/?cluster={presetCluster}{presetSubCluster ? '&partition='+presetSubCluster : ''}&state=running&project={tp.id}&projectMatch=eq"
+              <a
+                target="_blank"
+                href="/monitoring/jobs/?cluster={presetCluster}{presetSubCluster
+                  ? '&partition=' + presetSubCluster
+                  : ''}&state=running&project={tp.id}&projectMatch=eq"
                 >{scrambleNames ? scramble(tp.id) : tp.id}
               </a>
             </td>
-            <td>{tp['totalAccs']}</td>
+            <td>{tp["totalAccs"]}</td>
           </tr>
         {/each}
       </Table>
     </Col>
   </Row>
 {:else}
-  <Card class="mx-4" body color="warning">Cannot render accelerator status charts: No data!</Card>
+  <Card class="mx-4" body color="warning"
+    >Cannot render accelerator status charts: No data!</Card
+  >
 {/if}
+
