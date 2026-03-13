@@ -1,0 +1,34 @@
+{
+  "cli_version": "0.5.0",
+  "checkpoint_id": "5b26a6e5ff10",
+  "strategy": "manual-commit",
+  "branch": "hotfix",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "cmd/cc-backend/server.go",
+    "go.mod",
+    "internal/graph/schema.resolvers.go",
+    "internal/graph/stats_cache.go",
+    "internal/repository/jobQuery.go",
+    "internal/repository/migration.go",
+    "internal/repository/migrations/sqlite3/14_running-partial-indexes.down.sql",
+    "internal/repository/migrations/sqlite3/14_running-partial-indexes.up.sql",
+    "internal/repository/stats.go",
+    "web/frontend/src/status/dashdetails/UsageDash.svelte"
+  ],
+  "sessions": [
+    {
+      "metadata": "/5b/26a6e5ff10/0/metadata.json",
+      "transcript": "/5b/26a6e5ff10/0/full.jsonl",
+      "content_hash": "/5b/26a6e5ff10/0/content_hash.txt",
+      "prompt": "/5b/26a6e5ff10/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 34,
+    "cache_creation_tokens": 79971,
+    "cache_read_tokens": 2370419,
+    "output_tokens": 11238,
+    "api_call_count": 30
+  }
+}
