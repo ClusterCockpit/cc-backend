@@ -106,9 +106,10 @@ type walRotateReq struct {
 	done    chan struct{}
 }
 
-// walFileState holds an open WAL file handle for one host directory.
+// walFileState holds an open WAL file handle and buffered writer for one host directory.
 type walFileState struct {
 	f *os.File
+	w *bufio.Writer
 }
 
 // WALStaging starts a background goroutine that receives WALMessage items
@@ -125,15 +126,16 @@ func WALStaging(wg *sync.WaitGroup, ctx context.Context) {
 		defer func() {
 			for _, ws := range hostFiles {
 				if ws.f != nil {
+					ws.w.Flush()
 					ws.f.Close()
 				}
 			}
 		}()
 
-		getOrOpenWAL := func(hostDir string) *os.File {
+		getOrOpenWAL := func(hostDir string) *walFileState {
 			ws, ok := hostFiles[hostDir]
 			if ok {
-				return ws.f
+				return ws
 			}
 
 			if err := os.MkdirAll(hostDir, CheckpointDirPerms); err != nil {
@@ -148,29 +150,32 @@ func WALStaging(wg *sync.WaitGroup, ctx context.Context) {
 				return nil
 			}
 
+			w := bufio.NewWriter(f)
+
 			// Write file header magic if file is new (empty).
 			info, err := f.Stat()
 			if err == nil && info.Size() == 0 {
 				var hdr [4]byte
 				binary.LittleEndian.PutUint32(hdr[:], walFileMagic)
-				if _, err := f.Write(hdr[:]); err != nil {
+				if _, err := w.Write(hdr[:]); err != nil {
 					cclog.Errorf("[METRICSTORE]> WAL: write header %s: %v", walPath, err)
 					f.Close()
 					return nil
 				}
 			}
 
-			hostFiles[hostDir] = &walFileState{f: f}
-			return f
+			ws = &walFileState{f: f, w: w}
+			hostFiles[hostDir] = ws
+			return ws
 		}
 
 		processMsg := func(msg *WALMessage) {
 			hostDir := path.Join(Keys.Checkpoints.RootDir, msg.Cluster, msg.Node)
-			f := getOrOpenWAL(hostDir)
-			if f == nil {
+			ws := getOrOpenWAL(hostDir)
+			if ws == nil {
 				return
 			}
-			if err := writeWALRecord(f, msg); err != nil {
+			if err := writeWALRecord(ws.w, msg); err != nil {
 				cclog.Errorf("[METRICSTORE]> WAL: write record: %v", err)
 			}
 		}
@@ -178,6 +183,7 @@ func WALStaging(wg *sync.WaitGroup, ctx context.Context) {
 		processRotate := func(req walRotateReq) {
 			ws, ok := hostFiles[req.hostDir]
 			if ok && ws.f != nil {
+				ws.w.Flush()
 				ws.f.Close()
 				walPath := path.Join(req.hostDir, "current.wal")
 				if err := os.Remove(walPath); err != nil && !os.IsNotExist(err) {
@@ -199,6 +205,12 @@ func WALStaging(wg *sync.WaitGroup, ctx context.Context) {
 				case req := <-walRotateCh:
 					processRotate(req)
 				default:
+					// Flush all buffered writers after draining remaining messages.
+					for _, ws := range hostFiles {
+						if ws.f != nil {
+							ws.w.Flush()
+						}
+					}
 					return
 				}
 			}
@@ -282,9 +294,9 @@ func buildWALPayload(msg *WALMessage) []byte {
 	return buf
 }
 
-// writeWALRecord appends a binary WAL record to the file.
+// writeWALRecord appends a binary WAL record to the writer.
 // Format: [4B magic][4B payload_len][payload][4B CRC32]
-func writeWALRecord(f *os.File, msg *WALMessage) error {
+func writeWALRecord(w io.Writer, msg *WALMessage) error {
 	payload := buildWALPayload(msg)
 	crc := crc32.ChecksumIEEE(payload)
 
@@ -304,7 +316,7 @@ func writeWALRecord(f *os.File, msg *WALMessage) error {
 	binary.LittleEndian.PutUint32(crcBytes[:], crc)
 	record = append(record, crcBytes[:]...)
 
-	_, err := f.Write(record)
+	_, err := w.Write(record)
 	return err
 }
 
