@@ -60,8 +60,8 @@
   const canvasPrefix = $derived(`${presetCluster}-${presetSubCluster ? presetSubCluster : ''}`)
 
   const statusFilter = $derived(presetSubCluster
-      ? [{ state: ["running"] }, { cluster: { eq: presetCluster} }, { subCluster: { eq: presetSubCluster } }]
-      : [{ state: ["running"] }, { cluster: { eq: presetCluster} }] 
+      ? [{ cluster: { eq: presetCluster} }, { subCluster: { eq: presetSubCluster } }, { state: ["running"] }]
+      : [{ cluster: { eq: presetCluster} }, { state: ["running"] }] 
   );
   const topJobsQuery = $derived(loadMe ? queryStore({
     client: client,

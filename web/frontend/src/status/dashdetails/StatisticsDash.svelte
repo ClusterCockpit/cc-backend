@@ -72,7 +72,7 @@
       }
     `,
     variables: {
-      filter: [{ state: ["running"] }, { cluster: { eq: cluster} }],
+      filter: [{ cluster: { eq: cluster} }, { state: ["running"] }],
       selectedHistograms: selectedHistograms
     },
     requestPolicy: "network-only"
