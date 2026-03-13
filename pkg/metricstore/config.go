@@ -53,7 +53,7 @@ const (
 	DefaultMaxWorkers                 = 10
 	DefaultBufferCapacity             = 512
 	DefaultGCTriggerInterval          = 100
-	DefaultMemoryUsageTrackerInterval = 1 * time.Hour
+	DefaultMemoryUsageTrackerInterval = 5 * time.Minute
 )
 
 // Checkpoints configures periodic persistence of in-memory metric data.
@@ -113,7 +113,7 @@ type Subscriptions []struct {
 // Fields:
 //   - NumWorkers:        Parallel workers for checkpoint/archive (0 = auto: min(NumCPU/2+1, 10))
 //   - RetentionInMemory: Duration string (e.g., "48h") for in-memory data retention
-//   - MemoryCap:         Max bytes for buffer data (0 = unlimited); triggers forceFree when exceeded
+//   - MemoryCap:         Max memory in GB for buffer data (0 = unlimited); triggers forceFree when exceeded
 //   - Checkpoints:       Periodic persistence configuration
 //   - Debug:             Development/profiling options (nil = disabled)
 //   - Archive:           Long-term storage configuration (nil = disabled)
@@ -121,13 +121,14 @@ type Subscriptions []struct {
 type MetricStoreConfig struct {
 	// Number of concurrent workers for checkpoint and archive operations.
 	// If not set or 0, defaults to min(runtime.NumCPU()/2+1, 10)
-	NumWorkers        int            `json:"num-workers"`
-	RetentionInMemory string         `json:"retention-in-memory"`
-	MemoryCap         int            `json:"memory-cap"`
-	Checkpoints       Checkpoints    `json:"checkpoints"`
-	Debug             *Debug         `json:"debug"`
-	Cleanup           *Cleanup       `json:"cleanup"`
-	Subscriptions     *Subscriptions `json:"nats-subscriptions"`
+	NumWorkers         int            `json:"num-workers"`
+	RetentionInMemory  string         `json:"retention-in-memory"`
+	CheckpointInterval string         `json:"checkpoint-interval,omitempty"`
+	MemoryCap          int            `json:"memory-cap"`
+	Checkpoints        Checkpoints    `json:"checkpoints"`
+	Debug              *Debug         `json:"debug"`
+	Cleanup            *Cleanup       `json:"cleanup"`
+	Subscriptions      *Subscriptions `json:"nats-subscriptions"`
 }
 
 // Keys is the global metricstore configuration instance.

@@ -11,7 +11,7 @@ import "flag"
 
 var (
 	flagReinitDB, flagInit, flagServer, flagSyncLDAP, flagGops, flagMigrateDB, flagRevertDB,
-	flagForceDB, flagDev, flagVersion, flagLogDateTime, flagApplyTags bool
+	flagForceDB, flagDev, flagVersion, flagLogDateTime, flagApplyTags, flagOptimizeDB bool
 	flagNewUser, flagDelUser, flagGenJWT, flagConfigFile, flagImportJob, flagLogLevel string
 )
 
@@ -27,6 +27,7 @@ func cliInit() {
 	flag.BoolVar(&flagRevertDB, "revert-db", false, "Migrate database to previous version and exit")
 	flag.BoolVar(&flagApplyTags, "apply-tags", false, "Run taggers on all completed jobs and exit")
 	flag.BoolVar(&flagForceDB, "force-db", false, "Force database version, clear dirty flag and exit")
+	flag.BoolVar(&flagOptimizeDB, "optimize-db", false, "Optimize database: run VACUUM to reclaim space, then ANALYZE to update query planner statistics")
 	flag.BoolVar(&flagLogDateTime, "logdate", false, "Set this flag to add date and time to log messages")
 	flag.StringVar(&flagConfigFile, "config", "./config.json", "Specify alternative path to `config.json`")
 	flag.StringVar(&flagNewUser, "add-user", "", "Add a new user. Argument format: <username>:[admin,support,manager,api,user]:<password>")

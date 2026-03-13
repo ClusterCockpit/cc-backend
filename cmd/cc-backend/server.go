@@ -20,6 +20,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/99designs/gqlgen/graphql"
 	"github.com/99designs/gqlgen/graphql/handler"
 	"github.com/99designs/gqlgen/graphql/handler/transport"
 	"github.com/99designs/gqlgen/graphql/playground"
@@ -88,6 +89,12 @@ func (s *Server) init() error {
 		generated.NewExecutableSchema(generated.Config{Resolvers: resolver}))
 
 	graphQLServer.AddTransport(transport.POST{})
+
+	// Inject a per-request stats cache so that grouped statistics queries
+	// sharing the same (filter, groupBy) pair are executed only once.
+	graphQLServer.AroundOperations(func(ctx context.Context, next graphql.OperationHandler) graphql.ResponseHandler {
+		return next(graph.WithStatsGroupCache(ctx))
+	})
 
 	if os.Getenv(envDebug) != "1" {
 		// Having this handler means that a error message is returned via GraphQL instead of the connection simply beeing closed.

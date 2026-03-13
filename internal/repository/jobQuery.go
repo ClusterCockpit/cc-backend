@@ -197,14 +197,22 @@ func BuildWhereClause(filter *model.JobFilter, query sq.SelectBuilder) sq.Select
 		query = buildStringCondition("job.cluster_partition", filter.Partition, query)
 	}
 	if filter.State != nil {
-		states := make([]string, len(filter.State))
-		for i, val := range filter.State {
-			states[i] = string(val)
+		if len(filter.State) == 1 {
+			// Inline literal value so SQLite can match partial indexes (WHERE job_state = 'running').
+			// Safe: values come from validated GraphQL enum (model.JobState).
+			singleStat := string(filter.State[0])
+			query = query.Where(fmt.Sprintf("job.job_state = '%s'", singleStat))
+		} else {
+			states := make([]string, len(filter.State))
+			for i, val := range filter.State {
+				states[i] = string(val)
+			}
+			query = query.Where(sq.Eq{"job.job_state": states})
 		}
-		query = query.Where(sq.Eq{"job.job_state": states})
 	}
 	if filter.Shared != nil {
-		query = query.Where("job.shared = ?", *filter.Shared)
+		// Inline literal value so SQLite can match partial indexes (see above).
+		query = query.Where(fmt.Sprintf("job.shared = '%s'", *filter.Shared))
 	}
 	if filter.Project != nil {
 		query = buildStringCondition("job.project", filter.Project, query)
@@ -222,7 +230,8 @@ func BuildWhereClause(filter *model.JobFilter, query sq.SelectBuilder) sq.Select
 		query = buildIntCondition("job.num_hwthreads", filter.NumHWThreads, query)
 	}
 	if filter.ArrayJobID != nil {
-		query = query.Where("job.array_job_id = ?", *filter.ArrayJobID)
+		// Inline literal value so SQLite can match partial indexes (see above).
+		query = query.Where(fmt.Sprintf("job.array_job_id = %d", *filter.ArrayJobID))
 	}
 	if filter.StartTime != nil {
 		query = buildTimeCondition("job.start_time", filter.StartTime, query)

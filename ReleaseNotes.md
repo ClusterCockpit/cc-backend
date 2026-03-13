@@ -1,10 +1,51 @@
-# `cc-backend` version 1.5.0
+# `cc-backend` version 1.5.1
 
-Supports job archive version 3 and database version 10.
+Supports job archive version 3 and database version 11.
 
-This is a feature release of `cc-backend`, the API backend and frontend
+This is a bugfix release of `cc-backend`, the API backend and frontend
 implementation of ClusterCockpit.
 For release specific notes visit the [ClusterCockpit Documentation](https://clusterockpit.org/docs/release/).
+If you are upgrading from v1.5.0 you need to do another DB migration. This
+should not take long. For optimal database performance after the migration it is
+recommended to apply the new `optimize-db` flag, which runs the sqlite `ANALYZE`
+and `VACUUM` commands. Depending on your database size (more then 40GB) the
+`VACUUM` may take up to 2h.
+
+## Changes in 1.5.1
+
+### Database
+
+- **New migration (version 11)**: Optimized database index count and added covering indexes for stats queries for significantly improved query performance
+- **Migration 9 fix**: Removed redundant indices from migration 9 that are superseded by migration 11
+- **Optional DB optimization flag**: Added `-optimize-db` CLI flag to run `ANALYZE` on demand; removed automatic ANALYZE on startup
+- **Selective stats queries**: Stats queries are now selective, reducing unnecessary computation
+- **User list paging**: Added paging support to the user list for better scalability
+- **SQLite configuration hardening**: Sanitized SQLite configuration with new configurable options; fixes large heap allocations in the SQLite driver
+- **Query cancellation**: Long-running database queries can now be cancelled
+- **Resource leak fix**: Added missing `defer Close()` calls for all query result sets
+
+### Bug fixes
+
+- **Segfault when taggers misconfigured**: Fixed crash when `enable-job-taggers` is set but tagger rule directories are missing
+- **GroupBy stats query complexity**: Reduced complexity for `groupBy` statistics queries
+- **Ranged filter conditions**: Fixed GT and LT conditions in ranged filters
+- **Energy filter preset**: Reduced energy filter preset to a more practical default
+- **JSON validity check**: Fixed wrong field being checked for JSON validity
+- **Tagger float rounding**: Fixed rounding of floats in tagger messages
+- **Node view null safety**: Added null-safe checks in node view to prevent runtime errors
+- **Public dashboard null safety**: Added null-safe checks in the public dashboard to prevent runtime errors
+
+### Frontend
+
+- **Bumped patch versions**: Updated frontend dependencies to latest patch versions
+
+### Documentation
+
+- **New DB config options**: Added new database configuration options to README
+
+---
+
+_The sections below document all features and changes introduced in the 1.5.0 major release, which 1.5.1 is based on._
 
 ## Breaking changes
 
@@ -34,7 +75,7 @@ For release specific notes visit the [ClusterCockpit Documentation](https://clus
 
 ### Dependency changes
 
-- **cc-lib v2.5.1**: Switched to cc-lib version 2 with updated APIs (currently at v2.5.1)
+- **cc-lib v2.8.0**: Switched to cc-lib version 2 with updated APIs
 - **cclib NATS client**: Now using the cclib NATS client implementation
 - Removed obsolete `util.Float` usage from cclib
 

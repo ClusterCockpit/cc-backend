@@ -63,8 +63,8 @@
   /* Derived */
   const filter = $derived([
     { cluster: { eq: cluster } },
-    { node: { contains: nodeData.host } },
     { state: ["running"] },
+    { node: { contains: nodeData.host } },
   ]);
   const nodeJobsData = $derived(queryStore({
       client: client,

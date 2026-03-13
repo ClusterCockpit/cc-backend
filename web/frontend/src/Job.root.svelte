@@ -211,7 +211,7 @@
   const orderAndMap = (grouped, inputMetrics) =>
     inputMetrics.map((metric) => ({
       metric: metric,
-      data: grouped.find((group) => group[0].name == metric),
+      data: grouped.find((group) => group[0]?.name == metric),
       availability: checkMetricAvailability(
         globalMetrics,
         metric,

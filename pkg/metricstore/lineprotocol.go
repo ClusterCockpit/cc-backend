@@ -359,7 +359,8 @@ func DecodeLine(dec *lineprotocol.Decoder,
 		}
 
 		if err := ms.WriteToLevel(lvl, st.selector, time, []Metric{metric}); err != nil {
-			return err
+			cclog.Warnf("write error for host %s metric %s at ts %d: %s", host, string(st.metricBuf), time, err.Error())
+			continue
 		}
 	}
 	return nil

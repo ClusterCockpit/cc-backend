@@ -100,8 +100,15 @@ func Checkpointing(wg *sync.WaitGroup, ctx context.Context) {
 
 	wg.Go(func() {
 
-		const checkpointInterval = 12 * time.Hour
-		d := checkpointInterval
+		d := 12 * time.Hour // default checkpoint interval
+		if Keys.CheckpointInterval != "" {
+			parsed, err := time.ParseDuration(Keys.CheckpointInterval)
+			if err != nil {
+				cclog.Errorf("[METRICSTORE]> invalid checkpoint-interval %q: %s, using default 12h", Keys.CheckpointInterval, err)
+			} else {
+				d = parsed
+			}
+		}
 
 		ticker := time.NewTicker(d)
 		defer ticker.Stop()

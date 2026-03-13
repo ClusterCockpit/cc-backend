@@ -139,12 +139,6 @@ CREATE INDEX IF NOT EXISTS jobs_cluster_partition_project ON job (cluster, clust
 CREATE INDEX IF NOT EXISTS jobs_cluster_partition_jobstate ON job (cluster, cluster_partition, job_state);
 CREATE INDEX IF NOT EXISTS jobs_cluster_partition_shared ON job (cluster, cluster_partition, shared);
 
--- Cluster+Partition Filter Sorting
-CREATE INDEX IF NOT EXISTS jobs_cluster_partition_numnodes ON job (cluster, cluster_partition, num_nodes);
-CREATE INDEX IF NOT EXISTS jobs_cluster_partition_numhwthreads ON job (cluster, cluster_partition, num_hwthreads);
-CREATE INDEX IF NOT EXISTS jobs_cluster_partition_numacc ON job (cluster, cluster_partition, num_acc);
-CREATE INDEX IF NOT EXISTS jobs_cluster_partition_energy ON job (cluster, cluster_partition, energy);
-
 -- Cluster+Partition Time Filter Sorting
 CREATE INDEX IF NOT EXISTS jobs_cluster_partition_duration_starttime ON job (cluster, cluster_partition, duration, start_time);
 CREATE INDEX IF NOT EXISTS jobs_cluster_partition_starttime_duration ON job (cluster, cluster_partition, start_time, duration);
@@ -152,11 +146,6 @@ CREATE INDEX IF NOT EXISTS jobs_cluster_partition_starttime_duration ON job (clu
 -- Cluster+JobState Filter
 CREATE INDEX IF NOT EXISTS jobs_cluster_jobstate_user ON job (cluster, job_state, hpc_user);
 CREATE INDEX IF NOT EXISTS jobs_cluster_jobstate_project ON job (cluster, job_state, project);
--- Cluster+JobState Filter Sorting
-CREATE INDEX IF NOT EXISTS jobs_cluster_jobstate_numnodes ON job (cluster, job_state, num_nodes);
-CREATE INDEX IF NOT EXISTS jobs_cluster_jobstate_numhwthreads ON job (cluster, job_state, num_hwthreads);
-CREATE INDEX IF NOT EXISTS jobs_cluster_jobstate_numacc ON job (cluster, job_state, num_acc);
-CREATE INDEX IF NOT EXISTS jobs_cluster_jobstate_energy ON job (cluster, job_state, energy);
 
 -- Cluster+JobState Time Filter Sorting
 CREATE INDEX IF NOT EXISTS jobs_cluster_jobstate_starttime_duration ON job (cluster, job_state, start_time, duration);
@@ -165,34 +154,18 @@ CREATE INDEX IF NOT EXISTS jobs_cluster_jobstate_duration_starttime ON job (clus
 -- Cluster+Shared Filter
 CREATE INDEX IF NOT EXISTS jobs_cluster_shared_user ON job (cluster, shared, hpc_user);
 CREATE INDEX IF NOT EXISTS jobs_cluster_shared_project ON job (cluster, shared, project);
--- Cluster+Shared Filter Sorting
-CREATE INDEX IF NOT EXISTS jobs_cluster_shared_numnodes ON job (cluster, shared, num_nodes);
-CREATE INDEX IF NOT EXISTS jobs_cluster_shared_numhwthreads ON job (cluster, shared, num_hwthreads);
-CREATE INDEX IF NOT EXISTS jobs_cluster_shared_numacc ON job (cluster, shared, num_acc);
-CREATE INDEX IF NOT EXISTS jobs_cluster_shared_energy ON job (cluster, shared, energy);
 
 -- Cluster+Shared Time Filter Sorting
 CREATE INDEX IF NOT EXISTS jobs_cluster_shared_starttime_duration ON job (cluster, shared, start_time, duration);
 CREATE INDEX IF NOT EXISTS jobs_cluster_shared_duration_starttime ON job (cluster, shared, duration, start_time);
 
 -- User Filter
--- User Filter Sorting
-CREATE INDEX IF NOT EXISTS jobs_user_numnodes ON job (hpc_user, num_nodes);
-CREATE INDEX IF NOT EXISTS jobs_user_numhwthreads ON job (hpc_user, num_hwthreads);
-CREATE INDEX IF NOT EXISTS jobs_user_numacc ON job (hpc_user, num_acc);
-CREATE INDEX IF NOT EXISTS jobs_user_energy ON job (hpc_user, energy);
-
 -- Cluster+Shared Time Filter Sorting
 CREATE INDEX IF NOT EXISTS jobs_user_starttime_duration ON job (hpc_user, start_time, duration);
 CREATE INDEX IF NOT EXISTS jobs_user_duration_starttime ON job (hpc_user, duration, start_time);
 
 -- Project Filter
 CREATE INDEX IF NOT EXISTS jobs_project_user ON job (project, hpc_user);
--- Project Filter Sorting
-CREATE INDEX IF NOT EXISTS jobs_project_numnodes ON job (project, num_nodes);
-CREATE INDEX IF NOT EXISTS jobs_project_numhwthreads ON job (project, num_hwthreads);
-CREATE INDEX IF NOT EXISTS jobs_project_numacc ON job (project, num_acc);
-CREATE INDEX IF NOT EXISTS jobs_project_energy ON job (project, energy);
 
 -- Cluster+Shared Time Filter Sorting
 CREATE INDEX IF NOT EXISTS jobs_project_starttime_duration ON job (project, start_time, duration);
@@ -201,11 +174,6 @@ CREATE INDEX IF NOT EXISTS jobs_project_duration_starttime ON job (project, dura
 -- JobState Filter
 CREATE INDEX IF NOT EXISTS jobs_jobstate_user ON job (job_state, hpc_user);
 CREATE INDEX IF NOT EXISTS jobs_jobstate_project ON job (job_state, project);
--- JobState Filter Sorting
-CREATE INDEX IF NOT EXISTS jobs_jobstate_numnodes ON job (job_state, num_nodes);
-CREATE INDEX IF NOT EXISTS jobs_jobstate_numhwthreads ON job (job_state, num_hwthreads);
-CREATE INDEX IF NOT EXISTS jobs_jobstate_numacc ON job (job_state, num_acc);
-CREATE INDEX IF NOT EXISTS jobs_jobstate_energy ON job (job_state, energy);
 
 -- Cluster+Shared Time Filter Sorting
 CREATE INDEX IF NOT EXISTS jobs_jobstate_starttime_duration ON job (job_state, start_time, duration);
@@ -214,11 +182,6 @@ CREATE INDEX IF NOT EXISTS jobs_jobstate_duration_starttime ON job (job_state, d
 -- Shared Filter
 CREATE INDEX IF NOT EXISTS jobs_shared_user ON job (shared, hpc_user);
 CREATE INDEX IF NOT EXISTS jobs_shared_project ON job (shared, project);
--- Shared Filter Sorting
-CREATE INDEX IF NOT EXISTS jobs_shared_numnodes ON job (shared, num_nodes);
-CREATE INDEX IF NOT EXISTS jobs_shared_numhwthreads ON job (shared, num_hwthreads);
-CREATE INDEX IF NOT EXISTS jobs_shared_numacc ON job (shared, num_acc);
-CREATE INDEX IF NOT EXISTS jobs_shared_energy ON job (shared, energy);
 
 -- Cluster+Shared Time Filter Sorting
 CREATE INDEX IF NOT EXISTS jobs_shared_starttime_duration ON job (shared, start_time, duration);
@@ -226,7 +189,6 @@ CREATE INDEX IF NOT EXISTS jobs_shared_duration_starttime ON job (shared, durati
 
 -- ArrayJob Filter
 CREATE INDEX IF NOT EXISTS jobs_arrayjobid_starttime ON job (array_job_id, start_time);
-CREATE INDEX IF NOT EXISTS jobs_cluster_arrayjobid_starttime ON job (cluster, array_job_id, start_time);
 
 -- Single filters with default starttime sorting
 CREATE INDEX IF NOT EXISTS jobs_duration_starttime ON job (duration, start_time);
@@ -244,7 +206,6 @@ CREATE INDEX IF NOT EXISTS jobs_energy_duration ON job (energy, duration);
 
 -- Backup Indices For High Variety Columns
 CREATE INDEX IF NOT EXISTS jobs_starttime ON job (start_time);
-CREATE INDEX IF NOT EXISTS jobs_duration ON job (duration);
 
 -- Notes:
 -- Cluster+Partition+Jobstate Filter: Tested -> Full Array Of Combinations non-required
