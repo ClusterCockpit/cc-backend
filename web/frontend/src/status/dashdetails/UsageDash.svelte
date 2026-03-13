@@ -60,11 +60,11 @@
   const statusFilter = $derived(
     presetSubCluster
       ? [
-          { state: ["running"] },
           { cluster: { eq: presetCluster } },
           { subCluster: { eq: presetSubCluster } },
+          { state: ["running"] },
         ]
-      : [{ state: ["running"] }, { cluster: { eq: presetCluster } }],
+      : [{ cluster: { eq: presetCluster } }, { state: ["running"] }],
   );
   const topStatsQuery = $derived(
     loadMe
@@ -585,4 +585,3 @@
     >Cannot render accelerator status charts: No data!</Card
   >
 {/if}
-

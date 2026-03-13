@@ -197,11 +197,16 @@ func BuildWhereClause(filter *model.JobFilter, query sq.SelectBuilder) sq.Select
 		query = buildStringCondition("job.cluster_partition", filter.Partition, query)
 	}
 	if filter.State != nil {
-		states := make([]string, len(filter.State))
-		for i, val := range filter.State {
-			states[i] = string(val)
+		if len(filter.State) == 1 {
+			singleStat := string(filter.State[0])
+			query = query.Where("job.job_state = ?", singleStat)
+		} else {
+			states := make([]string, len(filter.State))
+			for i, val := range filter.State {
+				states[i] = string(val)
+			}
+			query = query.Where(sq.Eq{"job.job_state": states})
 		}
-		query = query.Where(sq.Eq{"job.job_state": states})
 	}
 	if filter.Shared != nil {
 		query = query.Where("job.shared = ?", *filter.Shared)

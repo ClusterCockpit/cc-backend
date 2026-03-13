@@ -163,7 +163,6 @@
         jobsStatistics(
           filter: $jobFilter
           page: $paging
-          sortBy: TOTALJOBS
           groupBy: SUBCLUSTER
         ) {
           id
@@ -179,7 +178,7 @@
       metrics: ["flops_any", "mem_bw"], // Fixed names for roofline and status bars
       from: from.toISOString(),
       to: to.toISOString(),
-      jobFilter: [{ state: ["running"] }, { cluster: { eq: cluster } }],
+      jobFilter: [{ cluster: { eq: cluster } }, { state: ["running"] }],
       nodeFilter: { cluster: { eq: cluster }},
       paging: { itemsPerPage: -1, page: 1 }, // Get all: -1
       sorting: { field: "startTime", type: "col", order: "DESC" }

@@ -119,8 +119,8 @@
 
   const filter = $derived([
     { cluster: { eq: cluster } },
-    { node: { eq: hostname } },
     { state: ["running"] },
+    { node: { eq: hostname } },
   ]);
 
   const systemUnits = $derived.by(() => {
