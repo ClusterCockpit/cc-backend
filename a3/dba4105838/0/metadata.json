@@ -1,0 +1,35 @@
+{
+  "cli_version": "0.5.0",
+  "checkpoint_id": "a3dba4105838",
+  "session_id": "889ef150-c6ca-4f35-81e5-c19dc95fe399",
+  "strategy": "manual-commit",
+  "created_at": "2026-03-13T16:14:14.321305Z",
+  "branch": "hotfix",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "internal/repository/migration.go",
+    "internal/repository/migrations/sqlite3/14_running-partial-indexes.down.sql",
+    "internal/repository/migrations/sqlite3/14_running-partial-indexes.up.sql"
+  ],
+  "agent": "Claude Code",
+  "turn_id": "bbd1f7f45241",
+  "token_usage": {
+    "input_tokens": 45,
+    "cache_creation_tokens": 172738,
+    "cache_read_tokens": 2967476,
+    "output_tokens": 12659,
+    "api_call_count": 37
+  },
+  "session_metrics": {
+    "turn_count": 3
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-03-13T16:14:13.998387Z",
+    "agent_lines": 0,
+    "human_added": 53,
+    "human_modified": 28,
+    "human_removed": 0,
+    "total_committed": 53,
+    "agent_percentage": 0
+  }
+}
