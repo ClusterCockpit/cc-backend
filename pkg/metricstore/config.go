@@ -53,7 +53,7 @@ const (
 	DefaultMaxWorkers                 = 10
 	DefaultBufferCapacity             = 512
 	DefaultGCTriggerInterval          = 100
-	DefaultMemoryUsageTrackerInterval = 1 * time.Hour
+	DefaultMemoryUsageTrackerInterval = 5 * time.Minute
 )
 
 // Checkpoints configures periodic persistence of in-memory metric data.

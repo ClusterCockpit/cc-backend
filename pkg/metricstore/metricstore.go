@@ -384,14 +384,16 @@ func MemoryUsageTracker(wg *sync.WaitGroup, ctx context.Context) {
 	ms := GetMemoryStore()
 
 	wg.Go(func() {
-		d := DefaultMemoryUsageTrackerInterval
+		normalInterval := DefaultMemoryUsageTrackerInterval
+		fastInterval := 30 * time.Second
 
-		if d <= 0 {
+		if normalInterval <= 0 {
 			return
 		}
 
-		ticker := time.NewTicker(d)
+		ticker := time.NewTicker(normalInterval)
 		defer ticker.Stop()
+		currentInterval := normalInterval
 
 		for {
 			select {
@@ -428,47 +430,58 @@ func MemoryUsageTracker(wg *sync.WaitGroup, ctx context.Context) {
 				runtime.ReadMemStats(&mem)
 				actualMemoryGB = float64(mem.Alloc) / 1e9
 
-				bufferPool.Clear()
-				cclog.Infof("[METRICSTORE]> Cleaned up bufferPool\n")
-
 				if actualMemoryGB > float64(Keys.MemoryCap) {
 					cclog.Warnf("[METRICSTORE]> memory usage %.2f GB exceeds cap %d GB, starting emergency buffer freeing", actualMemoryGB, Keys.MemoryCap)
 
-					const maxIterations = 100
+					// Use progressive time-based Free with increasing threshold
+					// instead of ForceFree loop — fewer tree traversals, more effective
+					d, parseErr := time.ParseDuration(Keys.RetentionInMemory)
+					if parseErr != nil {
+						cclog.Errorf("[METRICSTORE]> cannot parse retention duration: %s", parseErr)
+					} else {
+						thresholds := []float64{0.75, 0.5, 0.25}
+						for _, fraction := range thresholds {
+							threshold := time.Now().Add(-time.Duration(float64(d) * fraction))
+							freed, freeErr := ms.Free(nil, threshold.Unix())
+							if freeErr != nil {
+								cclog.Errorf("[METRICSTORE]> error while freeing buffers at %.0f%% retention: %s", fraction*100, freeErr)
+							}
+							freedEmergency += freed
 
-					for i := range maxIterations {
-						if actualMemoryGB < float64(Keys.MemoryCap) {
-							break
-						}
-
-						freed, err := ms.ForceFree()
-						if err != nil {
-							cclog.Errorf("[METRICSTORE]> error while force-freeing buffers: %s", err)
-						}
-						if freed == 0 {
-							cclog.Errorf("[METRICSTORE]> no more buffers to free after %d emergency frees, memory usage %.2f GB still exceeds cap %d GB", freedEmergency, actualMemoryGB, Keys.MemoryCap)
-							break
-						}
-						freedEmergency += freed
-
-						if i%10 == 0 && freedEmergency > 0 {
+							bufferPool.Clear()
+							runtime.GC()
 							runtime.ReadMemStats(&mem)
 							actualMemoryGB = float64(mem.Alloc) / 1e9
+
+							if actualMemoryGB < float64(Keys.MemoryCap) {
+								break
+							}
 						}
 					}
 
-					// if freedEmergency > 0 {
-					// 	debug.FreeOSMemory()
-					// }
+					bufferPool.Clear()
+					debug.FreeOSMemory()
 
 					runtime.ReadMemStats(&mem)
 					actualMemoryGB = float64(mem.Alloc) / 1e9
 
 					if actualMemoryGB >= float64(Keys.MemoryCap) {
-						cclog.Errorf("[METRICSTORE]> after %d emergency frees, memory usage %.2f GB still at/above cap %d GB", freedEmergency, actualMemoryGB, Keys.MemoryCap)
+						cclog.Errorf("[METRICSTORE]> after emergency frees (%d buffers), memory usage %.2f GB still at/above cap %d GB", freedEmergency, actualMemoryGB, Keys.MemoryCap)
 					} else {
 						cclog.Infof("[METRICSTORE]> emergency freeing complete: %d buffers freed, memory now %.2f GB", freedEmergency, actualMemoryGB)
 					}
+				}
+
+				// Adaptive ticker: check more frequently when memory is high
+				memoryRatio := actualMemoryGB / float64(Keys.MemoryCap)
+				if memoryRatio > 0.8 && currentInterval != fastInterval {
+					ticker.Reset(fastInterval)
+					currentInterval = fastInterval
+					cclog.Infof("[METRICSTORE]> memory at %.0f%% of cap, switching to fast check interval (30s)", memoryRatio*100)
+				} else if memoryRatio <= 0.8 && currentInterval != normalInterval {
+					ticker.Reset(normalInterval)
+					currentInterval = normalInterval
+					cclog.Infof("[METRICSTORE]> memory at %.0f%% of cap, switching to normal check interval", memoryRatio*100)
 				}
 			}
 		}

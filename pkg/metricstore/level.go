@@ -200,15 +200,31 @@ func (l *Level) free(t int64) (int, error) {
 		}
 	}
 
-	for _, l := range l.children {
-		m, err := l.free(t)
+	for key, child := range l.children {
+		m, err := child.free(t)
 		n += m
 		if err != nil {
 			return n, err
 		}
+		if child.isEmpty() {
+			delete(l.children, key)
+		}
 	}
 
 	return n, nil
+}
+
+// isEmpty returns true if this level has no metrics and no children.
+func (l *Level) isEmpty() bool {
+	l.lock.RLock()
+	defer l.lock.RUnlock()
+
+	for _, b := range l.metrics {
+		if b != nil {
+			return false
+		}
+	}
+	return len(l.children) == 0
 }
 
 // forceFree removes the oldest buffer from each metric chain in the subtree.
@@ -278,6 +294,7 @@ func (l *Level) sizeInBytes() int64 {
 	for _, b := range l.metrics {
 		if b != nil {
 			size += b.count() * int64(unsafe.Sizeof(schema.Float(0)))
+			size += b.bufferCount() * int64(unsafe.Sizeof(buffer{}))
 		}
 	}
 

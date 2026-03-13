@@ -408,3 +408,12 @@ func (b *buffer) count() int64 {
 	}
 	return res
 }
+
+// bufferCount returns the number of buffer nodes in the linked list.
+func (b *buffer) bufferCount() int64 {
+	var n int64
+	for ; b != nil; b = b.prev {
+		n++
+	}
+	return n
+}
