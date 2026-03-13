@@ -1,0 +1,113 @@
+Implement the following plan:
+
+# Plan: Improve buildQuery implementation and related code
+
+## Context
+
+The `buildQueries`/`buildNodeQueries` functions and `Load*` methods exist in two packages with near-identical logic:
+- `pkg/metricstore/query.go` (internal, in-memory store)
+- `internal/metricstoreclient/cc-metric-store.go` + `cc-metric-store-queries.go` (external, HTTP client)
+
+Both share `BuildScopeQueries` and `SanitizeStats` from `pkg/metricstore/scopequery.go`. The review identified bugs, dead code, duplicated patterns, and inconsistencies across both packages.
+
+## Changes
+
+### 1. Bug fix: `LoadNodeData` nil metric config panic (both packages)
+
+`archive.GetMetricConfig()` can return nil, but `LoadNodeData` dereferences `mc.Unit`/`mc.Timestep` without checking. Every other Load function checks.
+
+**Files:**
+- `pkg/metricstore/query.go:600` — add nil check + `continue`
+- `internal/metricstoreclient/cc-metric-store.go:595` — add nil check + `continue`
+
+### 2. Bug fix: `LoadNodeData` missing `continue` after error (both packages)
+
+When `qdata.Error != nil`, the error is appended but execution falls through to append invalid data. Should `continue`.
+
+**Files:**
+- `pkg/metricstore/query.go:589-590`
+- `internal/metricstoreclient/cc-metric-store.go:583-585`
+
+### 3. Extract `ExtractTypeID` helper to `scopequery.go`
+
+The ID-extraction block is copy-pasted 6 times (3x in each package). Extract to shared helper in `pkg/metricstore/scopequery.go`.
+
+```go
+func ExtractTypeID(queryType *string, typeIds []string, ndx int, metric, hostname string) *string {
+    if queryType == nil {
+        return nil
+    }
+    if ndx < len(typeIds) {
+        id := typeIds[ndx]
+        return &id
+    }
+    cclog.Warnf("TypeIds index out of range: %d with length %d for metric %s on host %s",
+        ndx, len(typeIds), metric, hostname)
+    return nil
+}
+```
+
+**Files to update:**
+- `pkg/metricstore/scopequery.go` — add function
+- `pkg/metricstore/query.go` — replace 3 occurrences in `LoadData`, `LoadScopedStats`, `LoadNodeListData`
+- `internal/metricstoreclient/cc-metric-store.go` — replace 3 occurrences in `LoadData`, `LoadScopedStats`, `LoadNodeListData`
+
+### 4. Extract `IsMetricRemovedForSubCluster` helper to `scopequery.go`
+
+The subcluster-removal check is duplicated 4 times (2x in each package). Extract to shared helper.
+
+```go
+func IsMetricRemovedForSubCluster(mc *schema.MetricConfig, subCluster string) bool {
+    for _, scConfig := range mc.SubClusters {
+        if scConfig.Name == subCluster && scConfig.Remove {
+            return true
+        }
+    }
+    return false
+}
+```
+
+**Files to update:**
+- `pkg/metricstore/scopequery.go` — add function
+- `pkg/metricstore/query.go` — replace in `buildQueries` and `buildNodeQueries`
+- `internal/metricstoreclient/cc-metric-store-queries.go` — replace in `buildQueries` and `buildNodeQueries`
+
+### 5. Fix TODO in production error messages
+
+Replace `"TODO: unhandled case"` with proper error text in all 4 occurrences.
+
+**Files:**
+- `pkg/metricstore/query.go:314,901`
+- `internal/metricstoreclient/cc-metric-store-queries.go:126,237`
+
+### 6. Remove redundant inner bounds checks in `LoadData` and `LoadNodeListData`
+
+The outer truncation (e.g., lines 120-129 in internal `LoadData`) already ensures bounds safety, making the inner `if i >= len(...)` check dead code. Remove the inner checks.
+
+**Files (4 occurrences — 2 in each package):**
+- `pkg/metricstore/query.go` — `LoadData` (lines 131-137), `LoadNodeListData` (lines 696-702)
+- `internal/metricstoreclient/cc-metric-store.go` — `LoadData` (lines 278-283), `LoadNodeListData` (lines 682-688)
+
+### 7. Add capacity hint for `assignedScope` in internal `buildQueries`/`buildNodeQueries`
+
+**File:** `pkg/metricstore/query.go:254,822`
+
+Change `assignedScope := []schema.MetricScope{}` to use `make()` with matching capacity.
+
+### 8. Add bounds check to `LoadStats` for consistency (both packages)
+
+`LoadStats` indexes `req.Queries[i]` without checking bounds, unlike all other Load functions. Add a check.
+
+**Files:**
+- `pkg/metricstore/query.go:376`
+- `internal/metricstoreclient/cc-metric-store.go:395`
+
+## Verification
+
+1. `go build ./...` — ensure compilation succeeds
+2. `go test ./pkg/metricstore/...` — run metricstore tests
+3. `go test ./internal/metricstoreclient/...` — run client tests
+4. `go vet ./pkg/metricstore/... ./internal/metricstoreclient/...` — check for issues
+
+
+If you need specific details from before exiting plan mode (like exact code snippets, error messages, or content you generated), read the full transcript at: /Users/jan/.claude/projects/-Users-jan-prg-ClusterCockpit-cc-backend/f0763fe7-f9bf-47b1-85f7-b16c2b9bffe1.jsonl

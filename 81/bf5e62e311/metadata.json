@@ -1,0 +1,29 @@
+{
+  "cli_version": "0.5.0",
+  "checkpoint_id": "81bf5e62e311",
+  "strategy": "manual-commit",
+  "branch": "optimize-footprint-queries",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "internal/repository/jobQuery.go",
+    "internal/repository/migration.go",
+    "internal/repository/migrations/sqlite3/11_add-footprint-indexes.down.sql",
+    "internal/repository/migrations/sqlite3/11_add-footprint-indexes.up.sql",
+    "internal/repository/stats.go"
+  ],
+  "sessions": [
+    {
+      "metadata": "/81/bf5e62e311/0/metadata.json",
+      "transcript": "/81/bf5e62e311/0/full.jsonl",
+      "content_hash": "/81/bf5e62e311/0/content_hash.txt",
+      "prompt": ""
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 6,
+    "cache_creation_tokens": 19524,
+    "cache_read_tokens": 91935,
+    "output_tokens": 3490,
+    "api_call_count": 4
+  }
+}

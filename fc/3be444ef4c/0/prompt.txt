@@ -1,0 +1,81 @@
+Implement the following plan:
+
+# Consolidate buildQueries / Scope Transformation Logic
+
+## Context
+
+`pkg/metricstore/query.go` (InternalMetricStore) and `internal/metricstoreclient/cc-metric-store-queries.go` (CCMetricStore) both implement the `MetricDataRepository` interface. They contain nearly identical scope-transformation logic for building metric queries, but the code has diverged:
+
+- **metricstoreclient** has the cleaner design: a standalone `buildScopeQueries()` function handling all transformations
+- **metricstore** has the same logic inlined as a long if-chain inside `buildQueries()` and duplicated in `buildNodeQueries()`
+- **metricstore is missing** the `MemoryDomain → Socket` transformation that metricstoreclient has
+- Both packages duplicate scope string constants, `intToStringSlice`, and `sanitizeStats`
+
+Goal: Extract shared scope-transformation logic, synchronize behavior, and eliminate duplication.
+
+## Approach
+
+Extract `BuildScopeQueries` as a shared exported function in `pkg/metricstore/` (since metricstoreclient already imports it). Return a package-independent intermediate type (`ScopeQueryResult`) that each package converts to its own `APIQuery` — this avoids coupling the two different `APIQuery` types (they differ in `Resolution` type: `int64` vs `int`, and internal has `ScaleFactor`).
+
+## Steps
+
+### 1. Create `pkg/metricstore/scopequery.go`
+
+New file containing:
+
+- **`ScopeQueryResult`** struct — intermediate type with fields: `Metric`, `Hostname`, `Aggregate`, `Type *string`, `TypeIds []string`, `Scope schema.MetricScope` (no Resolution — callers set it)
+- **`BuildScopeQueries()`** — exported function ported from `metricstoreclient/buildScopeQueries()` (lines 257-517), returning `([]ScopeQueryResult, error)`. Returns empty slice for expected exceptions, error for unhandled cases
+- **Scope string constants** — `HWThreadString`, `CoreString`, `MemoryDomainString`, `SocketString`, `AcceleratorString` (exported, move from both packages)
+- **`IntToStringSlice()`** — exported, using the optimized buffer-reuse version from metricstore
+- **`SanitizeStats(avg, min, max *schema.Float)`** — exported, using the metricstoreclient behavior (zero ALL if ANY is NaN)
+
+### 2. Update `pkg/metricstore/query.go`
+
+- Replace inline if-chain in `buildQueries()` (lines 317-534) with call to `BuildScopeQueries()`, converting each `ScopeQueryResult` → local `APIQuery` (adding `Resolution`)
+- Replace inline if-chain in `buildNodeQueries()` (lines 1099-1316) with same pattern
+- Delete local scope string constants, `intToStringSlice`, local `sanitizeStats`
+- Update `sanitizeStats` calls in `LoadData`/`LoadScopedStats`/`LoadNodeData`/`LoadNodeListData` to use `SanitizeStats(&res.Avg, &res.Min, &res.Max)`
+- Switch scope dedup from `map[schema.MetricScope]bool` to labeled-loop + slice (matches metricstoreclient, avoids allocation for typical 1-3 scopes)
+- This **adds the missing MemoryDomain → Socket transformation** to the internal store
+
+### 3. Update `internal/metricstoreclient/cc-metric-store-queries.go`
+
+- Replace call to local `buildScopeQueries()` with `metricstore.BuildScopeQueries()`, converting each `ScopeQueryResult` → local `APIQuery` (adding `Resolution`)
+- Delete local `buildScopeQueries()` function
+- Delete local scope string constants and `intToStringSlice`
+- Update `sanitizeStats` in `cc-metric-store.go` to call `metricstore.SanitizeStats()`
+
+### 4. Add tests: `pkg/metricstore/scopequery_test.go`
+
+Table-driven tests for `BuildScopeQueries` covering all transformation cases:
+- Same-scope (HWThread→HWThread, Core→Core, Socket→Socket, Node→Node, etc.)
+- Aggregation (HWThread→Core, HWThread→Socket, HWThread→Node, Core→Socket, Core→Node, etc.)
+- Accelerator cases (Accelerator→Accelerator, Accelerator→Node)
+- MemoryDomain cases including MemoryDomain→Socket
+- Unhandled case returns error
+
+## Files Modified
+
+| File | Action |
+|------|--------|
+| `pkg/metricstore/scopequery.go` | **New** — shared types and functions |
+| `pkg/metricstore/scopequery_test.go` | **New** — tests for BuildScopeQueries |
+| `pkg/metricstore/query.go` | Refactor buildQueries/buildNodeQueries to use BuildScopeQueries; remove duplicated helpers |
+| `internal/metricstoreclient/cc-metric-store-queries.go` | Replace local buildScopeQueries with shared; remove duplicated helpers |
+| `internal/metricstoreclient/cc-metric-store.go` | Update sanitizeStats to use shared SanitizeStats |
+
+## What is NOT shared (intentionally)
+
+- **`APIQuery`/`APIMetricData` types** — different Resolution types, Data types, ScaleFactor field
+- **`buildQueries`/`buildNodeQueries` themselves** — different topology access (caching vs inline), different receiver types
+- **Load* result-processing functions** — depend on package-specific types and fetch mechanisms
+
+## Verification
+
+1. `go build ./...` — compile check
+2. `go test ./pkg/metricstore/...` — existing + new scopequery tests
+3. `go test ./internal/metricstoreclient/...` — compile check
+4. `make test` — full test suite
+
+
+If you need specific details from before exiting plan mode (like exact code snippets, error messages, or content you generated), read the full transcript at: /Users/jan/.claude/projects/-Users-jan-prg-ClusterCockpit-cc-backend/eec1fc87-d8f6-42f6-b296-d7a2f79af002.jsonl

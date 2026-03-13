@@ -1,0 +1,1 @@
+Consolidate all migrations after 10 to one migration 11.

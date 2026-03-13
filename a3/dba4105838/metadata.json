@@ -1,0 +1,39 @@
+{
+  "cli_version": "0.5.0",
+  "checkpoint_id": "a3dba4105838",
+  "strategy": "manual-commit",
+  "branch": "hotfix",
+  "checkpoints_count": 2,
+  "files_touched": [
+    "internal/repository/migration.go",
+    "internal/repository/migrations/sqlite3/11_optimize-indexes.down.sql",
+    "internal/repository/migrations/sqlite3/11_optimize-indexes.up.sql",
+    "internal/repository/migrations/sqlite3/12_stats-covering-index.down.sql",
+    "internal/repository/migrations/sqlite3/12_stats-covering-index.up.sql",
+    "internal/repository/migrations/sqlite3/13_status-covering-indexes.down.sql",
+    "internal/repository/migrations/sqlite3/13_status-covering-indexes.up.sql",
+    "internal/repository/migrations/sqlite3/14_running-partial-indexes.down.sql",
+    "internal/repository/migrations/sqlite3/14_running-partial-indexes.up.sql"
+  ],
+  "sessions": [
+    {
+      "metadata": "/a3/dba4105838/0/metadata.json",
+      "transcript": "/a3/dba4105838/0/full.jsonl",
+      "content_hash": "/a3/dba4105838/0/content_hash.txt",
+      "prompt": "/a3/dba4105838/0/prompt.txt"
+    },
+    {
+      "metadata": "/a3/dba4105838/1/metadata.json",
+      "transcript": "/a3/dba4105838/1/full.jsonl",
+      "content_hash": "/a3/dba4105838/1/content_hash.txt",
+      "prompt": "/a3/dba4105838/1/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 57,
+    "cache_creation_tokens": 209667,
+    "cache_read_tokens": 3189538,
+    "output_tokens": 17066,
+    "api_call_count": 47
+  }
+}

@@ -1,0 +1,33 @@
+{
+  "cli_version": "0.5.0",
+  "checkpoint_id": "40d806a3240c",
+  "session_id": "efbcf0f5-2dd5-4641-bb45-37e9d33e8795",
+  "strategy": "manual-commit",
+  "created_at": "2026-03-13T12:14:32.26214Z",
+  "branch": "hotfix",
+  "checkpoints_count": 2,
+  "files_touched": [
+    "web/frontend/src/status/dashdetails/UsageDash.svelte"
+  ],
+  "agent": "Claude Code",
+  "turn_id": "520e5cecdef4",
+  "token_usage": {
+    "input_tokens": 20,
+    "cache_creation_tokens": 25816,
+    "cache_read_tokens": 343977,
+    "output_tokens": 2864,
+    "api_call_count": 14
+  },
+  "session_metrics": {
+    "turn_count": 2
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-03-13T12:14:32.212624Z",
+    "agent_lines": 268,
+    "human_added": 0,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 268,
+    "agent_percentage": 100
+  }
+}

@@ -1,0 +1,35 @@
+{
+  "cli_version": "0.5.0",
+  "checkpoint_id": "d49917ff4b10",
+  "session_id": "3f83174b-0ec7-4466-8bc9-b6b52eb8bbfb",
+  "strategy": "manual-commit",
+  "created_at": "2026-03-12T19:12:49.973608Z",
+  "branch": "hotfix",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "cmd/cc-backend/cli.go",
+    "cmd/cc-backend/main.go",
+    "internal/repository/dbConnection.go"
+  ],
+  "agent": "Claude Code",
+  "turn_id": "2e3d903acb82",
+  "token_usage": {
+    "input_tokens": 510,
+    "cache_creation_tokens": 48080,
+    "cache_read_tokens": 551619,
+    "output_tokens": 9411,
+    "api_call_count": 12
+  },
+  "session_metrics": {
+    "turn_count": 1
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-03-12T19:12:49.835694Z",
+    "agent_lines": 16,
+    "human_added": 0,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 16,
+    "agent_percentage": 100
+  }
+}

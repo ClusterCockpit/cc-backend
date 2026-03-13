@@ -1,0 +1,1 @@
+Does it make sense to also inline the literal state value in other places?

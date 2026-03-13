@@ -1,0 +1,5 @@
+What is the default for EnableJobTaggers if the option is not set in the config file?
+
+---
+
+Currently a segvault occurs when the option enable-job-taggers is set to true but the tagger rules directories are missing. Analyse the problem and fix it.
