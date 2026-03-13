@@ -113,7 +113,7 @@ func (r *JobRepository) buildCountQuery(
 
 	switch kind {
 	case "running":
-		query = query.Where("job.job_state = ?", "running")
+		query = query.Where("job.job_state = 'running'")
 	case "short":
 		query = query.Where("job.duration < ?", config.Keys.ShortRunningJobsDuration)
 	}
