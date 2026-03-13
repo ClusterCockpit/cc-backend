@@ -10,3 +10,5 @@ CREATE INDEX IF NOT EXISTS jobs_cluster_jobstate_user
 
 CREATE INDEX IF NOT EXISTS jobs_cluster_jobstate_project
   ON job (cluster, job_state, project);
+
+  PRAGMA optimize;
