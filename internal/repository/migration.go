@@ -21,14 +21,11 @@ import (
 // is added to internal/repository/migrations/sqlite3/.
 //
 // Version history:
-//   - Version 14: Partial covering indexes for running jobs (tiny B-tree vs millions)
-//   - Version 13: Add covering indexes for status/dashboard queries (cluster, job_state, ...)
-//   - Version 12: Add covering index for stats queries (cluster, start_time, hpc_user, ...)
-//   - Version 11: Optimize job table indexes (reduce from ~78 to 48)
+//   - Version 11: Optimize job table indexes (reduce from ~78 to 48, add covering/partial indexes)
 //   - Version 10: Node table
 //
 // Migration files are embedded at build time from the migrations directory.
-const Version uint = 14
+const Version uint = 11
 
 //go:embed migrations/*
 var migrationFiles embed.FS

@@ -1,8 +1,26 @@
 -- Migration 11 DOWN: Restore indexes from migration 09
 
--- ============================================================
+-- Drop partial indexes for running jobs
+DROP INDEX IF EXISTS jobs_running_user_stats;
+DROP INDEX IF EXISTS jobs_running_project_stats;
+DROP INDEX IF EXISTS jobs_running_subcluster_stats;
+
+-- Drop covering status indexes, restore 3-col indexes
+DROP INDEX IF EXISTS jobs_cluster_jobstate_user_stats;
+DROP INDEX IF EXISTS jobs_cluster_jobstate_project_stats;
+DROP INDEX IF EXISTS jobs_cluster_jobstate_subcluster_stats;
+
+CREATE INDEX IF NOT EXISTS jobs_cluster_jobstate_user
+  ON job (cluster, job_state, hpc_user);
+
+CREATE INDEX IF NOT EXISTS jobs_cluster_jobstate_project
+  ON job (cluster, job_state, project);
+
+-- Drop covering stats indexes
+DROP INDEX IF EXISTS jobs_cluster_user_starttime_stats;
+DROP INDEX IF EXISTS jobs_cluster_project_starttime_stats;
+
 -- Recreate all removed indexes from migration 09
--- ============================================================
 
 -- Cluster+Partition Filter Sorting
 CREATE INDEX IF NOT EXISTS jobs_cluster_partition_numnodes ON job (cluster, cluster_partition, num_nodes);
@@ -52,5 +70,4 @@ CREATE INDEX IF NOT EXISTS jobs_cluster_arrayjobid_starttime ON job (cluster, ar
 -- Backup Indices For High Variety Columns
 CREATE INDEX IF NOT EXISTS jobs_duration ON job (duration);
 
--- Optimize DB index usage
 PRAGMA optimize;
