@@ -754,6 +754,9 @@ func (m *MemoryStore) ForceFree() (int, error) {
 }
 
 func (m *MemoryStore) FreeAll() error {
+	m.root.lock.Lock()
+	defer m.root.lock.Unlock()
+
 	for k := range m.root.children {
 		delete(m.root.children, k)
 	}

@@ -181,6 +181,14 @@ func (l *Level) collectPaths(currentDepth, targetDepth int, currentPath []string
 //   - int:   Total number of buffers freed in this subtree
 //   - error: Non-nil on failure (propagated from children)
 func (l *Level) free(t int64) (int, error) {
+	n, _, err := l.freeAndCheckEmpty(t)
+	return n, err
+}
+
+// freeAndCheckEmpty performs free() and atomically checks if the level is empty
+// while still holding its own lock, avoiding a TOCTOU race between free() and
+// a separate isEmpty() call.
+func (l *Level) freeAndCheckEmpty(t int64) (int, bool, error) {
 	l.lock.Lock()
 	defer l.lock.Unlock()
 
@@ -201,30 +209,28 @@ func (l *Level) free(t int64) (int, error) {
 	}
 
 	for key, child := range l.children {
-		m, err := child.free(t)
+		m, empty, err := child.freeAndCheckEmpty(t)
 		n += m
 		if err != nil {
-			return n, err
+			return n, false, err
 		}
-		if child.isEmpty() {
+		if empty {
 			delete(l.children, key)
 		}
 	}
 
-	return n, nil
-}
-
-// isEmpty returns true if this level has no metrics and no children.
-func (l *Level) isEmpty() bool {
-	l.lock.RLock()
-	defer l.lock.RUnlock()
-
-	for _, b := range l.metrics {
-		if b != nil {
-			return false
+	// Check emptiness while still holding the lock
+	empty := len(l.children) == 0
+	if empty {
+		for _, b := range l.metrics {
+			if b != nil {
+				empty = false
+				break
+			}
 		}
 	}
-	return len(l.children) == 0
+
+	return n, empty, nil
 }
 
 // forceFree removes the oldest buffer from each metric chain in the subtree.

@@ -66,7 +66,10 @@ func (l *Level) collectMetricStatus(m *MemoryStore, expectedMetrics []string, he
 		if degraded[metricName] {
 			continue // already degraded, cannot improve
 		}
-		mc := m.Metrics[metricName]
+		mc, ok := m.Metrics[metricName]
+		if !ok {
+			continue // unknown metric, will be reported as missing
+		}
 		b := l.metrics[mc.offset]
 		if b.bufferExists() {
 			if !b.isBufferHealthy() {
