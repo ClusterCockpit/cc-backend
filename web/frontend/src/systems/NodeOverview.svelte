@@ -175,13 +175,13 @@
           {:else if item?.data}
             <!-- "Empty Series"-Warning included in MetricPlot-Component   -->
             <!-- #key: X-axis keeps last selected timerange otherwise -->
-            {#key item.data[0].metric.series[0].data.length}
+            {#key item?.data[0]?.metric?.series[0]?.data?.length}
               <MetricPlot
-                timestep={item.data[0].metric.timestep}
-                series={item.data[0].metric.series}
-                metric={item.data[0].name}
+                timestep={item?.data[0]?.metric?.timestep || 60}
+                series={item?.data[0]?.metric?.series || []}
+                metric={item?.data[0]?.name || 'unknown'}
                 {cluster}
-                subCluster={item.subCluster}
+                subCluster={item?.subCluster || 'unknown'}
                 forNode
                 enableFlip
               />

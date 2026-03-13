@@ -148,7 +148,7 @@
       showFilter={!showCompare}
       matchedJobs={showCompare? matchedCompareJobs: matchedListJobs}
       applyFilters={(detail) => {
-        selectedCluster = detail.filters[0]?.cluster
+        selectedCluster = detail?.filters[0]?.cluster
           ? detail.filters[0].cluster.eq
           : null;
         selectedSubCluster = detail.filters[1]?.partition

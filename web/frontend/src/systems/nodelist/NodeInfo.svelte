@@ -109,7 +109,7 @@
             <Button class="flex-grow-1" color="warning" disabled>
               Missing Metric
             </Button>
-          {:else if nodeJobsData.jobs.count == 1 && nodeJobsData.jobs.items[0].shared == "none"}
+          {:else if nodeJobsData.jobs.count == 1 && nodeJobsData?.jobs?.items[0]?.shared == "none"}
             <InputGroupText class="flex-grow-1 flex-lg-grow-0">
               <Icon name="circle-fill" style="padding-right: 0.5rem;"/>
               <span>Jobs</span>
@@ -117,7 +117,7 @@
             <Button class="flex-grow-1" color="success" disabled>
               Exclusive
             </Button>
-          {:else if nodeJobsData.jobs.count >= 1 && !(nodeJobsData.jobs.items[0].shared == "none")}
+          {:else if nodeJobsData.jobs.count >= 1 && !(nodeJobsData?.jobs?.items[0]?.shared == "none")}
             <InputGroupText class="flex-grow-1 flex-lg-grow-0">
               <Icon name="circle-half" style="padding-right: 0.5rem;"/>
               <span>Jobs</span>

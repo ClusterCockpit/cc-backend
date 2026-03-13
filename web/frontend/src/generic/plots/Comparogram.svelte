@@ -340,7 +340,7 @@
 </script>
 
 <!-- Define $width Wrapper and NoData Card -->
-{#if data && data[0].length > 0}
+{#if data && data[0]?.length > 0}
   <div bind:this={plotWrapper} bind:clientWidth={width}
         style="background-color: rgba(255, 255, 255, 1.0);" class="rounded"
   ></div>

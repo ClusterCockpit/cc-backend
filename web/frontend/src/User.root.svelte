@@ -159,7 +159,7 @@
       variables: { jobFilters, selectedHistograms, numDurationBins, numMetricBins },
     })
   );
-  const hasAccHours = $derived($stats?.data?.jobsStatistics[0]?.totalAccHours != 0);
+  const hasAccHours = $derived(($stats?.data?.jobsStatistics[0]?.totalAccHours || 0) != 0);
 
   /* Functions */
   function resetJobSelection() {
@@ -310,8 +310,8 @@
             <tr>
               <th scope="row">Total Jobs</th>
               <td>
-                <span style="cursor: help;" title="{$stats.data.jobsStatistics[0].totalJobs} Jobs">
-                  {formatNumber($stats.data.jobsStatistics[0].totalJobs)} Jobs
+                <span style="cursor: help;" title="{$stats?.data?.jobsStatistics[0]?.totalJobs || 0} Jobs">
+                  {formatNumber($stats?.data?.jobsStatistics[0]?.totalJobs || 0)} Jobs
                 </span>
               </td>
             </tr>
@@ -326,24 +326,24 @@
                 </Tooltip>
               </th>
               <td>
-                <span style="cursor: help;" title="{$stats.data.jobsStatistics[0].shortJobs} Jobs">
-                  {formatNumber($stats.data.jobsStatistics[0].shortJobs)} Jobs
+                <span style="cursor: help;" title="{$stats?.data?.jobsStatistics[0]?.shortJobs || 0} Jobs">
+                  {formatNumber($stats?.data?.jobsStatistics[0]?.shortJobs || 0)} Jobs
                 </span>
               </td>
             </tr>
             <tr>
               <th scope="row">Total Walltime</th>
               <td>
-                <span style="cursor: help;" title="{$stats.data.jobsStatistics[0].totalWalltime} Hours">
-                  {formatNumber($stats.data.jobsStatistics[0].totalWalltime)} Hours
+                <span style="cursor: help;" title="{$stats?.data?.jobsStatistics[0]?.totalWalltime || 0} Hours">
+                  {formatNumber($stats?.data?.jobsStatistics[0]?.totalWalltime || 0)} Hours
                 </span>
               </td>
             </tr>
             <tr>
               <th scope="row">Total Core Hours</th>
               <td>
-                <span style="cursor: help;" title="{$stats.data.jobsStatistics[0].totalCoreHours} Hours">
-                  {formatNumber($stats.data.jobsStatistics[0].totalCoreHours)} Hours
+                <span style="cursor: help;" title="{$stats?.data?.jobsStatistics[0]?.totalCoreHours || 0} Hours">
+                  {formatNumber($stats?.data?.jobsStatistics[0]?.totalCoreHours || 0)} Hours
                 </span>
               </td>
             </tr>
@@ -351,8 +351,8 @@
               <tr>
                 <th scope="row">Total Accelerator Hours</th>
                 <td>
-                  <span style="cursor: help;" title="{$stats.data.jobsStatistics[0].totalAccHours} Hours">
-                    {formatNumber($stats.data.jobsStatistics[0].totalAccHours)} Hours
+                  <span style="cursor: help;" title="{$stats?.data?.jobsStatistics[0]?.totalAccHours || 0} Hours">
+                    {formatNumber($stats?.data?.jobsStatistics[0]?.totalAccHours || 0)} Hours
                   </span>
                 </td>
               </tr>
@@ -361,9 +361,9 @@
         </Table>
       </Col>
       <Col class="px-1">
-        {#key $stats.data.jobsStatistics[0].histDuration}
+        {#key $stats?.data?.jobsStatistics[0]?.histDuration}
           <Histogram
-            data={convert2uplot($stats.data.jobsStatistics[0].histDuration)}
+            data={convert2uplot($stats?.data?.jobsStatistics[0]?.histDuration)}
             title="Duration Distribution"
             xlabel="Job Runtimes"
             xunit="Runtime"
@@ -376,9 +376,9 @@
         {/key}
       </Col>
       <Col class="px-1">
-        {#key $stats.data.jobsStatistics[0].histNumNodes}
+        {#key $stats?.data?.jobsStatistics[0]?.histNumNodes}
           <Histogram
-            data={convert2uplot($stats.data.jobsStatistics[0].histNumNodes)}
+            data={convert2uplot($stats?.data?.jobsStatistics[0]?.histNumNodes)}
             title="Number of Nodes Distribution"
             xlabel="Allocated Nodes"
             xunit="Nodes"
@@ -450,9 +450,9 @@
         />
       {/snippet}
 
-      {#key $stats.data.jobsStatistics[0].histMetrics}
+      {#key $stats?.data?.jobsStatistics[0]?.histMetrics}
         <PlotGrid
-          items={$stats.data.jobsStatistics[0].histMetrics}
+          items={$stats?.data?.jobsStatistics[0]?.histMetrics || []}
           itemsPerRow={3}
           {gridContent}
         />
