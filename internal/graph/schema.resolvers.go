@@ -673,7 +673,20 @@ func (r *queryResolver) JobsStatistics(ctx context.Context, filter []*model.JobF
 			stats, err = r.Repo.JobsStats(ctx, filter, reqFields)
 		} else {
 			startGrouped := time.Now()
-			stats, err = r.Repo.JobsStatsGrouped(ctx, filter, page, sortBy, groupBy, reqFields)
+			// Use request-scoped cache: multiple aliases with same (filter, groupBy)
+			// but different sortBy/page hit the DB only once.
+			if cache := getStatsGroupCache(ctx); cache != nil {
+				key := statsCacheKey(filter, groupBy)
+				var allStats []*model.JobsStatistics
+				allStats, err = cache.getOrCompute(key, func() ([]*model.JobsStatistics, error) {
+					return r.Repo.JobsStatsGrouped(ctx, filter, nil, nil, groupBy, nil)
+				})
+				if err == nil {
+					stats = sortAndPageStats(allStats, sortBy, page)
+				}
+			} else {
+				stats, err = r.Repo.JobsStatsGrouped(ctx, filter, page, sortBy, groupBy, reqFields)
+			}
 			cclog.Infof("Timer JobsStatsGrouped call: %s", time.Since(startGrouped))
 		}
 	} else {

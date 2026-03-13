@@ -71,73 +71,66 @@
       ? queryStore({
           client: client,
           query: gql`
-            query ($filter: [JobFilter!]!, $paging: PageRequest!) {
-              topUserJobs: jobsStatistics(
+            query ($filter: [JobFilter!]!) {
+              allUsers: jobsStatistics(
                 filter: $filter
-                page: $paging
-                sortBy: TOTALJOBS
                 groupBy: USER
               ) {
                 id
                 name
                 totalJobs
-              }
-              topProjectJobs: jobsStatistics(
-                filter: $filter
-                page: $paging
-                sortBy: TOTALJOBS
-                groupBy: PROJECT
-              ) {
-                id
-                totalJobs
-              }
-              topUserNodes: jobsStatistics(
-                filter: $filter
-                page: $paging
-                sortBy: TOTALNODES
-                groupBy: USER
-              ) {
-                id
-                name
                 totalNodes
-              }
-              topProjectNodes: jobsStatistics(
-                filter: $filter
-                page: $paging
-                sortBy: TOTALNODES
-                groupBy: PROJECT
-              ) {
-                id
-                totalNodes
-              }
-              topUserAccs: jobsStatistics(
-                filter: $filter
-                page: $paging
-                sortBy: TOTALACCS
-                groupBy: USER
-              ) {
-                id
-                name
                 totalAccs
               }
-              topProjectAccs: jobsStatistics(
+              allProjects: jobsStatistics(
                 filter: $filter
-                page: $paging
-                sortBy: TOTALACCS
                 groupBy: PROJECT
               ) {
                 id
+                totalJobs
+                totalNodes
                 totalAccs
               }
             }
           `,
           variables: {
             filter: statusFilter,
-            paging: pagingState, // Top 10
           },
           requestPolicy: "network-only",
         })
       : null,
+  );
+
+  // Sort + slice top-10 from the full results in the frontend
+  const topUserJobs = $derived(
+    $topStatsQuery?.data?.allUsers
+      ?.toSorted((a, b) => b.totalJobs - a.totalJobs)
+      .slice(0, 10) ?? [],
+  );
+  const topProjectJobs = $derived(
+    $topStatsQuery?.data?.allProjects
+      ?.toSorted((a, b) => b.totalJobs - a.totalJobs)
+      .slice(0, 10) ?? [],
+  );
+  const topUserNodes = $derived(
+    $topStatsQuery?.data?.allUsers
+      ?.toSorted((a, b) => b.totalNodes - a.totalNodes)
+      .slice(0, 10) ?? [],
+  );
+  const topProjectNodes = $derived(
+    $topStatsQuery?.data?.allProjects
+      ?.toSorted((a, b) => b.totalNodes - a.totalNodes)
+      .slice(0, 10) ?? [],
+  );
+  const topUserAccs = $derived(
+    $topStatsQuery?.data?.allUsers
+      ?.toSorted((a, b) => b.totalAccs - a.totalAccs)
+      .slice(0, 10) ?? [],
+  );
+  const topProjectAccs = $derived(
+    $topStatsQuery?.data?.allProjects
+      ?.toSorted((a, b) => b.totalAccs - a.totalAccs)
+      .slice(0, 10) ?? [],
   );
 
   // Note: nodeMetrics are requested on configured $timestep resolution
@@ -255,10 +248,10 @@
           canvasId="{canvasPrefix}-hpcpie-jobs-users"
           size={colWidthJobs * 0.75}
           sliceLabel="Jobs"
-          quantities={$topStatsQuery.data.topUserJobs.map(
+          quantities={topUserJobs.map(
             (tu) => tu["totalJobs"],
           )}
-          entities={$topStatsQuery.data.topUserJobs.map((tu) =>
+          entities={topUserJobs.map((tu) =>
             scrambleNames ? scramble(tu.id) : tu.id,
           )}
         />
@@ -271,7 +264,7 @@
           <th style="padding-left: 0.5rem;">User</th>
           <th>Jobs</th>
         </tr>
-        {#each $topStatsQuery.data.topUserJobs as tu, i}
+        {#each topUserJobs as tu, i}
           <tr>
             <td
               ><Icon name="circle-fill" style="color: {legendColors(i)};" /></td
@@ -305,10 +298,10 @@
         canvasId="{canvasPrefix}-hpcpie-jobs-projects"
         size={colWidthJobs * 0.75}
         sliceLabel={"Jobs"}
-        quantities={$topStatsQuery.data.topProjectJobs.map(
+        quantities={topProjectJobs.map(
           (tp) => tp["totalJobs"],
         )}
-        entities={$topStatsQuery.data.topProjectJobs.map((tp) =>
+        entities={topProjectJobs.map((tp) =>
           scrambleNames ? scramble(tp.id) : tp.id,
         )}
       />
@@ -320,7 +313,7 @@
           <th style="padding-left: 0.5rem;">Project</th>
           <th>Jobs</th>
         </tr>
-        {#each $topStatsQuery.data.topProjectJobs as tp, i}
+        {#each topProjectJobs as tp, i}
           <tr>
             <td
               ><Icon name="circle-fill" style="color: {legendColors(i)};" /></td
@@ -375,10 +368,10 @@
           canvasId="{canvasPrefix}-hpcpie-nodes-users"
           size={colWidthNodes * 0.75}
           sliceLabel="Nodes"
-          quantities={$topStatsQuery.data.topUserNodes.map(
+          quantities={topUserNodes.map(
             (tu) => tu["totalNodes"],
           )}
-          entities={$topStatsQuery.data.topUserNodes.map((tu) =>
+          entities={topUserNodes.map((tu) =>
             scrambleNames ? scramble(tu.id) : tu.id,
           )}
         />
@@ -391,7 +384,7 @@
           <th style="padding-left: 0.5rem;">User</th>
           <th>Nodes</th>
         </tr>
-        {#each $topStatsQuery.data.topUserNodes as tu, i}
+        {#each topUserNodes as tu, i}
           <tr>
             <td
               ><Icon name="circle-fill" style="color: {legendColors(i)};" /></td
@@ -425,10 +418,10 @@
         canvasId="{canvasPrefix}-hpcpie-nodes-projects"
         size={colWidthNodes * 0.75}
         sliceLabel={"Nodes"}
-        quantities={$topStatsQuery.data.topProjectNodes.map(
+        quantities={topProjectNodes.map(
           (tp) => tp["totalNodes"],
         )}
-        entities={$topStatsQuery.data.topProjectNodes.map((tp) =>
+        entities={topProjectNodes.map((tp) =>
           scrambleNames ? scramble(tp.id) : tp.id,
         )}
       />
@@ -440,7 +433,7 @@
           <th style="padding-left: 0.5rem;">Project</th>
           <th>Nodes</th>
         </tr>
-        {#each $topStatsQuery.data.topProjectNodes as tp, i}
+        {#each topProjectNodes as tp, i}
           <tr>
             <td
               ><Icon name="circle-fill" style="color: {legendColors(i)};" /></td
@@ -495,10 +488,10 @@
           canvasId="{canvasPrefix}-hpcpie-accs-users"
           size={colWidthAccs * 0.75}
           sliceLabel="GPUs"
-          quantities={$topStatsQuery.data.topUserAccs.map(
+          quantities={topUserAccs.map(
             (tu) => tu["totalAccs"],
           )}
-          entities={$topStatsQuery.data.topUserAccs.map((tu) =>
+          entities={topUserAccs.map((tu) =>
             scrambleNames ? scramble(tu.id) : tu.id,
           )}
         />
@@ -511,7 +504,7 @@
           <th style="padding-left: 0.5rem;">User</th>
           <th>GPUs</th>
         </tr>
-        {#each $topStatsQuery.data.topUserAccs as tu, i}
+        {#each topUserAccs as tu, i}
           <tr>
             <td
               ><Icon name="circle-fill" style="color: {legendColors(i)};" /></td
@@ -545,10 +538,10 @@
         canvasId="{canvasPrefix}-hpcpie-accs-projects"
         size={colWidthAccs * 0.75}
         sliceLabel={"GPUs"}
-        quantities={$topStatsQuery.data.topProjectAccs.map(
+        quantities={topProjectAccs.map(
           (tp) => tp["totalAccs"],
         )}
-        entities={$topStatsQuery.data.topProjectAccs.map((tp) =>
+        entities={topProjectAccs.map((tp) =>
           scrambleNames ? scramble(tp.id) : tp.id,
         )}
       />
@@ -560,7 +553,7 @@
           <th style="padding-left: 0.5rem;">Project</th>
           <th>GPUs</th>
         </tr>
-        {#each $topStatsQuery.data.topProjectAccs as tp, i}
+        {#each topProjectAccs as tp, i}
           <tr>
             <td
               ><Icon name="circle-fill" style="color: {legendColors(i)};" /></td

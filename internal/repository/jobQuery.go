@@ -198,8 +198,10 @@ func BuildWhereClause(filter *model.JobFilter, query sq.SelectBuilder) sq.Select
 	}
 	if filter.State != nil {
 		if len(filter.State) == 1 {
+			// Inline literal value so SQLite can match partial indexes (WHERE job_state = 'running').
+			// Safe: values come from validated GraphQL enum (model.JobState).
 			singleStat := string(filter.State[0])
-			query = query.Where("job.job_state = ?", singleStat)
+			query = query.Where(fmt.Sprintf("job.job_state = '%s'", singleStat))
 		} else {
 			states := make([]string, len(filter.State))
 			for i, val := range filter.State {

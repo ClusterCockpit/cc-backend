@@ -55,6 +55,7 @@ import (
 	cclog "github.com/ClusterCockpit/cc-lib/v2/ccLogger"
 	"github.com/ClusterCockpit/cc-lib/v2/schema"
 	sq "github.com/Masterminds/squirrel"
+	"golang.org/x/sync/errgroup"
 )
 
 // groupBy2column maps GraphQL Aggregate enum values to their corresponding database column names.
@@ -640,30 +641,45 @@ func (r *JobRepository) AddHistograms(
 		targetBinSize = 3600
 	}
 
-	var err error
-	// Return X-Values always as seconds, will be formatted into minutes and hours in frontend
+	// Run all 4 histogram queries in parallel — each writes a distinct struct field.
+	g, gctx := errgroup.WithContext(ctx)
+
 	value := fmt.Sprintf(`CAST(ROUND(((CASE WHEN job.job_state = 'running' THEN %d - job.start_time ELSE job.duration END) / %d) + 1) as int) as value`, time.Now().Unix(), targetBinSize)
-	stat.HistDuration, err = r.jobsDurationStatisticsHistogram(ctx, value, filter, targetBinSize, &targetBinCount)
-	if err != nil {
-		cclog.Warn("Error while loading job statistics histogram: job duration")
-		return nil, err
-	}
 
-	stat.HistNumNodes, err = r.jobsStatisticsHistogram(ctx, "job.num_nodes as value", filter)
-	if err != nil {
-		cclog.Warn("Error while loading job statistics histogram: num nodes")
-		return nil, err
-	}
+	g.Go(func() error {
+		var err error
+		stat.HistDuration, err = r.jobsDurationStatisticsHistogram(gctx, value, filter, targetBinSize, &targetBinCount)
+		if err != nil {
+			cclog.Warn("Error while loading job statistics histogram: job duration")
+		}
+		return err
+	})
+	g.Go(func() error {
+		var err error
+		stat.HistNumNodes, err = r.jobsStatisticsHistogram(gctx, "job.num_nodes as value", filter)
+		if err != nil {
+			cclog.Warn("Error while loading job statistics histogram: num nodes")
+		}
+		return err
+	})
+	g.Go(func() error {
+		var err error
+		stat.HistNumCores, err = r.jobsStatisticsHistogram(gctx, "job.num_hwthreads as value", filter)
+		if err != nil {
+			cclog.Warn("Error while loading job statistics histogram: num hwthreads")
+		}
+		return err
+	})
+	g.Go(func() error {
+		var err error
+		stat.HistNumAccs, err = r.jobsStatisticsHistogram(gctx, "job.num_acc as value", filter)
+		if err != nil {
+			cclog.Warn("Error while loading job statistics histogram: num acc")
+		}
+		return err
+	})
 
-	stat.HistNumCores, err = r.jobsStatisticsHistogram(ctx, "job.num_hwthreads as value", filter)
-	if err != nil {
-		cclog.Warn("Error while loading job statistics histogram: num hwthreads")
-		return nil, err
-	}
-
-	stat.HistNumAccs, err = r.jobsStatisticsHistogram(ctx, "job.num_acc as value", filter)
-	if err != nil {
-		cclog.Warn("Error while loading job statistics histogram: num acc")
+	if err := g.Wait(); err != nil {
 		return nil, err
 	}
 
