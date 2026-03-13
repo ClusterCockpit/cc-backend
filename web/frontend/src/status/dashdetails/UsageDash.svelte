@@ -230,10 +230,10 @@
 {:else if $topStatsQuery?.data && $nodeStatusQuery?.data}
   <Row>
     <Col xs="12" lg="4" class="p-2">
-      {#key $nodeStatusQuery.data.jobsStatistics[0].histDuration}
+      {#key $nodeStatusQuery?.data?.jobsStatistics[0]?.histDuration}
         <Histogram
           data={convert2uplot(
-            $nodeStatusQuery.data.jobsStatistics[0].histDuration,
+            $nodeStatusQuery?.data?.jobsStatistics[0]?.histDuration,
           )}
           title="Duration Distribution"
           xlabel="Current Job Runtimes"
@@ -356,7 +356,7 @@
     <Col xs="12" lg="4" class="p-2">
       <Histogram
         data={convert2uplot(
-          $nodeStatusQuery.data.jobsStatistics[0].histNumNodes,
+          $nodeStatusQuery?.data?.jobsStatistics[0]?.histNumNodes,
         )}
         title="Number of Nodes Distribution"
         xlabel="Allocated Nodes"
@@ -476,7 +476,7 @@
     <Col xs="12" lg="4" class="p-2">
       <Histogram
         data={convert2uplot(
-          $nodeStatusQuery.data.jobsStatistics[0].histNumAccs,
+          $nodeStatusQuery?.data?.jobsStatistics[0]?.histNumAccs,
         )}
         title="Number of Accelerators Distribution"
         xlabel="Allocated Accs"

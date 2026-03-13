@@ -167,7 +167,7 @@
 
   <p class="mb-2">
     {#if job.numNodes == 1}
-      {job.resources[0].hostname}
+      {job?.resources[0]?.hostname}
     {:else}
       {job.numNodes}
     {/if}
