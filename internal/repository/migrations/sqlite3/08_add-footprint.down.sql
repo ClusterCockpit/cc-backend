@@ -101,3 +101,5 @@ DROP INDEX IF EXISTS jobs_numnodes_starttime;
 DROP INDEX IF EXISTS jobs_numhwthreads_starttime;
 DROP INDEX IF EXISTS jobs_numacc_starttime;
 DROP INDEX IF EXISTS jobs_energy_starttime;
+
+PRAGMA optimize;
