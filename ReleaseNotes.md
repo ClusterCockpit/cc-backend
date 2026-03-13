@@ -1,6 +1,6 @@
 # `cc-backend` version 1.5.1
 
-Supports job archive version 3 and database version 11.
+Supports job archive version 3 and database version 12.
 
 This is a bugfix release of `cc-backend`, the API backend and frontend
 implementation of ClusterCockpit.
@@ -10,8 +10,12 @@ For release specific notes visit the [ClusterCockpit Documentation](https://clus
 
 ### Database
 
+- **New migration (version 12)**: Added covering index for stats queries for significantly improved query performance
 - **New migration (version 11)**: Optimized database index count for better performance
-- **ANALYZE on startup**: Database statistics are now refreshed on startup for improved query planning
+- **Migration 9 fix**: Removed redundant indices from migration 9 that are superseded by migration 11
+- **Optional DB optimization flag**: Added `-optimize-db` CLI flag to run `ANALYZE` on demand; removed automatic ANALYZE on startup
+- **Selective stats queries**: Stats queries are now selective, reducing unnecessary computation
+- **User list paging**: Added paging support to the user list for better scalability
 - **SQLite configuration hardening**: Sanitized SQLite configuration with new configurable options; fixes large heap allocations in the SQLite driver
 - **Query cancellation**: Long-running database queries can now be cancelled
 - **Resource leak fix**: Added missing `defer Close()` calls for all query result sets
@@ -25,6 +29,7 @@ For release specific notes visit the [ClusterCockpit Documentation](https://clus
 - **JSON validity check**: Fixed wrong field being checked for JSON validity
 - **Tagger float rounding**: Fixed rounding of floats in tagger messages
 - **Node view null safety**: Added null-safe checks in node view to prevent runtime errors
+- **Public dashboard null safety**: Added null-safe checks in the public dashboard to prevent runtime errors
 
 ### Frontend
 
