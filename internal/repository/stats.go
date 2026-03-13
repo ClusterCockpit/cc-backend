@@ -238,7 +238,6 @@ func (r *JobRepository) JobsStatsGrouped(
 	groupBy *model.Aggregate,
 	reqFields map[string]bool,
 ) ([]*model.JobsStatistics, error) {
-	start := time.Now()
 	col := groupBy2column[*groupBy]
 	query := r.buildStatsQuery(filter, col, config.Keys.ShortRunningJobsDuration, reqFields)
 
@@ -325,7 +324,6 @@ func (r *JobRepository) JobsStatsGrouped(
 		}
 	}
 
-	cclog.Debugf("Timer JobsStatsGrouped %s", time.Since(start))
 	return stats, nil
 }
 
