@@ -199,7 +199,7 @@ func BuildWhereClause(filter *model.JobFilter, query sq.SelectBuilder) sq.Select
 	if filter.State != nil {
 		if len(filter.State) == 1 {
 			singleStat := string(filter.State[0])
-			query = query.Where("job.job_state = ?", &singleStat)
+			query = query.Where("job.job_state = ?", singleStat)
 		} else {
 			states := make([]string, len(filter.State))
 			for i, val := range filter.State {
