@@ -1,0 +1,33 @@
+{
+  "cli_version": "0.5.0",
+  "checkpoint_id": "8288af281b94",
+  "session_id": "39705f8c-1691-4d60-b0aa-39f588ed9dcf",
+  "strategy": "manual-commit",
+  "created_at": "2026-03-13T06:58:57.299765Z",
+  "branch": "hotfix",
+  "checkpoints_count": 2,
+  "files_touched": [
+    "internal/repository/jobCreate.go"
+  ],
+  "agent": "Claude Code",
+  "turn_id": "319e15eacd3f",
+  "token_usage": {
+    "input_tokens": 18,
+    "cache_creation_tokens": 44463,
+    "cache_read_tokens": 665034,
+    "output_tokens": 6255,
+    "api_call_count": 14
+  },
+  "session_metrics": {
+    "turn_count": 2
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-03-13T06:58:57.177414Z",
+    "agent_lines": 2,
+    "human_added": 0,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 2,
+    "agent_percentage": 100
+  }
+}
