@@ -11,6 +11,23 @@ recommended to apply the new `optimize-db` flag, which runs the sqlite `ANALYZE`
 and `VACUUM` commands. Depending on your database size (more then 40GB) the
 `VACUUM` may take up to 2h.
 
+## Known issues
+
+- The new dynamic memory management is not bullet proof yet across restarts.
+  Buffers that are kept outside the retention period may be lost across a
+  restart. We will fix that in a subsequent patch release.
+- To use the new log viewer (which is only working when starting cc-backend with
+  systemd) in the admin interface the user under which the cc-backend process is
+  running has to be allowed to execute the journalctl command.
+- The user configuration keys for the ui have changed. Therefore old user
+  configuration persisted in the database is not used anymore. It is recommended
+  to configure the metrics shown in the ui-config sestion and remove all records
+  in the table after the update.
+- Currently energy footprint metrics of type energy are ignored for calculating
+  total energy.
+- With energy footprint metrics of type power the unit is ignored and it is
+  assumed the metric has the unit Watt.
+
 ## Changes in 1.5.1
 
 ### Database
@@ -309,12 +326,3 @@ _The sections below document all features and changes introduced in the 1.5.0 ma
 - If using the archive retention feature, configure the `target-format` option
   to choose between `json` (default) and `parquet` output formats
 - Consider enabling nodestate retention if you track node states over time
-
-## Known issues
-
-- The new dynamic memory management is not bullet proof yet across restarts. We
-  will fix that in a subsequent patch release
-- Currently energy footprint metrics of type energy are ignored for calculating
-  total energy.
-- With energy footprint metrics of type power the unit is ignored and it is
-  assumed the metric has the unit Watt.
