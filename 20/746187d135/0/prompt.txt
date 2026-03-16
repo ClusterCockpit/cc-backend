@@ -1,0 +1,41 @@
+Implement the following plan:
+
+# Plan: Improve GetUser logging
+
+## Context
+
+`GetUser` in `internal/repository/user.go` (line 75) logs a `Warn` for every query error, including the common `sql.ErrNoRows` case (user not found). Two problems:
+
+1. `sql.ErrNoRows` is a normal, expected condition — many callers check for it explicitly. It should not produce a warning.
+2. The log message **omits the actual error**: `"Error while querying user '%v' from database"` gives no clue what went wrong for real failures.
+
+This is the same pattern just fixed in `scanJob` (job.go). The established approach: suppress `sql.ErrNoRows`, add `runtime.Caller(1)` context and include `err` in real-error logs.
+
+## Approach
+
+Modify the `Scan` error block in `GetUser` (`internal/repository/user.go`, lines 75-79):
+
+```go
+if err := sq.Select(...).QueryRow().Scan(...); err != nil {
+    if err != sql.ErrNoRows {
+        _, file, line, _ := runtime.Caller(1)
+        cclog.Warnf("Error while querying user '%v' from database (%s:%d): %v",
+            username, filepath.Base(file), line, err)
+    }
+    return nil, err
+}
+```
+
+Add `"path/filepath"` and `"runtime"` to imports (not currently present in user.go).
+
+## Critical File
+
+- `internal/repository/user.go` — only file to change (lines ~7-24 for imports, ~75-79 for error block)
+
+## Verification
+
+1. `go build ./...` — must compile cleanly
+2. `go test ./internal/repository/...` — existing tests must pass
+
+
+If you need specific details from before exiting plan mode (like exact code snippets, error messages, or content you generated), read the full transcript at: /Users/jan/.claude/projects/-Users-jan-prg-CC-cc-backend/7916ffa0-cf9e-4cb7-a75f-8a1db33c75bd.jsonl
