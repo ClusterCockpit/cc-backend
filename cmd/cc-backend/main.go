@@ -126,6 +126,9 @@ func initDatabase() error {
 		if dc.ConnectionMaxIdleTimeMins > 0 {
 			cfg.ConnectionMaxIdleTime = time.Duration(dc.ConnectionMaxIdleTimeMins) * time.Minute
 		}
+		if dc.BusyTimeoutMs > 0 {
+			cfg.BusyTimeoutMs = dc.BusyTimeoutMs
+		}
 		repository.SetConfig(cfg)
 	}
 	repository.Connect(config.Keys.DB)

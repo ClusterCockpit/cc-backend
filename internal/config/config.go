@@ -88,6 +88,7 @@ type DbConfig struct {
 	MaxOpenConnections        int `json:"max-open-connections"`
 	MaxIdleConnections        int `json:"max-idle-connections"`
 	ConnectionMaxIdleTimeMins int `json:"max-idle-time-minutes"`
+	BusyTimeoutMs             int `json:"busy-timeout-ms"`
 }
 
 type NodeStateRetention struct {

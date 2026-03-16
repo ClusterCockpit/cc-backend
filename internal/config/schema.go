@@ -201,6 +201,10 @@ var configSchema = `
         "max-idle-time-minutes": {
           "description": "Maximum idle time for a connection in minutes (default: 10).",
           "type": "integer"
+        },
+        "busy-timeout-ms": {
+          "description": "SQLite busy timeout in milliseconds. When a write is blocked, SQLite retries with backoff for up to this duration before returning SQLITE_BUSY (default: 60000).",
+          "type": "integer"
         }
       }
     }

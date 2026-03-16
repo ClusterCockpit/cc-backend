@@ -148,7 +148,8 @@ usage can be tuned via the optional `db-config` section in config.json under
       "soft-heap-limit-mb": 16384,
       "max-open-connections": 4,
       "max-idle-connections": 4,
-      "max-idle-time-minutes": 10
+      "max-idle-time-minutes": 10,
+      "busy-timeout-ms": 60000
     }
   }
 }
@@ -166,6 +167,7 @@ are used.
 | `max-open-connections`  | 4       | Maximum number of open database connections.                                                                                                                                            |
 | `max-idle-connections`  | 4       | Maximum number of idle database connections kept in the pool.                                                                                                                           |
 | `max-idle-time-minutes` | 10      | Maximum time in minutes a connection can sit idle before being closed.                                                                                                                  |
+| `busy-timeout-ms`       | 60000   | SQLite busy timeout in milliseconds. When a write is blocked by another writer, SQLite retries internally with backoff for up to this duration before returning `SQLITE_BUSY`.          |
 
 ### Sizing Guidelines
 
