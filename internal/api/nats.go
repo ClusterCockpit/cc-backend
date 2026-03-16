@@ -64,12 +64,19 @@ type NatsAPI struct {
 	// RepositoryMutex protects job creation operations from race conditions
 	// when checking for duplicate jobs during startJob calls.
 	RepositoryMutex sync.Mutex
+	// jobSem limits concurrent NATS job event processing to prevent goroutine accumulation
+	// when the database is under contention.
+	jobSem chan struct{}
+	// nodeSem limits concurrent NATS node state processing.
+	nodeSem chan struct{}
 }
 
 // NewNatsAPI creates a new NatsAPI instance with default dependencies.
 func NewNatsAPI() *NatsAPI {
 	return &NatsAPI{
 		JobRepository: repository.GetJobRepository(),
+		jobSem:        make(chan struct{}, 8),
+		nodeSem:       make(chan struct{}, 2),
 	}
 }
 
@@ -137,6 +144,9 @@ func (api *NatsAPI) processJobEvent(msg lp.CCMessage) {
 //
 // Example: job,function=start_job event="{\"jobId\":1001,...}" 1234567890000000000
 func (api *NatsAPI) handleJobEvent(subject string, data []byte) {
+	api.jobSem <- struct{}{}
+	defer func() { <-api.jobSem }()
+
 	if len(data) == 0 {
 		cclog.Warnf("NATS %s: received empty message", subject)
 		return
@@ -345,6 +355,7 @@ func (api *NatsAPI) processNodestateEvent(msg lp.CCMessage) {
 	repo := repository.GetNodeRepository()
 	requestReceived := time.Now().Unix()
 
+	updates := make([]repository.NodeStateUpdate, 0, len(req.Nodes))
 	for _, node := range req.Nodes {
 		state := determineState(node.States)
 		nodeState := schema.NodeStateDB{
@@ -356,11 +367,15 @@ func (api *NatsAPI) processNodestateEvent(msg lp.CCMessage) {
 			HealthState:     schema.MonitoringStateFull,
 			JobsRunning:     node.JobsRunning,
 		}
+		updates = append(updates, repository.NodeStateUpdate{
+			Hostname:  node.Hostname,
+			Cluster:   req.Cluster,
+			NodeState: &nodeState,
+		})
+	}
 
-		if err := repo.UpdateNodeState(node.Hostname, req.Cluster, &nodeState); err != nil {
-			cclog.Errorf("NATS nodestate: updating node state for %s on %s failed: %v",
-				node.Hostname, req.Cluster, err)
-		}
+	if err := repo.BatchUpdateNodeStates(updates); err != nil {
+		cclog.Errorf("NATS nodestate: batch update for cluster %s failed: %v", req.Cluster, err)
 	}
 
 	cclog.Debugf("NATS nodestate: updated %d node states for cluster %s", len(req.Nodes), req.Cluster)
@@ -372,6 +387,9 @@ func (api *NatsAPI) processNodestateEvent(msg lp.CCMessage) {
 //
 // Example: nodestate event="{\"cluster\":\"testcluster\",\"nodes\":[...]}" 1234567890000000000
 func (api *NatsAPI) handleNodeState(subject string, data []byte) {
+	api.nodeSem <- struct{}{}
+	defer func() { <-api.nodeSem }()
+
 	if len(data) == 0 {
 		cclog.Warnf("NATS %s: received empty message", subject)
 		return

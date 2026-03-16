@@ -188,6 +188,21 @@ func (r *UserRepository) AddUser(user *schema.User) error {
 	return nil
 }
 
+// AddUserIfNotExists inserts a user only if the username does not already exist.
+// Uses INSERT OR IGNORE to avoid UNIQUE constraint errors when a user is
+// concurrently created (e.g., by a login while LDAP sync is running).
+// Unlike AddUser, this intentionally skips the deprecated default metrics config insertion.
+func (r *UserRepository) AddUserIfNotExists(user *schema.User) error {
+	rolesJson, _ := json.Marshal(user.Roles)
+	projectsJson, _ := json.Marshal(user.Projects)
+
+	cols := "username, name, roles, projects, ldap"
+	_, err := r.DB.Exec(
+		`INSERT OR IGNORE INTO hpc_user (`+cols+`) VALUES (?, ?, ?, ?, ?)`,
+		user.Username, user.Name, string(rolesJson), string(projectsJson), int(user.AuthSource))
+	return err
+}
+
 func (r *UserRepository) UpdateUser(dbUser *schema.User, user *schema.User) error {
 	// user contains updated info -> Apply to dbUser
 	// --- Simple Name Update ---

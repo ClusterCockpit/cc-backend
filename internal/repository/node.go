@@ -244,6 +244,77 @@ func (r *NodeRepository) UpdateNodeState(hostname string, cluster string, nodeSt
 	return nil
 }
 
+// NodeStateUpdate holds the data needed to update one node's state in a batch operation.
+type NodeStateUpdate struct {
+	Hostname  string
+	Cluster   string
+	NodeState *schema.NodeStateDB
+}
+
+// BatchUpdateNodeStates inserts node state rows for multiple nodes in a single transaction.
+// For each node, it looks up (or creates) the node row, then inserts the state row.
+// This reduces lock acquisitions from 2*N to 1 for N nodes.
+func (r *NodeRepository) BatchUpdateNodeStates(updates []NodeStateUpdate) error {
+	tx, err := r.DB.Beginx()
+	if err != nil {
+		return fmt.Errorf("BatchUpdateNodeStates: begin transaction: %w", err)
+	}
+	defer tx.Rollback()
+
+	stmtLookup, err := tx.Preparex("SELECT id FROM node WHERE hostname = ? AND cluster = ?")
+	if err != nil {
+		return fmt.Errorf("BatchUpdateNodeStates: prepare lookup: %w", err)
+	}
+	defer stmtLookup.Close()
+
+	stmtInsertNode, err := tx.PrepareNamed(NamedNodeInsert)
+	if err != nil {
+		return fmt.Errorf("BatchUpdateNodeStates: prepare node insert: %w", err)
+	}
+	defer stmtInsertNode.Close()
+
+	stmtInsertState, err := tx.PrepareNamed(NamedNodeStateInsert)
+	if err != nil {
+		return fmt.Errorf("BatchUpdateNodeStates: prepare state insert: %w", err)
+	}
+	defer stmtInsertState.Close()
+
+	for _, u := range updates {
+		var id int64
+		if err := stmtLookup.QueryRow(u.Hostname, u.Cluster).Scan(&id); err != nil {
+			if err == sql.ErrNoRows {
+				subcluster, scErr := archive.GetSubClusterByNode(u.Cluster, u.Hostname)
+				if scErr != nil {
+					cclog.Errorf("BatchUpdateNodeStates: subcluster lookup for '%s' in '%s': %v", u.Hostname, u.Cluster, scErr)
+					continue
+				}
+				node := schema.NodeDB{
+					Hostname: u.Hostname, Cluster: u.Cluster, SubCluster: subcluster,
+				}
+				res, insertErr := stmtInsertNode.Exec(&node)
+				if insertErr != nil {
+					cclog.Errorf("BatchUpdateNodeStates: insert node '%s': %v", u.Hostname, insertErr)
+					continue
+				}
+				id, _ = res.LastInsertId()
+			} else {
+				cclog.Errorf("BatchUpdateNodeStates: lookup node '%s': %v", u.Hostname, err)
+				continue
+			}
+		}
+
+		u.NodeState.NodeID = id
+		if _, err := stmtInsertState.Exec(u.NodeState); err != nil {
+			cclog.Errorf("BatchUpdateNodeStates: insert state for '%s': %v", u.Hostname, err)
+		}
+	}
+
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("BatchUpdateNodeStates: commit: %w", err)
+	}
+	return nil
+}
+
 // func (r *NodeRepository) UpdateHealthState(hostname string, healthState *schema.MonitoringState) error {
 // 	if _, err := sq.Update("node").Set("health_state", healthState).Where("node.id = ?", id).RunWith(r.DB).Exec(); err != nil {
 // 		cclog.Errorf("error while updating node '%d'", id)

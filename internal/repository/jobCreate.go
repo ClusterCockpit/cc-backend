@@ -92,17 +92,30 @@ func (r *JobRepository) SyncJobs() ([]*schema.Job, error) {
 		jobs = append(jobs, job)
 	}
 
+	// Transfer cached jobs to main table and clear cache in a single transaction.
+	tx, err := r.DB.Beginx()
+	if err != nil {
+		cclog.Errorf("SyncJobs: begin transaction: %v", err)
+		return nil, err
+	}
+	defer tx.Rollback()
+
 	// Use INSERT OR IGNORE to skip jobs already transferred by the stop path
-	_, err = r.DB.Exec(
+	_, err = tx.Exec(
 		"INSERT OR IGNORE INTO job (job_id, cluster, subcluster, start_time, hpc_user, project, cluster_partition, array_job_id, num_nodes, num_hwthreads, num_acc, shared, monitoring_status, smt, job_state, duration, walltime, footprint, energy, energy_footprint, resources, meta_data) SELECT job_id, cluster, subcluster, start_time, hpc_user, project, cluster_partition, array_job_id, num_nodes, num_hwthreads, num_acc, shared, monitoring_status, smt, job_state, duration, walltime, footprint, energy, energy_footprint, resources, meta_data FROM job_cache")
 	if err != nil {
 		cclog.Errorf("Error while Job sync: %v", err)
 		return nil, err
 	}
 
-	_, err = r.DB.Exec("DELETE FROM job_cache")
+	_, err = tx.Exec("DELETE FROM job_cache")
 	if err != nil {
 		cclog.Errorf("Error while Job cache clean: %v", err)
+		return nil, err
+	}
+
+	if err := tx.Commit(); err != nil {
+		cclog.Errorf("SyncJobs: commit transaction: %v", err)
 		return nil, err
 	}
 
