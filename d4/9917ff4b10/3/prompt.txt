@@ -1,0 +1,1 @@
+Add a  timer around JobStatsGrouped call and print result. Also add timer for overall routine.

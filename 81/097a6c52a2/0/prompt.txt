@@ -1,0 +1,5 @@
+Are there other opportunities to reduce the insert pressure on the db using transactions or other techniques?
+
+---
+
+Update the Database config section in the README to reflect the new setting

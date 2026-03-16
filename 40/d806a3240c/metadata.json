@@ -1,0 +1,25 @@
+{
+  "cli_version": "0.5.0",
+  "checkpoint_id": "40d806a3240c",
+  "strategy": "manual-commit",
+  "branch": "hotfix",
+  "checkpoints_count": 2,
+  "files_touched": [
+    "web/frontend/src/status/dashdetails/UsageDash.svelte"
+  ],
+  "sessions": [
+    {
+      "metadata": "/40/d806a3240c/0/metadata.json",
+      "transcript": "/40/d806a3240c/0/full.jsonl",
+      "content_hash": "/40/d806a3240c/0/content_hash.txt",
+      "prompt": "/40/d806a3240c/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 20,
+    "cache_creation_tokens": 25816,
+    "cache_read_tokens": 343977,
+    "output_tokens": 2864,
+    "api_call_count": 14
+  }
+}

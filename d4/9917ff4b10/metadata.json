@@ -1,0 +1,45 @@
+{
+  "cli_version": "0.5.0",
+  "checkpoint_id": "d49917ff4b10",
+  "strategy": "manual-commit",
+  "branch": "hotfix",
+  "checkpoints_count": 4,
+  "files_touched": [
+    "cmd/cc-backend/cli.go",
+    "cmd/cc-backend/main.go",
+    "internal/repository/dbConnection.go"
+  ],
+  "sessions": [
+    {
+      "metadata": "/d4/9917ff4b10/0/metadata.json",
+      "transcript": "/d4/9917ff4b10/0/full.jsonl",
+      "content_hash": "/d4/9917ff4b10/0/content_hash.txt",
+      "prompt": ""
+    },
+    {
+      "metadata": "/d4/9917ff4b10/1/metadata.json",
+      "transcript": "/d4/9917ff4b10/1/full.jsonl",
+      "content_hash": "/d4/9917ff4b10/1/content_hash.txt",
+      "prompt": "/d4/9917ff4b10/1/prompt.txt"
+    },
+    {
+      "metadata": "/d4/9917ff4b10/2/metadata.json",
+      "transcript": "/d4/9917ff4b10/2/full.jsonl",
+      "content_hash": "/d4/9917ff4b10/2/content_hash.txt",
+      "prompt": ""
+    },
+    {
+      "metadata": "/d4/9917ff4b10/3/metadata.json",
+      "transcript": "/d4/9917ff4b10/3/full.jsonl",
+      "content_hash": "/d4/9917ff4b10/3/content_hash.txt",
+      "prompt": "/d4/9917ff4b10/3/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 552,
+    "cache_creation_tokens": 101396,
+    "cache_read_tokens": 1385730,
+    "output_tokens": 16642,
+    "api_call_count": 48
+  }
+}
