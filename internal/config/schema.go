@@ -121,6 +121,14 @@ var configSchema = `
         "subject-node-state": {
           "description": "NATS subject for node state updates",
           "type": "string"
+        },
+        "job-concurrency": {
+          "description": "Number of concurrent worker goroutines for processing job events (default: 8).",
+          "type": "integer"
+        },
+        "node-concurrency": {
+          "description": "Number of concurrent worker goroutines for processing node state events (default: 2).",
+          "type": "integer"
         }
       },
       "required": ["subject-job-event", "subject-node-state"]

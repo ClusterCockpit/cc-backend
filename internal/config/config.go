@@ -117,6 +117,8 @@ type ResampleConfig struct {
 type NATSConfig struct {
 	SubjectJobEvent  string `json:"subject-job-event"`
 	SubjectNodeState string `json:"subject-node-state"`
+	JobConcurrency   int    `json:"job-concurrency"`
+	NodeConcurrency  int    `json:"node-concurrency"`
 }
 
 type IntRange struct {
