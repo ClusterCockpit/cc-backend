@@ -3,7 +3,7 @@
   "checkpoint_id": "3a40b75edd68",
   "strategy": "manual-commit",
   "branch": "hotfix",
-  "checkpoints_count": 3,
+  "checkpoints_count": 5,
   "files_touched": [
     "CLAUDE.md",
     "internal/api/nats.go",
@@ -28,13 +28,19 @@
       "transcript": "/3a/40b75edd68/2/full.jsonl",
       "content_hash": "/3a/40b75edd68/2/content_hash.txt",
       "prompt": "/3a/40b75edd68/2/prompt.txt"
+    },
+    {
+      "metadata": "/3a/40b75edd68/3/metadata.json",
+      "transcript": "/3a/40b75edd68/3/full.jsonl",
+      "content_hash": "/3a/40b75edd68/3/content_hash.txt",
+      "prompt": "/3a/40b75edd68/3/prompt.txt"
     }
   ],
   "token_usage": {
-    "input_tokens": 3103,
-    "cache_creation_tokens": 187017,
-    "cache_read_tokens": 5508284,
-    "output_tokens": 25060,
-    "api_call_count": 70
+    "input_tokens": 3124,
+    "cache_creation_tokens": 226039,
+    "cache_read_tokens": 6243570,
+    "output_tokens": 31500,
+    "api_call_count": 87
   }
 }
