@@ -1,0 +1,5 @@
+handleError is called from many different functions. How can I enrich the log message to make transparent from where the error is triggered?
+
+---
+
+Adopt handleError using the runtime.Caller option
