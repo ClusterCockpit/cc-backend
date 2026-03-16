@@ -66,6 +66,8 @@ import (
 	"fmt"
 	"maps"
 	"math"
+	"path/filepath"
+	"runtime"
 	"sort"
 	"strconv"
 	"sync"
@@ -159,7 +161,10 @@ func scanJob(row interface{ Scan(...any) error }) (*schema.Job, error) {
 		&job.StartTime, &job.Partition, &job.ArrayJobID, &job.NumNodes, &job.NumHWThreads,
 		&job.NumAcc, &job.Shared, &job.MonitoringStatus, &job.SMT, &job.State,
 		&job.Duration, &job.Walltime, &job.RawResources, &job.RawFootprint, &job.Energy); err != nil {
-		cclog.Warnf("Error while scanning rows (Job): %v", err)
+		if err != sql.ErrNoRows {
+			_, file, line, _ := runtime.Caller(1)
+			cclog.Warnf("Error while scanning rows (Job) (%s:%d): %v", filepath.Base(file), line, err)
+		}
 		return nil, err
 	}
 
