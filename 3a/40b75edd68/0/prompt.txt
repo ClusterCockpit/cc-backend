@@ -1,0 +1,1 @@
+Also updaten the documentation and config schema to reflect the new options
