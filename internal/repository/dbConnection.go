@@ -70,7 +70,7 @@ func Connect(db string) {
 		connectionURLParams := make(url.Values)
 		connectionURLParams.Add("_txlock", "immediate")
 		connectionURLParams.Add("_journal_mode", "WAL")
-		connectionURLParams.Add("_busy_timeout", "5000")
+		connectionURLParams.Add("_busy_timeout", fmt.Sprintf("%d", repoConfig.BusyTimeoutMs))
 		connectionURLParams.Add("_synchronous", "NORMAL")
 		cacheSizeKiB := repoConfig.DbCacheSizeMB * 1024 // Convert MB to KiB
 		connectionURLParams.Add("_cache_size", fmt.Sprintf("-%d", cacheSizeKiB))

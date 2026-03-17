@@ -121,6 +121,14 @@ var configSchema = `
         "subject-node-state": {
           "description": "NATS subject for node state updates",
           "type": "string"
+        },
+        "job-concurrency": {
+          "description": "Number of concurrent worker goroutines for processing job events (default: 8).",
+          "type": "integer"
+        },
+        "node-concurrency": {
+          "description": "Number of concurrent worker goroutines for processing node state events (default: 2).",
+          "type": "integer"
         }
       },
       "required": ["subject-job-event", "subject-node-state"]
@@ -200,6 +208,10 @@ var configSchema = `
         },
         "max-idle-time-minutes": {
           "description": "Maximum idle time for a connection in minutes (default: 10).",
+          "type": "integer"
+        },
+        "busy-timeout-ms": {
+          "description": "SQLite busy timeout in milliseconds. When a write is blocked, SQLite retries with backoff for up to this duration before returning SQLITE_BUSY (default: 60000).",
           "type": "integer"
         }
       }

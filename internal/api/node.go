@@ -116,6 +116,7 @@ func (api *RestAPI) updateNodeStates(rw http.ResponseWriter, r *http.Request) {
 	cclog.Debugf("Timer updateNodeStates, MemStore HealthCheck: %s", time.Since(startMs))
 	startDB := time.Now()
 
+	updates := make([]repository.NodeStateUpdate, 0, len(req.Nodes))
 	for _, node := range req.Nodes {
 		state := determineState(node.States)
 		healthState := schema.MonitoringStateFailed
@@ -134,11 +135,15 @@ func (api *RestAPI) updateNodeStates(rw http.ResponseWriter, r *http.Request) {
 			HealthMetrics:   healthMetrics,
 			JobsRunning:     node.JobsRunning,
 		}
+		updates = append(updates, repository.NodeStateUpdate{
+			Hostname:  node.Hostname,
+			Cluster:   req.Cluster,
+			NodeState: &nodeState,
+		})
+	}
 
-		if err := repo.UpdateNodeState(node.Hostname, req.Cluster, &nodeState); err != nil {
-			cclog.Errorf("updateNodeStates: updating node state for %s on %s failed: %v",
-				node.Hostname, req.Cluster, err)
-		}
+	if err := repo.BatchUpdateNodeStates(updates); err != nil {
+		cclog.Errorf("updateNodeStates: batch update for cluster %s failed: %v", req.Cluster, err)
 	}
 
 	cclog.Debugf("Timer updateNodeStates, SQLite Inserts: %s", time.Since(startDB))

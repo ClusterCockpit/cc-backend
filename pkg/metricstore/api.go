@@ -288,7 +288,7 @@ func FetchData(req APIQueryRequest) (*APIQueryResponse, error) {
 					data.Error = &msg
 					res = append(res, data)
 				} else {
-					cclog.Warnf("failed to fetch '%s' from host '%s' (cluster: %s): %s", query.Metric, query.Hostname, req.Cluster, err.Error())
+					cclog.Debugf("failed to fetch '%s' from host '%s' (cluster: %s): %s", query.Metric, query.Hostname, req.Cluster, err.Error())
 				}
 				continue
 			}

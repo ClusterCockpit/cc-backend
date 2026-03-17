@@ -210,7 +210,7 @@ func (la *LdapAuthenticator) Sync() error {
 			}
 
 			cclog.Debugf("sync: add %v (name: %v, roles: [user], ldap: true)", username, name)
-			if err := ur.AddUser(user); err != nil {
+			if err := ur.AddUserIfNotExists(user); err != nil {
 				cclog.Errorf("User '%s' LDAP: Insert into DB failed", username)
 				return err
 			}

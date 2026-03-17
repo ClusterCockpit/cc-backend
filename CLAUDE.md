@@ -151,9 +151,11 @@ applied automatically on startup. Version tracking in `version` table.
 ## Configuration
 
 - **config.json**: Main configuration (clusters, metric repositories, archive settings)
-  - `main.apiSubjects`: NATS subject configuration (optional)
-    - `subjectJobEvent`: Subject for job start/stop events (e.g., "cc.job.event")
-    - `subjectNodeState`: Subject for node state updates (e.g., "cc.node.state")
+  - `main.api-subjects`: NATS subject configuration (optional)
+    - `subject-job-event`: Subject for job start/stop events (e.g., "cc.job.event")
+    - `subject-node-state`: Subject for node state updates (e.g., "cc.node.state")
+    - `job-concurrency`: Worker goroutines for job events (default: 8)
+    - `node-concurrency`: Worker goroutines for node state events (default: 2)
   - `nats`: NATS client connection configuration (optional)
     - `address`: NATS server address (e.g., "nats://localhost:4222")
     - `username`: Authentication username (optional)
@@ -241,13 +243,19 @@ The backend supports a NATS-based API as an alternative to the REST API for job 
    ```json
    {
      "main": {
-       "apiSubjects": {
-         "subjectJobEvent": "cc.job.event",
-         "subjectNodeState": "cc.node.state"
+       "api-subjects": {
+         "subject-job-event": "cc.job.event",
+         "subject-node-state": "cc.node.state",
+         "job-concurrency": 8,
+         "node-concurrency": 2
        }
      }
    }
    ```
+   - `subject-job-event` (required): NATS subject for job start/stop events
+   - `subject-node-state` (required): NATS subject for node state updates
+   - `job-concurrency` (optional, default: 8): Number of concurrent worker goroutines for job events
+   - `node-concurrency` (optional, default: 2): Number of concurrent worker goroutines for node state events
 
 ### Message Format
 
@@ -292,9 +300,10 @@ job,function=stop_job event="{\"jobId\":123,\"cluster\":\"test\",\"startTime\":1
 ### Implementation Notes
 
 - NATS API mirrors REST API functionality but uses messaging
-- Job start/stop events are processed asynchronously
+- Job start/stop events are processed asynchronously via configurable worker pools
 - Duplicate job detection is handled (same as REST API)
 - All validation rules from REST API apply
+- Node state updates include health checks against the metric store (identical to REST handler): nodes are grouped by subcluster, metric configurations are fetched, and `HealthCheck()` is called per subcluster. Nodes default to `MonitoringStateFailed` if no health data is available.
 - Messages are logged; no responses are sent back to publishers
 - If NATS client is unavailable, API subscriptions are skipped (logged as warning)
 

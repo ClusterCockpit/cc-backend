@@ -46,6 +46,12 @@ type RepositoryConfig struct {
 	// It's a soft limit — queries won't fail, but cache eviction becomes more aggressive.
 	// Default: 16384 (16GB)
 	DbSoftHeapLimitMB int
+
+	// BusyTimeoutMs is the SQLite busy_timeout in milliseconds.
+	// When a write is blocked by another writer, SQLite retries internally
+	// using a backoff mechanism for up to this duration before returning SQLITE_BUSY.
+	// Default: 60000 (60 seconds)
+	BusyTimeoutMs int
 }
 
 // DefaultConfig returns the default repository configuration.
@@ -60,6 +66,7 @@ func DefaultConfig() *RepositoryConfig {
 		MinRunningJobDuration: 600, // 10 minutes
 		DbCacheSizeMB:        2048,  // 2GB per connection
 		DbSoftHeapLimitMB:    16384, // 16GB process-wide
+		BusyTimeoutMs:        60000, // 60 seconds
 	}
 }
 

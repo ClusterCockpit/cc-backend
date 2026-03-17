@@ -2,6 +2,7 @@
 // All rights reserved. This file is part of cc-backend.
 // Use of this source code is governed by a MIT-style
 // license that can be found in the LICENSE file.
+
 package repository
 
 import (
@@ -10,7 +11,9 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"path/filepath"
 	"reflect"
+	"runtime"
 	"strings"
 	"sync"
 
@@ -73,7 +76,11 @@ func (r *UserRepository) GetUser(username string) (*schema.User, error) {
 	if err := sq.Select("password", "ldap", "name", "roles", "email", "projects").From("hpc_user").
 		Where("hpc_user.username = ?", username).RunWith(r.DB).
 		QueryRow().Scan(&hashedPassword, &user.AuthSource, &name, &rawRoles, &email, &rawProjects); err != nil {
-		cclog.Warnf("Error while querying user '%v' from database", username)
+		if err != sql.ErrNoRows {
+			_, file, line, _ := runtime.Caller(1)
+			cclog.Warnf("Error while querying user '%v' from database (%s:%d): %v",
+				username, filepath.Base(file), line, err)
+		}
 		return nil, err
 	}
 
@@ -124,11 +131,11 @@ func (r *UserRepository) GetLdapUsernames() ([]string, error) {
 // Required fields: Username, Roles
 // Optional fields: Name, Email, Password, Projects, AuthSource
 func (r *UserRepository) AddUser(user *schema.User) error {
-	rolesJson, _ := json.Marshal(user.Roles)
-	projectsJson, _ := json.Marshal(user.Projects)
+	rolesJSON, _ := json.Marshal(user.Roles)
+	projectsJSON, _ := json.Marshal(user.Projects)
 
 	cols := []string{"username", "roles", "projects"}
-	vals := []any{user.Username, string(rolesJson), string(projectsJson)}
+	vals := []any{user.Username, string(rolesJSON), string(projectsJSON)}
 
 	if user.Name != "" {
 		cols = append(cols, "name")
@@ -157,7 +164,7 @@ func (r *UserRepository) AddUser(user *schema.User) error {
 		return err
 	}
 
-	cclog.Infof("new user %#v created (roles: %s, auth-source: %d, projects: %s)", user.Username, rolesJson, user.AuthSource, projectsJson)
+	cclog.Infof("new user %#v created (roles: %s, auth-source: %d, projects: %s)", user.Username, rolesJSON, user.AuthSource, projectsJSON)
 
 	// DEPRECATED: SUPERSEDED BY NEW USER CONFIG - userConfig.go / web.go
 	defaultMetricsCfg, err := config.LoadDefaultMetricsConfig()
@@ -186,6 +193,21 @@ func (r *UserRepository) AddUser(user *schema.User) error {
 	// END DEPRECATION
 
 	return nil
+}
+
+// AddUserIfNotExists inserts a user only if the username does not already exist.
+// Uses INSERT OR IGNORE to avoid UNIQUE constraint errors when a user is
+// concurrently created (e.g., by a login while LDAP sync is running).
+// Unlike AddUser, this intentionally skips the deprecated default metrics config insertion.
+func (r *UserRepository) AddUserIfNotExists(user *schema.User) error {
+	rolesJSON, _ := json.Marshal(user.Roles)
+	projectsJSON, _ := json.Marshal(user.Projects)
+
+	cols := "username, name, roles, projects, ldap"
+	_, err := r.DB.Exec(
+		`INSERT OR IGNORE INTO hpc_user (`+cols+`) VALUES (?, ?, ?, ?, ?)`,
+		user.Username, user.Name, string(rolesJSON), string(projectsJSON), int(user.AuthSource))
+	return err
 }
 
 func (r *UserRepository) UpdateUser(dbUser *schema.User, user *schema.User) error {
