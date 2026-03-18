@@ -34,21 +34,26 @@ func metricListToNames(metricList map[string]*schema.Metric) []string {
 	return names
 }
 
-// this routine assumes that only one of them exists per node
+// determineState resolves multiple states to a single state using priority order:
+// allocated > reserved > idle > down > mixed.
+// Exception: if both idle and down are present, idle is returned.
 func determineState(states []string) schema.SchedulerState {
-	for _, state := range states {
-		switch strings.ToLower(state) {
-		case "allocated":
-			return schema.NodeStateAllocated
-		case "reserved":
-			return schema.NodeStateReserved
-		case "idle":
-			return schema.NodeStateIdle
-		case "down":
-			return schema.NodeStateDown
-		case "mixed":
-			return schema.NodeStateMixed
-		}
+	stateSet := make(map[string]bool, len(states))
+	for _, s := range states {
+		stateSet[strings.ToLower(s)] = true
+	}
+
+	switch {
+	case stateSet["allocated"]:
+		return schema.NodeStateAllocated
+	case stateSet["reserved"]:
+		return schema.NodeStateReserved
+	case stateSet["idle"]:
+		return schema.NodeStateIdle
+	case stateSet["down"]:
+		return schema.NodeStateDown
+	case stateSet["mixed"]:
+		return schema.NodeStateMixed
 	}
 
 	return schema.NodeStateUnknown
