@@ -1,0 +1,26 @@
+{
+  "cli_version": "0.4.8",
+  "checkpoint_id": "20746187d135",
+  "strategy": "manual-commit",
+  "branch": "hotfix",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "internal/repository/user.go"
+  ],
+  "sessions": [
+    {
+      "metadata": "/20/746187d135/0/metadata.json",
+      "transcript": "/20/746187d135/0/full.jsonl",
+      "context": "/20/746187d135/0/context.md",
+      "content_hash": "/20/746187d135/0/content_hash.txt",
+      "prompt": "/20/746187d135/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 9,
+    "cache_creation_tokens": 13749,
+    "cache_read_tokens": 131587,
+    "output_tokens": 1095,
+    "api_call_count": 7
+  }
+}
