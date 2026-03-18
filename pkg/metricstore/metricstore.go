@@ -184,10 +184,11 @@ func Init(rawConfig json.RawMessage, metrics map[string]MetricConfig, wg *sync.W
 	shutdownFuncMu.Unlock()
 
 	if Keys.Subscriptions != nil {
-		err = ReceiveNats(ms, Keys.NumWorkers, ctx)
-		if err != nil {
-			cclog.Fatal(err)
-		}
+		wg.Go(func() {
+			if err := ReceiveNats(ms, Keys.NumWorkers, ctx); err != nil {
+				cclog.Fatal(err)
+			}
+		})
 	}
 }
 
