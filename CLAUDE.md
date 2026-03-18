@@ -338,7 +338,7 @@ For any significant change, you MUST:
 
 ## Dependencies
 
-- Go 1.24.0+ (check go.mod for exact version)
+- Go 1.25.0+ (check go.mod for exact version)
 - Node.js (for frontend builds)
 - SQLite 3 (only supported database)
 - Optional: NATS server for NATS API integration
