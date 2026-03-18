@@ -360,7 +360,7 @@ func (r *JobRepository) JobsStats(
 
 	var jobs, users, walltime, nodes, nodeHours, cores, coreHours, accs, accHours, runningJobs, shortJobs sql.NullInt64
 	if err := row.Scan(&jobs, &users, &walltime, &nodes, &nodeHours, &cores, &coreHours, &accs, &accHours, &runningJobs, &shortJobs); err != nil {
-		cclog.Warn("Error while scanning rows")
+		cclog.Warnf("Error scanning job statistics row: %v", err)
 		return nil, err
 	}
 
