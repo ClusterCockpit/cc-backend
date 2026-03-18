@@ -1,0 +1,5 @@
+Does a similar problem occur on the metricstore REST API path?
+
+---
+
+How many os level threads are used in this application? It is currently configurable?

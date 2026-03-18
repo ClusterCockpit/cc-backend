@@ -1,0 +1,27 @@
+{
+  "cli_version": "0.5.0",
+  "checkpoint_id": "7e68050cab59",
+  "strategy": "manual-commit",
+  "branch": "hotfix",
+  "checkpoints_count": 3,
+  "files_touched": [
+    "pkg/metricstore/lineprotocol.go",
+    "pkg/metricstore/metricstore.go",
+    "pkg/metricstore/walCheckpoint.go"
+  ],
+  "sessions": [
+    {
+      "metadata": "/7e/68050cab59/0/metadata.json",
+      "transcript": "/7e/68050cab59/0/full.jsonl",
+      "content_hash": "/7e/68050cab59/0/content_hash.txt",
+      "prompt": "/7e/68050cab59/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 24,
+    "cache_creation_tokens": 46456,
+    "cache_read_tokens": 882339,
+    "output_tokens": 4423,
+    "api_call_count": 18
+  }
+}

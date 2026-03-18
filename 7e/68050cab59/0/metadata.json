@@ -1,0 +1,35 @@
+{
+  "cli_version": "0.5.0",
+  "checkpoint_id": "7e68050cab59",
+  "session_id": "5eb20a94-f8df-4979-a0ae-2aa99bfad884",
+  "strategy": "manual-commit",
+  "created_at": "2026-03-18T05:14:15.937779Z",
+  "branch": "hotfix",
+  "checkpoints_count": 3,
+  "files_touched": [
+    "pkg/metricstore/lineprotocol.go",
+    "pkg/metricstore/metricstore.go",
+    "pkg/metricstore/walCheckpoint.go"
+  ],
+  "agent": "Claude Code",
+  "turn_id": "ee511b5a4551",
+  "token_usage": {
+    "input_tokens": 24,
+    "cache_creation_tokens": 46456,
+    "cache_read_tokens": 882339,
+    "output_tokens": 4423,
+    "api_call_count": 18
+  },
+  "session_metrics": {
+    "turn_count": 3
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-03-18T05:14:15.784275Z",
+    "agent_lines": 40,
+    "human_added": 0,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 40,
+    "agent_percentage": 100
+  }
+}
