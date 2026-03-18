@@ -1,15 +1,61 @@
-# `cc-backend` version 1.5.1
+# `cc-backend` version 1.5.2
 
 Supports job archive version 3 and database version 11.
 
 This is a bugfix release of `cc-backend`, the API backend and frontend
 implementation of ClusterCockpit.
 For release specific notes visit the [ClusterCockpit Documentation](https://clusterockpit.org/docs/release/).
+If you are upgrading from v1.5.1 no database migration is required.
 If you are upgrading from v1.5.0 you need to do another DB migration. This
 should not take long. For optimal database performance after the migration it is
 recommended to apply the new `optimize-db` flag, which runs the sqlite `ANALYZE`
 and `VACUUM` commands. Depending on your database size (more then 40GB) the
 `VACUUM` may take up to 2h.
+
+## Changes in 1.5.2
+
+### Bug fixes
+
+- **Memory spike in parquet writer**: Fixed memory spikes when using the
+  metricstore move (archive) policy with the parquet writer. The writer now
+  processes data in a streaming fashion to avoid accumulating large allocations.
+
+### Database performance
+
+- **Reduced insert pressure**: Bulk insert operations (node state updates, user
+  and job cache syncs) now use explicit transactions and deferred inserts,
+  significantly reducing write contention on the SQLite database.
+- **SyncJobs wrapped in transaction**: `SyncJobs` now runs inside a transaction
+  for better consistency and reduced lock contention.
+- **Configurable busy timeout**: New `busy-timeout` configuration option for the
+  SQLite connection. This allows tuning how long the driver waits for a locked
+  database before returning an error, which improves resilience under concurrent
+  write load.
+- **Increased default SQLite timeout**: The default SQLite connection timeout
+  has been raised to reduce spurious timeout errors under load.
+
+### NATS API
+
+- **Nodestate health checks in NATS API**: The NATS node state handler now
+  performs the same metric health checks as the REST API handler, including
+  per-subcluster health checks and `MonitoringStateFailed` fallback for nodes
+  without health data.
+
+### Logging improvements
+
+- **Better error context**: Several repository functions now include the calling
+  function name in error messages for easier diagnosis.
+- **Reduced log noise**: `ErrNoRows` (no results found) is no longer logged as
+  an error in `scanRow`; common "no rows" paths are now silent.
+- **Debug-level missing metrics**: Warning about missing metrics in the metric
+  store has been downgraded to debug level to reduce log noise in normal
+  operation.
+- **Checkpoint archiving log**: Added an informational log message when the
+  metricstore checkpoint archiving process runs.
+
+### Dependencies
+
+- **cc-lib upgraded**: Updated to latest cc-lib version.
 
 ## Known issues
 
