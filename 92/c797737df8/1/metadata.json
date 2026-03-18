@@ -1,0 +1,33 @@
+{
+  "cli_version": "0.5.0",
+  "checkpoint_id": "92c797737df8",
+  "session_id": "3a41c7a4-abf8-484b-96ae-ee5618eea5ba",
+  "strategy": "manual-commit",
+  "created_at": "2026-03-18T09:57:07.30549Z",
+  "branch": "hotfix",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "internal/api/node.go"
+  ],
+  "agent": "Claude Code",
+  "turn_id": "bdae1c75ad70",
+  "token_usage": {
+    "input_tokens": 55,
+    "cache_creation_tokens": 122203,
+    "cache_read_tokens": 4629600,
+    "output_tokens": 17587,
+    "api_call_count": 45
+  },
+  "session_metrics": {
+    "turn_count": 3
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-03-18T09:57:06.806214Z",
+    "agent_lines": 0,
+    "human_added": 532,
+    "human_modified": 14,
+    "human_removed": 0,
+    "total_committed": 532,
+    "agent_percentage": 0
+  }
+}
