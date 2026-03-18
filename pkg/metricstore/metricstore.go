@@ -277,7 +277,9 @@ func Shutdown() {
 	}
 
 	if Keys.Checkpoints.FileFormat == "wal" {
-		close(WALMessages)
+		for _, ch := range walShardChs {
+			close(ch)
+		}
 	}
 
 	cclog.Infof("[METRICSTORE]> Writing to '%s'...\n", Keys.Checkpoints.RootDir)

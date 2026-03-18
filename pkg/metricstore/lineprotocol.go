@@ -361,13 +361,11 @@ func DecodeLine(dec *lineprotocol.Decoder,
 				Value:      metric.Value,
 				Timestamp:  time,
 			}
-			select {
-			case WALMessages <- msg:
-			default:
-				// WAL channel full — metric is written to memory store but not WAL.
+			if !SendWALMessage(msg) {
+				// WAL shard channel full — metric is written to memory store but not WAL.
 				// Next binary snapshot will capture it.
 				if dropped := walDropped.Add(1); dropped%10000 == 1 {
-					cclog.Warnf("[METRICSTORE]> WAL channel full, dropped %d messages (data safe in memory, next snapshot will capture)", dropped)
+					cclog.Warnf("[METRICSTORE]> WAL shard channel full, dropped %d messages (data safe in memory, next snapshot will capture)", dropped)
 				}
 			}
 		}
