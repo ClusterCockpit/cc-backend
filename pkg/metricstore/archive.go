@@ -171,6 +171,9 @@ func deleteCheckpoints(checkpointsDir string, from int64) (int, error) {
 // Each host's rows are written as a separate row group to avoid accumulating
 // all data in memory at once.
 func archiveCheckpoints(checkpointsDir, cleanupDir string, from int64) (int, error) {
+	cclog.Info("[METRICSTORE]> start archiving checkpoints to parquet")
+	startTime := time.Now()
+
 	clusterEntries, err := os.ReadDir(checkpointsDir)
 	if err != nil {
 		return 0, err
@@ -300,5 +303,6 @@ func archiveCheckpoints(checkpointsDir, cleanupDir string, from int64) (int, err
 			writer.count, totalFiles, cluster, parquetFile)
 	}
 
+	cclog.Infof("[METRICSTORE]> archiving checkpoints completed in %s (%d files)", time.Since(startTime).Round(time.Millisecond), totalFiles)
 	return totalFiles, nil
 }
