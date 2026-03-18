@@ -421,7 +421,7 @@ func (auth *Authentication) Auth(
 			return
 		}
 
-		cclog.Info("auth -> authentication failed")
+		cclog.Infof("auth -> authentication failed: no valid session or JWT for %s %s from %s", r.Method, r.URL.Path, r.RemoteAddr)
 		onfailure(rw, r, errors.New("unauthorized (please login first)"))
 	})
 }

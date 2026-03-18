@@ -184,10 +184,11 @@ func Init(rawConfig json.RawMessage, metrics map[string]MetricConfig, wg *sync.W
 	shutdownFuncMu.Unlock()
 
 	if Keys.Subscriptions != nil {
-		err = ReceiveNats(ms, 1, ctx)
-		if err != nil {
-			cclog.Fatal(err)
-		}
+		wg.Go(func() {
+			if err := ReceiveNats(ms, Keys.NumWorkers, ctx); err != nil {
+				cclog.Fatal(err)
+			}
+		})
 	}
 }
 
@@ -277,7 +278,9 @@ func Shutdown() {
 	}
 
 	if Keys.Checkpoints.FileFormat == "wal" {
-		close(WALMessages)
+		for _, ch := range walShardChs {
+			close(ch)
+		}
 	}
 
 	cclog.Infof("[METRICSTORE]> Writing to '%s'...\n", Keys.Checkpoints.RootDir)

@@ -162,7 +162,15 @@ func TestParquetArchiveRoundtrip(t *testing.T) {
 	}
 
 	parquetFile := filepath.Join(archiveDir, "testcluster", "1000.parquet")
-	if err := writeParquetArchive(parquetFile, rows); err != nil {
+	writer, err := newParquetArchiveWriter(parquetFile)
+	if err != nil {
+		t.Fatal(err)
+	}
+	sortParquetRows(rows)
+	if err := writer.WriteHostRows(rows); err != nil {
+		t.Fatal(err)
+	}
+	if err := writer.Close(); err != nil {
 		t.Fatal(err)
 	}
 
