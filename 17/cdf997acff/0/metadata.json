@@ -1,0 +1,35 @@
+{
+  "cli_version": "0.5.0",
+  "checkpoint_id": "17cdf997acff",
+  "session_id": "50633cd8-2ab8-4107-9a64-7f258725f2c3",
+  "strategy": "manual-commit",
+  "created_at": "2026-03-18T09:05:09.253769Z",
+  "branch": "hotfix",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "CLAUDE.md"
+  ],
+  "agent": "Claude Code",
+  "turn_id": "982cfe3ad981",
+  "checkpoint_transcript_start": 20,
+  "transcript_lines_at_start": 20,
+  "token_usage": {
+    "input_tokens": 6,
+    "cache_creation_tokens": 1683,
+    "cache_read_tokens": 82203,
+    "output_tokens": 512,
+    "api_call_count": 4
+  },
+  "session_metrics": {
+    "turn_count": 2
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-03-18T09:05:09.208843Z",
+    "agent_lines": 22,
+    "human_added": 7,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 29,
+    "agent_percentage": 75.86206896551724
+  }
+}
