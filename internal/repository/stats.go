@@ -156,7 +156,7 @@ func (r *JobRepository) buildStatsQuery(
 
 	columns = append(columns, "COUNT(*) as totalJobs")
 
-	if need("totalUsers") && col != "job.hpc_user" {
+	if need("totalUsers") {
 		columns = append(columns, "COUNT(DISTINCT job.hpc_user) AS totalUsers")
 	} else {
 		columns = append(columns, "0 AS totalUsers")
