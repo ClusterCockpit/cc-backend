@@ -184,7 +184,7 @@ func Init(rawConfig json.RawMessage, metrics map[string]MetricConfig, wg *sync.W
 	shutdownFuncMu.Unlock()
 
 	if Keys.Subscriptions != nil {
-		err = ReceiveNats(ms, 1, ctx)
+		err = ReceiveNats(ms, Keys.NumWorkers, ctx)
 		if err != nil {
 			cclog.Fatal(err)
 		}

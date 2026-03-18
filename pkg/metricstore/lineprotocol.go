@@ -23,6 +23,7 @@ import (
 	"context"
 	"fmt"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	cclog "github.com/ClusterCockpit/cc-lib/v2/ccLogger"
@@ -53,7 +54,7 @@ func ReceiveNats(ms *MemoryStore,
 	}
 
 	var wg sync.WaitGroup
-	msgs := make(chan []byte, workers*2)
+	msgs := make(chan []byte, max(workers*256, 8192))
 
 	for _, sc := range *Keys.Subscriptions {
 		clusterTag := sc.ClusterTag
@@ -122,6 +123,10 @@ func reorder(buf, prefix []byte) []byte {
 		return buf
 	}
 }
+
+// walDropped counts WAL messages dropped due to a full channel.
+// Logged periodically; not critical since binary snapshots capture the data.
+var walDropped atomic.Int64
 
 // decodeState holds the per-call scratch buffers used by DecodeLine.
 // Instances are recycled via decodeStatePool to avoid repeated allocations
@@ -348,13 +353,22 @@ func DecodeLine(dec *lineprotocol.Decoder,
 		time := t.Unix()
 
 		if Keys.Checkpoints.FileFormat == "wal" {
-			WALMessages <- &WALMessage{
+			msg := &WALMessage{
 				MetricName: string(st.metricBuf),
 				Cluster:    cluster,
 				Node:       host,
 				Selector:   append([]string{}, st.selector...),
 				Value:      metric.Value,
 				Timestamp:  time,
+			}
+			select {
+			case WALMessages <- msg:
+			default:
+				// WAL channel full — metric is written to memory store but not WAL.
+				// Next binary snapshot will capture it.
+				if dropped := walDropped.Add(1); dropped%10000 == 1 {
+					cclog.Warnf("[METRICSTORE]> WAL channel full, dropped %d messages (data safe in memory, next snapshot will capture)", dropped)
+				}
 			}
 		}
 

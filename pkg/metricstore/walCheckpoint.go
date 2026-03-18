@@ -82,7 +82,7 @@ const (
 
 // WALMessages is the channel for sending metric writes to the WAL staging goroutine.
 // Buffered to allow burst writes without blocking the metric ingestion path.
-var WALMessages = make(chan *WALMessage, 4096)
+var WALMessages = make(chan *WALMessage, 65536)
 
 // walRotateCh is used by the checkpoint goroutine to request WAL file rotation
 // (close, delete, reopen) after a binary snapshot has been written.
@@ -226,6 +226,28 @@ func WALStaging(wg *sync.WaitGroup, ctx context.Context) {
 					return
 				}
 				processMsg(msg)
+
+				// Drain up to 256 more messages without blocking to batch writes.
+				for range 256 {
+					select {
+					case msg, ok := <-WALMessages:
+						if !ok {
+							return
+						}
+						processMsg(msg)
+					case req := <-walRotateCh:
+						processRotate(req)
+					default:
+						goto flushed
+					}
+				}
+			flushed:
+				// Flush all buffered writers after processing the batch.
+				for _, ws := range hostFiles {
+					if ws.f != nil {
+						ws.w.Flush()
+					}
+				}
 			case req := <-walRotateCh:
 				processRotate(req)
 			}
