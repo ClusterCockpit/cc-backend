@@ -1,0 +1,1 @@
+After those changes the application blocks during startup in ReceiveNats. Ivestigate issue and fix it.
