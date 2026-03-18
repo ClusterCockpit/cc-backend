@@ -156,7 +156,7 @@ func (r *JobRepository) buildStatsQuery(
 
 	columns = append(columns, "COUNT(*) as totalJobs")
 
-	if need("totalUsers") && col != "job.hpc_user" {
+	if need("totalUsers") {
 		columns = append(columns, "COUNT(DISTINCT job.hpc_user) AS totalUsers")
 	} else {
 		columns = append(columns, "0 AS totalUsers")
@@ -360,7 +360,7 @@ func (r *JobRepository) JobsStats(
 
 	var jobs, users, walltime, nodes, nodeHours, cores, coreHours, accs, accHours, runningJobs, shortJobs sql.NullInt64
 	if err := row.Scan(&jobs, &users, &walltime, &nodes, &nodeHours, &cores, &coreHours, &accs, &accHours, &runningJobs, &shortJobs); err != nil {
-		cclog.Warn("Error while scanning rows")
+		cclog.Warnf("Error scanning job statistics row: %v", err)
 		return nil, err
 	}
 

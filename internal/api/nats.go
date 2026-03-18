@@ -402,12 +402,21 @@ func (api *NatsAPI) processNodestateEvent(msg lp.CCMessage) {
 	repo := repository.GetNodeRepository()
 	requestReceived := time.Now().Unix()
 
-	// Build nodeList per subcluster for health check
+	// Pre-compute node states; only include non-down nodes in health check
+	nodeStates := make(map[string]schema.SchedulerState, len(req.Nodes))
+	for _, node := range req.Nodes {
+		nodeStates[node.Hostname] = determineState(node.States)
+	}
+
+	// Build nodeList per subcluster for health check, skipping down nodes
 	m := make(map[string][]string)
 	metricNames := make(map[string][]string)
 	healthResults := make(map[string]metricstore.HealthCheckResult)
 
 	for _, node := range req.Nodes {
+		if nodeStates[node.Hostname] == schema.NodeStateDown {
+			continue
+		}
 		if sc, err := archive.GetSubClusterByNode(req.Cluster, node.Hostname); err == nil {
 			m[sc] = append(m[sc], node.Hostname)
 		}
@@ -436,12 +445,17 @@ func (api *NatsAPI) processNodestateEvent(msg lp.CCMessage) {
 
 	updates := make([]repository.NodeStateUpdate, 0, len(req.Nodes))
 	for _, node := range req.Nodes {
-		state := determineState(node.States)
-		healthState := schema.MonitoringStateFailed
+		state := nodeStates[node.Hostname]
+		var healthState schema.MonitoringState
 		var healthMetrics string
-		if result, ok := healthResults[node.Hostname]; ok {
-			healthState = result.State
-			healthMetrics = result.HealthMetrics
+		if state == schema.NodeStateDown {
+			healthState = schema.MonitoringStateFull
+		} else {
+			healthState = schema.MonitoringStateFailed
+			if result, ok := healthResults[node.Hostname]; ok {
+				healthState = result.State
+				healthMetrics = result.HealthMetrics
+			}
 		}
 		nodeState := schema.NodeStateDB{
 			TimeStamp:       requestReceived,

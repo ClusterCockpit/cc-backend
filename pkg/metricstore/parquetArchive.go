@@ -14,7 +14,6 @@ import (
 	"path/filepath"
 	"sort"
 
-	cclog "github.com/ClusterCockpit/cc-lib/v2/ccLogger"
 	pq "github.com/parquet-go/parquet-go"
 )
 
@@ -30,37 +29,6 @@ type ParquetMetricRow struct {
 	Timestamp int64   `parquet:"timestamp"`
 	Frequency int64   `parquet:"frequency"`
 	Value     float32 `parquet:"value"`
-}
-
-// flattenCheckpointFile recursively converts a CheckpointFile tree into Parquet rows.
-// The scope path is built from the hierarchy: host level is "node", then child names
-// map to scope/scope_id (e.g., "socket0" → scope="socket", scope_id="0").
-func flattenCheckpointFile(cf *CheckpointFile, cluster, hostname, scope, scopeID string, rows []ParquetMetricRow) []ParquetMetricRow {
-	for metricName, cm := range cf.Metrics {
-		ts := cm.Start
-		for _, v := range cm.Data {
-			if !v.IsNaN() {
-				rows = append(rows, ParquetMetricRow{
-					Cluster:   cluster,
-					Hostname:  hostname,
-					Metric:    metricName,
-					Scope:     scope,
-					ScopeID:   scopeID,
-					Timestamp: ts,
-					Frequency: cm.Frequency,
-					Value:     float32(v),
-				})
-			}
-			ts += cm.Frequency
-		}
-	}
-
-	for childName, childCf := range cf.Children {
-		childScope, childScopeID := parseScopeFromName(childName)
-		rows = flattenCheckpointFile(childCf, cluster, hostname, childScope, childScopeID, rows)
-	}
-
-	return rows
 }
 
 // parseScopeFromName infers scope and scope_id from a child level name.
@@ -93,14 +61,16 @@ func parseScopeFromName(name string) (string, string) {
 }
 
 // parquetArchiveWriter supports incremental writes to a Parquet file.
-// Each call to WriteHostRows writes one row group (typically one host's data),
-// avoiding accumulation of all rows in memory.
+// Uses streaming writes to avoid accumulating all rows in memory.
 type parquetArchiveWriter struct {
 	writer *pq.GenericWriter[ParquetMetricRow]
 	bw     *bufio.Writer
 	f      *os.File
+	batch  []ParquetMetricRow // reusable batch buffer
 	count  int
 }
+
+const parquetBatchSize = 1024
 
 // newParquetArchiveWriter creates a streaming Parquet writer with Zstd compression.
 func newParquetArchiveWriter(filename string) (*parquetArchiveWriter, error) {
@@ -119,29 +89,83 @@ func newParquetArchiveWriter(filename string) (*parquetArchiveWriter, error) {
 		pq.Compression(&pq.Zstd),
 	)
 
-	return &parquetArchiveWriter{writer: writer, bw: bw, f: f}, nil
+	return &parquetArchiveWriter{
+		writer: writer,
+		bw:     bw,
+		f:      f,
+		batch:  make([]ParquetMetricRow, 0, parquetBatchSize),
+	}, nil
 }
 
-// WriteHostRows sorts rows by (metric, timestamp) in-place, writes them,
-// and flushes to create a separate row group.
-func (w *parquetArchiveWriter) WriteHostRows(rows []ParquetMetricRow) error {
-	sort.Slice(rows, func(i, j int) bool {
-		if rows[i].Metric != rows[j].Metric {
-			return rows[i].Metric < rows[j].Metric
-		}
-		return rows[i].Timestamp < rows[j].Timestamp
-	})
+// WriteCheckpointFile streams a CheckpointFile tree directly to Parquet rows,
+// writing metrics in sorted order without materializing all rows in memory.
+// Produces one row group per call (typically one host's data).
+func (w *parquetArchiveWriter) WriteCheckpointFile(cf *CheckpointFile, cluster, hostname, scope, scopeID string) error {
+	w.writeLevel(cf, cluster, hostname, scope, scopeID)
 
-	if _, err := w.writer.Write(rows); err != nil {
-		return fmt.Errorf("writing parquet rows: %w", err)
+	// Flush remaining batch
+	if len(w.batch) > 0 {
+		if _, err := w.writer.Write(w.batch); err != nil {
+			return fmt.Errorf("writing parquet rows: %w", err)
+		}
+		w.count += len(w.batch)
+		w.batch = w.batch[:0]
 	}
 
 	if err := w.writer.Flush(); err != nil {
 		return fmt.Errorf("flushing parquet row group: %w", err)
 	}
 
-	w.count += len(rows)
 	return nil
+}
+
+// writeLevel recursively writes metrics from a CheckpointFile level.
+// Metric names and child names are sorted for deterministic, compression-friendly output.
+func (w *parquetArchiveWriter) writeLevel(cf *CheckpointFile, cluster, hostname, scope, scopeID string) {
+	// Sort metric names for deterministic order
+	metricNames := make([]string, 0, len(cf.Metrics))
+	for name := range cf.Metrics {
+		metricNames = append(metricNames, name)
+	}
+	sort.Strings(metricNames)
+
+	for _, metricName := range metricNames {
+		cm := cf.Metrics[metricName]
+		ts := cm.Start
+		for _, v := range cm.Data {
+			if !v.IsNaN() {
+				w.batch = append(w.batch, ParquetMetricRow{
+					Cluster:   cluster,
+					Hostname:  hostname,
+					Metric:    metricName,
+					Scope:     scope,
+					ScopeID:   scopeID,
+					Timestamp: ts,
+					Frequency: cm.Frequency,
+					Value:     float32(v),
+				})
+
+				if len(w.batch) >= parquetBatchSize {
+					w.writer.Write(w.batch)
+					w.count += len(w.batch)
+					w.batch = w.batch[:0]
+				}
+			}
+			ts += cm.Frequency
+		}
+	}
+
+	// Sort child names for deterministic order
+	childNames := make([]string, 0, len(cf.Children))
+	for name := range cf.Children {
+		childNames = append(childNames, name)
+	}
+	sort.Strings(childNames)
+
+	for _, childName := range childNames {
+		childScope, childScopeID := parseScopeFromName(childName)
+		w.writeLevel(cf.Children[childName], cluster, hostname, childScope, childScopeID)
+	}
 }
 
 // Close finalises the Parquet file (footer, buffered I/O, file handle).
@@ -157,16 +181,6 @@ func (w *parquetArchiveWriter) Close() error {
 	}
 
 	return w.f.Close()
-}
-
-// sortParquetRows sorts rows by (metric, timestamp) in-place.
-func sortParquetRows(rows []ParquetMetricRow) {
-	sort.Slice(rows, func(i, j int) bool {
-		if rows[i].Metric != rows[j].Metric {
-			return rows[i].Metric < rows[j].Metric
-		}
-		return rows[i].Timestamp < rows[j].Timestamp
-	})
 }
 
 // loadCheckpointFileFromDisk reads a JSON or binary checkpoint file and returns
@@ -218,22 +232,10 @@ func loadCheckpointFileFromDisk(filename string) (*CheckpointFile, error) {
 	}
 }
 
-// estimateRowCount estimates the number of Parquet rows a CheckpointFile will produce.
-// Used for pre-allocating the rows slice to avoid repeated append doubling.
-func estimateRowCount(cf *CheckpointFile) int {
-	n := 0
-	for _, cm := range cf.Metrics {
-		n += len(cm.Data)
-	}
-	for _, child := range cf.Children {
-		n += estimateRowCount(child)
-	}
-	return n
-}
-
-// archiveCheckpointsToParquet reads checkpoint files for a host directory,
-// converts them to Parquet rows. Returns the rows and filenames that were processed.
-func archiveCheckpointsToParquet(dir, cluster, host string, from int64) ([]ParquetMetricRow, []string, error) {
+// loadCheckpointFiles reads checkpoint files for a host directory and returns
+// the loaded CheckpointFiles and their filenames. Processes one file at a time
+// to avoid holding all checkpoint data in memory simultaneously.
+func loadCheckpointFiles(dir string, from int64) ([]*CheckpointFile, []string, error) {
 	entries, err := os.ReadDir(dir)
 	if err != nil {
 		return nil, nil, err
@@ -248,36 +250,18 @@ func archiveCheckpointsToParquet(dir, cluster, host string, from int64) ([]Parqu
 		return nil, nil, nil
 	}
 
-	// First pass: load checkpoints and estimate total rows for pre-allocation.
-	type loaded struct {
-		cf       *CheckpointFile
-		filename string
-	}
-	var checkpoints []loaded
-	totalEstimate := 0
+	var checkpoints []*CheckpointFile
+	var processedFiles []string
 
 	for _, checkpoint := range files {
 		filename := filepath.Join(dir, checkpoint)
 		cf, err := loadCheckpointFileFromDisk(filename)
 		if err != nil {
-			cclog.Warnf("[METRICSTORE]> skipping unreadable checkpoint %s: %v", filename, err)
 			continue
 		}
-		totalEstimate += estimateRowCount(cf)
-		checkpoints = append(checkpoints, loaded{cf: cf, filename: checkpoint})
+		checkpoints = append(checkpoints, cf)
+		processedFiles = append(processedFiles, checkpoint)
 	}
 
-	if len(checkpoints) == 0 {
-		return nil, nil, nil
-	}
-
-	rows := make([]ParquetMetricRow, 0, totalEstimate)
-	processedFiles := make([]string, 0, len(checkpoints))
-
-	for _, cp := range checkpoints {
-		rows = flattenCheckpointFile(cp.cf, cluster, host, "node", "", rows)
-		processedFiles = append(processedFiles, cp.filename)
-	}
-
-	return rows, processedFiles, nil
+	return checkpoints, processedFiles, nil
 }

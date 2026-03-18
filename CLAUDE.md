@@ -229,6 +229,7 @@ The backend supports a NATS-based API as an alternative to the REST API for job 
 ### Setup
 
 1. Configure NATS client connection in `config.json`:
+
    ```json
    {
      "nats": {
@@ -240,6 +241,7 @@ The backend supports a NATS-based API as an alternative to the REST API for job 
    ```
 
 2. Configure API subjects in `config.json` under `main`:
+
    ```json
    {
      "main": {
@@ -252,6 +254,7 @@ The backend supports a NATS-based API as an alternative to the REST API for job 
      }
    }
    ```
+
    - `subject-job-event` (required): NATS subject for job start/stop events
    - `subject-node-state` (required): NATS subject for node state updates
    - `job-concurrency` (optional, default: 8): Number of concurrent worker goroutines for job events
@@ -264,19 +267,23 @@ Messages use **InfluxDB line protocol** format with the following structure:
 #### Job Events
 
 **Start Job:**
+
 ```
 job,function=start_job event="{\"jobId\":123,\"user\":\"alice\",\"cluster\":\"test\", ...}" 1234567890000000000
 ```
 
 **Stop Job:**
+
 ```
 job,function=stop_job event="{\"jobId\":123,\"cluster\":\"test\",\"startTime\":1234567890,\"stopTime\":1234571490,\"jobState\":\"completed\"}" 1234571490000000000
 ```
 
 **Tags:**
+
 - `function`: Either `start_job` or `stop_job`
 
 **Fields:**
+
 - `event`: JSON payload containing job data (see REST API documentation for schema)
 
 #### Node State Updates
@@ -307,9 +314,31 @@ job,function=stop_job event="{\"jobId\":123,\"cluster\":\"test\",\"startTime\":1
 - Messages are logged; no responses are sent back to publishers
 - If NATS client is unavailable, API subscriptions are skipped (logged as warning)
 
+## Development Guidelines
+
+### Performance
+
+This application processes large volumes of HPC monitoring data (metrics, job
+records, archives) at scale. All code changes must prioritize maximum throughput
+and minimal latency. Avoid unnecessary allocations, prefer streaming over
+buffering, and be mindful of lock contention. When in doubt, benchmark.
+
+### Change Impact Analysis
+
+For any significant change, you MUST:
+
+1. **Check all call paths**: Trace every caller of modified functions to ensure
+   correctness is preserved throughout the call chain.
+2. **Evaluate side effects**: Identify and verify all side effects — database
+   writes, cache invalidations, channel sends, goroutine lifecycle changes, file
+   I/O, and external API calls.
+3. **Consider concurrency implications**: This codebase uses goroutines and
+   channels extensively. Verify that changes do not introduce races, deadlocks,
+   or contention bottlenecks.
+
 ## Dependencies
 
-- Go 1.24.0+ (check go.mod for exact version)
+- Go 1.25.0+ (check go.mod for exact version)
 - Node.js (for frontend builds)
 - SQLite 3 (only supported database)
 - Optional: NATS server for NATS API integration

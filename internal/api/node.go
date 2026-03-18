@@ -34,21 +34,28 @@ func metricListToNames(metricList map[string]*schema.Metric) []string {
 	return names
 }
 
-// this routine assumes that only one of them exists per node
+// determineState resolves multiple states to a single state using priority order:
+// allocated > reserved > idle > down > mixed.
+// Exception: if both idle and down are present, down is returned.
 func determineState(states []string) schema.SchedulerState {
-	for _, state := range states {
-		switch strings.ToLower(state) {
-		case "allocated":
-			return schema.NodeStateAllocated
-		case "reserved":
-			return schema.NodeStateReserved
-		case "idle":
-			return schema.NodeStateIdle
-		case "down":
-			return schema.NodeStateDown
-		case "mixed":
-			return schema.NodeStateMixed
-		}
+	stateSet := make(map[string]bool, len(states))
+	for _, s := range states {
+		stateSet[strings.ToLower(s)] = true
+	}
+
+	switch {
+	case stateSet["allocated"]:
+		return schema.NodeStateAllocated
+	case stateSet["reserved"]:
+		return schema.NodeStateReserved
+	case stateSet["idle"] && stateSet["down"]:
+		return schema.NodeStateDown
+	case stateSet["idle"]:
+		return schema.NodeStateIdle
+	case stateSet["down"]:
+		return schema.NodeStateDown
+	case stateSet["mixed"]:
+		return schema.NodeStateMixed
 	}
 
 	return schema.NodeStateUnknown
@@ -79,14 +86,23 @@ func (api *RestAPI) updateNodeStates(rw http.ResponseWriter, r *http.Request) {
 	requestReceived := time.Now().Unix()
 	repo := repository.GetNodeRepository()
 
+	// Step 1: Pre-compute node states; only include non-down nodes in health check
+	nodeStates := make(map[string]schema.SchedulerState, len(req.Nodes))
+	for _, node := range req.Nodes {
+		nodeStates[node.Hostname] = determineState(node.States)
+	}
+
 	m := make(map[string][]string)
 	metricNames := make(map[string][]string)
 	healthResults := make(map[string]metricstore.HealthCheckResult)
 
 	startMs := time.Now()
 
-	// Step 1: Build nodeList and metricList per subcluster
+	// Step 2: Build nodeList and metricList per subcluster, skipping down nodes
 	for _, node := range req.Nodes {
+		if nodeStates[node.Hostname] == schema.NodeStateDown {
+			continue
+		}
 		if sc, err := archive.GetSubClusterByNode(req.Cluster, node.Hostname); err == nil {
 			m[sc] = append(m[sc], node.Hostname)
 		}
@@ -99,7 +115,7 @@ func (api *RestAPI) updateNodeStates(rw http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	// Step 2: Determine which metric store to query and perform health check
+	// Step 3: Determine which metric store to query and perform health check
 	healthRepo, err := metricdispatch.GetHealthCheckRepo(req.Cluster)
 	if err != nil {
 		cclog.Warnf("updateNodeStates: no metric store for cluster %s, skipping health check: %v", req.Cluster, err)
@@ -118,12 +134,17 @@ func (api *RestAPI) updateNodeStates(rw http.ResponseWriter, r *http.Request) {
 
 	updates := make([]repository.NodeStateUpdate, 0, len(req.Nodes))
 	for _, node := range req.Nodes {
-		state := determineState(node.States)
-		healthState := schema.MonitoringStateFailed
+		state := nodeStates[node.Hostname]
+		var healthState schema.MonitoringState
 		var healthMetrics string
-		if result, ok := healthResults[node.Hostname]; ok {
-			healthState = result.State
-			healthMetrics = result.HealthMetrics
+		if state == schema.NodeStateDown {
+			healthState = schema.MonitoringStateFull
+		} else {
+			healthState = schema.MonitoringStateFailed
+			if result, ok := healthResults[node.Hostname]; ok {
+				healthState = result.State
+				healthMetrics = result.HealthMetrics
+			}
 		}
 		nodeState := schema.NodeStateDB{
 			TimeStamp:       requestReceived,

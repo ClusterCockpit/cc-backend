@@ -161,7 +161,7 @@
 
 <hr/>
 
-<!-- Node Health Pis, later Charts -->
+<!-- Node State and Metric Health Pis -->
 {#if $statusQuery?.fetching}
   <Row cols={1} class="text-center mt-3">
     <Col>
@@ -222,7 +222,7 @@
       <div bind:clientWidth={pieWidth}>
         {#key refinedHealthData}
           <h4 class="text-center">
-            Current {cluster.charAt(0).toUpperCase() + cluster.slice(1)} Node Health
+            Current {cluster.charAt(0).toUpperCase() + cluster.slice(1)} Metric Health
           </h4>
           <Pie
             canvasId="hpcpie-health"
