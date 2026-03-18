@@ -168,8 +168,9 @@ func deleteCheckpoints(checkpointsDir string, from int64) (int, error) {
 
 // archiveCheckpoints archives checkpoint files to Parquet format.
 // Produces one Parquet file per cluster: <cleanupDir>/<cluster>/<timestamp>.parquet
-// Each host's rows are written as a separate row group to avoid accumulating
-// all data in memory at once.
+// Workers load checkpoint files from disk and send CheckpointFile trees on a
+// back-pressured channel. The main thread streams each tree directly to Parquet
+// rows without materializing all rows in memory.
 func archiveCheckpoints(checkpointsDir, cleanupDir string, from int64) (int, error) {
 	cclog.Info("[METRICSTORE]> start archiving checkpoints to parquet")
 	startTime := time.Now()
@@ -192,14 +193,16 @@ func archiveCheckpoints(checkpointsDir, cleanupDir string, from int64) (int, err
 			return totalFiles, err
 		}
 
-		// Stream per-host rows to parquet writer via worker pool
+		// Workers load checkpoint files from disk; main thread writes to parquet.
 		type hostResult struct {
-			rows  []ParquetMetricRow
-			files []string // checkpoint filenames to delete after successful write
-			dir   string   // checkpoint directory for this host
+			checkpoints []*CheckpointFile
+			hostname    string
+			files       []string // checkpoint filenames to delete after successful write
+			dir         string   // checkpoint directory for this host
 		}
 
-		results := make(chan hostResult, len(hostEntries))
+		// Small buffer provides back-pressure: at most NumWorkers+2 results in flight.
+		results := make(chan hostResult, 2)
 		work := make(chan struct {
 			dir, host string
 		}, Keys.NumWorkers)
@@ -212,14 +215,19 @@ func archiveCheckpoints(checkpointsDir, cleanupDir string, from int64) (int, err
 			go func() {
 				defer wg.Done()
 				for item := range work {
-					rows, files, err := archiveCheckpointsToParquet(item.dir, cluster, item.host, from)
+					checkpoints, files, err := loadCheckpointFiles(item.dir, from)
 					if err != nil {
 						cclog.Errorf("[METRICSTORE]> error reading checkpoints for %s/%s: %s", cluster, item.host, err.Error())
 						atomic.AddInt32(&errs, 1)
 						continue
 					}
-					if len(rows) > 0 {
-						results <- hostResult{rows: rows, files: files, dir: item.dir}
+					if len(checkpoints) > 0 {
+						results <- hostResult{
+							checkpoints: checkpoints,
+							hostname:    item.host,
+							files:       files,
+							dir:         item.dir,
+						}
 					}
 				}
 			}()
@@ -240,7 +248,7 @@ func archiveCheckpoints(checkpointsDir, cleanupDir string, from int64) (int, err
 			close(results)
 		}()
 
-		// Open streaming writer and write each host's rows as a row group
+		// Open streaming writer and write each host's checkpoint files as a row group
 		parquetFile := filepath.Join(cleanupDir, cluster, fmt.Sprintf("%d.parquet", from))
 		writer, err := newParquetArchiveWriter(parquetFile)
 		if err != nil {
@@ -259,9 +267,13 @@ func archiveCheckpoints(checkpointsDir, cleanupDir string, from int64) (int, err
 
 		for r := range results {
 			if writeErr == nil {
-				sortParquetRows(r.rows)
-				if err := writer.WriteHostRows(r.rows); err != nil {
-					writeErr = err
+				// Stream each checkpoint file directly to parquet rows.
+				// Each checkpoint is processed and discarded before the next.
+				for _, cf := range r.checkpoints {
+					if err := writer.WriteCheckpointFile(cf, cluster, r.hostname, "node", ""); err != nil {
+						writeErr = err
+						break
+					}
 				}
 			}
 			// Always track files for deletion (even if write failed, we still drain)

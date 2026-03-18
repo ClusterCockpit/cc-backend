@@ -44,7 +44,7 @@ func TestParseScopeFromName(t *testing.T) {
 	}
 }
 
-func TestFlattenCheckpointFile(t *testing.T) {
+func TestWriteCheckpointFile(t *testing.T) {
 	cf := &CheckpointFile{
 		From: 1000,
 		To:   1060,
@@ -69,17 +69,55 @@ func TestFlattenCheckpointFile(t *testing.T) {
 		},
 	}
 
-	rows := flattenCheckpointFile(cf, "fritz", "node001", "node", "", nil)
+	tmpDir := t.TempDir()
+	parquetFile := filepath.Join(tmpDir, "test.parquet")
+	writer, err := newParquetArchiveWriter(parquetFile)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if err := writer.WriteCheckpointFile(cf, "fritz", "node001", "node", ""); err != nil {
+		t.Fatal(err)
+	}
+	if err := writer.Close(); err != nil {
+		t.Fatal(err)
+	}
 
 	// cpu_load: 2 non-NaN values at node scope
 	// mem_bw: 2 non-NaN values at socket0 scope
-	if len(rows) != 4 {
-		t.Fatalf("expected 4 rows, got %d", len(rows))
+	if writer.count != 4 {
+		t.Fatalf("expected 4 rows written, got %d", writer.count)
+	}
+
+	// Read back and verify
+	f, err := os.Open(parquetFile)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer f.Close()
+
+	stat, _ := f.Stat()
+	pf, err := pq.OpenFile(f, stat.Size())
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	reader := pq.NewGenericReader[ParquetMetricRow](pf)
+	readRows := make([]ParquetMetricRow, 100)
+	n, err := reader.Read(readRows)
+	if err != nil && n == 0 {
+		t.Fatal(err)
+	}
+	readRows = readRows[:n]
+	reader.Close()
+
+	if n != 4 {
+		t.Fatalf("expected 4 rows, got %d", n)
 	}
 
 	// Verify a node-scope row
 	found := false
-	for _, r := range rows {
+	for _, r := range readRows {
 		if r.Metric == "cpu_load" && r.Timestamp == 1000 {
 			found = true
 			if r.Cluster != "fritz" || r.Hostname != "node001" || r.Scope != "node" || r.Value != 0.5 {
@@ -93,7 +131,7 @@ func TestFlattenCheckpointFile(t *testing.T) {
 
 	// Verify a socket-scope row
 	found = false
-	for _, r := range rows {
+	for _, r := range readRows {
 		if r.Metric == "mem_bw" && r.Scope == "socket" && r.ScopeID == "0" {
 			found = true
 		}
@@ -153,7 +191,7 @@ func TestParquetArchiveRoundtrip(t *testing.T) {
 
 	// Archive to Parquet
 	archiveDir := filepath.Join(tmpDir, "archive")
-	rows, files, err := archiveCheckpointsToParquet(cpDir, "testcluster", "node001", 2000)
+	checkpoints, files, err := loadCheckpointFiles(cpDir, 2000)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -166,9 +204,10 @@ func TestParquetArchiveRoundtrip(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	sortParquetRows(rows)
-	if err := writer.WriteHostRows(rows); err != nil {
-		t.Fatal(err)
+	for _, cp := range checkpoints {
+		if err := writer.WriteCheckpointFile(cp, "testcluster", "node001", "node", ""); err != nil {
+			t.Fatal(err)
+		}
 	}
 	if err := writer.Close(); err != nil {
 		t.Fatal(err)
