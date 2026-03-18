@@ -1,0 +1,5 @@
+Correction: If a node is idle + down then mark it as down
+
+---
+
+Change for both the REST and NATS API that the healthstate update is only performed if a node is not in down state. Do mark those nodes as healthy
