@@ -617,6 +617,7 @@ func (ccms *CCMetricStore) LoadNodeListData(
 	resolution int,
 	from, to time.Time,
 	ctx context.Context,
+	resampleAlgo string,
 ) (map[string]schema.JobData, error) {
 	queries, assignedScope, err := ccms.buildNodeQueries(cluster, subCluster, nodes, metrics, scopes, resolution)
 	if err != nil {

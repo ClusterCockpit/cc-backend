@@ -621,6 +621,7 @@ func (ccms *InternalMetricStore) LoadNodeListData(
 	resolution int,
 	from, to time.Time,
 	ctx context.Context,
+	resampleAlgo string,
 ) (map[string]schema.JobData, error) {
 	// Note: Order of node data is not guaranteed after this point
 	queries, assignedScope, err := buildNodeQueries(cluster, subCluster, nodes, metrics, scopes, int64(resolution))
@@ -636,12 +637,13 @@ func (ccms *InternalMetricStore) LoadNodeListData(
 	}
 
 	req := APIQueryRequest{
-		Cluster:   cluster,
-		Queries:   queries,
-		From:      from.Unix(),
-		To:        to.Unix(),
-		WithStats: true,
-		WithData:  true,
+		Cluster:      cluster,
+		Queries:      queries,
+		From:         from.Unix(),
+		To:           to.Unix(),
+		WithStats:    true,
+		WithData:     true,
+		ResampleAlgo: resampleAlgo,
 	}
 
 	resBody, err := FetchData(req)

@@ -326,7 +326,7 @@ type ComplexityRoot struct {
 		Clusters        func(childComplexity int) int
 		GlobalMetrics   func(childComplexity int) int
 		Job             func(childComplexity int, id string) int
-		JobMetrics      func(childComplexity int, id string, metrics []string, scopes []schema.MetricScope, resolution *int) int
+		JobMetrics      func(childComplexity int, id string, metrics []string, scopes []schema.MetricScope, resolution *int, resampleAlgo *model.ResampleAlgo) int
 		JobStats        func(childComplexity int, id string, metrics []string) int
 		Jobs            func(childComplexity int, filter []*model.JobFilter, page *model.PageRequest, order *model.OrderByInput) int
 		JobsFootprints  func(childComplexity int, filter []*model.JobFilter, metrics []string) int
@@ -334,7 +334,7 @@ type ComplexityRoot struct {
 		JobsStatistics  func(childComplexity int, filter []*model.JobFilter, metrics []string, page *model.PageRequest, sortBy *model.SortByAggregate, groupBy *model.Aggregate, numDurationBins *string, numMetricBins *int) int
 		Node            func(childComplexity int, id string) int
 		NodeMetrics     func(childComplexity int, cluster string, nodes []string, scopes []schema.MetricScope, metrics []string, from time.Time, to time.Time) int
-		NodeMetricsList func(childComplexity int, cluster string, subCluster string, stateFilter string, nodeFilter string, scopes []schema.MetricScope, metrics []string, from time.Time, to time.Time, page *model.PageRequest, resolution *int) int
+		NodeMetricsList func(childComplexity int, cluster string, subCluster string, stateFilter string, nodeFilter string, scopes []schema.MetricScope, metrics []string, from time.Time, to time.Time, page *model.PageRequest, resolution *int, resampleAlgo *model.ResampleAlgo) int
 		NodeStates      func(childComplexity int, filter []*model.NodeFilter) int
 		NodeStatesTimed func(childComplexity int, filter []*model.NodeFilter, typeArg string) int
 		Nodes           func(childComplexity int, filter []*model.NodeFilter, order *model.OrderByInput) int
@@ -482,7 +482,7 @@ type QueryResolver interface {
 	NodeStates(ctx context.Context, filter []*model.NodeFilter) ([]*model.NodeStates, error)
 	NodeStatesTimed(ctx context.Context, filter []*model.NodeFilter, typeArg string) ([]*model.NodeStatesTimed, error)
 	Job(ctx context.Context, id string) (*schema.Job, error)
-	JobMetrics(ctx context.Context, id string, metrics []string, scopes []schema.MetricScope, resolution *int) ([]*model.JobMetricWithName, error)
+	JobMetrics(ctx context.Context, id string, metrics []string, scopes []schema.MetricScope, resolution *int, resampleAlgo *model.ResampleAlgo) ([]*model.JobMetricWithName, error)
 	JobStats(ctx context.Context, id string, metrics []string) ([]*model.NamedStats, error)
 	ScopedJobStats(ctx context.Context, id string, metrics []string, scopes []schema.MetricScope) ([]*model.NamedStatsWithScope, error)
 	Jobs(ctx context.Context, filter []*model.JobFilter, page *model.PageRequest, order *model.OrderByInput) (*model.JobResultList, error)
@@ -491,7 +491,7 @@ type QueryResolver interface {
 	JobsFootprints(ctx context.Context, filter []*model.JobFilter, metrics []string) (*model.Footprints, error)
 	RooflineHeatmap(ctx context.Context, filter []*model.JobFilter, rows int, cols int, minX float64, minY float64, maxX float64, maxY float64) ([][]float64, error)
 	NodeMetrics(ctx context.Context, cluster string, nodes []string, scopes []schema.MetricScope, metrics []string, from time.Time, to time.Time) ([]*model.NodeMetrics, error)
-	NodeMetricsList(ctx context.Context, cluster string, subCluster string, stateFilter string, nodeFilter string, scopes []schema.MetricScope, metrics []string, from time.Time, to time.Time, page *model.PageRequest, resolution *int) (*model.NodesResultList, error)
+	NodeMetricsList(ctx context.Context, cluster string, subCluster string, stateFilter string, nodeFilter string, scopes []schema.MetricScope, metrics []string, from time.Time, to time.Time, page *model.PageRequest, resolution *int, resampleAlgo *model.ResampleAlgo) (*model.NodesResultList, error)
 	ClusterMetrics(ctx context.Context, cluster string, metrics []string, from time.Time, to time.Time) (*model.ClusterMetrics, error)
 }
 type SubClusterResolver interface {
@@ -1665,7 +1665,7 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 			return 0, false
 		}
 
-		return e.ComplexityRoot.Query.JobMetrics(childComplexity, args["id"].(string), args["metrics"].([]string), args["scopes"].([]schema.MetricScope), args["resolution"].(*int)), true
+		return e.ComplexityRoot.Query.JobMetrics(childComplexity, args["id"].(string), args["metrics"].([]string), args["scopes"].([]schema.MetricScope), args["resolution"].(*int), args["resampleAlgo"].(*model.ResampleAlgo)), true
 	case "Query.jobStats":
 		if e.ComplexityRoot.Query.JobStats == nil {
 			break
@@ -1753,7 +1753,7 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 			return 0, false
 		}
 
-		return e.ComplexityRoot.Query.NodeMetricsList(childComplexity, args["cluster"].(string), args["subCluster"].(string), args["stateFilter"].(string), args["nodeFilter"].(string), args["scopes"].([]schema.MetricScope), args["metrics"].([]string), args["from"].(time.Time), args["to"].(time.Time), args["page"].(*model.PageRequest), args["resolution"].(*int)), true
+		return e.ComplexityRoot.Query.NodeMetricsList(childComplexity, args["cluster"].(string), args["subCluster"].(string), args["stateFilter"].(string), args["nodeFilter"].(string), args["scopes"].([]schema.MetricScope), args["metrics"].([]string), args["from"].(time.Time), args["to"].(time.Time), args["page"].(*model.PageRequest), args["resolution"].(*int), args["resampleAlgo"].(*model.ResampleAlgo)), true
 	case "Query.nodeStates":
 		if e.ComplexityRoot.Query.NodeStates == nil {
 			break
@@ -2524,6 +2524,12 @@ type TimeWeights {
   coreHours: [NullableFloat!]!
 }
 
+enum ResampleAlgo {
+  LTTB
+  AVERAGE
+  SIMPLE
+}
+
 enum Aggregate {
   USER
   PROJECT
@@ -2614,6 +2620,7 @@ type Query {
     metrics: [String!]
     scopes: [MetricScope!]
     resolution: Int
+    resampleAlgo: ResampleAlgo
   ): [JobMetricWithName!]!
 
   jobStats(id: ID!, metrics: [String!]): [NamedStats!]!
@@ -2673,6 +2680,7 @@ type Query {
     to: Time!
     page: PageRequest
     resolution: Int
+    resampleAlgo: ResampleAlgo
   ): NodesResultList!
 
   clusterMetrics(
@@ -3006,6 +3014,11 @@ func (ec *executionContext) field_Query_jobMetrics_args(ctx context.Context, raw
 		return nil, err
 	}
 	args["resolution"] = arg3
+	arg4, err := graphql.ProcessArgField(ctx, rawArgs, "resampleAlgo", ec.unmarshalOResampleAlgo2ᚖgithubᚗcomᚋClusterCockpitᚋccᚑbackendᚋinternalᚋgraphᚋmodelᚐResampleAlgo)
+	if err != nil {
+		return nil, err
+	}
+	args["resampleAlgo"] = arg4
 	return args, nil
 }
 
@@ -3183,6 +3196,11 @@ func (ec *executionContext) field_Query_nodeMetricsList_args(ctx context.Context
 		return nil, err
 	}
 	args["resolution"] = arg9
+	arg10, err := graphql.ProcessArgField(ctx, rawArgs, "resampleAlgo", ec.unmarshalOResampleAlgo2ᚖgithubᚗcomᚋClusterCockpitᚋccᚑbackendᚋinternalᚋgraphᚋmodelᚐResampleAlgo)
+	if err != nil {
+		return nil, err
+	}
+	args["resampleAlgo"] = arg10
 	return args, nil
 }
 
@@ -9436,7 +9454,7 @@ func (ec *executionContext) _Query_jobMetrics(ctx context.Context, field graphql
 		ec.fieldContext_Query_jobMetrics,
 		func(ctx context.Context) (any, error) {
 			fc := graphql.GetFieldContext(ctx)
-			return ec.Resolvers.Query().JobMetrics(ctx, fc.Args["id"].(string), fc.Args["metrics"].([]string), fc.Args["scopes"].([]schema.MetricScope), fc.Args["resolution"].(*int))
+			return ec.Resolvers.Query().JobMetrics(ctx, fc.Args["id"].(string), fc.Args["metrics"].([]string), fc.Args["scopes"].([]schema.MetricScope), fc.Args["resolution"].(*int), fc.Args["resampleAlgo"].(*model.ResampleAlgo))
 		},
 		nil,
 		ec.marshalNJobMetricWithName2ᚕᚖgithubᚗcomᚋClusterCockpitᚋccᚑbackendᚋinternalᚋgraphᚋmodelᚐJobMetricWithNameᚄ,
@@ -9917,7 +9935,7 @@ func (ec *executionContext) _Query_nodeMetricsList(ctx context.Context, field gr
 		ec.fieldContext_Query_nodeMetricsList,
 		func(ctx context.Context) (any, error) {
 			fc := graphql.GetFieldContext(ctx)
-			return ec.Resolvers.Query().NodeMetricsList(ctx, fc.Args["cluster"].(string), fc.Args["subCluster"].(string), fc.Args["stateFilter"].(string), fc.Args["nodeFilter"].(string), fc.Args["scopes"].([]schema.MetricScope), fc.Args["metrics"].([]string), fc.Args["from"].(time.Time), fc.Args["to"].(time.Time), fc.Args["page"].(*model.PageRequest), fc.Args["resolution"].(*int))
+			return ec.Resolvers.Query().NodeMetricsList(ctx, fc.Args["cluster"].(string), fc.Args["subCluster"].(string), fc.Args["stateFilter"].(string), fc.Args["nodeFilter"].(string), fc.Args["scopes"].([]schema.MetricScope), fc.Args["metrics"].([]string), fc.Args["from"].(time.Time), fc.Args["to"].(time.Time), fc.Args["page"].(*model.PageRequest), fc.Args["resolution"].(*int), fc.Args["resampleAlgo"].(*model.ResampleAlgo))
 		},
 		nil,
 		ec.marshalNNodesResultList2ᚖgithubᚗcomᚋClusterCockpitᚋccᚑbackendᚋinternalᚋgraphᚋmodelᚐNodesResultList,
@@ -19670,6 +19688,22 @@ func (ec *executionContext) unmarshalOPageRequest2ᚖgithubᚗcomᚋClusterCockp
 	}
 	res, err := ec.unmarshalInputPageRequest(ctx, v)
 	return &res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) unmarshalOResampleAlgo2ᚖgithubᚗcomᚋClusterCockpitᚋccᚑbackendᚋinternalᚋgraphᚋmodelᚐResampleAlgo(ctx context.Context, v any) (*model.ResampleAlgo, error) {
+	if v == nil {
+		return nil, nil
+	}
+	var res = new(model.ResampleAlgo)
+	err := res.UnmarshalGQL(v)
+	return res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) marshalOResampleAlgo2ᚖgithubᚗcomᚋClusterCockpitᚋccᚑbackendᚋinternalᚋgraphᚋmodelᚐResampleAlgo(ctx context.Context, sel ast.SelectionSet, v *model.ResampleAlgo) graphql.Marshaler {
+	if v == nil {
+		return graphql.Null
+	}
+	return v
 }
 
 func (ec *executionContext) unmarshalOSchedulerState2ᚖgithubᚗcomᚋClusterCockpitᚋccᚑlibᚋv2ᚋschemaᚐSchedulerState(ctx context.Context, v any) (*schema.SchedulerState, error) {

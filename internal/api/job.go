@@ -301,7 +301,7 @@ func (api *RestAPI) getCompleteJobByID(rw http.ResponseWriter, r *http.Request) 
 	}
 
 	if r.URL.Query().Get("all-metrics") == "true" {
-		data, err = metricdispatch.LoadData(job, nil, scopes, r.Context(), resolution)
+		data, err = metricdispatch.LoadData(job, nil, scopes, r.Context(), resolution, "")
 		if err != nil {
 			cclog.Warnf("REST: error while loading all-metrics job data for JobID %d on %s", job.JobID, job.Cluster)
 			return
@@ -397,7 +397,7 @@ func (api *RestAPI) getJobByID(rw http.ResponseWriter, r *http.Request) {
 		resolution = max(resolution, mc.Timestep)
 	}
 
-	data, err := metricdispatch.LoadData(job, metrics, scopes, r.Context(), resolution)
+	data, err := metricdispatch.LoadData(job, metrics, scopes, r.Context(), resolution, "")
 	if err != nil {
 		cclog.Warnf("REST: error while loading job data for JobID %d on %s", job.JobID, job.Cluster)
 		return
@@ -1078,7 +1078,7 @@ func (api *RestAPI) getJobMetrics(rw http.ResponseWriter, r *http.Request) {
 	}
 
 	resolver := graph.GetResolverInstance()
-	data, err := resolver.Query().JobMetrics(r.Context(), id, metrics, scopes, nil)
+	data, err := resolver.Query().JobMetrics(r.Context(), id, metrics, scopes, nil, nil)
 	if err != nil {
 		if err := json.NewEncoder(rw).Encode(Response{
 			Error: &struct {

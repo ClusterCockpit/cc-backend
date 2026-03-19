@@ -51,7 +51,8 @@ type MetricDataRepository interface {
 		scopes []schema.MetricScope,
 		resolution int,
 		from, to time.Time,
-		ctx context.Context) (map[string]schema.JobData, error)
+		ctx context.Context,
+		resampleAlgo string) (map[string]schema.JobData, error)
 
 	// HealthCheck evaluates the monitoring state for a set of nodes against expected metrics.
 	HealthCheck(cluster string,

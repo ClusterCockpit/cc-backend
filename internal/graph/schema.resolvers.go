@@ -498,7 +498,7 @@ func (r *queryResolver) Job(ctx context.Context, id string) (*schema.Job, error)
 }
 
 // JobMetrics is the resolver for the jobMetrics field.
-func (r *queryResolver) JobMetrics(ctx context.Context, id string, metrics []string, scopes []schema.MetricScope, resolution *int) ([]*model.JobMetricWithName, error) {
+func (r *queryResolver) JobMetrics(ctx context.Context, id string, metrics []string, scopes []schema.MetricScope, resolution *int, resampleAlgo *model.ResampleAlgo) ([]*model.JobMetricWithName, error) {
 	if resolution == nil { // Load from Config
 		if config.Keys.EnableResampling != nil {
 			defaultRes := slices.Max(config.Keys.EnableResampling.Resolutions)
@@ -515,7 +515,12 @@ func (r *queryResolver) JobMetrics(ctx context.Context, id string, metrics []str
 		return nil, err
 	}
 
-	data, err := metricdispatch.LoadData(job, metrics, scopes, ctx, *resolution)
+	algoName := ""
+	if resampleAlgo != nil {
+		algoName = strings.ToLower(resampleAlgo.String())
+	}
+
+	data, err := metricdispatch.LoadData(job, metrics, scopes, ctx, *resolution, algoName)
 	if err != nil {
 		cclog.Warn("Error while loading job data")
 		return nil, err
@@ -872,7 +877,7 @@ func (r *queryResolver) NodeMetrics(ctx context.Context, cluster string, nodes [
 }
 
 // NodeMetricsList is the resolver for the nodeMetricsList field.
-func (r *queryResolver) NodeMetricsList(ctx context.Context, cluster string, subCluster string, stateFilter string, nodeFilter string, scopes []schema.MetricScope, metrics []string, from time.Time, to time.Time, page *model.PageRequest, resolution *int) (*model.NodesResultList, error) {
+func (r *queryResolver) NodeMetricsList(ctx context.Context, cluster string, subCluster string, stateFilter string, nodeFilter string, scopes []schema.MetricScope, metrics []string, from time.Time, to time.Time, page *model.PageRequest, resolution *int, resampleAlgo *model.ResampleAlgo) (*model.NodesResultList, error) {
 	if resolution == nil { // Load from Config
 		if config.Keys.EnableResampling != nil {
 			defaultRes := slices.Max(config.Keys.EnableResampling.Resolutions)
@@ -901,8 +906,13 @@ func (r *queryResolver) NodeMetricsList(ctx context.Context, cluster string, sub
 		}
 	}
 
+	algoName := ""
+	if resampleAlgo != nil {
+		algoName = strings.ToLower(resampleAlgo.String())
+	}
+
 	// data -> map hostname:jobdata
-	data, err := metricdispatch.LoadNodeListData(cluster, subCluster, nodes, metrics, scopes, *resolution, from, to, ctx)
+	data, err := metricdispatch.LoadNodeListData(cluster, subCluster, nodes, metrics, scopes, *resolution, from, to, ctx, algoName)
 	if err != nil {
 		cclog.Warn("error while loading node data (Resolver.NodeMetricsList")
 		return nil, err

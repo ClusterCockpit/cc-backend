@@ -679,7 +679,7 @@ func (m *MemoryStore) WriteToLevel(l *Level, selector []string, ts int64, metric
 // If the level does not hold the metric itself, the data will be aggregated recursively from the children.
 // The second and third return value are the actual from/to for the data. Those can be different from
 // the range asked for if no data was available.
-func (m *MemoryStore) Read(selector util.Selector, metric string, from, to, resolution int64) ([]schema.Float, int64, int64, int64, error) {
+func (m *MemoryStore) Read(selector util.Selector, metric string, from, to, resolution int64, resampleAlgo string) ([]schema.Float, int64, int64, int64, error) {
 	if from > to {
 		return nil, 0, 0, 0, errors.New("[METRICSTORE]> invalid time range")
 	}
@@ -737,7 +737,11 @@ func (m *MemoryStore) Read(selector util.Selector, metric string, from, to, reso
 		}
 	}
 
-	data, resolution, err = resampler.LargestTriangleThreeBucket(data, minfo.Frequency, resolution)
+	resampleFn, rfErr := resampler.GetResampler(resampleAlgo)
+	if rfErr != nil {
+		return nil, 0, 0, 0, rfErr
+	}
+	data, resolution, err = resampleFn(data, minfo.Frequency, resolution)
 	if err != nil {
 		return nil, 0, 0, 0, err
 	}
