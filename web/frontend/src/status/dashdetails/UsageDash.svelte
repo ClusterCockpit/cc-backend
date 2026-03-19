@@ -45,7 +45,6 @@
   const durationBinOptions = ["1m", "10m", "1h", "6h", "12h"];
 
   /* State Init */
-  let pagingState = $state({ page: 1, itemsPerPage: 10 }); // Top 10
   let selectedHistograms = $state([]); // Dummy For Refresh
   let colWidthJobs = $state(0);
   let colWidthNodes = $state(0);
@@ -208,7 +207,6 @@
     <Refresher
       initially={120}
       onRefresh={() => {
-        pagingState = { page: 1, itemsPerPage: 10 };
         selectedHistograms = [...$state.snapshot(selectedHistograms)];
       }}
     />

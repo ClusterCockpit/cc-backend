@@ -409,14 +409,14 @@
       <div>
         {#key $statesTimed?.data?.healthStates}
           <h4 class="text-center">
-            {cluster.charAt(0).toUpperCase() + cluster.slice(1)} Health States Over Time
+            {cluster.charAt(0).toUpperCase() + cluster.slice(1)} Metric Health Over Time
           </h4>
           <Stacked
             data={$statesTimed?.data?.healthStates}
             xlabel="Time"
             ylabel="Nodes"
             yunit = "#Count"
-            title = "Health States"
+            title = "Metric Health"
             stateType = "Health"
           />
         {/key}

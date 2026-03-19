@@ -53,7 +53,6 @@
   const useCbColors = getContext("cc-config")?.plotConfiguration_colorblindMode || false
 
   /* States */
-  let pagingState = $state({page: 1, itemsPerPage: 10}) // Top 10
   let from = $state(new Date(Date.now() - 5 * 60 * 1000));
   let clusterFrom = $state(new Date(Date.now() - (8 * 60 * 60 * 1000)));
   let to = $state(new Date(Date.now()));
@@ -201,11 +200,9 @@
     query: gql`
       query (
         $filter: [JobFilter!]!
-        $paging: PageRequest!
       ) {
         jobsStatistics(
           filter: $filter
-          page: $paging
           sortBy: TOTALJOBS
           groupBy: PROJECT
         ) {
@@ -215,11 +212,16 @@
       }
     `,
     variables: {
-      filter: [{ cluster: { eq: presetCluster} }, { state: ["running"] }],
-      paging: pagingState // Top 10
+      filter: [{ cluster: { eq: presetCluster} }, { state: ["running"] }]
     },
     requestPolicy: "network-only"
   }));
+
+  const topProjectJobs = $derived(
+    $topJobsQuery?.data?.jobsStatistics
+      ?.toSorted((a, b) => b.totalJobs - a.totalJobs)
+      .slice(0, 10) ?? [],
+  );
 
   const clusterInfo = $derived.by(() => {
     let rawInfos = {};
@@ -365,7 +367,6 @@
             from = new Date(Date.now() - 5 * 60 * 1000);
             to = new Date(Date.now());
             clusterFrom = new Date(Date.now() - (8 * 60 * 60 * 1000))
-            pagingState = { page:1, itemsPerPage: 10 };
 
             if (interval) stackedFrom += Math.floor(interval / 1000);
             else stackedFrom += 1 // Workaround: TimeSelection not linked, just trigger new data on manual refresh
@@ -490,10 +491,12 @@
                     canvasId="hpcpie-jobs-projects"
                     size={colWidthJobs * 0.75}
                     sliceLabel={'Jobs'}
-                    quantities={$topJobsQuery.data.jobsStatistics.map(
+                    quantities={topProjectJobs.map(
                       (tp) => tp['totalJobs'],
                     )}
-                    entities={$topJobsQuery.data.jobsStatistics.map((tp) => scrambleNames ? scramble(tp.id) : tp.id)}
+                    entities={topProjectJobs.map((tp) =>
+                      scrambleNames ? scramble(tp.id) : tp.id)
+                    }
                   />
                 </div>
               </Col>
@@ -504,7 +507,7 @@
                     <th style="padding-left: 0.5rem;">Project</th>
                     <th>Jobs</th>
                   </tr>
-                  {#each $topJobsQuery.data.jobsStatistics as tp, i}
+                  {#each topProjectJobs as tp, i}
                     <tr>
                       <td><Icon name="circle-fill" style="color: {legendColors(i)};" /></td>
                       <td>
@@ -577,7 +580,7 @@
                 xlabel="Time"
                 ylabel="Nodes"
                 yunit = "#Count"
-                title = "Health States"
+                title = "Metric Health"
                 stateType = "Health"
               />
             {/key}
