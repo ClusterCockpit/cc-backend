@@ -676,10 +676,10 @@ func (r *queryResolver) JobsStatistics(ctx context.Context, filter []*model.JobF
 			// Use request-scoped cache: multiple aliases with same (filter, groupBy)
 			// but different sortBy/page hit the DB only once.
 			if cache := getStatsGroupCache(ctx); cache != nil {
-				key := statsCacheKey(filter, groupBy)
+				key := statsCacheKey(filter, groupBy, reqFields)
 				var allStats []*model.JobsStatistics
 				allStats, err = cache.getOrCompute(key, func() ([]*model.JobsStatistics, error) {
-					return r.Repo.JobsStatsGrouped(ctx, filter, nil, nil, groupBy, nil)
+					return r.Repo.JobsStatsGrouped(ctx, filter, nil, nil, groupBy, reqFields)
 				})
 				if err == nil {
 					stats = sortAndPageStats(allStats, sortBy, page)

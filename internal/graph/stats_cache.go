@@ -53,9 +53,9 @@ func getStatsGroupCache(ctx context.Context) *statsGroupCache {
 	return nil
 }
 
-// cacheKey builds a deterministic string key from filter + groupBy.
-func statsCacheKey(filter []*model.JobFilter, groupBy *model.Aggregate) string {
-	return fmt.Sprintf("%v|%v", filter, *groupBy)
+// cacheKey builds a deterministic string key from filter + groupBy + reqFields.
+func statsCacheKey(filter []*model.JobFilter, groupBy *model.Aggregate, reqFields map[string]bool) string {
+	return fmt.Sprintf("%v|%v|%v", filter, *groupBy, reqFields)
 }
 
 // getOrCompute returns cached results for the given key, computing them on
