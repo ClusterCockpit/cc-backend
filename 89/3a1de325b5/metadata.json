@@ -1,0 +1,42 @@
+{
+  "cli_version": "0.4.8",
+  "checkpoint_id": "893a1de325b5",
+  "strategy": "manual-commit",
+  "branch": "feature/526-average-resample",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "api/schema.graphqls",
+    "go.mod",
+    "go.sum",
+    "internal/api/api_test.go",
+    "internal/api/job.go",
+    "internal/archiver/archiver.go",
+    "internal/graph/generated/generated.go",
+    "internal/graph/model/models_gen.go",
+    "internal/graph/schema.resolvers.go",
+    "internal/graph/util.go",
+    "internal/metricdispatch/dataLoader.go",
+    "internal/metricdispatch/metricdata.go",
+    "internal/metricstoreclient/cc-metric-store.go",
+    "internal/repository/testdata/job.db",
+    "pkg/metricstore/api.go",
+    "pkg/metricstore/metricstore.go",
+    "pkg/metricstore/query.go"
+  ],
+  "sessions": [
+    {
+      "metadata": "/89/3a1de325b5/0/metadata.json",
+      "transcript": "/89/3a1de325b5/0/full.jsonl",
+      "context": "/89/3a1de325b5/0/context.md",
+      "content_hash": "/89/3a1de325b5/0/content_hash.txt",
+      "prompt": "/89/3a1de325b5/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 3156,
+    "cache_creation_tokens": 88301,
+    "cache_read_tokens": 4751651,
+    "output_tokens": 15445,
+    "api_call_count": 55
+  }
+}
