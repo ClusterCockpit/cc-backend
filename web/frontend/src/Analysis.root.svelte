@@ -187,6 +187,12 @@
     })
   );
 
+  const topListData = $derived(
+    $topQuery?.data?.topList
+      ?.toSorted((a, b) => b[sortSelection.key] - a[sortSelection.key])
+      .slice(0, 10) ?? [],
+  );
+
   // Note: Different footprints than those saved in DB per Job -> Caused by Legacy Naming
   let footprintsQuery = $derived(
     queryStore({
@@ -424,10 +430,12 @@
               canvasId={`pie-${groupSelection.key}`}
               size={colWidth1 / 1.9}
               sliceLabel={sortSelection.label}
-              quantities={$topQuery.data.topList.map(
+              quantities={topListData.map(
                 (t) => t[sortSelection.key],
               )}
-              entities={$topQuery.data.topList.map((t) => scrambleNames ? scramble(t.id) : t.id)}
+              entities={topListData.map((t) => 
+                scrambleNames ? scramble(t.id) : t.id)
+              }
             />
           {/if}
         {/key}
@@ -454,7 +462,7 @@
                 </select>
               </th>
             </tr>
-            {#each $topQuery.data.topList as te, i}
+            {#each topListData as te, i}
               <tr>
                 <td><Icon name="circle-fill" style="color: {colors['colorblind'][i]};" /></td>
                 {#if groupSelection.key == "user"}
