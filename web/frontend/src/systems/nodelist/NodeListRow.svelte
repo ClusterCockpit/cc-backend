@@ -75,7 +75,6 @@
 
   const extendedLegendData = $derived($nodeJobsData?.data ? buildExtendedLegend() : null);
   const refinedData = $derived(nodeData?.metrics ? sortAndSelectScope(selectedMetrics, nodeData.metrics) : []);
-  const dataHealth = $derived(refinedData.filter((rd) => rd.availability == "configured").map((enabled) => (nodeDataFetching ? 'fetching' : enabled?.data?.metric?.series?.length > 0)));
 
   /* Functions */
   function sortAndSelectScope(metricList = [], nodeMetrics = []) {
@@ -145,11 +144,12 @@
     {:else}
       <NodeInfo
         {cluster}
-        {dataHealth}
         nodeJobsData={$nodeJobsData.data}
         subCluster={nodeData.subCluster}
         hostname={nodeData.host}
-        hoststate={nodeData?.state? nodeData.state: 'notindb'}/>
+        nodeState={nodeData?.nodeState || 'notindb'}
+        metricHealth={nodeData?.metricHealth || 'unknown'}
+      />
     {/if}
   </td>
   {#each refinedData as metricData, i (metricData?.data?.name || i)}

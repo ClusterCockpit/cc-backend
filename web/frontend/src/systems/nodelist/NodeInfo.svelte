@@ -5,7 +5,8 @@
   - `cluster String`: The nodes' cluster
   - `subCluster String`: The nodes' subCluster
   - `hostname String`: The nodes' hostname
-  - `dataHealth [Bool]`: Array of Booleans depicting state of returned data per metric
+  - `nodeState String`: The nodes current state as reported by the scheduler
+  - `metricHealth String`:  The nodes current metric health as reported by the metricstore
   - `nodeJobsData [Object]`: Data returned by GQL for jobs runninig on this node [Default: null] 
 -->
 
@@ -32,8 +33,8 @@
     cluster,
     subCluster,
     hostname,
-    hoststate,
-    dataHealth,
+    nodeState,
+    metricHealth,
     nodeJobsData = null,
   } = $props();
 
@@ -50,12 +51,6 @@
   }
 
   /* Derived */
-  // Not at least one returned, selected metric: NodeHealth warning
-  const fetchInfo = $derived(dataHealth.includes('fetching'));
-  // Not at least one returned, selected metric: NodeHealth warning
-  const healthWarn = $derived(!dataHealth.includes(true));
-  // At least one non-returned selected metric: Metric config error?
-  const metricWarn = $derived(dataHealth.includes(false));
   const userList = $derived(nodeJobsData
     ? Array.from(new Set(nodeJobsData.jobs.items.map((j) => scrambleNames ? scramble(j.user) : j.user))).sort((a, b) => a.localeCompare(b))
     : []
@@ -86,14 +81,7 @@
     <Row cols={{xs: 1, lg: 2}}>
       <Col class="mb-2 mb-lg-0">
         <InputGroup size="sm">
-          {#if fetchInfo}
-            <InputGroupText class="flex-grow-1 flex-lg-grow-0">
-              <Icon name="arrow-clockwise" style="padding-right: 0.5rem;"/>
-            </InputGroupText>
-            <Button class="flex-grow-1" color="dark" outline disabled>
-              Fetching
-            </Button>
-          {:else if healthWarn}
+          {#if metricHealth == "failed"}
             <InputGroupText class="flex-grow-1 flex-lg-grow-0">
               <Icon name="exclamation-circle" style="padding-right: 0.5rem;"/>
               <span>Info</span>
@@ -101,13 +89,17 @@
             <Button class="flex-grow-1" color="danger" disabled>
               No Metrics
             </Button>
-          {:else if metricWarn}
+          {:else if metricHealth == "partial" || metricHealth == "unknown"}
             <InputGroupText class="flex-grow-1 flex-lg-grow-0">
               <Icon name="info-circle" style="padding-right: 0.5rem;"/>
               <span>Info</span>
             </InputGroupText>
             <Button class="flex-grow-1" color="warning" disabled>
-              Missing Metric
+              {#if metricHealth == "partial"}
+                Missing Metric(s)
+              {:else if metricHealth == "unknown"}
+                Metric Health Unknown
+              {/if}
             </Button>
           {:else if nodeJobsData.jobs.count == 1 && nodeJobsData?.jobs?.items[0]?.shared == "none"}
             <InputGroupText class="flex-grow-1 flex-lg-grow-0">
@@ -150,8 +142,8 @@
           <InputGroupText class="flex-grow-1 flex-lg-grow-0">
             State
           </InputGroupText>
-          <Button class="flex-grow-1" color={stateColors[hoststate]} disabled>
-            {hoststate.charAt(0).toUpperCase() + hoststate.slice(1)}
+          <Button class="flex-grow-1" color={stateColors[nodeState]} disabled>
+            {nodeState.charAt(0).toUpperCase() + nodeState.slice(1)}
           </Button>
         </InputGroup>
       </Col>

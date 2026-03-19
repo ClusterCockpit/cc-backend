@@ -5,8 +5,8 @@
   - `ccconfig Object?`: The ClusterCockpit Config Context [Default: null]
   - `cluster String`: The cluster to show status information for
   - `selectedMetric String?`: The selectedMetric input [Default: ""]
-  - `hostnameFilter String?`: The active hostnamefilter [Default: ""]
-  - `hostnameFilter String?`: The active hoststatefilter [Default: ""]
+  - `hostnameFilter String?`: The active hostname filter [Default: ""]
+  - `nodeStateFilter String?`: The active nodeState filter [Default: ""]
   - `from Date?`: The selected "from" date [Default: null]
   - `to Date?`: The selected "to" date [Default: null]
   - `globalMetrics [Obj]`: Includes the backend supplied availabilities for cluster and subCluster
@@ -24,7 +24,7 @@
     cluster = "",
     selectedMetric = "",
     hostnameFilter = "",
-    hoststateFilter = "",
+    nodeStateFilter = "",
     from = null,
     to = null,
     globalMetrics
@@ -55,7 +55,7 @@
           to: $to
         ) {
           host
-          state
+          nodeState
           subCluster
           metrics {
             name
@@ -91,11 +91,11 @@
   const mappedData = $derived(handleQueryData($nodesQuery?.data));
   const filteredData = $derived(mappedData.filter((h) => {
     if (hostnameFilter) {
-      if (hoststateFilter == 'all') return h.host.includes(hostnameFilter)
-      else return (h.host.includes(hostnameFilter) && h.state == hoststateFilter)
+      if (nodeStateFilter == 'all') return h.host.includes(hostnameFilter)
+      else return (h.host.includes(hostnameFilter) && h.nodeState == nodeStateFilter)
     } else {
-      if (hoststateFilter == 'all') return true
-      else return h.state == hoststateFilter
+      if (nodeStateFilter == 'all') return true
+      else return h.nodeState == nodeStateFilter
     }
   }));
 
@@ -116,7 +116,7 @@
     if (rawData.length > 0) {
       pendingMapped = rawData.map((h) => ({
         host: h.host,
-        state: h?.state? h.state : 'notindb',
+        nodeState: h?.nodeState || 'notindb',
         subCluster: h.subCluster,
         data: h.metrics.filter(
           (m) => m?.name == selectedMetric && m.scope == "node",
@@ -157,8 +157,8 @@
               >
             </h4>
             <span style="margin-right: 0.5rem;">
-              <Badge color={stateColors[item?.state? item.state : 'notindb']}>
-                State: {item?.state? item.state.charAt(0).toUpperCase() + item.state.slice(1) : 'Not in DB'}
+              <Badge color={stateColors[item?.nodeState || 'notindb']}>
+                State: {item?.nodeState ? item.nodeState.charAt(0).toUpperCase() + item.nodeState.slice(1) : 'Not in DB'}
               </Badge>
             </span>
           </div>
@@ -202,7 +202,7 @@
       {/each}
     {/key}
   </Row>
-{:else if hostnameFilter || hoststateFilter != 'all'}
+{:else if hostnameFilter || nodeStateFilter != 'all'}
   <Row class="mx-1">
     <Card class="px-0">
       <CardHeader>

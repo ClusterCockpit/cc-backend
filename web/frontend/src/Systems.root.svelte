@@ -59,7 +59,7 @@
 
   /* State Init */
   let hostnameFilter = $state("");
-  let hoststateFilter = $state("all");
+  let nodeStateFilter = $state("all");
   let pendingHostnameFilter = $state("");
   let isMetricsSelectionOpen = $state(false);
 
@@ -210,7 +210,7 @@
       <InputGroup>
         <InputGroupText><Icon name="clipboard2-pulse" /></InputGroupText>
         <InputGroupText>State</InputGroupText>
-        <Input type="select" bind:value={hoststateFilter}>
+        <Input type="select" bind:value={nodeStateFilter}>
           {#each stateOptions as so}
             <option value={so}>{so.charAt(0).toUpperCase() + so.slice(1)}</option>
           {/each}
@@ -269,11 +269,11 @@
 {:else}
   {#if displayNodeOverview}
     <!-- ROW2-1: Node Overview (Grid Included)-->
-    <NodeOverview {cluster} {ccconfig} {selectedMetric} {globalMetrics} {from} {to} {hostnameFilter} {hoststateFilter}/>
+    <NodeOverview {cluster} {ccconfig} {selectedMetric} {globalMetrics} {from} {to} {hostnameFilter} {nodeStateFilter}/>
   {:else}
     <!-- ROW2-2: Node List (Grid Included)-->
     <NodeList pendingSelectedMetrics={selectedMetrics} {cluster} {subCluster}
-       {selectedResolution} {hostnameFilter} {hoststateFilter} {from} {to} {systemUnits}/>
+       {selectedResolution} {hostnameFilter} {nodeStateFilter} {from} {to} {systemUnits}/>
   {/if}
 {/if}
 
