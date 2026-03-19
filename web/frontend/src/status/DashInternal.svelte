@@ -577,7 +577,7 @@
                 xlabel="Time"
                 ylabel="Nodes"
                 yunit = "#Count"
-                title = "Health States"
+                title = "Metric Health"
                 stateType = "Health"
               />
             {/key}
