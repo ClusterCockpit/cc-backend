@@ -192,10 +192,10 @@ func LoadData(job *schema.Job,
 		// Generate statistics series for jobs with many nodes to enable min/median/max graphs
 		// instead of overwhelming the UI with individual node lines. Note that newly calculated
 		// statistics use min/median/max, while archived statistics may use min/mean/max.
-		const maxSeriesSize int = 15
+		const maxSeriesSize int = 8
 		for _, scopes := range jd {
 			for _, jm := range scopes {
-				if jm.StatisticsSeries != nil || len(jm.Series) <= maxSeriesSize {
+				if jm.StatisticsSeries != nil || len(jm.Series) < maxSeriesSize {
 					continue
 				}
 

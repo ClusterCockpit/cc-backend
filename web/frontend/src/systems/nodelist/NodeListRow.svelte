@@ -174,7 +174,7 @@
             <p>No dataset(s) returned for <b>{selectedMetrics[i]}</b></p>
             <p class="mb-1">Metric or host was not found in metric store for cluster <b>{cluster}</b>.</p>
           </Card>
-        {:else if !!metricData.data?.metric.statisticsSeries}
+        {:else if !!metricData?.data?.metric?.statisticsSeries}
           <!-- "No Data"-Warning included in MetricPlot-Component -->
           <MetricPlot
             {cluster}
@@ -183,8 +183,7 @@
             scope={metricData.data.scope}
             timestep={metricData.data.metric.timestep}
             series={metricData.data.metric.series}
-            statisticsSeries={metricData.data?.metric.statisticsSeries}
-            useStatsSeries={!!metricData.data?.metric.statisticsSeries}
+            statisticsSeries={metricData.data.metric.statisticsSeries}
             height={175}
             {plotSync}
             forNode

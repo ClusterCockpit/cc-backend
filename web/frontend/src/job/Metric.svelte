@@ -197,7 +197,6 @@
       {zoomState}
       {thresholdState}
       statisticsSeries={statsSeries[selectedScopeIndex]}
-      useStatsSeries={!!statsSeries[selectedScopeIndex]}
       enableFlip
     />
   {/if}
