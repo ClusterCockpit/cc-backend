@@ -2718,8 +2718,6 @@ input JobFilter {
   duration: IntRange
   energy: FloatRange
 
-  minRunningFor: Int
-
   numNodes: IntRange
   numAccelerators: IntRange
   numHWThreads: IntRange
@@ -13292,7 +13290,7 @@ func (ec *executionContext) unmarshalInputJobFilter(ctx context.Context, obj any
 		asMap[k] = v
 	}
 
-	fieldsInOrder := [...]string{"tags", "dbId", "jobId", "arrayJobId", "user", "project", "jobName", "cluster", "subCluster", "partition", "duration", "energy", "minRunningFor", "numNodes", "numAccelerators", "numHWThreads", "startTime", "state", "metricStats", "shared", "schedule", "node"}
+	fieldsInOrder := [...]string{"tags", "dbId", "jobId", "arrayJobId", "user", "project", "jobName", "cluster", "subCluster", "partition", "duration", "energy", "numNodes", "numAccelerators", "numHWThreads", "startTime", "state", "metricStats", "shared", "schedule", "node"}
 	for _, k := range fieldsInOrder {
 		v, ok := asMap[k]
 		if !ok {
@@ -13383,13 +13381,6 @@ func (ec *executionContext) unmarshalInputJobFilter(ctx context.Context, obj any
 				return it, err
 			}
 			it.Energy = data
-		case "minRunningFor":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("minRunningFor"))
-			data, err := ec.unmarshalOInt2ᚖint(ctx, v)
-			if err != nil {
-				return it, err
-			}
-			it.MinRunningFor = data
 		case "numNodes":
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("numNodes"))
 			data, err := ec.unmarshalOIntRange2ᚖgithubᚗcomᚋClusterCockpitᚋccᚑbackendᚋinternalᚋconfigᚐIntRange(ctx, v)

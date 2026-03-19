@@ -451,8 +451,6 @@ input JobFilter {
   duration: IntRange
   energy: FloatRange
 
-  minRunningFor: Int
-
   numNodes: IntRange
   numAccelerators: IntRange
   numHWThreads: IntRange
