@@ -5,6 +5,7 @@ before:
 builds:
   - env:
       - CGO_ENABLED=1
+      - CC=x86_64-linux-musl-gcc
     goos:
       - linux
     goarch:
@@ -24,6 +25,9 @@ builds:
       pre: make frontend
   - env:
       - CGO_ENABLED=0
+      - CC=x86_64-linux-musl-gcc
+    ldflags:
+      - -linkmode external -extldflags -static
     goos:
       - linux
     goarch:
@@ -37,6 +41,9 @@ builds:
       - static_build
   - env:
       - CGO_ENABLED=0
+      - CC=x86_64-linux-musl-gcc
+    ldflags:
+      - -linkmode external -extldflags -static
     goos:
       - linux
     goarch:
@@ -50,6 +57,9 @@ builds:
       - static_build
   - env:
       - CGO_ENABLED=0
+      - CC=x86_64-linux-musl-gcc
+    ldflags:
+      - -linkmode external -extldflags -static
     goos:
       - linux
     goarch:
