@@ -106,12 +106,10 @@ type NodeStateRetention struct {
 }
 
 type ResampleConfig struct {
-	// Minimum number of points to trigger resampling of data
-	MinimumPoints int `json:"minimum-points"`
-	// Array of resampling target resolutions, in seconds; Example: [600,300,60]
-	Resolutions []int `json:"resolutions"`
-	// Trigger next zoom level at less than this many visible datapoints
-	Trigger int `json:"trigger"`
+	// Default resample policy when no user preference is set ("low", "medium", "high")
+	DefaultPolicy string `json:"default-policy"`
+	// Default resample algorithm when no user preference is set ("lttb", "average", "simple")
+	DefaultAlgo string `json:"default-algo"`
 	// Policy-derived target point count (set dynamically from user preference, not from config.json)
 	TargetPoints int `json:"targetPoints,omitempty"`
 }
@@ -157,7 +155,24 @@ func Init(mainConfig json.RawMessage) {
 		cclog.Abortf("Config Init: Could not decode config file '%s'.\nError: %s\n", mainConfig, err.Error())
 	}
 
-	if Keys.EnableResampling != nil && Keys.EnableResampling.MinimumPoints > 0 {
-		resampler.SetMinimumRequiredPoints(Keys.EnableResampling.MinimumPoints)
+	if Keys.EnableResampling != nil {
+		policy := Keys.EnableResampling.DefaultPolicy
+		if policy == "" {
+			policy = "medium"
+		}
+		resampler.SetMinimumRequiredPoints(targetPointsForPolicy(policy))
+	}
+}
+
+func targetPointsForPolicy(policy string) int {
+	switch policy {
+	case "low":
+		return 200
+	case "medium":
+		return 500
+	case "high":
+		return 1000
+	default:
+		return 500
 	}
 }

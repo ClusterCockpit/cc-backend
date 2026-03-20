@@ -16,6 +16,7 @@
   import Options from "./admin/Options.svelte";
   import NoticeEdit from "./admin/NoticeEdit.svelte";
   import RunTaggers from "./admin/RunTaggers.svelte";
+  import PlotRenderOptions from "./user/PlotRenderOptions.svelte";
 
   /* Svelte 5 Props */
   let {
@@ -29,6 +30,8 @@
   /* State Init */
   let users = $state([]);
   let roles = $state([]);
+  let message = $state({ msg: "", target: "", color: "#d63384" });
+  let displayMessage = $state(false);
 
   /* Functions */
   function getUserList() {
@@ -52,6 +55,37 @@
     getValidRoles();
   }
 
+  async function handleSettingSubmit(event, setting) {
+    event.preventDefault();
+
+    const selector = setting.selector
+    const target = setting.target
+    let form = document.querySelector(selector);
+    let formData = new FormData(form);
+    try {
+      const res = await fetch(form.action, { method: "POST", body: formData });
+      if (res.ok) {
+        let text = await res.text();
+        popMessage(text, target, "#048109");
+      } else {
+        let text = await res.text();
+        throw new Error("Response Code " + res.status + "-> " + text);
+      }
+    } catch (err) {
+      popMessage(err, target, "#d63384");
+    }
+
+    return false;
+  }
+
+  function popMessage(response, restarget, rescolor) {
+    message = { msg: response, target: restarget, color: rescolor };
+    displayMessage = true;
+    setTimeout(function () {
+      displayMessage = false;
+    }, 3500);
+  }
+
   /* on Mount */
   onMount(() => initAdmin());
 </script>
@@ -73,3 +107,4 @@
   <NoticeEdit {ncontent}/>
   <RunTaggers />
 </Row>
+<PlotRenderOptions config={ccconfig} bind:message bind:displayMessage updateSetting={(e, newSetting) => handleSettingSubmit(e, newSetting)}/>

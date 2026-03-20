@@ -7,8 +7,6 @@ tool (
 	github.com/swaggo/swag/cmd/swag
 )
 
-replace github.com/ClusterCockpit/cc-lib/v2 => ../../prg/CC/cc-lib
-
 require (
 	github.com/99designs/gqlgen v0.17.88
 	github.com/ClusterCockpit/cc-lib/v2 v2.10.0

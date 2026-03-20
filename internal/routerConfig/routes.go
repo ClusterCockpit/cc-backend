@@ -597,13 +597,19 @@ func HandleSearchBar(rw http.ResponseWriter, r *http.Request, buildInfo web.Buil
 func resamplingForUser(conf map[string]any) *config.ResampleConfig {
 	globalCfg := config.Keys.EnableResampling
 
-	policyVal, ok := conf["plotConfiguration_resamplePolicy"]
-	if !ok {
-		return globalCfg
+	policyStr := ""
+	if policyVal, ok := conf["plotConfiguration_resamplePolicy"]; ok {
+		if s, ok := policyVal.(string); ok {
+			policyStr = s
+		}
 	}
-	policyStr, ok := policyVal.(string)
-	if !ok || policyStr == "" {
-		return globalCfg
+
+	// Fall back to global default policy, then to "medium"
+	if policyStr == "" && globalCfg != nil {
+		policyStr = globalCfg.DefaultPolicy
+	}
+	if policyStr == "" {
+		policyStr = "medium"
 	}
 
 	policy := metricdispatch.ResamplePolicy(policyStr)
@@ -612,9 +618,7 @@ func resamplingForUser(conf map[string]any) *config.ResampleConfig {
 		return globalCfg
 	}
 
-	// Build a policy-derived config: targetPoints + trigger, no resolutions array
 	return &config.ResampleConfig{
 		TargetPoints: targetPoints,
-		Trigger:      targetPoints / 4,
 	}
 }

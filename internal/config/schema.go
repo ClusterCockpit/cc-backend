@@ -92,23 +92,17 @@ var configSchema = `
       "description": "Enable dynamic zoom in frontend metric plots.",
       "type": "object",
       "properties": {
-        "minimum-points": {
-          "description": "Minimum points to trigger resampling of time-series data.",
-          "type": "integer"
+        "default-policy": {
+          "description": "Default resample policy when no user preference is set.",
+          "type": "string",
+          "enum": ["low", "medium", "high"]
         },
-        "trigger": {
-          "description": "Trigger next zoom level at less than this many visible datapoints.",
-          "type": "integer"
-        },
-        "resolutions": {
-          "description": "Array of resampling target resolutions, in seconds.",
-          "type": "array",
-          "items": {
-            "type": "integer"
-          }
+        "default-algo": {
+          "description": "Default resample algorithm when no user preference is set.",
+          "type": "string",
+          "enum": ["lttb", "average", "simple"]
         }
-      },
-      "required": ["trigger", "resolutions"]
+      }
     },
     "api-subjects": {
       "description": "NATS subjects configuration for subscribing to job and node events.",

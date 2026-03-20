@@ -511,9 +511,9 @@ func (r *queryResolver) JobMetrics(ctx context.Context, id string, metrics []str
 	}
 	if resolution == nil {
 		if config.Keys.EnableResampling != nil {
-			defaultRes := slices.Max(config.Keys.EnableResampling.Resolutions)
-			resolution = &defaultRes
-		} else {
+			resolution = resolveResolutionFromDefaultPolicy(int64(job.Duration), job.Cluster, metrics)
+		}
+		if resolution == nil {
 			defaultRes := 0
 			resolution = &defaultRes
 		}
@@ -886,9 +886,9 @@ func (r *queryResolver) NodeMetricsList(ctx context.Context, cluster string, sub
 	}
 	if resolution == nil {
 		if config.Keys.EnableResampling != nil {
-			defaultRes := slices.Max(config.Keys.EnableResampling.Resolutions)
-			resolution = &defaultRes
-		} else {
+			resolution = resolveResolutionFromDefaultPolicy(duration, cluster, metrics)
+		}
+		if resolution == nil {
 			defaultRes := 0
 			resolution = &defaultRes
 		}

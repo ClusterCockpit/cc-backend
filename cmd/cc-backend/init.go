@@ -34,12 +34,8 @@ const configString = `
     "addr": "127.0.0.1:8080",
     "short-running-jobs-duration": 300,
     "resampling": {
-      "minimum-points": 600,
-      "trigger": 300,
-      "resolutions": [
-        240,
-        60
-      ]
+      "default-policy": "medium",
+      "default-algo": "lttb"
     },
     "api-allowed-ips": [
       "*"

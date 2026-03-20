@@ -8,6 +8,7 @@ import (
 	"context"
 	"strings"
 
+	"github.com/ClusterCockpit/cc-backend/internal/config"
 	"github.com/ClusterCockpit/cc-backend/internal/graph/model"
 	"github.com/ClusterCockpit/cc-backend/internal/metricdispatch"
 	"github.com/ClusterCockpit/cc-backend/internal/repository"
@@ -71,15 +72,46 @@ func resolveResampleAlgo(ctx context.Context, resampleAlgo *model.ResampleAlgo) 
 	}
 
 	algoVal, ok := conf["plotConfiguration_resampleAlgo"]
-	if !ok {
-		return ""
-	}
-	algoStr, ok := algoVal.(string)
-	if !ok {
-		return ""
+	if ok {
+		if algoStr, ok := algoVal.(string); ok && algoStr != "" {
+			return algoStr
+		}
 	}
 
-	return algoStr
+	// Fall back to global default algo
+	if config.Keys.EnableResampling != nil && config.Keys.EnableResampling.DefaultAlgo != "" {
+		return config.Keys.EnableResampling.DefaultAlgo
+	}
+
+	return ""
+}
+
+// resolveResolutionFromDefaultPolicy computes a resolution using the global
+// default policy from config. Returns nil if no policy is configured.
+func resolveResolutionFromDefaultPolicy(duration int64, cluster string, metrics []string) *int {
+	cfg := config.Keys.EnableResampling
+	if cfg == nil {
+		return nil
+	}
+
+	policyStr := cfg.DefaultPolicy
+	if policyStr == "" {
+		policyStr = "medium"
+	}
+
+	policy := metricdispatch.ResamplePolicy(policyStr)
+	targetPoints := metricdispatch.TargetPointsForPolicy(policy)
+	if targetPoints == 0 {
+		return nil
+	}
+
+	frequency := smallestFrequency(cluster, metrics)
+	if frequency <= 0 {
+		return nil
+	}
+
+	res := metricdispatch.ComputeResolution(duration, int64(frequency), targetPoints)
+	return &res
 }
 
 // smallestFrequency returns the smallest metric timestep (in seconds) among the

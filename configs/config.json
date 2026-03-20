@@ -14,9 +14,8 @@
       "target-path": "./var/nodestate-archive"
     },
     "resampling": {
-      "minimum-points": 600,
-      "trigger": 180,
-      "resolutions": [240, 60]
+      "default-policy": "medium",
+      "default-algo": "lttb"
     },
     "api-subjects": {
       "subject-job-event": "cc.job.event",

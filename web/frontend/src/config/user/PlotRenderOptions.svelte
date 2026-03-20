@@ -28,7 +28,6 @@
   } = $props();
 
   const resampleConfig = getContext("resampling");
-  const resamplingEnabled = !!resampleConfig;
 </script>
 
 <Row cols={3} class="p-2 g-2">
@@ -68,7 +67,7 @@
             id="lwvalue"
             name="value"
             aria-describedby="lineWidthHelp"
-            value={config.plotConfiguration_lineWidth}
+            value={config?.plotConfiguration_lineWidth}
             min="1"
           />
           <div id="lineWidthHelp" class="form-text">
@@ -115,7 +114,7 @@
             id="pprvalue"
             name="value"
             aria-describedby="plotsperrowHelp"
-            value={config.plotConfiguration_plotsPerRow}
+            value={config?.plotConfiguration_plotsPerRow}
             min="1"
           />
           <div id="plotsperrowHelp" class="form-text">
@@ -157,7 +156,7 @@
         <input type="hidden" name="key" value="plotConfiguration_colorBackground" />
         <div class="mb-3">
           <div>
-            {#if config.plotConfiguration_colorBackground}
+            {#if config?.plotConfiguration_colorBackground}
               <input type="radio" id="colb-true-checked" name="value" value="true" checked />
             {:else}
               <input type="radio" id="colb-true" name="value" value="true" />
@@ -165,7 +164,7 @@
             <label for="true">Yes</label>
           </div>
           <div>
-            {#if config.plotConfiguration_colorBackground}
+            {#if config?.plotConfiguration_colorBackground}
               <input type="radio" id="colb-false" name="value" value="false" />
             {:else}
               <input type="radio" id="colb-false-checked" name="value" value="false" checked />
@@ -224,7 +223,6 @@
     </Card>
   </Col>
 
-  {#if resamplingEnabled}
   <!-- RESAMPLE POLICY -->
   <Col>
     <Card class="h-100">
@@ -255,7 +253,7 @@
           {#each [["", "Default"], ["low", "Low"], ["medium", "Medium"], ["high", "High"]] as [val, label]}
             <div>
               <input type="radio" id="rsp-{val || 'default'}" name="value" value={JSON.stringify(val)}
-                checked={(!config.plotConfiguration_resamplePolicy && val === "") || config.plotConfiguration_resamplePolicy === val} />
+                checked={(!config?.plotConfiguration_resamplePolicy && val === "") || config?.plotConfiguration_resamplePolicy === val} />
               <label for="rsp-{val || 'default'}">{label}</label>
             </div>
           {/each}
@@ -298,7 +296,7 @@
           {#each [["", "Default"], ["lttb", "LTTB"], ["average", "Average"], ["simple", "Simple"]] as [val, label]}
             <div>
               <input type="radio" id="rsa-{val || 'default'}" name="value" value={JSON.stringify(val)}
-                checked={(!config.plotConfiguration_resampleAlgo && val === "") || config.plotConfiguration_resampleAlgo === val} />
+                checked={(!config?.plotConfiguration_resampleAlgo && val === "") || config?.plotConfiguration_resampleAlgo === val} />
               <label for="rsa-{val || 'default'}">{label}</label>
             </div>
           {/each}
@@ -310,5 +308,4 @@
       </form>
     </Card>
   </Col>
-  {/if}
 </Row>
