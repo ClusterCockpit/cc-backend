@@ -106,7 +106,7 @@ This is also the default.
   running has to be allowed to execute the journalctl command.
 - The user configuration keys for the ui have changed. Therefore old user
   configuration persisted in the database is not used anymore. It is recommended
-  to configure the metrics shown in the ui-config sestion and remove all records
+  to configure the metrics shown in the ui-config section and remove all records
   in the table after the update.
 - Currently energy footprint metrics of type energy are ignored for calculating
   total energy.
