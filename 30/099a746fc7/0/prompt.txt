@@ -1,0 +1,5 @@
+Check if there are points missing in the ReleaseNotes for the upcoming v1.5.2 release
+
+---
+
+Add the points as suggested

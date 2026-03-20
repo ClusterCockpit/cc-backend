@@ -1,0 +1,1 @@
+Also set MinimumPoints automatically based on the policy

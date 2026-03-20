@@ -1,0 +1,35 @@
+{
+  "cli_version": "0.5.0",
+  "checkpoint_id": "38a235c86ceb",
+  "session_id": "734f1e28-b805-471f-8f2c-275878888543",
+  "strategy": "manual-commit",
+  "created_at": "2026-03-18T05:47:46.275854Z",
+  "branch": "hotfix",
+  "checkpoints_count": 0,
+  "files_touched": [
+    "pkg/metricstore/metricstore.go"
+  ],
+  "agent": "Claude Code",
+  "turn_id": "5fe4f7d7d8c0",
+  "checkpoint_transcript_start": 67,
+  "transcript_lines_at_start": 67,
+  "token_usage": {
+    "input_tokens": 22,
+    "cache_creation_tokens": 32775,
+    "cache_read_tokens": 1407169,
+    "output_tokens": 14874,
+    "api_call_count": 18
+  },
+  "session_metrics": {
+    "turn_count": 1
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-03-18T05:47:46.058454Z",
+    "agent_lines": 5,
+    "human_added": 0,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 5,
+    "agent_percentage": 100
+  }
+}

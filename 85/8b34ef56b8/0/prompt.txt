@@ -1,0 +1,64 @@
+Implement the following plan:
+
+# Plan: Improve scanJob logging
+
+## Context
+
+`scanJob` in `internal/repository/job.go` (line 162) logs a `Warn` for every scan error, including the very common `sql.ErrNoRows` case. This produces noisy, unhelpful log lines like:
+
+```
+WARN Error while scanning rows (Job): sql: no rows in result set
+```
+
+Two problems:
+1. `sql.ErrNoRows` is a normal, expected condition (callers are documented to check for it). It should not produce a warning.
+2. When a real scan error does occur, there's no call-site context — you can't tell which of the ~10 callers triggered it.
+
+The codebase already has a precedent for using `runtime.Caller(1)` in `internal/api/rest.go:188` to include file/line in log messages.
+
+## Approach
+
+Modify `scanJob` in `internal/repository/job.go`:
+
+1. **Skip logging for `sql.ErrNoRows`** — return the error silently. All callers already handle this case themselves.
+2. **Add caller context** for real scan errors using `runtime.Caller(1)` — include `file:line` in the warning message.
+
+```go
+import (
+    "database/sql"
+    "path/filepath"
+    "runtime"
+    // existing imports ...
+)
+
+func scanJob(row interface{ Scan(...any) error }) (*schema.Job, error) {
+    job := &schema.Job{}
+
+    if err := row.Scan(...); err != nil {
+        if err != sql.ErrNoRows {
+            _, file, line, _ := runtime.Caller(1)
+            cclog.Warnf("Error while scanning rows (Job) (%s:%d): %v", filepath.Base(file), line, err)
+        }
+        return nil, err
+    }
+    // ... rest unchanged
+}
+```
+
+## Critical File
+
+- `internal/repository/job.go` — only file to change (lines 154–184)
+
+## Imports to check
+
+`database/sql` is likely already imported (used elsewhere in the package). `runtime` and `path/filepath` — check if already present; add if not.
+
+## Verification
+
+1. `go build ./...` — must compile cleanly
+2. `go test ./internal/repository/...` — existing tests must pass
+3. Manually: trigger a lookup for a non-existent job ID; confirm no warning is logged
+4. Manually (or via test): force a real scan error; confirm warning includes `job.go:<line>`
+
+
+If you need specific details from before exiting plan mode (like exact code snippets, error messages, or content you generated), read the full transcript at: /Users/jan/.claude/projects/-Users-jan-prg-CC-cc-backend/b03f52bf-e58e-45a2-8b95-af846938ee2c.jsonl

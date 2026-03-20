@@ -1,0 +1,46 @@
+{
+  "cli_version": "0.4.8",
+  "checkpoint_id": "893a1de325b5",
+  "session_id": "260a4a9e-d060-4d86-982b-1bf5959b9b70",
+  "strategy": "manual-commit",
+  "created_at": "2026-03-19T20:17:00.303981Z",
+  "branch": "feature/526-average-resample",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "api/schema.graphqls",
+    "go.mod",
+    "go.sum",
+    "internal/api/api_test.go",
+    "internal/api/job.go",
+    "internal/archiver/archiver.go",
+    "internal/graph/generated/generated.go",
+    "internal/graph/model/models_gen.go",
+    "internal/graph/schema.resolvers.go",
+    "internal/graph/util.go",
+    "internal/metricdispatch/dataLoader.go",
+    "internal/metricdispatch/metricdata.go",
+    "internal/metricstoreclient/cc-metric-store.go",
+    "internal/repository/testdata/job.db",
+    "pkg/metricstore/api.go",
+    "pkg/metricstore/metricstore.go",
+    "pkg/metricstore/query.go"
+  ],
+  "agent": "Claude Code",
+  "turn_id": "0c41556af804",
+  "token_usage": {
+    "input_tokens": 3156,
+    "cache_creation_tokens": 88301,
+    "cache_read_tokens": 4751651,
+    "output_tokens": 15445,
+    "api_call_count": 55
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-03-19T20:17:00.00043Z",
+    "agent_lines": 146,
+    "human_added": 45,
+    "human_modified": 24,
+    "human_removed": 0,
+    "total_committed": 215,
+    "agent_percentage": 67.90697674418604
+  }
+}

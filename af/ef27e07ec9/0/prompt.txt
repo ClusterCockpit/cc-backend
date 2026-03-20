@@ -1,0 +1,5 @@
+Analyse if similar errors exist in cc-lib metrics.go
+
+---
+
+Check if the previous bug is fixed no in the current cc-lib used

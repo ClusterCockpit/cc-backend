@@ -1,0 +1,1 @@
+Extend CLAUDE.md and add remarks that on any significant change als o sideeffects and all call paths have to be checked. Also add that this is an application that deals with large amounts of data and should focus on maximum throughput.

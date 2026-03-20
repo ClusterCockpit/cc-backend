@@ -1,0 +1,35 @@
+{
+  "cli_version": "0.5.0",
+  "checkpoint_id": "f31dc1847539",
+  "session_id": "ca36eb3e-bede-40f6-9e44-1f9cadea21ae",
+  "strategy": "manual-commit",
+  "created_at": "2026-03-18T16:32:20.267759Z",
+  "branch": "hotfix",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "pkg/metricstore/archive.go",
+    "pkg/metricstore/parquetArchive.go",
+    "pkg/metricstore/parquetArchive_test.go"
+  ],
+  "agent": "Claude Code",
+  "turn_id": "232b19b124ad",
+  "token_usage": {
+    "input_tokens": 20,
+    "cache_creation_tokens": 42891,
+    "cache_read_tokens": 758607,
+    "output_tokens": 13513,
+    "api_call_count": 16
+  },
+  "session_metrics": {
+    "turn_count": 1
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-03-18T16:32:20.178407Z",
+    "agent_lines": 155,
+    "human_added": 0,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 155,
+    "agent_percentage": 100
+  }
+}

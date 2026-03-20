@@ -1,0 +1,1 @@
+Adopt the determineState Routine to set the state in the order they appear in the current switch case statement. Do not assume any order in the state slice. Make one exception. If states are idle AND down, then set the state to idle.
