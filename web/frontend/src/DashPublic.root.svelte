@@ -130,7 +130,7 @@
           name
           count
         }
-        # Get Current States fir Pie Charts
+        # Get Current States for Pie Charts
         nodeStates(filter: $nodeFilter) {
           state
           count

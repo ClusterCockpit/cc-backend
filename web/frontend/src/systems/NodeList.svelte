@@ -6,8 +6,8 @@
   - `subCluster String`: The nodes' subCluster [Default: ""]
   - `pendingSelectedMetrics [String]`: The array of selected metrics [Default []]
   - `selectedResolution Number?`: The selected data resolution [Default: 0]
-  - `hostnameFilter String?`: The active hostnamefilter [Default: ""]
-  - `hoststateFilter String?`: The active hoststatefilter [Default: ""]
+  - `hostnameFilter String?`: The active hostname filter [Default: ""]
+  - `nodeStateFilter String?`: The active nodeState filter [Default: ""]
   - `systemUnits Object`: The object of metric units [Default: null]
   - `from Date?`: The selected "from" date [Default: null]
   - `to Date?`: The selected "to" date [Default: null]
@@ -28,7 +28,7 @@
     pendingSelectedMetrics = [],
     selectedResolution = 0,
     hostnameFilter = "",
-    hoststateFilter = "",
+    nodeStateFilter = "",
     systemUnits = null,
     from = null,
     to = null
@@ -54,7 +54,8 @@
       ) {
         items {
           host
-          state
+          nodeState
+          metricHealth
           subCluster
           metrics {
             name
@@ -110,7 +111,7 @@
     variables: {
       cluster: cluster,
       subCluster: subCluster,
-      stateFilter: hoststateFilter,
+      stateFilter: nodeStateFilter,
       nodeFilter: hostnameFilter,
       scopes: ["core", "socket", "accelerator"],
       metrics: pendingSelectedMetrics,
@@ -164,7 +165,7 @@
 
   $effect(() => {
     // Update NodeListRows metrics only: Keep ordered nodes on page 1
-    hostnameFilter, hoststateFilter
+    hostnameFilter, nodeStateFilter
     // Continous Scroll: Paging if parameters change: Existing entries will not match new selections
     nodes = [];
     if (!usePaging) {

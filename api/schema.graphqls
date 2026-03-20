@@ -270,7 +270,8 @@ enum SortByAggregate {
 
 type NodeMetrics {
   host: String!
-  state: String!
+  nodeState: String!
+  metricHealth: String!
   subCluster: String!
   metrics: [JobMetricWithName!]!
 }
@@ -450,8 +451,6 @@ input JobFilter {
   partition: StringInput
   duration: IntRange
   energy: FloatRange
-
-  minRunningFor: Int
 
   numNodes: IntRange
   numAccelerators: IntRange

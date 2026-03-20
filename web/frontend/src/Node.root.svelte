@@ -57,7 +57,8 @@
     query ($cluster: String!, $nodes: [String!], $from: Time!, $to: Time!) {
       nodeMetrics(cluster: $cluster, nodes: $nodes, from: $from, to: $to) {
         host
-        state
+        nodeState
+        metricHealth
         subCluster
         metrics {
           name
@@ -92,7 +93,7 @@
       }
     }
   `;
-  // Node State Colors
+  // Node/Metric State Colors
   const stateColors = {
     allocated: 'success',
     reserved: 'info',
@@ -100,7 +101,10 @@
     mixed: 'warning',
     down: 'danger',
     unknown: 'dark',
-    notindb: 'secondary'
+    notindb: 'secondary',
+    full: 'success',
+    partial: 'warning',
+    failed: 'danger'
   }
 
   /* State Init */
@@ -153,31 +157,46 @@
     })
   );
 
-  const thisNodeState = $derived($nodeMetricsData?.data?.nodeMetrics[0]?.state ? $nodeMetricsData.data.nodeMetrics[0].state : 'notindb');
+  const thisNodeState = $derived($nodeMetricsData?.data?.nodeMetrics[0]?.nodeState || 'notindb');
+  const thisMetricHealth = $derived($nodeMetricsData?.data?.nodeMetrics[0]?.metricHealth || 'unknown');
 </script>
 
-<Row cols={{ xs: 2, lg: 5 }}>
+<Row cols={{ xs: 2, lg: 3}}>
   {#if $initq.error}
     <Card body color="danger">{$initq.error.message}</Card>
   {:else if $initq.fetching}
     <Spinner />
   {:else}
     <!-- Node Col -->
-    <Col>
+    <Col class="mb-2">
       <InputGroup>
         <InputGroupText><Icon name="hdd" /></InputGroupText>
         <InputGroupText>Selected Node</InputGroupText>
         <Input style="background-color: white;" type="text" value="{hostname} [{cluster} {$nodeMetricsData?.data?.nodeMetrics[0] ? `(${$nodeMetricsData.data.nodeMetrics[0].subCluster})` : ''}]" disabled/>
       </InputGroup>
     </Col>
-    <!-- State Col -->
-    <Col>
+    <!-- Node State Col -->
+    <Col class="mb-2">
       <InputGroup>
         <InputGroupText><Icon name="clipboard2-pulse" /></InputGroupText>
         <InputGroupText>Node State</InputGroupText>
         <Button class="flex-grow-1 text-center" color={stateColors[thisNodeState]} disabled>
           {#if $nodeMetricsData?.data}
-            {thisNodeState}
+            {thisNodeState.charAt(0).toUpperCase() + thisNodeState.slice(1)}
+          {:else}
+            <span><Spinner size="sm" secondary/></span>
+          {/if}
+        </Button>
+      </InputGroup>
+    </Col>
+    <!-- Metric Health Col -->
+    <Col class="mb-2">
+      <InputGroup>
+        <InputGroupText><Icon name="clipboard2-pulse" /></InputGroupText>
+        <InputGroupText>Metric Health</InputGroupText>
+        <Button class="flex-grow-1 text-center" color={stateColors[thisMetricHealth]} disabled>
+          {#if $nodeMetricsData?.data}
+            {thisMetricHealth.charAt(0).toUpperCase() + thisMetricHealth.slice(1)}
           {:else}
             <span><Spinner size="sm" secondary/></span>
           {/if}
@@ -185,7 +204,7 @@
       </InputGroup>
     </Col>
     <!-- Concurrent Col -->
-    <Col class="mt-2 mt-lg-0">
+    <Col>
       {#if $nodeJobsData.fetching}
         <Spinner />
       {:else if $nodeJobsData.data}
@@ -217,7 +236,7 @@
       />
     </Col>
     <!-- Refresh Col-->
-    <Col class="mt-2 mt-lg-0">
+    <Col>
       <Refresher
         onRefresh={() => {
           const diff = Date.now() - to;

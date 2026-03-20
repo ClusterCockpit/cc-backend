@@ -75,7 +75,6 @@ type JobFilter struct {
 	Partition       *StringInput      `json:"partition,omitempty"`
 	Duration        *config.IntRange  `json:"duration,omitempty"`
 	Energy          *FloatRange       `json:"energy,omitempty"`
-	MinRunningFor   *int              `json:"minRunningFor,omitempty"`
 	NumNodes        *config.IntRange  `json:"numNodes,omitempty"`
 	NumAccelerators *config.IntRange  `json:"numAccelerators,omitempty"`
 	NumHWThreads    *config.IntRange  `json:"numHWThreads,omitempty"`
@@ -194,10 +193,11 @@ type NodeFilter struct {
 }
 
 type NodeMetrics struct {
-	Host       string               `json:"host"`
-	State      string               `json:"state"`
-	SubCluster string               `json:"subCluster"`
-	Metrics    []*JobMetricWithName `json:"metrics"`
+	Host         string               `json:"host"`
+	NodeState    string               `json:"nodeState"`
+	MetricHealth string               `json:"metricHealth"`
+	SubCluster   string               `json:"subCluster"`
+	Metrics      []*JobMetricWithName `json:"metrics"`
 }
 
 type NodeStateResultList struct {

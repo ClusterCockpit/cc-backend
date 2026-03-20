@@ -288,10 +288,11 @@ type ComplexityRoot struct {
 	}
 
 	NodeMetrics struct {
-		Host       func(childComplexity int) int
-		Metrics    func(childComplexity int) int
-		State      func(childComplexity int) int
-		SubCluster func(childComplexity int) int
+		Host         func(childComplexity int) int
+		MetricHealth func(childComplexity int) int
+		Metrics      func(childComplexity int) int
+		NodeState    func(childComplexity int) int
+		SubCluster   func(childComplexity int) int
 	}
 
 	NodeStateResultList struct {
@@ -1501,18 +1502,24 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.NodeMetrics.Host(childComplexity), true
+	case "NodeMetrics.metricHealth":
+		if e.ComplexityRoot.NodeMetrics.MetricHealth == nil {
+			break
+		}
+
+		return e.ComplexityRoot.NodeMetrics.MetricHealth(childComplexity), true
 	case "NodeMetrics.metrics":
 		if e.ComplexityRoot.NodeMetrics.Metrics == nil {
 			break
 		}
 
 		return e.ComplexityRoot.NodeMetrics.Metrics(childComplexity), true
-	case "NodeMetrics.state":
-		if e.ComplexityRoot.NodeMetrics.State == nil {
+	case "NodeMetrics.nodeState":
+		if e.ComplexityRoot.NodeMetrics.NodeState == nil {
 			break
 		}
 
-		return e.ComplexityRoot.NodeMetrics.State(childComplexity), true
+		return e.ComplexityRoot.NodeMetrics.NodeState(childComplexity), true
 	case "NodeMetrics.subCluster":
 		if e.ComplexityRoot.NodeMetrics.SubCluster == nil {
 			break
@@ -2537,7 +2544,8 @@ enum SortByAggregate {
 
 type NodeMetrics {
   host: String!
-  state: String!
+  nodeState: String!
+  metricHealth: String!
   subCluster: String!
   metrics: [JobMetricWithName!]!
 }
@@ -2717,8 +2725,6 @@ input JobFilter {
   partition: StringInput
   duration: IntRange
   energy: FloatRange
-
-  minRunningFor: Int
 
   numNodes: IntRange
   numAccelerators: IntRange
@@ -8318,14 +8324,14 @@ func (ec *executionContext) fieldContext_NodeMetrics_host(_ context.Context, fie
 	return fc, nil
 }
 
-func (ec *executionContext) _NodeMetrics_state(ctx context.Context, field graphql.CollectedField, obj *model.NodeMetrics) (ret graphql.Marshaler) {
+func (ec *executionContext) _NodeMetrics_nodeState(ctx context.Context, field graphql.CollectedField, obj *model.NodeMetrics) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
 		ec.OperationContext,
 		field,
-		ec.fieldContext_NodeMetrics_state,
+		ec.fieldContext_NodeMetrics_nodeState,
 		func(ctx context.Context) (any, error) {
-			return obj.State, nil
+			return obj.NodeState, nil
 		},
 		nil,
 		ec.marshalNString2string,
@@ -8334,7 +8340,36 @@ func (ec *executionContext) _NodeMetrics_state(ctx context.Context, field graphq
 	)
 }
 
-func (ec *executionContext) fieldContext_NodeMetrics_state(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+func (ec *executionContext) fieldContext_NodeMetrics_nodeState(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "NodeMetrics",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _NodeMetrics_metricHealth(ctx context.Context, field graphql.CollectedField, obj *model.NodeMetrics) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_NodeMetrics_metricHealth,
+		func(ctx context.Context) (any, error) {
+			return obj.MetricHealth, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_NodeMetrics_metricHealth(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	fc = &graphql.FieldContext{
 		Object:     "NodeMetrics",
 		Field:      field,
@@ -8668,8 +8703,10 @@ func (ec *executionContext) fieldContext_NodesResultList_items(_ context.Context
 			switch field.Name {
 			case "host":
 				return ec.fieldContext_NodeMetrics_host(ctx, field)
-			case "state":
-				return ec.fieldContext_NodeMetrics_state(ctx, field)
+			case "nodeState":
+				return ec.fieldContext_NodeMetrics_nodeState(ctx, field)
+			case "metricHealth":
+				return ec.fieldContext_NodeMetrics_metricHealth(ctx, field)
 			case "subCluster":
 				return ec.fieldContext_NodeMetrics_subCluster(ctx, field)
 			case "metrics":
@@ -9846,8 +9883,10 @@ func (ec *executionContext) fieldContext_Query_nodeMetrics(ctx context.Context, 
 			switch field.Name {
 			case "host":
 				return ec.fieldContext_NodeMetrics_host(ctx, field)
-			case "state":
-				return ec.fieldContext_NodeMetrics_state(ctx, field)
+			case "nodeState":
+				return ec.fieldContext_NodeMetrics_nodeState(ctx, field)
+			case "metricHealth":
+				return ec.fieldContext_NodeMetrics_metricHealth(ctx, field)
 			case "subCluster":
 				return ec.fieldContext_NodeMetrics_subCluster(ctx, field)
 			case "metrics":
@@ -13292,7 +13331,7 @@ func (ec *executionContext) unmarshalInputJobFilter(ctx context.Context, obj any
 		asMap[k] = v
 	}
 
-	fieldsInOrder := [...]string{"tags", "dbId", "jobId", "arrayJobId", "user", "project", "jobName", "cluster", "subCluster", "partition", "duration", "energy", "minRunningFor", "numNodes", "numAccelerators", "numHWThreads", "startTime", "state", "metricStats", "shared", "schedule", "node"}
+	fieldsInOrder := [...]string{"tags", "dbId", "jobId", "arrayJobId", "user", "project", "jobName", "cluster", "subCluster", "partition", "duration", "energy", "numNodes", "numAccelerators", "numHWThreads", "startTime", "state", "metricStats", "shared", "schedule", "node"}
 	for _, k := range fieldsInOrder {
 		v, ok := asMap[k]
 		if !ok {
@@ -13383,13 +13422,6 @@ func (ec *executionContext) unmarshalInputJobFilter(ctx context.Context, obj any
 				return it, err
 			}
 			it.Energy = data
-		case "minRunningFor":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("minRunningFor"))
-			data, err := ec.unmarshalOInt2ᚖint(ctx, v)
-			if err != nil {
-				return it, err
-			}
-			it.MinRunningFor = data
 		case "numNodes":
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("numNodes"))
 			data, err := ec.unmarshalOIntRange2ᚖgithubᚗcomᚋClusterCockpitᚋccᚑbackendᚋinternalᚋconfigᚐIntRange(ctx, v)
@@ -15926,8 +15958,13 @@ func (ec *executionContext) _NodeMetrics(ctx context.Context, sel ast.SelectionS
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
-		case "state":
-			out.Values[i] = ec._NodeMetrics_state(ctx, field, obj)
+		case "nodeState":
+			out.Values[i] = ec._NodeMetrics_nodeState(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "metricHealth":
+			out.Values[i] = ec._NodeMetrics_metricHealth(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}

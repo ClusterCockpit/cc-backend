@@ -229,7 +229,7 @@
             timestep={metric.data.metric.timestep}
             scope={metric.data.scope}
             series={metric.data.metric.series}
-            statisticsSeries={metric.data.metric.statisticsSeries}
+            statisticsSeries={metric.data.metric?.statisticsSeries}
             metric={metric.data.name}
             cluster={clusterInfos.find((c) => c.name == job.cluster)}
             subCluster={job.subCluster}

@@ -275,13 +275,6 @@ func BuildWhereClause(filter *model.JobFilter, query sq.SelectBuilder) sq.Select
 		}
 	}
 
-	// Configurable Filter to exclude recently started jobs, see config.go: ShortRunningJobsDuration
-	if filter.MinRunningFor != nil {
-		now := time.Now().Unix()
-		// Only jobs whose start timestamp is more than MinRunningFor seconds in the past
-		// If a job completed within the configured timeframe, it will still show up after the start_time matches the condition!
-		query = query.Where(sq.Lt{"job.start_time": (now - int64(*filter.MinRunningFor))})
-	}
 	return query
 }
 

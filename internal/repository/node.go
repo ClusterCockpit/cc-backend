@@ -593,8 +593,8 @@ func (r *NodeRepository) ListNodes(cluster string) ([]*schema.Node, error) {
 	return nodeList, nil
 }
 
-func (r *NodeRepository) MapNodes(cluster string) (map[string]string, error) {
-	q := sq.Select("node.hostname", "node_state.node_state").
+func (r *NodeRepository) MapNodes(cluster string) (map[string]string, map[string]string, error) {
+	q := sq.Select("node.hostname", "node_state.node_state", "node_state.health_state").
 		From("node").
 		Join("node_state ON node_state.node_id = node.id").
 		Where(latestStateCondition()).
@@ -604,22 +604,25 @@ func (r *NodeRepository) MapNodes(cluster string) (map[string]string, error) {
 	rows, err := q.RunWith(r.DB).Query()
 	if err != nil {
 		cclog.Warn("Error while querying node list")
-		return nil, err
+		return nil, nil, err
 	}
 
-	stateMap := make(map[string]string)
+	nodeStateMap := make(map[string]string)
+	metricHealthMap := make(map[string]string)
+
 	defer rows.Close()
 	for rows.Next() {
-		var hostname, nodestate string
-		if err := rows.Scan(&hostname, &nodestate); err != nil {
+		var hostname, nodeState, metricHealth string
+		if err := rows.Scan(&hostname, &nodeState, &metricHealth); err != nil {
 			cclog.Warn("Error while scanning node list (MapNodes)")
-			return nil, err
+			return nil, nil, err
 		}
 
-		stateMap[hostname] = nodestate
+		nodeStateMap[hostname] = nodeState
+		metricHealthMap[hostname] = metricHealth
 	}
 
-	return stateMap, nil
+	return nodeStateMap, metricHealthMap, nil
 }
 
 func (r *NodeRepository) CountStates(ctx context.Context, filters []*model.NodeFilter, column string) ([]*model.NodeStates, error) {
@@ -741,10 +744,11 @@ func (r *NodeRepository) GetNodesForList(
 	stateFilter string,
 	nodeFilter string,
 	page *model.PageRequest,
-) ([]string, map[string]string, int, bool, error) {
+) ([]string, map[string]string, map[string]string, int, bool, error) {
 	// Init Return Vars
 	nodes := make([]string, 0)
-	stateMap := make(map[string]string)
+	nodeStateMap := make(map[string]string)
+	metricHealthMap := make(map[string]string)
 	countNodes := 0
 	hasNextPage := false
 
@@ -778,7 +782,7 @@ func (r *NodeRepository) GetNodesForList(
 	rawNodes, serr := r.QueryNodes(ctx, queryFilters, page, nil) // Order not Used
 	if serr != nil {
 		cclog.Warn("error while loading node database data (Resolver.NodeMetricsList)")
-		return nil, nil, 0, false, serr
+		return nil, nil, nil, 0, false, serr
 	}
 
 	// Intermediate Node Result Info
@@ -787,7 +791,8 @@ func (r *NodeRepository) GetNodesForList(
 			continue
 		}
 		nodes = append(nodes, node.Hostname)
-		stateMap[node.Hostname] = string(node.NodeState)
+		nodeStateMap[node.Hostname] = string(node.NodeState)
+		metricHealthMap[node.Hostname] = string(node.HealthState)
 	}
 
 	// Special Case: Find Nodes not in DB node table but in metricStore only
@@ -847,7 +852,7 @@ func (r *NodeRepository) GetNodesForList(
 		countNodes, cerr = r.CountNodes(ctx, queryFilters)
 		if cerr != nil {
 			cclog.Warn("error while counting node database data (Resolver.NodeMetricsList)")
-			return nil, nil, 0, false, cerr
+			return nil, nil, nil, 0, false, cerr
 		}
 		hasNextPage = page.Page*page.ItemsPerPage < countNodes
 	}
@@ -857,7 +862,7 @@ func (r *NodeRepository) GetNodesForList(
 		nodes, countNodes, hasNextPage = getNodesFromTopol(cluster, subCluster, nodeFilter, page)
 	}
 
-	return nodes, stateMap, countNodes, hasNextPage, nil
+	return nodes, nodeStateMap, metricHealthMap, countNodes, hasNextPage, nil
 }
 
 func AccessCheck(ctx context.Context, query sq.SelectBuilder) (sq.SelectBuilder, error) {

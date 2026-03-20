@@ -75,7 +75,6 @@
 
   const extendedLegendData = $derived($nodeJobsData?.data ? buildExtendedLegend() : null);
   const refinedData = $derived(nodeData?.metrics ? sortAndSelectScope(selectedMetrics, nodeData.metrics) : []);
-  const dataHealth = $derived(refinedData.filter((rd) => rd.availability == "configured").map((enabled) => (nodeDataFetching ? 'fetching' : enabled?.data?.metric?.series?.length > 0)));
 
   /* Functions */
   function sortAndSelectScope(metricList = [], nodeMetrics = []) {
@@ -145,11 +144,12 @@
     {:else}
       <NodeInfo
         {cluster}
-        {dataHealth}
         nodeJobsData={$nodeJobsData.data}
         subCluster={nodeData.subCluster}
         hostname={nodeData.host}
-        hoststate={nodeData?.state? nodeData.state: 'notindb'}/>
+        nodeState={nodeData?.nodeState || 'notindb'}
+        metricHealth={nodeData?.metricHealth || 'unknown'}
+      />
     {/if}
   </td>
   {#each refinedData as metricData, i (metricData?.data?.name || i)}
@@ -174,7 +174,7 @@
             <p>No dataset(s) returned for <b>{selectedMetrics[i]}</b></p>
             <p class="mb-1">Metric or host was not found in metric store for cluster <b>{cluster}</b>.</p>
           </Card>
-        {:else if !!metricData.data?.metric.statisticsSeries}
+        {:else if !!metricData?.data?.metric?.statisticsSeries}
           <!-- "No Data"-Warning included in MetricPlot-Component -->
           <MetricPlot
             {cluster}
@@ -183,8 +183,7 @@
             scope={metricData.data.scope}
             timestep={metricData.data.metric.timestep}
             series={metricData.data.metric.series}
-            statisticsSeries={metricData.data?.metric.statisticsSeries}
-            useStatsSeries={!!metricData.data?.metric.statisticsSeries}
+            statisticsSeries={metricData.data.metric.statisticsSeries}
             height={175}
             {plotSync}
             forNode

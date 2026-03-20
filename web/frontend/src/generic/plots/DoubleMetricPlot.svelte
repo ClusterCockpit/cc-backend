@@ -236,7 +236,7 @@
 
       // conditional hide series color markers:
       if (
-        // useStatsSeries || // Min/Max/Median Self-Explanatory
+        // Min/Max/Median Self-Explanatory
         dataSize === 1 || // Only one Y-Dataseries
         dataSize > 8 // More than 8 Y-Dataseries
       ) {
@@ -273,7 +273,7 @@
       }
     }
 
-    if (dataSize <= 12 ) { // || useStatsSeries) {
+    if (dataSize <= 12 ) {
       return {
         hooks: {
           init: init,

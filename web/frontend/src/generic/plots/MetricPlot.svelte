@@ -9,7 +9,6 @@
   - `height Number?`: The plot height [Default: 300]
   - `timestep Number`: The timestep used for X-axis rendering
   - `series [GraphQL.Series]`: The metric data object
-  - `useStatsSeries Bool?`: If this plot uses the statistics Min/Max/Median representation; automatically set to according bool [Default: false]
   - `statisticsSeries [GraphQL.StatisticsSeries]?`: Min/Max/Median representation of metric data [Default: null]
   - `cluster String?`: Cluster name of the parent job / data [Default: ""]
   - `subCluster String`: Name of the subCluster of the parent job
@@ -37,7 +36,6 @@
     height = 300,
     timestep,
     series,
-    useStatsSeries = false,
     statisticsSeries = null,
     cluster = "",
     subCluster,
@@ -78,6 +76,7 @@
   const resampleTrigger = $derived(resampleConfig?.trigger ? Number(resampleConfig.trigger) : null);
   const resampleResolutions = $derived(resampleConfig?.resolutions ? [...resampleConfig.resolutions] : null);
   const resampleMinimum = $derived(resampleConfig?.resolutions ? Math.min(...resampleConfig.resolutions) : null);
+  const useStatsSeries = $derived(!!statisticsSeries); // Display Stats Series By Default if Exists
   const thresholds = $derived(findJobAggregationThresholds(
     subClusterTopology,
     metricConfig,
@@ -241,11 +240,6 @@
       };
     };
     return pendingSeries;
-  })
-
-  /* Effects */
-  $effect(() => {
-    if (!useStatsSeries && statisticsSeries != null) useStatsSeries = true;
   })
 
   // This updates plot on all size changes if wrapper (== data) exists

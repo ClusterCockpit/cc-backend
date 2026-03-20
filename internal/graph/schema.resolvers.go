@@ -676,6 +676,11 @@ func (r *queryResolver) JobsStatistics(ctx context.Context, filter []*model.JobF
 			// Use request-scoped cache: multiple aliases with same (filter, groupBy)
 			// but different sortBy/page hit the DB only once.
 			if cache := getStatsGroupCache(ctx); cache != nil {
+				// Ensure the sort field is computed even if not in the GraphQL selection,
+				// because sortAndPageStats will sort by it in memory.
+				if sortBy != nil {
+					reqFields[sortByFieldName(*sortBy)] = true
+				}
 				key := statsCacheKey(filter, groupBy, reqFields)
 				var allStats []*model.JobsStatistics
 				allStats, err = cache.getOrCompute(key, func() ([]*model.JobsStatistics, error) {
@@ -840,14 +845,15 @@ func (r *queryResolver) NodeMetrics(ctx context.Context, cluster string, nodes [
 	}
 
 	nodeRepo := repository.GetNodeRepository()
-	stateMap, _ := nodeRepo.MapNodes(cluster)
+	nodeStateMap, metricHealthMap, _ := nodeRepo.MapNodes(cluster)
 
 	nodeMetrics := make([]*model.NodeMetrics, 0, len(data))
 	for hostname, metrics := range data {
 		host := &model.NodeMetrics{
-			Host:    hostname,
-			State:   stateMap[hostname],
-			Metrics: make([]*model.JobMetricWithName, 0, len(metrics)*len(scopes)),
+			Host:         hostname,
+			NodeState:    nodeStateMap[hostname],
+			MetricHealth: metricHealthMap[hostname],
+			Metrics:      make([]*model.JobMetricWithName, 0, len(metrics)*len(scopes)),
 		}
 		host.SubCluster, err = archive.GetSubClusterByNode(cluster, hostname)
 		if err != nil {
@@ -889,7 +895,7 @@ func (r *queryResolver) NodeMetricsList(ctx context.Context, cluster string, sub
 
 	nodeRepo := repository.GetNodeRepository()
 	// nodes -> array hostname
-	nodes, stateMap, countNodes, hasNextPage, nerr := nodeRepo.GetNodesForList(ctx, cluster, subCluster, stateFilter, nodeFilter, page)
+	nodes, nodeStateMap, metricHealthMap, countNodes, hasNextPage, nerr := nodeRepo.GetNodesForList(ctx, cluster, subCluster, stateFilter, nodeFilter, page)
 	if nerr != nil {
 		return nil, errors.New("could not retrieve node list required for resolving NodeMetricsList")
 	}
@@ -910,9 +916,10 @@ func (r *queryResolver) NodeMetricsList(ctx context.Context, cluster string, sub
 	nodeMetricsList := make([]*model.NodeMetrics, 0, len(data))
 	for _, hostname := range nodes {
 		host := &model.NodeMetrics{
-			Host:    hostname,
-			State:   stateMap[hostname],
-			Metrics: make([]*model.JobMetricWithName, 0),
+			Host:         hostname,
+			NodeState:    nodeStateMap[hostname],
+			MetricHealth: metricHealthMap[hostname],
+			Metrics:      make([]*model.JobMetricWithName, 0),
 		}
 		host.SubCluster, err = archive.GetSubClusterByNode(cluster, hostname)
 		if err != nil {
