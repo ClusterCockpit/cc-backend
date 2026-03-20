@@ -1,0 +1,33 @@
+{
+  "cli_version": "0.5.1",
+  "checkpoint_id": "f69e38210bb1",
+  "strategy": "manual-commit",
+  "branch": "feature/526-average-resample",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "internal/config/config.go",
+    "internal/graph/resample.go",
+    "internal/graph/schema.resolvers.go",
+    "internal/metricdispatch/resamplepolicy.go",
+    "internal/metricdispatch/resamplepolicy_test.go",
+    "internal/routerConfig/routes.go",
+    "web/frontend/src/config/user/PlotRenderOptions.svelte",
+    "web/frontend/src/generic/plots/MetricPlot.svelte",
+    "web/web.go"
+  ],
+  "sessions": [
+    {
+      "metadata": "/f6/9e38210bb1/0/metadata.json",
+      "transcript": "/f6/9e38210bb1/0/full.jsonl",
+      "content_hash": "/f6/9e38210bb1/0/content_hash.txt",
+      "prompt": ""
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 40,
+    "cache_creation_tokens": 50901,
+    "cache_read_tokens": 1893591,
+    "output_tokens": 13635,
+    "api_call_count": 38
+  }
+}
