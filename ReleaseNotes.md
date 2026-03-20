@@ -10,7 +10,10 @@ If you are upgrading from v1.5.0 you need to do another DB migration. This
 should not take long. For optimal database performance after the migration it is
 recommended to apply the new `optimize-db` flag, which runs the sqlite `ANALYZE`
 and `VACUUM` commands. Depending on your database size (more then 40GB) the
-`VACUUM` may take up to 2h.
+`VACUUM` may take up to 2h. You can also run the `ANALYZE` command manually.
+While we are confident that the memory issue with the metricstore cleanup move
+policy is fixed, it is still recommended to use delete policy for cleanup.
+This is also the default.
 
 ## Changes in 1.5.2
 
@@ -19,6 +22,14 @@ and `VACUUM` commands. Depending on your database size (more then 40GB) the
 - **Memory spike in parquet writer**: Fixed memory spikes when using the
   metricstore move (archive) policy with the parquet writer. The writer now
   processes data in a streaming fashion to avoid accumulating large allocations.
+- **Top list query fixes**: Fixed top list queries in analysis and dashboard
+  views.
+- **Exclude down nodes from HealthCheck**: Down nodes are now excluded from
+  health checks in both the REST and NATS handlers.
+- **Node state priority order**: Node state determination now enforces a
+  priority order. Exception: idle+down results in idle.
+- **Blocking ReceiveNats call**: Fixed a blocking NATS receive call in the
+  metricstore.
 
 ### Database performance
 
@@ -33,6 +44,16 @@ and `VACUUM` commands. Depending on your database size (more then 40GB) the
   write load.
 - **Increased default SQLite timeout**: The default SQLite connection timeout
   has been raised to reduce spurious timeout errors under load.
+- **Optimized stats queries**: Improved sortby handling in stats queries, fixed
+  cache key passing, and simplified a stats query condition that caused an
+  expensive unnecessary subquery.
+
+### MetricStore performance
+
+- **Sharded WAL consumer**: The WAL consumer is now sharded for significantly
+  higher write throughput.
+- **NATS contention fix**: Fixed contention in the metricstore NATS ingestion
+  path.
 
 ### NATS API
 
@@ -52,6 +73,24 @@ and `VACUUM` commands. Depending on your database size (more then 40GB) the
   operation.
 - **Checkpoint archiving log**: Added an informational log message when the
   metricstore checkpoint archiving process runs.
+- **Auth failure context**: Auth failure log messages now include more context
+  information.
+
+### Behavior changes
+
+- **DB-based metricHealth**: Replaced heuristic-based metric health with
+  DB-based metric health for the node view, providing more accurate health
+  status information.
+- **Removed minRunningFor filter remnants**: Cleaned up remaining `minRunningFor`
+  references from the GraphQL schema and query builder.
+
+### Frontend
+
+- **Streamlined statsSeries**: Unified stats series calculation and rendering
+  across plot components.
+- **Clarified plot titles**: Improved titles in dashboard and health views.
+- **Bumped frontend dependencies**: Updated frontend dependencies to latest
+  versions.
 
 ### Dependencies
 
@@ -67,7 +106,7 @@ and `VACUUM` commands. Depending on your database size (more then 40GB) the
   running has to be allowed to execute the journalctl command.
 - The user configuration keys for the ui have changed. Therefore old user
   configuration persisted in the database is not used anymore. It is recommended
-  to configure the metrics shown in the ui-config sestion and remove all records
+  to configure the metrics shown in the ui-config section and remove all records
   in the table after the update.
 - Currently energy footprint metrics of type energy are ignored for calculating
   total energy.
