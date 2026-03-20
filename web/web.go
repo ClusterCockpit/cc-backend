@@ -72,6 +72,8 @@ type PlotConfiguration struct {
 	PlotsPerRow     int      `json:"plots-per-row"`
 	LineWidth       int      `json:"line-width"`
 	ColorScheme     []string `json:"color-scheme"`
+	ResampleAlgo    string   `json:"resample-algo"`
+	ResamplePolicy  string   `json:"resample-policy"`
 }
 
 var UIDefaults = WebConfig{
@@ -144,6 +146,8 @@ func Init(rawConfig json.RawMessage) error {
 	UIDefaultsMap["plotConfiguration_plotsPerRow"] = UIDefaults.PlotConfiguration.PlotsPerRow
 	UIDefaultsMap["plotConfiguration_lineWidth"] = UIDefaults.PlotConfiguration.LineWidth
 	UIDefaultsMap["plotConfiguration_colorScheme"] = UIDefaults.PlotConfiguration.ColorScheme
+	UIDefaultsMap["plotConfiguration_resampleAlgo"] = UIDefaults.PlotConfiguration.ResampleAlgo
+	UIDefaultsMap["plotConfiguration_resamplePolicy"] = UIDefaults.PlotConfiguration.ResamplePolicy
 
 	for _, c := range UIDefaults.MetricConfig.Clusters {
 		if c.JobListMetrics != nil {

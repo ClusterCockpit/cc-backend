@@ -112,6 +112,8 @@ type ResampleConfig struct {
 	Resolutions []int `json:"resolutions"`
 	// Trigger next zoom level at less than this many visible datapoints
 	Trigger int `json:"trigger"`
+	// Policy-derived target point count (set dynamically from user preference, not from config.json)
+	TargetPoints int `json:"targetPoints,omitempty"`
 }
 
 type NATSConfig struct {

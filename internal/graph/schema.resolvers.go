@@ -499,26 +499,27 @@ func (r *queryResolver) Job(ctx context.Context, id string) (*schema.Job, error)
 
 // JobMetrics is the resolver for the jobMetrics field.
 func (r *queryResolver) JobMetrics(ctx context.Context, id string, metrics []string, scopes []schema.MetricScope, resolution *int, resampleAlgo *model.ResampleAlgo) ([]*model.JobMetricWithName, error) {
-	if resolution == nil { // Load from Config
-		if config.Keys.EnableResampling != nil {
-			defaultRes := slices.Max(config.Keys.EnableResampling.Resolutions)
-			resolution = &defaultRes
-		} else { // Set 0 (Loads configured metric timestep)
-			defaultRes := 0
-			resolution = &defaultRes
-		}
-	}
-
 	job, err := r.Query().Job(ctx, id)
 	if err != nil {
 		cclog.Warn("Error while querying job for metrics")
 		return nil, err
 	}
 
-	algoName := ""
-	if resampleAlgo != nil {
-		algoName = strings.ToLower(resampleAlgo.String())
+	// Resolve resolution: explicit param > user policy > global config > 0
+	if resolution == nil {
+		resolution = resolveResolutionFromPolicy(ctx, int64(job.Duration), job.Cluster, metrics)
 	}
+	if resolution == nil {
+		if config.Keys.EnableResampling != nil {
+			defaultRes := slices.Max(config.Keys.EnableResampling.Resolutions)
+			resolution = &defaultRes
+		} else {
+			defaultRes := 0
+			resolution = &defaultRes
+		}
+	}
+
+	algoName := resolveResampleAlgo(ctx, resampleAlgo)
 
 	data, err := metricdispatch.LoadData(job, metrics, scopes, ctx, *resolution, algoName)
 	if err != nil {
@@ -878,11 +879,16 @@ func (r *queryResolver) NodeMetrics(ctx context.Context, cluster string, nodes [
 
 // NodeMetricsList is the resolver for the nodeMetricsList field.
 func (r *queryResolver) NodeMetricsList(ctx context.Context, cluster string, subCluster string, stateFilter string, nodeFilter string, scopes []schema.MetricScope, metrics []string, from time.Time, to time.Time, page *model.PageRequest, resolution *int, resampleAlgo *model.ResampleAlgo) (*model.NodesResultList, error) {
-	if resolution == nil { // Load from Config
+	// Resolve resolution: explicit param > user policy > global config > 0
+	duration := int64(to.Sub(from).Seconds())
+	if resolution == nil {
+		resolution = resolveResolutionFromPolicy(ctx, duration, cluster, metrics)
+	}
+	if resolution == nil {
 		if config.Keys.EnableResampling != nil {
 			defaultRes := slices.Max(config.Keys.EnableResampling.Resolutions)
 			resolution = &defaultRes
-		} else { // Set 0 (Loads configured metric timestep)
+		} else {
 			defaultRes := 0
 			resolution = &defaultRes
 		}
@@ -906,10 +912,7 @@ func (r *queryResolver) NodeMetricsList(ctx context.Context, cluster string, sub
 		}
 	}
 
-	algoName := ""
-	if resampleAlgo != nil {
-		algoName = strings.ToLower(resampleAlgo.String())
-	}
+	algoName := resolveResampleAlgo(ctx, resampleAlgo)
 
 	// data -> map hostname:jobdata
 	data, err := metricdispatch.LoadNodeListData(cluster, subCluster, nodes, metrics, scopes, *resolution, from, to, ctx, algoName)

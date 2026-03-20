@@ -16,6 +16,7 @@
     Card,
     CardTitle,
   } from "@sveltestrap/sveltestrap";
+  import { getContext } from "svelte";
   import { fade } from "svelte/transition";
 
   /* Svelte 5 Props */
@@ -25,6 +26,9 @@
     displayMessage = $bindable(),
     updateSetting
   } = $props();
+
+  const resampleConfig = getContext("resampling");
+  const resamplingEnabled = !!resampleConfig;
 </script>
 
 <Row cols={3} class="p-2 g-2">
@@ -219,4 +223,92 @@
       </form>
     </Card>
   </Col>
+
+  {#if resamplingEnabled}
+  <!-- RESAMPLE POLICY -->
+  <Col>
+    <Card class="h-100">
+      <form
+        id="resample-policy-form"
+        method="post"
+        action="/frontend/configuration/"
+        class="card-body"
+        onsubmit={(e) => updateSetting(e, {
+          selector: "#resample-policy-form",
+          target: "rsp",
+        })}
+      >
+        <CardTitle
+          style="margin-bottom: 1em; display: flex; align-items: center;"
+        >
+          <div>Resample Policy</div>
+          {#if displayMessage && message.target == "rsp"}
+            <div style="margin-left: auto; font-size: 0.9em;">
+              <code style="color: {message.color};" out:fade>
+                Update: {message.msg}
+              </code>
+            </div>
+          {/if}
+        </CardTitle>
+        <input type="hidden" name="key" value="plotConfiguration_resamplePolicy" />
+        <div class="mb-3">
+          {#each [["", "Default"], ["low", "Low"], ["medium", "Medium"], ["high", "High"]] as [val, label]}
+            <div>
+              <input type="radio" id="rsp-{val || 'default'}" name="value" value={JSON.stringify(val)}
+                checked={(!config.plotConfiguration_resamplePolicy && val === "") || config.plotConfiguration_resamplePolicy === val} />
+              <label for="rsp-{val || 'default'}">{label}</label>
+            </div>
+          {/each}
+          <div id="resamplePolicyHelp" class="form-text">
+            Controls how many data points are shown in metric plots. Low = fast overview (~200 points), Medium = balanced (~500), High = maximum detail (~1000).
+          </div>
+        </div>
+        <Button color="primary" type="submit">Submit</Button>
+      </form>
+    </Card>
+  </Col>
+
+  <!-- RESAMPLE ALGORITHM -->
+  <Col>
+    <Card class="h-100">
+      <form
+        id="resample-algo-form"
+        method="post"
+        action="/frontend/configuration/"
+        class="card-body"
+        onsubmit={(e) => updateSetting(e, {
+          selector: "#resample-algo-form",
+          target: "rsa",
+        })}
+      >
+        <CardTitle
+          style="margin-bottom: 1em; display: flex; align-items: center;"
+        >
+          <div>Resample Algorithm</div>
+          {#if displayMessage && message.target == "rsa"}
+            <div style="margin-left: auto; font-size: 0.9em;">
+              <code style="color: {message.color};" out:fade>
+                Update: {message.msg}
+              </code>
+            </div>
+          {/if}
+        </CardTitle>
+        <input type="hidden" name="key" value="plotConfiguration_resampleAlgo" />
+        <div class="mb-3">
+          {#each [["", "Default"], ["lttb", "LTTB"], ["average", "Average"], ["simple", "Simple"]] as [val, label]}
+            <div>
+              <input type="radio" id="rsa-{val || 'default'}" name="value" value={JSON.stringify(val)}
+                checked={(!config.plotConfiguration_resampleAlgo && val === "") || config.plotConfiguration_resampleAlgo === val} />
+              <label for="rsa-{val || 'default'}">{label}</label>
+            </div>
+          {/each}
+          <div id="resampleAlgoHelp" class="form-text">
+            Algorithm used when downsampling time-series data. LTTB preserves visual shape, Average smooths data, Simple picks every Nth point.
+          </div>
+        </div>
+        <Button color="primary" type="submit">Submit</Button>
+      </form>
+    </Card>
+  </Col>
+  {/if}
 </Row>
