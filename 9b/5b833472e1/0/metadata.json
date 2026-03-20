@@ -1,0 +1,36 @@
+{
+  "cli_version": "0.5.0",
+  "checkpoint_id": "9b5b833472e1",
+  "session_id": "c8010cd5-db40-4104-813d-673a42ac9dbe",
+  "strategy": "manual-commit",
+  "created_at": "2026-03-20T04:39:20.325642Z",
+  "branch": "hotfix",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "internal/graph/schema.resolvers.go",
+    "internal/graph/stats_cache.go"
+  ],
+  "agent": "Claude Code",
+  "turn_id": "ab17f9d07cdd",
+  "checkpoint_transcript_start": 34,
+  "transcript_lines_at_start": 34,
+  "token_usage": {
+    "input_tokens": 13,
+    "cache_creation_tokens": 31151,
+    "cache_read_tokens": 339830,
+    "output_tokens": 4968,
+    "api_call_count": 11
+  },
+  "session_metrics": {
+    "turn_count": 2
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-03-20T04:39:20.181086Z",
+    "agent_lines": 32,
+    "human_added": 0,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 32,
+    "agent_percentage": 100
+  }
+}
