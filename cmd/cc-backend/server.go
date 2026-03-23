@@ -344,18 +344,18 @@ func (s *Server) init() error {
 
 // Server timeout defaults (in seconds)
 const (
-	defaultReadTimeout  = 20
-	defaultWriteTimeout = 20
+	defaultReadHeaderTimeout = 20
+	defaultWriteTimeout      = 20
 )
 
 func (s *Server) Start(ctx context.Context) error {
 	// Use configurable timeouts with defaults
-	readTimeout := time.Duration(defaultReadTimeout) * time.Second
+	readHeaderTimeout := time.Duration(defaultReadHeaderTimeout) * time.Second
 	writeTimeout := time.Duration(defaultWriteTimeout) * time.Second
 
 	s.server = &http.Server{
-		ReadTimeout:  readTimeout,
-		WriteTimeout: writeTimeout,
+		ReadHeaderTimeout: readHeaderTimeout,
+		WriteTimeout:      writeTimeout,
 		Handler:      s.router,
 		Addr:         config.Keys.Addr,
 	}
