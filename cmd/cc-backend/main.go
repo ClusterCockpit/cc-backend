@@ -14,6 +14,7 @@ import (
 	"fmt"
 	"os"
 	"os/signal"
+	goruntime "runtime"
 	"runtime/debug"
 	"strings"
 	"sync"
@@ -534,6 +535,43 @@ func run() error {
 	// Initialize subsystems (archive, metrics, taggers)
 	if err := initSubsystems(); err != nil {
 		return err
+	}
+
+	// Handle checkpoint cleanup
+	if flagCleanupCheckpoints {
+		mscfg := ccconf.GetPackageConfig("metric-store")
+		if mscfg == nil {
+			return fmt.Errorf("metric-store configuration required for checkpoint cleanup")
+		}
+		if err := json.Unmarshal(mscfg, &metricstore.Keys); err != nil {
+			return fmt.Errorf("decoding metric-store config: %w", err)
+		}
+		if metricstore.Keys.NumWorkers <= 0 {
+			metricstore.Keys.NumWorkers = min(goruntime.NumCPU()/2+1, metricstore.DefaultMaxWorkers)
+		}
+
+		d, err := time.ParseDuration(metricstore.Keys.RetentionInMemory)
+		if err != nil {
+			return fmt.Errorf("parsing retention-in-memory: %w", err)
+		}
+		from := time.Now().Add(-d)
+		deleteMode := metricstore.Keys.Cleanup == nil || metricstore.Keys.Cleanup.Mode != "archive"
+		cleanupDir := ""
+		if !deleteMode {
+			cleanupDir = metricstore.Keys.Cleanup.RootDir
+		}
+
+		cclog.Infof("Cleaning up checkpoints older than %s...", from.Format(time.RFC3339))
+		n, err := metricstore.CleanupCheckpoints(
+			metricstore.Keys.Checkpoints.RootDir, cleanupDir, from.Unix(), deleteMode)
+		if err != nil {
+			return fmt.Errorf("checkpoint cleanup: %w", err)
+		}
+		if deleteMode {
+			cclog.Exitf("Cleanup done: %d checkpoint files deleted.", n)
+		} else {
+			cclog.Exitf("Cleanup done: %d checkpoint files archived to parquet.", n)
+		}
 	}
 
 	// Exit if start server is not requested
