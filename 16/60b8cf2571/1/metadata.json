@@ -1,0 +1,31 @@
+{
+  "cli_version": "0.5.0",
+  "checkpoint_id": "1660b8cf2571",
+  "session_id": "94e2d90e-5772-4423-a4fb-75c7caa1e1c4",
+  "strategy": "manual-commit",
+  "created_at": "2026-03-23T05:32:24.911492Z",
+  "branch": "hotfix",
+  "checkpoints_count": 0,
+  "files_touched": [
+    "pkg/metricstore/archive.go"
+  ],
+  "agent": "Claude Code",
+  "model": "claude-opus-4-6",
+  "turn_id": "9b850c2d56d3",
+  "token_usage": {
+    "input_tokens": 12,
+    "cache_creation_tokens": 28841,
+    "cache_read_tokens": 149746,
+    "output_tokens": 2477,
+    "api_call_count": 6
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-03-23T05:32:24.842491Z",
+    "agent_lines": 9,
+    "human_added": 7,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 16,
+    "agent_percentage": 56.25
+  }
+}
