@@ -22,6 +22,7 @@ import (
 
 func CleanUp(wg *sync.WaitGroup, ctx context.Context) {
 	if Keys.Cleanup.Mode == "archive" {
+		cclog.Info("[METRICSTORE]> enable archive cleanup to parquet")
 		// Run as Archiver
 		cleanUpWorker(wg, ctx,
 			Keys.RetentionInMemory,
@@ -43,7 +44,6 @@ func CleanUp(wg *sync.WaitGroup, ctx context.Context) {
 // cleanUpWorker takes simple values to configure what it does
 func cleanUpWorker(wg *sync.WaitGroup, ctx context.Context, interval string, mode string, cleanupDir string, delete bool) {
 	wg.Go(func() {
-
 		d, err := time.ParseDuration(interval)
 		if err != nil {
 			cclog.Fatalf("[METRICSTORE]> error parsing %s interval duration: %v\n", mode, err)
@@ -99,8 +99,8 @@ func deleteCheckpoints(checkpointsDir string, from int64) (int, error) {
 	}
 
 	type workItem struct {
-		dir            string
-		cluster, host  string
+		dir           string
+		cluster, host string
 	}
 
 	var wg sync.WaitGroup
@@ -273,6 +273,12 @@ func archiveCheckpoints(checkpointsDir, cleanupDir string, from int64) (int, err
 					if err := writer.WriteCheckpointFile(cf, cluster, r.hostname, "node", ""); err != nil {
 						writeErr = err
 						break
+					}
+				}
+				// Flush once per host to keep row group count within parquet limits.
+				if writeErr == nil {
+					if err := writer.FlushRowGroup(); err != nil {
+						writeErr = err
 					}
 				}
 			}
