@@ -1,0 +1,26 @@
+{
+  "cli_version": "0.5.0",
+  "checkpoint_id": "1660b8cf2571",
+  "strategy": "manual-commit",
+  "branch": "hotfix",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "pkg/metricstore/archive.go",
+    "pkg/metricstore/parquetArchive.go"
+  ],
+  "sessions": [
+    {
+      "metadata": "/16/60b8cf2571/0/metadata.json",
+      "transcript": "/16/60b8cf2571/0/full.jsonl",
+      "content_hash": "/16/60b8cf2571/0/content_hash.txt",
+      "prompt": ""
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 22,
+    "cache_creation_tokens": 23092,
+    "cache_read_tokens": 558774,
+    "output_tokens": 6337,
+    "api_call_count": 20
+  }
+}
