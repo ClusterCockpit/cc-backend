@@ -434,69 +434,6 @@ func writeWALRecordDirect(w *bufio.Writer, msg *WALMessage) error {
 	return err
 }
 
-// buildWALPayload encodes a WALMessage into a binary payload (without magic/length/CRC).
-func buildWALPayload(msg *WALMessage) []byte {
-	size := 8 + 2 + len(msg.MetricName) + 1 + 4
-	for _, s := range msg.Selector {
-		size += 1 + len(s)
-	}
-
-	buf := make([]byte, 0, size)
-
-	// Timestamp (8 bytes, little-endian int64)
-	var ts [8]byte
-	binary.LittleEndian.PutUint64(ts[:], uint64(msg.Timestamp))
-	buf = append(buf, ts[:]...)
-
-	// Metric name (2-byte length prefix + bytes)
-	var mLen [2]byte
-	binary.LittleEndian.PutUint16(mLen[:], uint16(len(msg.MetricName)))
-	buf = append(buf, mLen[:]...)
-	buf = append(buf, msg.MetricName...)
-
-	// Selector count (1 byte)
-	buf = append(buf, byte(len(msg.Selector)))
-
-	// Selectors (1-byte length prefix + bytes each)
-	for _, sel := range msg.Selector {
-		buf = append(buf, byte(len(sel)))
-		buf = append(buf, sel...)
-	}
-
-	// Value (4 bytes, float32 bit representation)
-	var val [4]byte
-	binary.LittleEndian.PutUint32(val[:], math.Float32bits(float32(msg.Value)))
-	buf = append(buf, val[:]...)
-
-	return buf
-}
-
-// writeWALRecord appends a binary WAL record to the writer.
-// Format: [4B magic][4B payload_len][payload][4B CRC32]
-func writeWALRecord(w io.Writer, msg *WALMessage) error {
-	payload := buildWALPayload(msg)
-	crc := crc32.ChecksumIEEE(payload)
-
-	record := make([]byte, 0, 4+4+len(payload)+4)
-
-	var magic [4]byte
-	binary.LittleEndian.PutUint32(magic[:], walRecordMagic)
-	record = append(record, magic[:]...)
-
-	var pLen [4]byte
-	binary.LittleEndian.PutUint32(pLen[:], uint32(len(payload)))
-	record = append(record, pLen[:]...)
-
-	record = append(record, payload...)
-
-	var crcBytes [4]byte
-	binary.LittleEndian.PutUint32(crcBytes[:], crc)
-	record = append(record, crcBytes[:]...)
-
-	_, err := w.Write(record)
-	return err
-}
-
 // readWALRecord reads one WAL record from the reader.
 // Returns (nil, nil) on clean EOF. Returns error on data corruption.
 // A CRC mismatch indicates a truncated trailing record (expected on crash).
