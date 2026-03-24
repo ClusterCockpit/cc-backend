@@ -347,8 +347,8 @@ export function getStatsItems(presetStats = []) {
                         field: presetEntry.field,
                         text: `${gm.name} (${gm.footprint})`,
                         metric: gm.name,
-                        from: presetEntry.from,
-                        to: (presetEntry.to == 0) ? mc.peak : presetEntry.to,
+                        from: presetEntry?.from || 0,
+                        to: (presetEntry.to == 0) ? null : presetEntry.to,
                         peak: mc.peak,
                         enabled: true,
                         unit: `${gm?.unit?.prefix ? gm.unit.prefix : ''}${gm.unit.base}`
@@ -358,8 +358,8 @@ export function getStatsItems(presetStats = []) {
                         field: `${gm.name}_${gm.footprint}`,
                         text: `${gm.name} (${gm.footprint})`,
                         metric: gm.name,
-                        from: 1,
-                        to: mc.peak,
+                        from: 0,
+                        to: null,
                         peak: mc.peak,
                         enabled: false,
                         unit: `${gm?.unit?.prefix ? gm.unit.prefix : ''}${gm.unit.base}`

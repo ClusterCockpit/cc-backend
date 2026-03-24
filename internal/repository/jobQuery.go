@@ -280,11 +280,11 @@ func BuildWhereClause(filter *model.JobFilter, query sq.SelectBuilder) sq.Select
 
 // buildIntCondition creates clauses for integer range filters, using BETWEEN only if required.
 func buildIntCondition(field string, cond *config.IntRange, query sq.SelectBuilder) sq.SelectBuilder {
-	if cond.From != 1 && cond.To != 0 {
+	if cond.From > 0 && cond.To > 0 {
 		return query.Where(field+" BETWEEN ? AND ?", cond.From, cond.To)
-	} else if cond.From != 1 && cond.To == 0 {
+	} else if cond.From > 0 && cond.To == 0 {
 		return query.Where(field+" >= ?", cond.From)
-	} else if cond.From == 1 && cond.To != 0 {
+	} else if cond.From == 0 && cond.To > 0 {
 		return query.Where(field+" <= ?", cond.To)
 	} else {
 		return query
@@ -293,11 +293,11 @@ func buildIntCondition(field string, cond *config.IntRange, query sq.SelectBuild
 
 // buildFloatCondition creates a clauses for float range filters, using BETWEEN only if required.
 func buildFloatCondition(field string, cond *model.FloatRange, query sq.SelectBuilder) sq.SelectBuilder {
-	if cond.From != 1.0 && cond.To != 0.0 {
+	if cond.From > 0.0 && cond.To > 0.0 {
 		return query.Where(field+" BETWEEN ? AND ?", cond.From, cond.To)
-	} else if cond.From != 1.0 && cond.To == 0.0 {
+	} else if cond.From > 0.0 && cond.To == 0.0 {
 		return query.Where(field+" >= ?", cond.From)
-	} else if cond.From == 1.0 && cond.To != 0.0 {
+	} else if cond.From == 0.0 && cond.To > 0.0 {
 		return query.Where(field+" <= ?", cond.To)
 	} else {
 		return query
@@ -339,11 +339,11 @@ func buildTimeCondition(field string, cond *config.TimeRange, query sq.SelectBui
 // buildFloatJSONCondition creates a filter on a numeric field within the footprint JSON column, using BETWEEN only if required.
 func buildFloatJSONCondition(jsonField string, cond *model.FloatRange, query sq.SelectBuilder) sq.SelectBuilder {
 	query = query.Where("JSON_VALID(footprint)")
-	if cond.From != 1.0 && cond.To != 0.0 {
+	if cond.From > 0.0 && cond.To > 0.0 {
 		return query.Where("JSON_EXTRACT(footprint, \"$."+jsonField+"\") BETWEEN ? AND ?", cond.From, cond.To)
-	} else if cond.From != 1.0 && cond.To == 0.0 {
+	} else if cond.From > 0.0 && cond.To == 0.0 {
 		return query.Where("JSON_EXTRACT(footprint, \"$."+jsonField+"\") >= ?", cond.From)
-	} else if cond.From == 1.0 && cond.To != 0.0 {
+	} else if cond.From == 0.0 && cond.To > 0.0 {
 		return query.Where("JSON_EXTRACT(footprint, \"$."+jsonField+"\") <= ?", cond.To)
 	} else {
 		return query

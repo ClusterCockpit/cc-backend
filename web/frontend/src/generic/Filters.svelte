@@ -166,12 +166,12 @@
       items.push({ project: { [filters.projectMatch]: filters.project } });
     if (filters.user)
       items.push({ user: { [filters.userMatch]: filters.user } });
-    if (filters.numNodes.from != null || filters.numNodes.to != null) {
+    if (filters.numNodes.from != null && filters.numNodes.to != null) {
       items.push({
         numNodes: { from: filters.numNodes.from, to: filters.numNodes.to },
       });
     }
-    if (filters.numAccelerators.from != null || filters.numAccelerators.to != null) {
+    if (filters.numAccelerators.from != null && filters.numAccelerators.to != null) {
       items.push({
         numAccelerators: {
           from: filters.numAccelerators.from,
@@ -179,7 +179,7 @@
         },
       });
     }
-    if (filters.numHWThreads.from != null || filters.numHWThreads.to != null) {
+    if (filters.numHWThreads.from != null && filters.numHWThreads.to != null) {
       items.push({
         numHWThreads: {
           from: filters.numHWThreads.from,
@@ -206,14 +206,21 @@
       items.push({ duration: { to: filters.duration.lessThan, from: 0 } });
     if (filters.duration.moreThan)
       items.push({ duration: { to: 0, from: filters.duration.moreThan } });
-    if (filters.energy.from != null || filters.energy.to != null)
+    if (filters.energy.from != null && filters.energy.to != null)
       items.push({
         energy: { from: filters.energy.from, to: filters.energy.to },
       });
     if (filters.jobId)
       items.push({ jobId: { [filters.jobIdMatch]: filters.jobId } });
-    if (filters.stats.length != 0)
-      items.push({ metricStats: filters.stats.map((st) => { return { metricName: st.field, range: { from: st.from, to: st.to }} }) });
+    if (filters.stats.length != 0) {
+      const metricStats = [];
+      filters.stats.forEach((st) => {
+        if (st.from != null && st.to != null) 
+          metricStats.push({ metricName: st.field, range: { from: st.from, to: st.to }});
+      });
+      if (metricStats.length != 0)
+         items.push({metricStats})
+    };
     if (filters.node) items.push({ node: { [filters.nodeMatch]: filters.node } });
     if (filters.jobName) items.push({ jobName: { contains: filters.jobName } });
     if (filters.schedule) items.push({ schedule: filters.schedule });
@@ -280,40 +287,40 @@
       opts.push(`duration=morethan-${filters.duration.moreThan}`);
     if (filters.tags.length != 0)
       for (let tag of filters.tags) opts.push(`tag=${tag}`);
-    if (filters.numNodes.from > 1 && filters.numNodes.to > 0)
+    if (filters.numNodes.from > 0 && filters.numNodes.to > 0)
       opts.push(`numNodes=${filters.numNodes.from}-${filters.numNodes.to}`);
-    else if (filters.numNodes.from > 1 && filters.numNodes.to == 0)
+    else if (filters.numNodes.from > 0 && filters.numNodes.to == 0)
       opts.push(`numNodes=morethan-${filters.numNodes.from}`);
-    else if (filters.numNodes.from == 1 && filters.numNodes.to > 0)
+    else if (filters.numNodes.from == 0 && filters.numNodes.to > 0)
       opts.push(`numNodes=lessthan-${filters.numNodes.to}`);
-    if (filters.numHWThreads.from > 1 && filters.numHWThreads.to > 0)
+    if (filters.numHWThreads.from > 0 && filters.numHWThreads.to > 0)
       opts.push(`numHWThreads=${filters.numHWThreads.from}-${filters.numHWThreads.to}`);
-    else if (filters.numHWThreads.from > 1 && filters.numHWThreads.to == 0)
+    else if (filters.numHWThreads.from > 0 && filters.numHWThreads.to == 0)
       opts.push(`numHWThreads=morethan-${filters.numHWThreads.from}`);
-    else if (filters.numHWThreads.from == 1 && filters.numHWThreads.to > 0)
+    else if (filters.numHWThreads.from == 0 && filters.numHWThreads.to > 0)
       opts.push(`numHWThreads=lessthan-${filters.numHWThreads.to}`);
-    if (filters.numAccelerators.from && filters.numAccelerators.to)
+    if (filters.numAccelerators.from > 0 && filters.numAccelerators.to > 0)
       opts.push(`numAccelerators=${filters.numAccelerators.from}-${filters.numAccelerators.to}`);
-    else if (filters.numAccelerators.from > 1 && filters.numAccelerators.to == 0)
+    else if (filters.numAccelerators.from > 0 && filters.numAccelerators.to == 0)
       opts.push(`numAccelerators=morethan-${filters.numAccelerators.from}`);
-    else if (filters.numAccelerators.from == 1 && filters.numAccelerators.to > 0)
+    else if (filters.numAccelerators.from == 0 && filters.numAccelerators.to > 0)
       opts.push(`numAccelerators=lessthan-${filters.numAccelerators.to}`);
     if (filters.node) opts.push(`node=${filters.node}`);
     if (filters.node && filters.nodeMatch != "eq") // "eq" is default-case
       opts.push(`nodeMatch=${filters.nodeMatch}`);
-    if (filters.energy.from > 1 && filters.energy.to > 0)
+    if (filters.energy.from > 0 && filters.energy.to > 0)
       opts.push(`energy=${filters.energy.from}-${filters.energy.to}`);
-    else if (filters.energy.from > 1 && filters.energy.to == 0)
+    else if (filters.energy.from > 0 && filters.energy.to == 0)
       opts.push(`energy=morethan-${filters.energy.from}`);
-    else if (filters.energy.from == 1 && filters.energy.to > 0)
+    else if (filters.energy.from == 0 && filters.energy.to > 0)
       opts.push(`energy=lessthan-${filters.energy.to}`);
     if (filters.stats.length > 0)
       for (let stat of filters.stats) {
-        if (stat.from > 1 && stat.to > 0)
+        if (stat.from > 0 && stat.to > 0)
           opts.push(`stat=${stat.field}-${stat.from}-${stat.to}`);
-        else if (stat.from > 1 && stat.to == 0)
+        else if (stat.from > 0 && stat.to == 0)
           opts.push(`stat=${stat.field}-morethan-${stat.from}`);
-        else if (stat.from == 1 && stat.to > 0)
+        else if (stat.from == 0 && stat.to > 0)
           opts.push(`stat=${stat.field}-lessthan-${stat.to}`);
       }
     // Build && Return
@@ -511,43 +518,43 @@
     </Info>
   {/if}
 
-  {#if filters.numNodes.from > 1 && filters.numNodes.to > 0}
+  {#if filters.numNodes.from > 0 && filters.numNodes.to > 0}
     <Info icon="hdd-stack" onclick={() => (isResourcesOpen = true)}>
       Nodes: {filters.numNodes.from} - {filters.numNodes.to}
     </Info>
-  {:else if filters.numNodes.from > 1 && filters.numNodes.to == 0}
+  {:else if filters.numNodes.from > 0 && filters.numNodes.to == 0}
     <Info icon="hdd-stack" onclick={() => (isResourcesOpen = true)}>
       &nbsp;&ge;&nbsp;{filters.numNodes.from} Node(s)
     </Info>
-  {:else if filters.numNodes.from == 1 && filters.numNodes.to > 0}
+  {:else if filters.numNodes.from == 0 && filters.numNodes.to > 0}
     <Info icon="hdd-stack" onclick={() => (isResourcesOpen = true)}>
       &nbsp;&le;&nbsp;{filters.numNodes.to} Node(s)
     </Info>
   {/if}
 
-  {#if filters.numHWThreads.from > 1 && filters.numHWThreads.to > 0}
+  {#if filters.numHWThreads.from > 0 && filters.numHWThreads.to > 0}
     <Info icon="cpu" onclick={() => (isResourcesOpen = true)}>
       HWThreads: {filters.numHWThreads.from} - {filters.numHWThreads.to}
     </Info>
-  {:else if filters.numHWThreads.from > 1 && filters.numHWThreads.to == 0}
+  {:else if filters.numHWThreads.from > 0 && filters.numHWThreads.to == 0}
     <Info icon="cpu" onclick={() => (isResourcesOpen = true)}>
       &nbsp;&ge;&nbsp;{filters.numHWThreads.from} HWThread(s)
     </Info>
-  {:else if filters.numHWThreads.from == 1 && filters.numHWThreads.to > 0}
+  {:else if filters.numHWThreads.from == 0 && filters.numHWThreads.to > 0}
     <Info icon="cpu" onclick={() => (isResourcesOpen = true)}>
       &nbsp;&le;&nbsp;{filters.numHWThreads.to} HWThread(s)
     </Info>
   {/if}
 
-  {#if filters.numAccelerators.from > 1 && filters.numAccelerators.to > 0}
+  {#if filters.numAccelerators.from > 0 && filters.numAccelerators.to > 0}
     <Info icon="gpu-card" onclick={() => (isResourcesOpen = true)}>
       Accelerators: {filters.numAccelerators.from} - {filters.numAccelerators.to}
     </Info>
-  {:else if filters.numAccelerators.from > 1 && filters.numAccelerators.to == 0}
+  {:else if filters.numAccelerators.from > 0 && filters.numAccelerators.to == 0}
     <Info icon="gpu-card" onclick={() => (isResourcesOpen = true)}>
       &nbsp;&ge;&nbsp;{filters.numAccelerators.from} Acc(s)
     </Info>
-  {:else if filters.numAccelerators.from == 1 && filters.numAccelerators.to > 0}
+  {:else if filters.numAccelerators.from == 0 && filters.numAccelerators.to > 0}
     <Info icon="gpu-card" onclick={() => (isResourcesOpen = true)}>
       &nbsp;&le;&nbsp;{filters.numAccelerators.to} Acc(s)
     </Info>
@@ -559,15 +566,15 @@
     </Info>
   {/if}
 
-  {#if filters.energy.from > 1 && filters.energy.to > 0}
+  {#if filters.energy.from > 0 && filters.energy.to > 0}
     <Info icon="lightning-charge-fill" onclick={() => (isEnergyOpen = true)}>
       Total Energy: {filters.energy.from} - {filters.energy.to} kWh
     </Info>
-  {:else if filters.energy.from > 1 && filters.energy.to == 0}
+  {:else if filters.energy.from > 0 && filters.energy.to == 0}
     <Info icon="lightning-charge-fill" onclick={() => (isEnergyOpen = true)}>
       Total Energy &ge;&nbsp;{filters.energy.from} kWh
     </Info>
-  {:else if filters.energy.from == 1 && filters.energy.to > 0}
+  {:else if filters.energy.from == 0 && filters.energy.to > 0}
     <Info icon="lightning-charge-fill" onclick={() => (isEnergyOpen = true)}>
       Total Energy &le;&nbsp;{filters.energy.to} kWh
     </Info>
@@ -575,15 +582,15 @@
 
   {#if filters.stats.length > 0}
     {#each filters.stats as stat}
-      {#if stat.from > 1 && stat.to > 0}
+      {#if stat.from > 0 && stat.to > 0}
         <Info icon="bar-chart" onclick={() => (isStatsOpen = true)}>
           {stat.field}: {stat.from} - {stat.to} {stat.unit}
         </Info>&thinsp;
-      {:else if stat.from > 1 && stat.to == 0}
+      {:else if stat.from > 0 && stat.to == 0}
         <Info icon="bar-chart" onclick={() => (isStatsOpen = true)}>
           {stat.field} &ge;&nbsp;{stat.from} {stat.unit}
         </Info>&thinsp;
-      {:else if stat.from == 1 && stat.to > 0}
+      {:else if stat.from == 0 && stat.to > 0}
         <Info icon="bar-chart" onclick={() => (isStatsOpen = true)}>
           {stat.field} &le;&nbsp;{stat.to} {stat.unit}
         </Info>&thinsp;
