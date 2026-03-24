@@ -1,0 +1,1 @@
+writeWALRecord is unused according to the LSP. Can it be removed?
