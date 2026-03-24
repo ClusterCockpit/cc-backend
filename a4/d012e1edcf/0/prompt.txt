@@ -1,0 +1,1 @@
+The shutdown used to take only up to 10s. Since some time around a week the shutdown takes up to 40s. This may be linked to the worker pools added. Can the shutdown time be improved?
