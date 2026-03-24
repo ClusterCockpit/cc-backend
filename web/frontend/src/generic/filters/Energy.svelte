@@ -28,31 +28,29 @@
   } = $props();
 
   /* Const */
-  const minEnergyPreset = 1;
+  const minEnergyPreset = 0;
   const maxEnergyPreset = 100;
 
   /* Derived */
   // Pending
   let pendingEnergyState = $derived({
-    from: presetEnergy?.from ? presetEnergy.from : minEnergyPreset,
-    to: !(presetEnergy.to == null || presetEnergy.to == 0) ? presetEnergy.to : maxEnergyPreset,
+    from: presetEnergy?.from || minEnergyPreset,
+    to: (presetEnergy.to == 0) ? null : presetEnergy.to,
   });
   // Changable
   let energyState = $derived({
-    from: presetEnergy?.from ? presetEnergy.from : minEnergyPreset,
-    to: !(presetEnergy.to == null || presetEnergy.to == 0) ? presetEnergy.to : maxEnergyPreset,
+    from: presetEnergy?.from || minEnergyPreset,
+    to: (presetEnergy.to == 0) ? null : presetEnergy.to,
   });
 
-  const energyActive = $derived(!(JSON.stringify(energyState) === JSON.stringify({ from: minEnergyPreset, to: maxEnergyPreset })));
-  // Block Apply if null
-  const disableApply = $derived(energyState.from === null || energyState.to === null);
+  const energyActive = $derived(!(JSON.stringify(energyState) === JSON.stringify({ from: minEnergyPreset, to: null })));
 
   /* Function */
   function setEnergy() {
     if (energyActive) {
       pendingEnergyState = {
-        from: energyState.from,
-        to: (energyState.to == maxEnergyPreset) ? 0 : energyState.to
+        from: (!energyState?.from) ? 0 : energyState.from,
+        to: (energyState.to === null) ? 0 : energyState.to
       };
     } else {
       pendingEnergyState = { from: null, to: null};
@@ -86,7 +84,6 @@
   <ModalFooter>
     <Button
       color="primary"
-      disabled={disableApply}
       onclick={() => {
         isOpen = false;
         setEnergy();

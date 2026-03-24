@@ -18,6 +18,7 @@ import (
 	"net/http"
 	"os"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/99designs/gqlgen/graphql"
@@ -399,16 +400,6 @@ func (s *Server) Start(ctx context.Context) error {
 		return fmt.Errorf("dropping privileges: %w", err)
 	}
 
-	// Handle context cancellation for graceful shutdown
-	go func() {
-		<-ctx.Done()
-		shutdownCtx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-		defer cancel()
-		if err := s.server.Shutdown(shutdownCtx); err != nil {
-			cclog.Errorf("Server shutdown error: %v", err)
-		}
-	}()
-
 	if err = s.server.Serve(listener); err != nil && err != http.ErrServerClosed {
 		return fmt.Errorf("server failed: %w", err)
 	}
@@ -416,8 +407,7 @@ func (s *Server) Start(ctx context.Context) error {
 }
 
 func (s *Server) Shutdown(ctx context.Context) {
-	// Create a shutdown context with timeout
-	shutdownCtx, cancel := context.WithTimeout(ctx, 30*time.Second)
+	shutdownCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
 
 	nc := nats.GetClient()
@@ -425,20 +415,36 @@ func (s *Server) Shutdown(ctx context.Context) {
 		nc.Close()
 	}
 
-	// First shut down the server gracefully (waiting for all ongoing requests)
 	if err := s.server.Shutdown(shutdownCtx); err != nil {
 		cclog.Errorf("Server shutdown error: %v", err)
 	}
 
-	// Archive all the metric store data
-	ms := metricstore.GetMemoryStore()
+	// Run metricstore and archiver shutdown concurrently.
+	// They are independent: metricstore writes .bin snapshots,
+	// archiver flushes pending job archives.
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		var wg sync.WaitGroup
 
-	if ms != nil {
-		metricstore.Shutdown()
-	}
+		if ms := metricstore.GetMemoryStore(); ms != nil {
+			wg.Go(func() {
+				metricstore.Shutdown()
+			})
+		}
 
-	// Shutdown archiver with 10 second timeout for fast shutdown
-	if err := archiver.Shutdown(10 * time.Second); err != nil {
-		cclog.Warnf("Archiver shutdown: %v", err)
+		wg.Go(func() {
+			if err := archiver.Shutdown(10 * time.Second); err != nil {
+				cclog.Warnf("Archiver shutdown: %v", err)
+			}
+		})
+
+		wg.Wait()
+	}()
+
+	select {
+	case <-done:
+	case <-time.After(10 * time.Second):
+		cclog.Warn("Shutdown deadline exceeded, forcing exit")
 	}
 }
