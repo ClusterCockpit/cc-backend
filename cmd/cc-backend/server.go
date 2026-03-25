@@ -357,8 +357,8 @@ func (s *Server) Start(ctx context.Context) error {
 	s.server = &http.Server{
 		ReadHeaderTimeout: readHeaderTimeout,
 		WriteTimeout:      writeTimeout,
-		Handler:      s.router,
-		Addr:         config.Keys.Addr,
+		Handler:           s.router,
+		Addr:              config.Keys.Addr,
 	}
 
 	// Start http or https server
@@ -444,7 +444,7 @@ func (s *Server) Shutdown(ctx context.Context) {
 
 	select {
 	case <-done:
-	case <-time.After(10 * time.Second):
+	case <-time.After(60 * time.Second):
 		cclog.Warn("Shutdown deadline exceeded, forcing exit")
 	}
 }
