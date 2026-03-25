@@ -363,7 +363,7 @@ func (t *JobClassTagger) Match(job *schema.Job) {
 		for _, m := range ri.metrics {
 			stats, ok := jobStats[m]
 			if !ok {
-				cclog.Errorf("job classification: missing metric '%s' for rule %s on job %d", m, tag, job.JobID)
+				cclog.Debugf("job classification: missing metric '%s' for rule %s on job %d", m, tag, job.JobID)
 				skipRule = true
 				break
 			}
@@ -388,7 +388,7 @@ func (t *JobClassTagger) Match(job *schema.Job) {
 		for _, r := range ri.requirements {
 			ok, err := expr.Run(r, env)
 			if err != nil {
-				cclog.Errorf("error running requirement for rule %s: %#v", tag, err)
+				cclog.Debugf("error running requirement for rule %s: %#v", tag, err)
 				requirementsMet = false
 				break
 			}
@@ -407,7 +407,7 @@ func (t *JobClassTagger) Match(job *schema.Job) {
 		for _, v := range ri.variables {
 			value, err := expr.Run(v.expr, env)
 			if err != nil {
-				cclog.Errorf("error evaluating variable %s for rule %s: %#v", v.name, tag, err)
+				cclog.Debugf("error evaluating variable %s for rule %s: %#v", v.name, tag, err)
 				varError = true
 				break
 			}
