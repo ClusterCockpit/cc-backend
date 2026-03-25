@@ -1,0 +1,11 @@
+The changes yesterday caused a severe Regression on the startup time. The checkpoint loading takes much longer. Before: [INFO]     metricstore.go:159: [METRICSTORE]> Checkpoints loaded (5811 files, 22242 MB, that took 13.982486s)
+3/24/2026, 7:19:34 AMINFO[INFO]     metricstore.go:153: [METRICSTORE]> Loading checkpoints newer than 2026-03-23T07:19:34+01:00. And after the changes: etricstore.go:159: [METRICSTORE]> Checkpoints loaded (5860 files, 21338 MB, that took 302.524814s)
+3/24/2026, 6:10:53 PMINFO[INFO]     metricstore.go:153: [METRICSTORE]> Loading checkpoints newer than 2026-03-23T18:10:53+01:00
+3/24/2026, 6:10:43 PMINFO[INFO]     metricstore.go:153: [METRICSTORE]> Loading checkpoints newer than 2026-03-23T18:10:43+01:00
+3/24/2026, 6:09:50 PMINFO[INFO]     metricstore.go:153: [METRICSTORE]> Loading checkpoints newer than 2026-03-23T18:09:50+01:00
+3/24/2026, 6:05:57 PMINFO[INFO]     metricstore.go:153: [METRICSTORE]> Loading checkpoints newer than 2026-03-23T18:05:57+01:00
+3/24/2026, 6:02:12 PMINFO[INFO]     metricstore.go:153: [METRICSTORE]> Loading checkpoints newer than 2026-03-23T18:02:12+01:00. Investigate the issue and fix it.
+
+---
+
+It must have been changes of the last 2 days. Before the startup was fast. Maybe the changes in the startup and shutdown handling code?
