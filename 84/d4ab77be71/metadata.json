@@ -1,0 +1,28 @@
+{
+  "cli_version": "0.5.0",
+  "checkpoint_id": "84d4ab77be71",
+  "strategy": "manual-commit",
+  "branch": "hotfix",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "Makefile",
+    "ReleaseNotes.md",
+    "web/frontend/package-lock.json",
+    "web/frontend/package.json"
+  ],
+  "sessions": [
+    {
+      "metadata": "/84/d4ab77be71/0/metadata.json",
+      "transcript": "/84/d4ab77be71/0/full.jsonl",
+      "content_hash": "/84/d4ab77be71/0/content_hash.txt",
+      "prompt": "/84/d4ab77be71/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 23,
+    "cache_creation_tokens": 35075,
+    "cache_read_tokens": 617878,
+    "output_tokens": 5693,
+    "api_call_count": 19
+  }
+}

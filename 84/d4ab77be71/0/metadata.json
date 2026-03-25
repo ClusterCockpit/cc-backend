@@ -1,0 +1,36 @@
+{
+  "cli_version": "0.5.0",
+  "checkpoint_id": "84d4ab77be71",
+  "session_id": "2c70f6a4-508e-4027-a3a2-d54b57a63307",
+  "strategy": "manual-commit",
+  "created_at": "2026-03-25T06:18:27.911858Z",
+  "branch": "hotfix",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "Makefile",
+    "ReleaseNotes.md",
+    "web/frontend/package-lock.json",
+    "web/frontend/package.json"
+  ],
+  "agent": "Claude Code",
+  "turn_id": "67342baed90b",
+  "token_usage": {
+    "input_tokens": 23,
+    "cache_creation_tokens": 35075,
+    "cache_read_tokens": 617878,
+    "output_tokens": 5693,
+    "api_call_count": 19
+  },
+  "session_metrics": {
+    "turn_count": 1
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-03-25T06:18:27.826482Z",
+    "agent_lines": 42,
+    "human_added": 0,
+    "human_modified": 2,
+    "human_removed": 0,
+    "total_committed": 44,
+    "agent_percentage": 95.45454545454545
+  }
+}
