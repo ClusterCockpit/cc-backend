@@ -712,16 +712,16 @@ func (m *MemoryStore) Read(selector util.Selector, metric string, from, to, reso
 		} else if from != cfrom || to != cto || len(data) != len(cdata) {
 			missingfront, missingback := int((from-cfrom)/minfo.Frequency), int((to-cto)/minfo.Frequency)
 			if missingfront != 0 {
-				return ErrDataDoesNotAlign
+				return ErrDataDoesNotAlignMissingFront
 			}
 
 			newlen := len(cdata) - missingback
 			if newlen < 1 {
-				return ErrDataDoesNotAlign
+				return ErrDataDoesNotAlignMissingBack
 			}
 			cdata = cdata[0:newlen]
 			if len(cdata) != len(data) {
-				return ErrDataDoesNotAlign
+				return ErrDataDoesNotAlignDataLenMismatch
 			}
 
 			from, to = cfrom, cto

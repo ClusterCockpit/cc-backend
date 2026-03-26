@@ -91,8 +91,10 @@ func (m *MemoryStore) Stats(selector util.Selector, metric string, from, to int6
 
 		if n == 0 {
 			from, to = cfrom, cto
-		} else if from != cfrom || to != cto {
-			return ErrDataDoesNotAlign
+		} else if from != cfrom {
+			return ErrDataDoesNotAlignMissingFront
+		} else if to != cto {
+			return ErrDataDoesNotAlignMissingBack
 		}
 
 		samples += stats.Samples
