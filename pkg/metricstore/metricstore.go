@@ -271,19 +271,26 @@ func (ms *MemoryStore) SetNodeProvider(provider NodeProvider) {
 //
 // Note: This function blocks until the final checkpoint is written.
 func Shutdown() {
+	totalStart := time.Now()
+
 	shutdownFuncMu.Lock()
 	defer shutdownFuncMu.Unlock()
 	if shutdownFunc != nil {
 		shutdownFunc()
 	}
+	cclog.Infof("[METRICSTORE]> Background workers cancelled (%v)", time.Since(totalStart))
 
 	if Keys.Checkpoints.FileFormat == "wal" {
 		for _, ch := range walShardChs {
 			close(ch)
 		}
+		drainStart := time.Now()
+		WaitForWALStagingDrain()
+		cclog.Infof("[METRICSTORE]> WAL staging goroutines exited (%v)", time.Since(drainStart))
 	}
 
-	cclog.Infof("[METRICSTORE]> Writing to '%s'...\n", Keys.Checkpoints.RootDir)
+	cclog.Infof("[METRICSTORE]> Writing checkpoint to '%s'...", Keys.Checkpoints.RootDir)
+	checkpointStart := time.Now()
 	var files int
 	var err error
 
@@ -294,19 +301,16 @@ func Shutdown() {
 	lastCheckpointMu.Unlock()
 
 	if Keys.Checkpoints.FileFormat == "wal" {
-		var hostDirs []string
-		files, hostDirs, err = ms.ToCheckpointWAL(Keys.Checkpoints.RootDir, from.Unix(), time.Now().Unix())
-		if err == nil {
-			RotateWALFilesAfterShutdown(hostDirs)
-		}
+		// WAL files are deleted per-host inside ToCheckpointWAL workers.
+		files, _, err = ms.ToCheckpointWAL(Keys.Checkpoints.RootDir, from.Unix(), time.Now().Unix())
 	} else {
 		files, err = ms.ToCheckpoint(Keys.Checkpoints.RootDir, from.Unix(), time.Now().Unix())
 	}
 
 	if err != nil {
-		cclog.Errorf("[METRICSTORE]> Writing checkpoint failed: %s\n", err.Error())
+		cclog.Errorf("[METRICSTORE]> Writing checkpoint failed: %s", err.Error())
 	}
-	cclog.Infof("[METRICSTORE]> Done! (%d files written)\n", files)
+	cclog.Infof("[METRICSTORE]> Done! (%d files written in %v, total shutdown: %v)", files, time.Since(checkpointStart), time.Since(totalStart))
 }
 
 // Retention starts a background goroutine that periodically frees old metric data.

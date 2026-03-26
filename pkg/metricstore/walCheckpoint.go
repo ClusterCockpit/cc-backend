@@ -92,6 +92,9 @@ var walShardRotateChs []chan walRotateReq
 // walNumShards stores the number of shards (set during WALStaging init).
 var walNumShards int
 
+// walStagingWg tracks WALStaging goroutine exits for shutdown synchronization.
+var walStagingWg sync.WaitGroup
+
 // WALMessage represents a single metric write to be appended to the WAL.
 // Cluster and Node are NOT stored in the WAL record (inferred from file path).
 type WALMessage struct {
@@ -171,7 +174,9 @@ func WALStaging(wg *sync.WaitGroup, ctx context.Context) {
 		msgCh := walShardChs[i]
 		rotateCh := walShardRotateChs[i]
 
+		walStagingWg.Add(1)
 		wg.Go(func() {
+			defer walStagingWg.Done()
 			hostFiles := make(map[string]*walFileState)
 
 			defer func() {
@@ -255,23 +260,6 @@ func WALStaging(wg *sync.WaitGroup, ctx context.Context) {
 				}
 			}
 
-			drain := func() {
-				for {
-					select {
-					case msg, ok := <-msgCh:
-						if !ok {
-							return
-						}
-						processMsg(msg)
-					case req := <-rotateCh:
-						processRotate(req)
-					default:
-						flushDirty()
-						return
-					}
-				}
-			}
-
 			ticker := time.NewTicker(walFlushInterval)
 			defer ticker.Stop()
 
@@ -298,7 +286,10 @@ func WALStaging(wg *sync.WaitGroup, ctx context.Context) {
 			for {
 				select {
 				case <-ctx.Done():
-					drain()
+					// On shutdown, skip draining buffered messages — a full binary
+					// checkpoint will be written from in-memory state, making
+					// buffered WAL records redundant.
+					flushDirty()
 					return
 				case msg, ok := <-msgCh:
 					if !ok {
@@ -317,6 +308,13 @@ func WALStaging(wg *sync.WaitGroup, ctx context.Context) {
 			}
 		})
 	}
+}
+
+// WaitForWALStagingDrain blocks until all WALStaging goroutines have exited.
+// Must be called after closing walShardChs to ensure all file handles are
+// flushed and closed before checkpoint writes begin.
+func WaitForWALStagingDrain() {
+	walStagingWg.Wait()
 }
 
 // RotateWALFiles sends rotation requests for the given host directories
@@ -655,13 +653,32 @@ func (m *MemoryStore) ToCheckpointWAL(dir string, from, to int64) (int, []string
 		selector []string
 	}
 
-	n, errs := int32(0), int32(0)
+	totalWork := len(levels)
+	cclog.Infof("[METRICSTORE]> Starting binary checkpoint for %d hosts with %d workers", totalWork, Keys.NumWorkers)
+
+	n, errs, completed := int32(0), int32(0), int32(0)
 	var successDirs []string
 	var successMu sync.Mutex
 
 	var wg sync.WaitGroup
 	wg.Add(Keys.NumWorkers)
 	work := make(chan workItem, Keys.NumWorkers*2)
+
+	// Progress logging goroutine.
+	stopProgress := make(chan struct{})
+	go func() {
+		ticker := time.NewTicker(10 * time.Second)
+		defer ticker.Stop()
+		for {
+			select {
+			case <-ticker.C:
+				cclog.Infof("[METRICSTORE]> Checkpoint progress: %d/%d hosts (%d written, %d errors)",
+					atomic.LoadInt32(&completed), totalWork, atomic.LoadInt32(&n), atomic.LoadInt32(&errs))
+			case <-stopProgress:
+				return
+			}
+		}
+	}()
 
 	for range Keys.NumWorkers {
 		go func() {
@@ -670,16 +687,23 @@ func (m *MemoryStore) ToCheckpointWAL(dir string, from, to int64) (int, []string
 				err := wi.level.toCheckpointBinary(wi.hostDir, from, to, m)
 				if err != nil {
 					if err == ErrNoNewArchiveData {
+						atomic.AddInt32(&completed, 1)
 						continue
 					}
 					cclog.Errorf("[METRICSTORE]> binary checkpoint error for %s: %v", wi.hostDir, err)
 					atomic.AddInt32(&errs, 1)
 				} else {
 					atomic.AddInt32(&n, 1)
+					// Delete WAL immediately after successful snapshot.
+					walPath := path.Join(wi.hostDir, "current.wal")
+					if err := os.Remove(walPath); err != nil && !os.IsNotExist(err) {
+						cclog.Errorf("[METRICSTORE]> WAL remove %s: %v", walPath, err)
+					}
 					successMu.Lock()
 					successDirs = append(successDirs, wi.hostDir)
 					successMu.Unlock()
 				}
+				atomic.AddInt32(&completed, 1)
 			}
 		}()
 	}
@@ -694,6 +718,7 @@ func (m *MemoryStore) ToCheckpointWAL(dir string, from, to int64) (int, []string
 	}
 	close(work)
 	wg.Wait()
+	close(stopProgress)
 
 	if errs > 0 {
 		return int(n), successDirs, fmt.Errorf("[METRICSTORE]> %d errors during binary checkpoint (%d successes)", errs, n)
