@@ -281,6 +281,12 @@ func Shutdown() {
 	cclog.Infof("[METRICSTORE]> Background workers cancelled (%v)", time.Since(totalStart))
 
 	if Keys.Checkpoints.FileFormat == "wal" {
+		// Signal producers to stop sending before closing channels,
+		// preventing send-on-closed-channel panics from in-flight NATS workers.
+		walShuttingDown.Store(true)
+		// Brief grace period for in-flight DecodeLine calls to complete.
+		time.Sleep(100 * time.Millisecond)
+
 		for _, ch := range walShardChs {
 			close(ch)
 		}
