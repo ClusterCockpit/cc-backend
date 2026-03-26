@@ -1,4 +1,4 @@
-# `cc-backend` version 1.5.2
+# `cc-backend` version 1.5.3
 
 Supports job archive version 3 and database version 11.
 
@@ -14,6 +14,47 @@ and `VACUUM` commands. Depending on your database size (more then 40GB) the
 While we are confident that the memory issue with the metricstore cleanup move
 policy is fixed, it is still recommended to use delete policy for cleanup.
 This is also the default.
+
+## Changes in 1.5.3
+
+### Bug fixes
+
+- **Doubleranged filter fixes**: Range filters now correctly handle zero as a
+  boundary value. Improved validation and UI text for "more than equal" and
+  "less than equal" range selections.
+- **Lineprotocol body parsing interrupted**: Switched from `ReadTimeout` to
+  `ReadHeaderTimeout` so that long-running metric submissions are no longer
+  cut off mid-stream.
+- **Checkpoint archiving continues on error**: A single cluster's archiving
+  failure no longer aborts the entire cleanup operation. Errors are collected
+  and reported per cluster.
+- **Parquet row group overflow**: Added periodic flush during checkpoint
+  archiving to prevent exceeding the parquet-go 32k column-write limit.
+- **Removed metrics excluded from subcluster config**: Metrics removed from a
+  subcluster are no longer returned by `GetMetricConfigSubCluster`.
+
+### MetricStore performance
+
+- **WAL writer throughput**: Decoupled WAL file flushing from message processing
+  using a periodic 5-second batch flush (up to 4096 messages per cycle),
+  significantly increasing metric ingestion throughput.
+- **Improved shutdown time**: HTTP shutdown timeout reduced; metricstore and
+  archiver now shut down concurrently. Overall shutdown deadline raised to
+  60 seconds.
+
+### New features
+
+- **Manual checkpoint cleanup flag**: New `-cleanup-checkpoints` CLI flag
+  triggers checkpoint cleanup without starting the server, useful for
+  maintenance windows or automated cleanup scripts.
+- **Explicit node state queries in node view**: Node health and scheduler state
+  are now fetched independently from metric data for fresher status information.
+
+### Logging improvements
+
+- **Reduced tagger log noise**: Missing metrics and expression evaluation errors
+  in the job classification tagger are now logged at debug level instead of
+  error level.
 
 ## Changes in 1.5.2
 

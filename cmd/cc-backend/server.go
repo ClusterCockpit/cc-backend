@@ -407,21 +407,27 @@ func (s *Server) Start(ctx context.Context) error {
 }
 
 func (s *Server) Shutdown(ctx context.Context) {
-	shutdownCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
-	defer cancel()
+	shutdownStart := time.Now()
 
+	natsStart := time.Now()
 	nc := nats.GetClient()
 	if nc != nil {
 		nc.Close()
 	}
+	cclog.Infof("Shutdown: NATS closed (%v)", time.Since(natsStart))
 
+	httpStart := time.Now()
+	shutdownCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
+	defer cancel()
 	if err := s.server.Shutdown(shutdownCtx); err != nil {
 		cclog.Errorf("Server shutdown error: %v", err)
 	}
+	cclog.Infof("Shutdown: HTTP server stopped (%v)", time.Since(httpStart))
 
 	// Run metricstore and archiver shutdown concurrently.
 	// They are independent: metricstore writes .bin snapshots,
 	// archiver flushes pending job archives.
+	storeStart := time.Now()
 	done := make(chan struct{})
 	go func() {
 		defer close(done)
@@ -444,7 +450,10 @@ func (s *Server) Shutdown(ctx context.Context) {
 
 	select {
 	case <-done:
+		cclog.Infof("Shutdown: metricstore + archiver completed (%v)", time.Since(storeStart))
 	case <-time.After(60 * time.Second):
-		cclog.Warn("Shutdown deadline exceeded, forcing exit")
+		cclog.Warnf("Shutdown deadline exceeded after %v, forcing exit", time.Since(shutdownStart))
 	}
+
+	cclog.Infof("Shutdown: total time %v", time.Since(shutdownStart))
 }
