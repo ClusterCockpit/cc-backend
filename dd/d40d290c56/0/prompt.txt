@@ -1,0 +1,1 @@
+There are occasional warnings in the log: [WARNING]  lineprotocol.go:368: [METRICSTORE]> WAL shard channel full, dropped 7220001 messages (data safe in memory, next snapshot will capture). Is this a problem? And how can it be fixed?

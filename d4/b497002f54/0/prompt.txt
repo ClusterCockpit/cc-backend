@@ -1,0 +1,7 @@
+The shutdown still runs into the 60s timeout. This is the log at shutdown: [INFO]     main.go:410: Shutdown signal received
+3/26/2026, 6:23:10 AMINFO[INFO]     client.go:241: NATS connection closed
+3/26/2026, 6:23:10 AMINFO[INFO]     archiveWorker.go:223: Initiating archiver shutdown...
+3/26/2026, 6:23:10 AMINFO[INFO]     archiveWorker.go:238: All archive jobs completed successfully
+3/26/2026, 6:23:10 AMINFO[INFO]     metricstore.go:286: [METRICSTORE]> Writing to './var/metric-checkpoints'...
+3/26/2026, 6:23:10 AMINFO[INFO]     archiveWorker.go:121: Archive channel closed, worker exiting
+3/26/2026, 6:24:10 AMWARN[WARNING]  server.go:448: Shutdown deadline exceeded, forcing exit . What takes that much time, and how can the situation be improved. Add log messages to indicate the shutdown phases and timings. The WAL journals have to be deleted before shutdown!

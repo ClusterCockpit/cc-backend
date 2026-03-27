@@ -1,0 +1,47 @@
+{
+  "cli_version": "0.5.0",
+  "checkpoint_id": "7536f551d548",
+  "strategy": "manual-commit",
+  "branch": "feature/526-average-resample",
+  "checkpoints_count": 5,
+  "files_touched": [
+    "cmd/cc-backend/init.go",
+    "configs/config.json",
+    "go.mod",
+    "go.sum",
+    "internal/config/config.go",
+    "internal/config/schema.go",
+    "internal/graph/resample.go",
+    "internal/graph/schema.resolvers.go",
+    "internal/routerConfig/routes.go",
+    "web/frontend/src/config/AdminSettings.svelte",
+    "web/frontend/src/config/user/PlotRenderOptions.svelte"
+  ],
+  "sessions": [
+    {
+      "metadata": "/75/36f551d548/0/metadata.json",
+      "transcript": "/75/36f551d548/0/full.jsonl",
+      "content_hash": "/75/36f551d548/0/content_hash.txt",
+      "prompt": ""
+    },
+    {
+      "metadata": "/75/36f551d548/1/metadata.json",
+      "transcript": "/75/36f551d548/1/full.jsonl",
+      "content_hash": "/75/36f551d548/1/content_hash.txt",
+      "prompt": "/75/36f551d548/1/prompt.txt"
+    },
+    {
+      "metadata": "/75/36f551d548/2/metadata.json",
+      "transcript": "/75/36f551d548/2/full.jsonl",
+      "content_hash": "/75/36f551d548/2/content_hash.txt",
+      "prompt": "/75/36f551d548/2/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 1412,
+    "cache_creation_tokens": 126103,
+    "cache_read_tokens": 2826383,
+    "output_tokens": 18974,
+    "api_call_count": 74
+  }
+}

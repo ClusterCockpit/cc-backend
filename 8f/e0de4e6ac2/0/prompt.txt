@@ -1,0 +1,5 @@
+Do an in-depth review of the sharded WAL buffer pipeline. Including startup and shutdown. Find potential problems and suggest imrovements.
+
+---
+
+Fix the critical and medium issues

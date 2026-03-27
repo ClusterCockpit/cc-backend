@@ -1,0 +1,9 @@
+Add PlotRenderOptions also to AdminsSettings
+
+---
+
+The render options are not show here yet for admins: http://localhost:8080/config . Debug and fix it
+
+---
+
+Add resample-config option to the current config

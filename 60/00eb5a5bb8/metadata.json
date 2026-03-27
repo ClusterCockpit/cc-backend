@@ -1,0 +1,25 @@
+{
+  "cli_version": "0.5.0",
+  "checkpoint_id": "6000eb5a5bb8",
+  "strategy": "manual-commit",
+  "branch": "hotfix",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "pkg/metricstore/archive.go"
+  ],
+  "sessions": [
+    {
+      "metadata": "/60/00eb5a5bb8/0/metadata.json",
+      "transcript": "/60/00eb5a5bb8/0/full.jsonl",
+      "content_hash": "/60/00eb5a5bb8/0/content_hash.txt",
+      "prompt": ""
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 17,
+    "cache_creation_tokens": 19989,
+    "cache_read_tokens": 335631,
+    "output_tokens": 2723,
+    "api_call_count": 15
+  }
+}
