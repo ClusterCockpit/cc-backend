@@ -127,7 +127,7 @@ type walFileState struct {
 // walFlushInterval controls how often dirty WAL files are flushed to disk.
 // Decoupling flushes from message processing lets the consumer run at memory
 // speed, amortizing syscall overhead across many writes.
-const walFlushInterval = 5 * time.Second
+const walFlushInterval = 1 * time.Second
 
 // walShardIndex computes which shard a message belongs to based on cluster+node.
 // Uses FNV-1a hash for fast, well-distributed mapping.
