@@ -417,7 +417,7 @@ func (s *Server) Shutdown(ctx context.Context) {
 	cclog.Infof("Shutdown: NATS closed (%v)", time.Since(natsStart))
 
 	httpStart := time.Now()
-	shutdownCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
+	shutdownCtx, cancel := context.WithTimeout(ctx, 60*time.Second)
 	defer cancel()
 	if err := s.server.Shutdown(shutdownCtx); err != nil {
 		cclog.Errorf("Server shutdown error: %v", err)
@@ -440,7 +440,7 @@ func (s *Server) Shutdown(ctx context.Context) {
 		}
 
 		wg.Go(func() {
-			if err := archiver.Shutdown(10 * time.Second); err != nil {
+			if err := archiver.Shutdown(60 * time.Second); err != nil {
 				cclog.Warnf("Archiver shutdown: %v", err)
 			}
 		})
