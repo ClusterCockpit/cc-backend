@@ -358,6 +358,7 @@ func RotateWALFiles(hostDirs []string) {
 	if walShardRotateChs == nil || walShuttingDown.Load() {
 		return
 	}
+	deadline := time.After(2 * time.Minute)
 	dones := make([]chan struct{}, 0, len(hostDirs))
 	for _, dir := range hostDirs {
 		done := make(chan struct{})
@@ -365,16 +366,18 @@ func RotateWALFiles(hostDirs []string) {
 		select {
 		case walShardRotateChs[shard] <- walRotateReq{hostDir: dir, done: done}:
 			dones = append(dones, done)
-		default:
-			// Channel full or goroutine not consuming — skip this host.
-			cclog.Warnf("[METRICSTORE]> WAL rotation skipped for %s (channel full)", dir)
+		case <-deadline:
+			cclog.Warnf("[METRICSTORE]> WAL rotation send timed out, %d of %d hosts remaining",
+				len(hostDirs)-len(dones), len(hostDirs))
+			goto waitDones
 		}
 	}
+waitDones:
 	for _, done := range dones {
 		select {
 		case <-done:
 		case <-time.After(30 * time.Second):
-			cclog.Warn("[METRICSTORE]> WAL rotation timed out, continuing")
+			cclog.Warn("[METRICSTORE]> WAL rotation completion timed out, continuing")
 			return
 		}
 	}
