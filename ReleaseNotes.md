@@ -60,6 +60,14 @@ This is also the default.
 - **Explicit node state queries in node view**: Node health and scheduler state
   are now fetched independently from metric data for fresher status information.
 
+### New tools
+
+- **binaryCheckpointReader**: New utility tool (`tools/binaryCheckpointReader`)
+  that reads `.wal` or `.bin` checkpoint files produced by the metricstore
+  WAL/snapshot system and dumps their contents to a human-readable `.txt` file.
+  Useful for debugging and inspecting checkpoint data. Usage:
+  `go run ./tools/binaryCheckpointReader <file.wal|file.bin>`
+
 ### Logging improvements
 
 - **Reduced tagger log noise**: Missing metrics and expression evaluation errors
