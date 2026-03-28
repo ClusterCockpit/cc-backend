@@ -129,7 +129,8 @@ func Checkpointing(wg *sync.WaitGroup, ctx context.Context) {
 					n, hostDirs, err := ms.ToCheckpointWAL(Keys.Checkpoints.RootDir, from.Unix(), now.Unix())
 					if err != nil {
 						cclog.Errorf("[METRICSTORE]> binary checkpointing failed: %s", err.Error())
-					} else {
+					}
+					if n > 0 {
 						cclog.Infof("[METRICSTORE]> done: %d binary snapshot files created", n)
 						lastCheckpointMu.Lock()
 						lastCheckpoint = now

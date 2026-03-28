@@ -24,6 +24,11 @@ const configSchema = `{
         "directory": {
           "description": "Path in which the checkpointed files should be placed.",
           "type": "string"
+        },
+        "max-wal-size": {
+          "description": "Maximum size in bytes for a single host's WAL file. When exceeded the WAL is force-rotated to prevent unbounded disk growth. Only applies when file-format is 'wal'. 0 means unlimited (default).",
+          "type": "integer",
+          "minimum": 0
         }
       }
     },

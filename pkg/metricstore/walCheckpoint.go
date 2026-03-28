@@ -122,6 +122,7 @@ type walFileState struct {
 	f     *os.File
 	w     *bufio.Writer
 	dirty bool
+	size  int64 // approximate bytes written (tracked from open + writes)
 }
 
 // walFlushInterval controls how often dirty WAL files are flushed to disk.
@@ -214,7 +215,11 @@ func WALStaging(wg *sync.WaitGroup, ctx context.Context) {
 
 				// Write file header magic if file is new (empty).
 				info, err := f.Stat()
-				if err == nil && info.Size() == 0 {
+				var fileSize int64
+				if err == nil {
+					fileSize = info.Size()
+				}
+				if err == nil && fileSize == 0 {
 					var hdr [4]byte
 					binary.LittleEndian.PutUint32(hdr[:], walFileMagic)
 					if _, err := w.Write(hdr[:]); err != nil {
@@ -222,9 +227,10 @@ func WALStaging(wg *sync.WaitGroup, ctx context.Context) {
 						f.Close()
 						return nil
 					}
+					fileSize = 4
 				}
 
-				ws = &walFileState{f: f, w: w}
+				ws = &walFileState{f: f, w: w, size: fileSize}
 				hostFiles[hostDir] = ws
 				return ws
 			}
@@ -235,9 +241,30 @@ func WALStaging(wg *sync.WaitGroup, ctx context.Context) {
 				if ws == nil {
 					return
 				}
-				if err := writeWALRecordDirect(ws.w, msg); err != nil {
+
+				// Enforce max WAL size: force-rotate before writing if limit is exceeded.
+				// The in-memory store still holds the data; only crash-recovery coverage is lost.
+				if maxSize := Keys.Checkpoints.MaxWALSize; maxSize > 0 && ws.size >= maxSize {
+					cclog.Warnf("[METRICSTORE]> WAL: force-rotating %s (size %d >= limit %d)",
+						hostDir, ws.size, maxSize)
+					ws.w.Flush()
+					ws.f.Close()
+					walPath := path.Join(hostDir, "current.wal")
+					if err := os.Remove(walPath); err != nil && !os.IsNotExist(err) {
+						cclog.Errorf("[METRICSTORE]> WAL: remove %s: %v", walPath, err)
+					}
+					delete(hostFiles, hostDir)
+					ws = getOrOpenWAL(hostDir)
+					if ws == nil {
+						return
+					}
+				}
+
+				n, err := writeWALRecordDirect(ws.w, msg)
+				if err != nil {
 					cclog.Errorf("[METRICSTORE]> WAL: write record: %v", err)
 				}
+				ws.size += int64(n)
 				ws.dirty = true
 			}
 
@@ -376,7 +403,8 @@ func RotateWALFilesAfterShutdown(hostDirs []string) {
 // writeWALRecordDirect encodes a WAL record into a contiguous buffer first,
 // then writes it to the bufio.Writer in a single call. This prevents partial
 // records in the write buffer if a write error occurs mid-record (e.g. disk full).
-func writeWALRecordDirect(w *bufio.Writer, msg *WALMessage) error {
+// Returns the number of bytes written and any error.
+func writeWALRecordDirect(w *bufio.Writer, msg *WALMessage) (int, error) {
 	// Compute payload and total record size.
 	payloadSize := 8 + 2 + len(msg.MetricName) + 1 + 4
 	for _, s := range msg.Selector {
@@ -430,8 +458,8 @@ func writeWALRecordDirect(w *bufio.Writer, msg *WALMessage) error {
 	binary.LittleEndian.PutUint32(buf[p:p+4], crc)
 
 	// Single atomic write to the buffered writer.
-	_, err := w.Write(buf)
-	return err
+	n, err := w.Write(buf)
+	return n, err
 }
 
 // readWALRecord reads one WAL record from the reader.
