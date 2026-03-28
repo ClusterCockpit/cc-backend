@@ -1,0 +1,33 @@
+{
+  "cli_version": "0.5.0",
+  "checkpoint_id": "0fc6e5388e08",
+  "session_id": "684c9528-5e37-4e07-b942-1b422a182c4d",
+  "strategy": "manual-commit",
+  "created_at": "2026-03-28T05:45:04.074272Z",
+  "branch": "hotfix",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "web/frontend/src/Logs.root.svelte"
+  ],
+  "agent": "Claude Code",
+  "turn_id": "02a712a2c9df",
+  "token_usage": {
+    "input_tokens": 11,
+    "cache_creation_tokens": 14870,
+    "cache_read_tokens": 157025,
+    "output_tokens": 1495,
+    "api_call_count": 7
+  },
+  "session_metrics": {
+    "turn_count": 1
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-03-28T05:45:04.048328Z",
+    "agent_lines": 1,
+    "human_added": 0,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 1,
+    "agent_percentage": 100
+  }
+}
