@@ -1,0 +1,25 @@
+{
+  "cli_version": "0.5.0",
+  "checkpoint_id": "0fc6e5388e08",
+  "strategy": "manual-commit",
+  "branch": "hotfix",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "web/frontend/src/Logs.root.svelte"
+  ],
+  "sessions": [
+    {
+      "metadata": "/0f/c6e5388e08/0/metadata.json",
+      "transcript": "/0f/c6e5388e08/0/full.jsonl",
+      "content_hash": "/0f/c6e5388e08/0/content_hash.txt",
+      "prompt": "/0f/c6e5388e08/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 11,
+    "cache_creation_tokens": 14870,
+    "cache_read_tokens": 157025,
+    "output_tokens": 1495,
+    "api_call_count": 7
+  }
+}

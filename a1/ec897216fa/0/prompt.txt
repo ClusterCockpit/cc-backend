@@ -1,0 +1,5 @@
+After a regular checkpoint the following log warning is writte nfor all nodes:  [WARNING]  walCheckpoint.go:343: [METRICSTORE]> WAL rotation skipped for var/metric-checkpoints/fritz/f0748 (channel full)
+Mar 28 06:39:43 monitoring cc-backend[45645]: [WARNING]  walCheckpoint.go:343: [METRICSTORE]> WAL rotation skipped for var/metric-checkpoints/fritz/f2263 (channel full)
+Mar 28 06:39:43 monitoring cc-backend[45645]: [WARNING]  walCheckpoint.go:343: [METRICSTORE]> WAL rotation skipped for var/metric-checkpoints/fritz/f0481 (channel full)
+Mar 28 06:39:43 monitoring cc-backend[45645]: [WARNING]  walCheckpoint.go:343: [METRICSTORE]> WAL rotation skipped for var/metric-checkpoints/fritz/f0708 (channel full)
+Mar 28 06:39:43 monitoring cc-backend[45645]: [WARNING]  walCheckpoint.go:343: [METRICSTORE]> WAL rotation skipped for var/metric-checkpoints/fritz/f0373 (channel full) . Investigate and issue and suggest fixes.

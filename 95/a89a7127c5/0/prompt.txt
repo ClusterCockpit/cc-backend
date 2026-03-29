@@ -1,0 +1,13 @@
+When are the wal journal files reset. Are there situation where they can grow indefintily?
+
+---
+
+Plan a fix for scenario 1
+
+---
+
+Update documentation and config schema accordingly
+
+---
+
+Also update the ReleaseNotes with the recent changes

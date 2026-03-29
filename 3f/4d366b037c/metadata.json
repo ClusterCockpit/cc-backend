@@ -1,0 +1,27 @@
+{
+  "cli_version": "0.5.1",
+  "checkpoint_id": "3f4d366b037c",
+  "strategy": "manual-commit",
+  "branch": "fix/checkpoint-gap",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "pkg/metricstore/archive.go",
+    "pkg/metricstore/checkpoint.go",
+    "pkg/metricstore/metricstore.go"
+  ],
+  "sessions": [
+    {
+      "metadata": "/3f/4d366b037c/0/metadata.json",
+      "transcript": "/3f/4d366b037c/0/full.jsonl",
+      "content_hash": "/3f/4d366b037c/0/content_hash.txt",
+      "prompt": ""
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 26,
+    "cache_creation_tokens": 38065,
+    "cache_read_tokens": 858381,
+    "output_tokens": 6040,
+    "api_call_count": 24
+  }
+}
