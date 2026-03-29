@@ -126,6 +126,10 @@ func Checkpointing(wg *sync.WaitGroup, ctx context.Context) {
 				cclog.Infof("[METRICSTORE]> start checkpointing (starting at %s)...", from.Format(time.RFC3339))
 
 				if Keys.Checkpoints.FileFormat == "wal" {
+					// Pause WAL writes: the binary snapshot captures all in-memory
+					// data, so WAL records written during checkpoint are redundant
+					// and would be deleted during rotation anyway.
+					walCheckpointActive.Store(true)
 					n, hostDirs, err := ms.ToCheckpointWAL(Keys.Checkpoints.RootDir, from.Unix(), now.Unix())
 					if err != nil {
 						cclog.Errorf("[METRICSTORE]> binary checkpointing failed: %s", err.Error())
@@ -138,6 +142,8 @@ func Checkpointing(wg *sync.WaitGroup, ctx context.Context) {
 						// Rotate WAL files for successfully checkpointed hosts.
 						RotateWALFiles(hostDirs)
 					}
+					walCheckpointActive.Store(false)
+					walDropped.Store(0)
 				} else {
 					n, err := ms.ToCheckpoint(Keys.Checkpoints.RootDir, from.Unix(), now.Unix())
 					if err != nil {

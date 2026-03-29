@@ -99,6 +99,11 @@ var walStagingWg sync.WaitGroup
 // SendWALMessage from sending on a closed channel (which panics in Go).
 var walShuttingDown atomic.Bool
 
+// walCheckpointActive is set during binary checkpoint writes.
+// While active, SendWALMessage skips sending (returns true) because the
+// snapshot captures all in-memory data, making WAL writes redundant.
+var walCheckpointActive atomic.Bool
+
 // WALMessage represents a single metric write to be appended to the WAL.
 // Cluster and Node are NOT stored in the WAL record (inferred from file path).
 type WALMessage struct {
@@ -145,6 +150,9 @@ func walShardIndex(cluster, node string) int {
 func SendWALMessage(msg *WALMessage) bool {
 	if walShardChs == nil || walShuttingDown.Load() {
 		return false
+	}
+	if walCheckpointActive.Load() {
+		return true // Data safe in memory; snapshot will capture it
 	}
 	shard := walShardIndex(msg.Cluster, msg.Node)
 	select {
@@ -727,11 +735,6 @@ func (m *MemoryStore) ToCheckpointWAL(dir string, from, to int64) (int, []string
 					atomic.AddInt32(&errs, 1)
 				} else {
 					atomic.AddInt32(&n, 1)
-					// Delete WAL immediately after successful snapshot.
-					walPath := path.Join(wi.hostDir, "current.wal")
-					if err := os.Remove(walPath); err != nil && !os.IsNotExist(err) {
-						cclog.Errorf("[METRICSTORE]> WAL remove %s: %v", walPath, err)
-					}
 					successMu.Lock()
 					successDirs = append(successDirs, wi.hostDir)
 					successMu.Unlock()
