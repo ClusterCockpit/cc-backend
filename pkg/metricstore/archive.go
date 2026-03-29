@@ -3,6 +3,12 @@
 // Use of this source code is governed by a MIT-style
 // license that can be found in the LICENSE file.
 
+// This file implements the cleanup (archiving or deletion) of old checkpoint files.
+//
+// The CleanUp worker runs on a timer equal to RetentionInMemory. In "archive" mode
+// it converts checkpoint files older than the retention window into per-cluster
+// Parquet files and then deletes the originals. In "delete" mode it simply removes
+// old checkpoint files.
 package metricstore
 
 import (
@@ -19,8 +25,12 @@ import (
 	cclog "github.com/ClusterCockpit/cc-lib/v2/ccLogger"
 )
 
-// Worker for either Archiving or Deleting files
-
+// CleanUp starts a background worker that periodically removes or archives
+// checkpoint files older than the configured retention window.
+//
+// In "archive" mode, old checkpoint files are converted to Parquet and stored
+// under Keys.Cleanup.RootDir. In "delete" mode they are simply removed.
+// The cleanup interval equals Keys.RetentionInMemory.
 func CleanUp(wg *sync.WaitGroup, ctx context.Context) {
 	if Keys.Cleanup.Mode == "archive" {
 		cclog.Info("[METRICSTORE]> enable archive cleanup to parquet")

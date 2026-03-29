@@ -86,11 +86,12 @@ var (
 
 // Checkpointing starts a background worker that periodically saves metric data to disk.
 //
-// Checkpoints are written every 12 hours (hardcoded).
+// The checkpoint interval is read from Keys.CheckpointInterval (default: 12 hours).
 //
 // Format behaviour:
-//   - "json": Periodic checkpointing every checkpointInterval
-//   - "wal":  Periodic binary snapshots + WAL rotation every checkpointInterval
+//   - "json": Writes a JSON snapshot file per host every interval
+//   - "wal":  Writes a binary snapshot file per host every interval, then rotates
+//     the current.wal files for all successfully checkpointed hosts
 func Checkpointing(wg *sync.WaitGroup, ctx context.Context) {
 	lastCheckpointMu.Lock()
 	lastCheckpoint = time.Now()

@@ -8,7 +8,7 @@
 //
 // The package organizes metrics in a tree structure (cluster → host → component) and
 // provides concurrent read/write access to metric data with configurable aggregation strategies.
-// Background goroutines handle periodic checkpointing (JSON or Avro format), archiving old data,
+// Background goroutines handle periodic checkpointing (JSON or WAL/binary format), archiving old data,
 // and enforcing retention policies.
 //
 // Key features:
@@ -16,7 +16,7 @@
 //   - Hierarchical data organization (selectors)
 //   - Concurrent checkpoint/archive workers
 //   - Support for sum and average aggregation
-//   - NATS integration for metric ingestion
+//   - NATS integration for metric ingestion via InfluxDB line protocol
 package metricstore
 
 import (
@@ -113,7 +113,8 @@ type MemoryStore struct {
 //  6. Optionally subscribes to NATS for real-time metric ingestion
 //
 // Parameters:
-//   - rawConfig: JSON configuration for the metric store (see MetricStoreConfig)
+//   - rawConfig: JSON configuration for the metric store (see MetricStoreConfig); may be nil to use defaults
+//   - metrics: Map of metric names to their configurations (frequency and aggregation strategy)
 //   - wg: WaitGroup that will be incremented for each background goroutine started
 //
 // The function will call cclog.Fatal on critical errors during initialization.

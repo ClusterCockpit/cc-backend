@@ -400,8 +400,9 @@ func walShardIndexFromDir(hostDir string) int {
 	return walShardIndex(cluster, node)
 }
 
-// RotateWALFiles sends rotation requests for the given host directories
-// and blocks until all rotations complete.
+// RotateWALFilesAfterShutdown directly removes current.wal files for the given
+// host directories. Used after shutdown, when WALStaging goroutines have already
+// exited and the channel-based RotateWALFiles is no longer safe to call.
 func RotateWALFilesAfterShutdown(hostDirs []string) {
 	for _, dir := range hostDirs {
 		walPath := path.Join(dir, "current.wal")
