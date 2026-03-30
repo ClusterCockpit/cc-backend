@@ -17,10 +17,9 @@ linters:
     - unparam # unusedparams = true
     - nilnil # nilness = true (catches nil returns of nil interface values)
     - govet # base vet; nilness + unusedwrite via govet analyzers
-    - stylecheck # naming conventions (ST1003: acronyms, camelCase)
 
   settings:
-    stylecheck:
+    staticcheck:
       checks: ["ST1003"]
 
     govet:
@@ -34,6 +33,6 @@ exclusions:
     - .vscode
     - .idea
     - node_modules
-    - internal/graph/generated  # gqlgen generated code
-    - internal/api/docs\.go     # swaggo generated code
-    - _test\.go                 # test files excluded from all linters
+    - internal/graph/generated # gqlgen generated code
+    - internal/api/docs\.go # swaggo generated code
+    - _test\.go # test files excluded from all linters
