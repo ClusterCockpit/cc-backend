@@ -1,0 +1,9 @@
+How can one include variable and function naming rules?
+
+---
+
+Add the recommended settings
+
+---
+
+Analyse which directories should be added to the exclusion paths. Also do not apply linting for the tests
