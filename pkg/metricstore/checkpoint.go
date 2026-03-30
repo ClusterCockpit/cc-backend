@@ -100,7 +100,6 @@ func Checkpointing(wg *sync.WaitGroup, ctx context.Context) {
 	ms := GetMemoryStore()
 
 	wg.Go(func() {
-
 		d := 12 * time.Hour // default checkpoint interval
 		if Keys.CheckpointInterval != "" {
 			parsed, err := time.ParseDuration(Keys.CheckpointInterval)
