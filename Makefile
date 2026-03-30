@@ -36,7 +36,7 @@ SVELTE_SRC = $(wildcard $(FRONTEND)/src/*.svelte)                 \
 			 $(wildcard $(FRONTEND)/src/header/*.svelte)          \
 			 $(wildcard $(FRONTEND)/src/job/*.svelte)
 
-.PHONY: clean distclean test tags frontend swagger graphql $(TARGET)
+.PHONY: clean distclean fmt lint test tags frontend swagger graphql $(TARGET)
 
 .NOTPARALLEL:
 
@@ -74,6 +74,14 @@ test:
 	@go build ./...
 	@go vet ./...
 	@go test ./...
+
+fmt:
+	$(info ===>  FORMAT)
+	@gofumpt -l -w .
+
+lint:
+	$(info ===>  LINT)
+	@golangci-lint run ./...
 
 tags:
 	$(info ===>  TAGS)
