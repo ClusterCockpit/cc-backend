@@ -1,30 +1,36 @@
+version: "2"
+
 run:
   timeout: 5m
 
+formatters:
+  enable:
+    - gofumpt      # gofumpt formatter
+
+  settings:
+    gofumpt:
+      module-path: github.com/ClusterCockpit/cc-backend
+
 linters:
   enable:
-    - gofumpt      # gofumpt = true
     - staticcheck  # staticcheck = true
     - unparam      # unusedparams = true
     - nilnil       # nilness = true (catches nil returns of nil interface values)
     - govet        # base vet; nilness + unusedwrite via govet analyzers
 
-linters-settings:
-  gofumpt:
-    module-path: github.com/ClusterCockpit/cc-backend
+  settings:
+    govet:
+      enable:
+        - nilness
+        - unusedwrite
 
-  govet:
-    enable:
-      - nilness
-      - unusedwrite
-
-issues:
-  exclude-dirs:
+exclusions:
+  paths:
     - .git
     - .vscode
     - .idea
     - node_modules
-  exclude-rules:
+  rules:
     - path: _test\.go
       linters:
         - unparam
