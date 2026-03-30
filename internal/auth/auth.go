@@ -164,12 +164,17 @@ func (auth *Authentication) AuthViaSession(
 		return nil, errors.New("invalid session data")
 	}
 
+	authSourceInt, ok := session.Values["authSource"].(int)
+	if !ok {
+		authSourceInt = int(schema.AuthViaLocalPassword)
+	}
+
 	return &schema.User{
 		Username:   username,
 		Projects:   projects,
 		Roles:      roles,
 		AuthType:   schema.AuthSession,
-		AuthSource: -1,
+		AuthSource: schema.AuthSource(authSourceInt),
 	}, nil
 }
 
@@ -319,10 +324,11 @@ func (auth *Authentication) SaveSession(rw http.ResponseWriter, r *http.Request,
 		}
 		session.Options.Secure = false
 	}
-	session.Options.SameSite = http.SameSiteStrictMode
+	session.Options.SameSite = http.SameSiteLaxMode
 	session.Values["username"] = user.Username
 	session.Values["projects"] = user.Projects
 	session.Values["roles"] = user.Roles
+	session.Values["authSource"] = int(user.AuthSource)
 	if err := auth.sessionStore.Save(r, rw, session); err != nil {
 		cclog.Warnf("session save failed: %s", err.Error())
 		http.Error(rw, err.Error(), http.StatusInternalServerError)
