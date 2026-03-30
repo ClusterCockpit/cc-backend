@@ -5,7 +5,7 @@ run:
 
 formatters:
   enable:
-    - gofumpt      # gofumpt formatter
+    - gofumpt # gofumpt formatter
 
   settings:
     gofumpt:
@@ -13,12 +13,16 @@ formatters:
 
 linters:
   enable:
-    - staticcheck  # staticcheck = true
-    - unparam      # unusedparams = true
-    - nilnil       # nilness = true (catches nil returns of nil interface values)
-    - govet        # base vet; nilness + unusedwrite via govet analyzers
+    - staticcheck # staticcheck = true
+    - unparam # unusedparams = true
+    - nilnil # nilness = true (catches nil returns of nil interface values)
+    - govet # base vet; nilness + unusedwrite via govet analyzers
+    - stylecheck # naming conventions (ST1003: acronyms, camelCase)
 
   settings:
+    stylecheck:
+      checks: ["ST1003"]
+
     govet:
       enable:
         - nilness
@@ -30,7 +34,6 @@ exclusions:
     - .vscode
     - .idea
     - node_modules
-  rules:
-    - path: _test\.go
-      linters:
-        - unparam
+    - internal/graph/generated  # gqlgen generated code
+    - internal/api/docs\.go     # swaggo generated code
+    - _test\.go                 # test files excluded from all linters
