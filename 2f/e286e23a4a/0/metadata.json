@@ -1,0 +1,34 @@
+{
+  "cli_version": "0.5.1",
+  "checkpoint_id": "2fe286e23a4a",
+  "session_id": "ac9af4ff-f729-4da8-b598-ef3b719bbd57",
+  "strategy": "manual-commit",
+  "created_at": "2026-03-30T14:10:12.219944Z",
+  "branch": "hotfix",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "internal/auth/auth.go"
+  ],
+  "agent": "Claude Code",
+  "model": "claude-sonnet-4-6",
+  "turn_id": "4186646be823",
+  "token_usage": {
+    "input_tokens": 58,
+    "cache_creation_tokens": 124578,
+    "cache_read_tokens": 3670282,
+    "output_tokens": 60265,
+    "api_call_count": 50
+  },
+  "session_metrics": {
+    "turn_count": 3
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-03-30T14:10:12.035178Z",
+    "agent_lines": 8,
+    "human_added": 0,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 8,
+    "agent_percentage": 100
+  }
+}

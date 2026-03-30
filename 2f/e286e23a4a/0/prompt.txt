@@ -1,0 +1,9 @@
+How can you logout if logged in in openid connect?
+
+---
+
+Is a oidc single-sign-out common and supported?
+
+---
+
+For an oidc initiated user session no logout button is shown in the frontend ui. Ivestigate the issue and fix it
