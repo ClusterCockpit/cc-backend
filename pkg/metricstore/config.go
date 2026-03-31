@@ -59,11 +59,14 @@ const (
 // Checkpoints configures periodic persistence of in-memory metric data.
 //
 // Fields:
-//   - FileFormat: "json" (human-readable, periodic) or "wal" (binary snapshot + WAL, crash-safe); default is "wal"
-//   - RootDir:    Filesystem path for checkpoint files (created if missing)
+//   - FileFormat:  "json" (human-readable, periodic) or "wal" (binary snapshot + WAL, crash-safe); default is "wal"
+//   - RootDir:     Filesystem path for checkpoint files (created if missing)
+//   - MaxWALSize:  Maximum size in bytes for a single host's WAL file; 0 = unlimited (default).
+//     When exceeded the WAL is force-rotated to prevent unbounded disk growth.
 type Checkpoints struct {
 	FileFormat string `json:"file-format"`
 	RootDir    string `json:"directory"`
+	MaxWALSize int64  `json:"max-wal-size,omitempty"`
 }
 
 // Debug provides development and profiling options.

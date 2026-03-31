@@ -19,6 +19,16 @@ This is also the default.
 
 ### Bug fixes
 
+- **WAL not rotated on partial checkpoint failure**: When binary checkpointing
+  failed for some hosts, WAL files for successfully checkpointed hosts were not
+  rotated and the checkpoint timestamp was not advanced. Partial successes now
+  correctly advance the checkpoint and rotate WAL files for completed hosts.
+- **Unbounded WAL file growth**: If binary checkpointing consistently failed for
+  a host, its `current.wal` file grew without limit until disk exhaustion. A new
+  `max-wal-size` configuration option (in the `checkpoints` block) allows setting
+  a per-host WAL size cap in bytes. When exceeded, the WAL is force-rotated.
+  Defaults to 0 (unlimited) for backward compatibility.
+
 - **Doubleranged filter fixes**: Range filters now correctly handle zero as a
   boundary value. Improved validation and UI text for "more than equal" and
   "less than equal" range selections.
@@ -49,6 +59,14 @@ This is also the default.
   maintenance windows or automated cleanup scripts.
 - **Explicit node state queries in node view**: Node health and scheduler state
   are now fetched independently from metric data for fresher status information.
+
+### New tools
+
+- **binaryCheckpointReader**: New utility tool (`tools/binaryCheckpointReader`)
+  that reads `.wal` or `.bin` checkpoint files produced by the metricstore
+  WAL/snapshot system and dumps their contents to a human-readable `.txt` file.
+  Useful for debugging and inspecting checkpoint data. Usage:
+  `go run ./tools/binaryCheckpointReader <file.wal|file.bin>`
 
 ### Logging improvements
 

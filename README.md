@@ -100,6 +100,26 @@ the following targets:
   frontend source files will result in a complete rebuild.
 - `make clean`: Clean go build cache and remove binary.
 - `make test`: Run the tests that are also run in the GitHub workflow setup.
+- `make fmt`: Format all Go source files using
+  [gofumpt](https://github.com/mvdan/gofumpt), a stricter superset of `gofmt`.
+  Requires `gofumpt` to be installed (see below).
+- `make lint`: Run [golangci-lint](https://golangci-lint.run/) with the project
+  configuration in `.golangci.yml`. Requires `golangci-lint` to be installed
+  (see below).
+
+### Installing development tools
+
+`gofumpt` and `golangci-lint` are not part of the Go module and must be
+installed separately:
+
+```sh
+# Formatter (gofumpt)
+go install mvdan.cc/gofumpt@latest
+
+# Linter (golangci-lint) — use the official install script to get a
+# pre-built binary; installing via `go install` is not supported upstream.
+curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/HEAD/install.sh | sh -s -- -b $(go env GOPATH)/bin
+```
 
 A common workflow for setting up cc-backend from scratch is:
 

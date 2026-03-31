@@ -57,7 +57,7 @@
   let entries = $state([]);
   let loading = $state(false);
   let error = $state(null);
-  let timer = $state(null);
+  let timer = null;
 
   function levelColor(priority) {
     if (priority <= 2) return "danger";
