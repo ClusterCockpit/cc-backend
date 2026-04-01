@@ -1,0 +1,5 @@
+I set Realm Roles in KeyCloak, but the RealmAccess.Roles are empty. How can I add roles in Keycloak correctly?
+
+---
+
+How can I add the projects array used for the manager role in KeyCloak

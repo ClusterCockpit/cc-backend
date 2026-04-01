@@ -1,0 +1,25 @@
+{
+  "cli_version": "0.5.1",
+  "checkpoint_id": "2064482d97e1",
+  "strategy": "manual-commit",
+  "branch": "hotfix",
+  "checkpoints_count": 2,
+  "files_touched": [
+    "internal/auth/oidc.go"
+  ],
+  "sessions": [
+    {
+      "metadata": "/20/64482d97e1/0/metadata.json",
+      "transcript": "/20/64482d97e1/0/full.jsonl",
+      "content_hash": "/20/64482d97e1/0/content_hash.txt",
+      "prompt": "/20/64482d97e1/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 46,
+    "cache_creation_tokens": 92148,
+    "cache_read_tokens": 1366987,
+    "output_tokens": 16354,
+    "api_call_count": 36
+  }
+}
