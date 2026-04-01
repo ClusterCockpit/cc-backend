@@ -14,6 +14,7 @@ import (
 	"path/filepath"
 	"reflect"
 	"runtime"
+	"sort"
 	"strings"
 	"sync"
 
@@ -210,6 +211,12 @@ func (r *UserRepository) AddUserIfNotExists(user *schema.User) error {
 	return err
 }
 
+func sortedRoles(roles []string) []string {
+	cp := append([]string{}, roles...)
+	sort.Strings(cp)
+	return cp
+}
+
 func (r *UserRepository) UpdateUser(dbUser *schema.User, user *schema.User) error {
 	// user contains updated info -> Apply to dbUser
 	// --- Simple Name Update ---
@@ -274,6 +281,15 @@ func (r *UserRepository) UpdateUser(dbUser *schema.User, user *schema.User) erro
 		}
 	} else if dbUser.HasRole(schema.RoleSupport) && user.HasNotRoles([]schema.Role{schema.RoleAdmin, schema.RoleSupport}) {
 		// Remove Support: update roles
+		if err := updateRoles(user.Roles); err != nil {
+			return err
+		}
+	}
+
+	// --- Fallback: sync any remaining role differences not covered above ---
+	// This handles admin role assignment/removal and any other combinations that
+	// the specific branches above do not cover (e.g. user→admin, admin→user).
+	if !reflect.DeepEqual(sortedRoles(dbUser.Roles), sortedRoles(user.Roles)) {
 		if err := updateRoles(user.Roles); err != nil {
 			return err
 		}

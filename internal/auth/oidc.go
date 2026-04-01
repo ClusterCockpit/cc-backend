@@ -79,7 +79,7 @@ func NewOIDC(a *Authentication) *OIDC {
 		ClientID:     clientID,
 		ClientSecret: clientSecret,
 		Endpoint:     provider.Endpoint(),
-		Scopes:       []string{oidc.ScopeOpenID, "profile"},
+		Scopes:       []string{oidc.ScopeOpenID, "profile", "roles"},
 	}
 
 	oa := &OIDC{provider: provider, client: client, clientID: clientID, authentication: a}
@@ -162,36 +162,76 @@ func (oa *OIDC) OAuth2Callback(rw http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	projects := make([]string, 0)
+	// projects is populated below from ID token claims
+	var projects []string
 
-	// Extract custom claims from userinfo
-	var claims struct {
+	// Extract profile claims from userinfo (username, name)
+	var userInfoClaims struct {
+		Username string `json:"preferred_username"`
+		Name     string `json:"name"`
+	}
+	if err := userInfo.Claims(&userInfoClaims); err != nil {
+		cclog.Errorf("failed to extract userinfo claims: %s", err.Error())
+		http.Error(rw, "Failed to extract user claims", http.StatusInternalServerError)
+		return
+	}
+
+	// Extract role claims from the ID token.
+	// Keycloak includes realm_access and resource_access in the ID token (JWT),
+	// but NOT in the UserInfo endpoint response by default.
+	var idTokenClaims struct {
 		Username string `json:"preferred_username"`
 		Name     string `json:"name"`
 		// Keycloak realm-level roles
 		RealmAccess struct {
 			Roles []string `json:"roles"`
 		} `json:"realm_access"`
-		// Keycloak client-level roles
-		ResourceAccess struct {
-			Client struct {
-				Roles []string `json:"roles"`
-			} `json:"clustercockpit"`
+		// Keycloak client-level roles: map from client-id to role list
+		ResourceAccess map[string]struct {
+			Roles []string `json:"roles"`
 		} `json:"resource_access"`
+		// Custom multi-valued user attribute mapped via a Keycloak User Attribute mapper
+		Projects []string `json:"projects"`
 	}
-	if err := userInfo.Claims(&claims); err != nil {
-		cclog.Errorf("failed to extract claims: %s", err.Error())
-		http.Error(rw, "Failed to extract user claims", http.StatusInternalServerError)
+	if err := idToken.Claims(&idTokenClaims); err != nil {
+		cclog.Errorf("failed to extract ID token claims: %s", err.Error())
+		http.Error(rw, "Failed to extract ID token claims", http.StatusInternalServerError)
 		return
 	}
 
-	if claims.Username == "" {
+	cclog.Debugf("OIDC userinfo claims: username=%q name=%q", userInfoClaims.Username, userInfoClaims.Name)
+	cclog.Debugf("OIDC ID token realm_access roles: %v", idTokenClaims.RealmAccess.Roles)
+	cclog.Debugf("OIDC ID token resource_access: %v", idTokenClaims.ResourceAccess)
+	cclog.Debugf("OIDC ID token projects: %v", idTokenClaims.Projects)
+
+	projects = idTokenClaims.Projects
+	if projects == nil {
+		projects = []string{}
+	}
+
+	// Prefer username from userInfo; fall back to ID token claim
+	username := userInfoClaims.Username
+	if username == "" {
+		username = idTokenClaims.Username
+	}
+	name := userInfoClaims.Name
+	if name == "" {
+		name = idTokenClaims.Name
+	}
+
+	if username == "" {
 		http.Error(rw, "Username claim missing from OIDC provider", http.StatusBadRequest)
 		return
 	}
 
-	// Merge roles from both client-level and realm-level access
-	oidcRoles := append(claims.ResourceAccess.Client.Roles, claims.RealmAccess.Roles...)
+	// Collect roles from realm_access (realm roles) in the ID token
+	oidcRoles := append([]string{}, idTokenClaims.RealmAccess.Roles...)
+
+	// Also collect roles from resource_access (client roles) for all clients
+	for clientID, access := range idTokenClaims.ResourceAccess {
+		cclog.Debugf("OIDC ID token resource_access[%q] roles: %v", clientID, access.Roles)
+		oidcRoles = append(oidcRoles, access.Roles...)
+	}
 
 	roleSet := make(map[string]bool)
 	for _, r := range oidcRoles {
@@ -217,8 +257,8 @@ func (oa *OIDC) OAuth2Callback(rw http.ResponseWriter, r *http.Request) {
 	}
 
 	user := &schema.User{
-		Username:   claims.Username,
-		Name:       claims.Name,
+		Username:   username,
+		Name:       name,
 		Roles:      roles,
 		Projects:   projects,
 		AuthSource: schema.AuthViaOIDC,
