@@ -79,7 +79,7 @@ func NewOIDC(a *Authentication) *OIDC {
 		ClientID:     clientID,
 		ClientSecret: clientSecret,
 		Endpoint:     provider.Endpoint(),
-		Scopes:       []string{oidc.ScopeOpenID, "profile"},
+		Scopes:       []string{oidc.ScopeOpenID, "profile", "roles"},
 	}
 
 	oa := &OIDC{provider: provider, client: client, clientID: clientID, authentication: a}
