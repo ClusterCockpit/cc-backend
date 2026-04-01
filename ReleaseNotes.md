@@ -19,6 +19,26 @@ This is also the default.
 
 ### Bug fixes
 
+- **OIDC role extraction**: Fixed role extraction from OIDC tokens where roles
+  were not correctly parsed from the token claims. Roles are now always
+  requested from the token regardless of other configuration.
+- **OIDC user sync role changes**: `SyncUser` and `UpdateUser` callbacks now
+  allow all role changes, removing a restriction that prevented role updates
+  during OIDC-driven user synchronization.
+- **OIDC projects array**: Projects array from the OIDC token is now submitted
+  and applied when syncing user attributes.
+- **WAL message drops during checkpoint**: WAL writes are now paused during
+  binary checkpoint creation. Previously, disk I/O contention between
+  checkpoint writes and WAL staging caused over 1.4 million dropped messages
+  per checkpoint cycle.
+- **WAL rotation skipped for all nodes**: `RotateWALFiles` used a non-blocking
+  send on a small channel. With thousands of nodes, the channel filled instantly
+  and nearly all hosts were skipped, leaving WAL files unrotated. Replaced with
+  a blocking send using a shared 2-minute deadline.
+- **Log viewer auto-refresh**: Fixed the log viewer component not auto-refreshing
+  correctly.
+- **SameSite cookie setting**: Relaxed the SameSite cookie attribute to improve
+  compatibility with OIDC redirect flows.
 - **WAL not rotated on partial checkpoint failure**: When binary checkpointing
   failed for some hosts, WAL files for successfully checkpointed hosts were not
   rotated and the checkpoint timestamp was not advanced. Partial successes now
@@ -59,6 +79,12 @@ This is also the default.
   maintenance windows or automated cleanup scripts.
 - **Explicit node state queries in node view**: Node health and scheduler state
   are now fetched independently from metric data for fresher status information.
+
+### Development tooling
+
+- **Make targets for formatting and linting**: New `make fmt` and `make lint`
+  targets using `gofumpt` and `golangci-lint`. Configuration added in
+  `.golangci.yml` and `gopls.json`.
 
 ### New tools
 
