@@ -1,0 +1,1 @@
+When authenticating via OpenID Connect against a KeyCloak instance the roles are not correctly set. In KeyCloak the solres are set as Realm roles. Investigate the problem and suggest a fix. In case no problem can be found add debug logging to get more information.
