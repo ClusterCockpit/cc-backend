@@ -162,7 +162,8 @@ func (oa *OIDC) OAuth2Callback(rw http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	projects := make([]string, 0)
+	// projects is populated below from ID token claims
+	var projects []string
 
 	// Extract profile claims from userinfo (username, name)
 	var userInfoClaims struct {
@@ -189,6 +190,8 @@ func (oa *OIDC) OAuth2Callback(rw http.ResponseWriter, r *http.Request) {
 		ResourceAccess map[string]struct {
 			Roles []string `json:"roles"`
 		} `json:"resource_access"`
+		// Custom multi-valued user attribute mapped via a Keycloak User Attribute mapper
+		Projects []string `json:"projects"`
 	}
 	if err := idToken.Claims(&idTokenClaims); err != nil {
 		cclog.Errorf("failed to extract ID token claims: %s", err.Error())
@@ -199,6 +202,12 @@ func (oa *OIDC) OAuth2Callback(rw http.ResponseWriter, r *http.Request) {
 	cclog.Debugf("OIDC userinfo claims: username=%q name=%q", userInfoClaims.Username, userInfoClaims.Name)
 	cclog.Debugf("OIDC ID token realm_access roles: %v", idTokenClaims.RealmAccess.Roles)
 	cclog.Debugf("OIDC ID token resource_access: %v", idTokenClaims.ResourceAccess)
+	cclog.Debugf("OIDC ID token projects: %v", idTokenClaims.Projects)
+
+	projects = idTokenClaims.Projects
+	if projects == nil {
+		projects = []string{}
+	}
 
 	// Prefer username from userInfo; fall back to ID token claim
 	username := userInfoClaims.Username
