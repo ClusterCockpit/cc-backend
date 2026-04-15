@@ -287,12 +287,12 @@
               } else if (nodesData[i]?.schedulerState == "allocated") {
                 //u.ctx.strokeStyle = "rgb(0, 255, 0)";
                 u.ctx.fillStyle = "rgba(0, 255, 0, 0.5)";
-              } else if (nodesData[i]?.schedulerState == "notindb") {
+              } else if (nodesData[i]?.schedulerState == "mixed") {
                 //u.ctx.strokeStyle = "rgb(0, 0, 0)";
-                u.ctx.fillStyle = "rgba(0, 0, 0, 0.5)";
-              } else { // Fallback: All other DEFINED states
-                //u.ctx.strokeStyle = "rgb(255, 0, 0)";
                 u.ctx.fillStyle = "rgba(255, 0, 0, 0.5)";
+              } else { // Fallback: All other states: Reserved, Down, Notindb
+                //u.ctx.strokeStyle = "rgb(255, 0, 0)";
+                u.ctx.fillStyle = "rgba(0, 0, 0, 0.5)";
               }
             }
           } else {
@@ -450,10 +450,10 @@
             tooltip.style.borderColor = "rgb(0, 0, 255)";
           } else if (nodesData[i]?.schedulerState == "allocated") {
             tooltip.style.borderColor = "rgb(0, 255, 0)";
-          } else if (nodesData[i]?.schedulerState == "notindb") { // Missing from DB table
-            tooltip.style.borderColor = "rgb(0, 0, 0)";
-          } else { // Fallback: All other DEFINED states
+          } else if (nodesData[i]?.schedulerState == "mixed") {
             tooltip.style.borderColor = "rgb(255, 0, 0)";
+          } else { // Fallback: All other DEFINED states
+            tooltip.style.borderColor = "rgb(0, 0, 0)";
           }
         }
       } else {
@@ -904,7 +904,7 @@
                 if (jobsData) {
                   const posX = u.valToPos(0.1, "x", true)
                   const posXLimit = u.valToPos(100, "x", true)
-                  const posY = u.valToPos(17500.0, "y", true)
+                  const posY = 7 // u.valToPos(17500.0, "y", true)
                   u.ctx.fillStyle = 'black'
                   u.ctx.fillText('0 Hours', posX, posY)
                   const start = posX + 10
@@ -921,16 +921,16 @@
 
                 // Nodes: The Colors Of NodeStates
                 if (nodesData) {
-                  const posY = u.valToPos(17500.0, "y", true)
+                  const posY = 7 // u.valToPos(17500.0, "y", true)
 
                   const posAllocDot = u.valToPos(0.03, "x", true)
                   const posAllocText = posAllocDot + 60
-                  const posIdleDot = u.valToPos(0.3, "x", true)
-                  const posIdleText = posIdleDot + 30
-                  const posOtherDot = u.valToPos(3, "x", true)
+                  const posIdleDot = u.valToPos(1, "x", true)
+                  const posIdleText = posIdleDot + 28
+                  const posMixedDot = u.valToPos(7, "x", true)
+                  const posMixedText = posMixedDot + 40
+                  const posOtherDot = u.valToPos(100, "x", true)
                   const posOtherText = posOtherDot + 40
-                  const posMissingDot = u.valToPos(30, "x", true)
-                  const posMissingText = posMissingDot + 80
 
                   u.ctx.fillStyle = "rgb(0, 255, 0)"
                   u.ctx.beginPath()
@@ -948,16 +948,16 @@
 
                   u.ctx.fillStyle = "rgb(255, 0, 0)"
                   u.ctx.beginPath()
-                  u.ctx.arc(posOtherDot, posY, 3, 0, Math.PI * 2, false)
+                  u.ctx.arc(posMixedDot, posY, 3, 0, Math.PI * 2, false)
                   u.ctx.fill()
                   u.ctx.fillStyle = 'black'
-                  u.ctx.fillText('Other', posOtherText, posY)
+                  u.ctx.fillText('Mixed', posMixedText, posY)
 
                   u.ctx.fillStyle = 'black'
                   u.ctx.beginPath()
-                  u.ctx.arc(posMissingDot, posY, 3, 0, Math.PI * 2, false)
+                  u.ctx.arc(posOtherDot, posY, 3, 0, Math.PI * 2, false)
                   u.ctx.fill()
-                  u.ctx.fillText('Missing in DB', posMissingText, posY)
+                  u.ctx.fillText('Other', posOtherText, posY)
                 }
               }
             },
