@@ -338,7 +338,7 @@
                 // The Color Scale For Time Information
                 const posX = u.valToPos(0.1, "x", true)
                 const posXLimit = u.valToPos(100, "x", true)
-                const posY = u.valToPos(14000.0, "y", true)
+                const posY = 7 // u.valToPos(((subCluster?.flopRateSimd?.value || 10000) + 5000), "y", true)
                 u.ctx.fillStyle = 'black'
                 u.ctx.fillText('Start', posX, posY)
                 const start = posX + 10
