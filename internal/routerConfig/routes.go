@@ -238,6 +238,9 @@ func buildFilterPresets(query url.Values) map[string]any {
 	if query.Get("cluster") != "" {
 		filterPresets["cluster"] = query.Get("cluster")
 	}
+	if query.Get("subCluster") != "" {
+		filterPresets["subCluster"] = query.Get("subCluster")
+	}
 	if query.Get("partition") != "" {
 		filterPresets["partition"] = query.Get("partition")
 	}
