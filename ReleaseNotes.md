@@ -1,4 +1,4 @@
-# `cc-backend` version 1.5.3
+# `cc-backend` version 1.5.4
 
 Supports job archive version 3 and database version 11.
 
@@ -14,6 +14,26 @@ and `VACUUM` commands. Depending on your database size (more then 40GB) the
 While we are confident that the memory issue with the metricstore cleanup move
 policy is fixed, it is still recommended to use delete policy for cleanup.
 This is also the default.
+
+## Changes in 1.5.4
+
+### Bug fixes
+
+- **Roofline legend placement**: Roofline plot legends now use fixed
+  coordinates instead of dynamic placement, preventing the legend from
+  overlapping data points or being rendered off-canvas (#546).
+- **Subcluster usage tab labels**: Subcluster names in the status dashboard
+  usage tabs are no longer force-capitalized; the original cluster-defined
+  casing is preserved.
+- **NodeListRow host filter**: The running-jobs query in the node list row now
+  filters by exact node hostname (`eq`) instead of substring match
+  (`contains`), avoiding incorrect matches when one hostname is a prefix of
+  another.
+
+### Dependencies
+
+- **Go module upgrades**: Refreshed Go module dependencies to their latest
+  compatible versions.
 
 ## Changes in 1.5.3
 
