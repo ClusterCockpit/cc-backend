@@ -87,7 +87,7 @@
 
       {#if subClusters?.length > 1}
         {#each subClusters.map(sc => sc.name) as scn}
-        <TabPane tabId="{scn}-usage-dash" tab="{scn.charAt(0).toUpperCase() + scn.slice(1)} Usage">
+        <TabPane tabId="{scn}-usage-dash" tab="{scn} Usage">
           <CardBody>
             <UsageDash {presetCluster} presetSubCluster={scn} {useCbColors} loadMe={(activeTab === `${scn}-usage-dash`)}></UsageDash>
           </CardBody>
