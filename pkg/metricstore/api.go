@@ -78,7 +78,7 @@ type APIQueryResponse struct {
 //   - Type + TypeIds: First level of hierarchy (e.g., "cpu" + ["0", "1", "2"])
 //   - SubType + SubTypeIds: Second level of hierarchy (e.g., "core" + ["0", "1"])
 //
-// If Aggregate is true, data from multiple type/subtype IDs will be aggregated according
+// If Aggregate is true, data from multiple type/stype IDs will be aggregated according
 // to the metric's aggregation strategy. Otherwise, separate results are returned for each combination.
 type APIQuery struct {
 	Type        *string      `json:"type,omitempty"`
@@ -174,13 +174,13 @@ func (data *APIMetricData) PadDataWithNull(ms *MemoryStore, from, to int64, metr
 // This is the primary API for retrieving metric data from the memory store. It supports:
 //   - Individual queries via req.Queries
 //   - Batch queries for all nodes via req.ForAllNodes
-//   - Hierarchical selector construction (cluster → host → type → subtype)
+//   - Hierarchical selector construction (cluster → host → type → stype)
 //   - Optional statistics computation (avg, min, max)
 //   - Optional data scaling
 //   - Optional data padding with NaN values
 //
 // The function constructs selectors based on the query parameters and calls MemoryStore.Read()
-// for each selector. If a query specifies Aggregate=false with multiple type/subtype IDs,
+// for each selector. If a query specifies Aggregate=false with multiple type/stype IDs,
 // separate results are returned for each combination.
 //
 // Parameters:
