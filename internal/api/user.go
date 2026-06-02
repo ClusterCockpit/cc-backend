@@ -66,7 +66,7 @@ func (api *RestAPI) getUsers(rw http.ResponseWriter, r *http.Request) {
 	}
 }
 
-// updateUserByJson godoc
+// updateUserByRequest godoc
 // @summary     Update user roles and projects
 // @tags User
 // @description Allows admins to add/remove roles and projects for a user
