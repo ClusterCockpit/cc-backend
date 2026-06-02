@@ -31,6 +31,25 @@ definitions:
         example: Debug
         type: string
     type: object
+  api.UpdateUserAPIRequest:
+    properties:
+      add-project:
+        description: Project to add to user $ID managed array
+        example: abcd100
+        type: string
+      add-role:
+        description: Role to add to user $ID
+        example: user
+        type: string
+      remove-project:
+        description: Project to remove from user $ID managed array
+        example: abcd100
+        type: string
+      remove-role:
+        description: Role to remove from user $ID
+        example: user
+        type: string
+    type: object
   api.DefaultAPIResponse:
     properties:
       msg:
@@ -1388,6 +1407,8 @@ paths:
       - Nodestates
   /api/user/{id}:
     post:
+      consumes:
+      - application/json
       description: Allows admins to add/remove roles and projects for a user
       parameters:
       - description: Username
@@ -1395,29 +1416,23 @@ paths:
         name: id
         required: true
         type: string
-      - description: Role to add
-        in: formData
-        name: add-role
-        type: string
-      - description: Role to remove
-        in: formData
-        name: remove-role
-        type: string
-      - description: Project to add
-        in: formData
-        name: add-project
-        type: string
-      - description: Project to remove
-        in: formData
-        name: remove-project
-        type: string
+      - description: Single Field Changes
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/api.UpdateUserAPIRequest'
       produces:
-      - text/plain
+      - application/json
       responses:
         "200":
-          description: Success message
+          description: OK
           schema:
-            type: string
+            $ref: '#/definitions/api.DefaultAPIResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
         "403":
           description: Forbidden
           schema:
