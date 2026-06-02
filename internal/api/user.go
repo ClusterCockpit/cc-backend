@@ -24,7 +24,7 @@ type APIReturnedUser struct {
 	Projects []string `json:"projects"`
 }
 
-// JobMetaRequest model
+// UpdateUserAPIRequest model
 type UpdateUserAPIRequest struct {
 	NewRole string `json:"add-role" example:"user"`          // Role to add to user $ID
 	DelRole string `json:"remove-role" example:"user"`       // Role to remove from user $ID
