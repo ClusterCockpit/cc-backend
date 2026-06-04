@@ -2,8 +2,8 @@
 
 Supports job archive version 3 and database version 11.
 
-This is a bugfix release of `cc-backend`, the API backend and frontend
-implementation of ClusterCockpit.
+This is a security and bugfix release of `cc-backend`, the API backend and
+frontend implementation of ClusterCockpit.
 For release specific notes visit the [ClusterCockpit Documentation](https://clusterockpit.org/docs/release/).
 If you are upgrading from v1.5.1 no database migration is required.
 If you are upgrading from v1.5.0 you need to do another DB migration. This
@@ -16,6 +16,48 @@ policy is fixed, it is still recommended to use delete policy for cleanup.
 This is also the default.
 
 ## Changes in 1.5.4
+
+### Security fixes
+
+- **JWT HMAC empty-key bypass (critical)**: `jwtSession.go` now refuses to
+  register when `CROSS_LOGIN_JWT_HS512_KEY` is unset. Previously, an empty HMAC
+  key allowed unauthenticated admin token forgery because `golang-jwt` verifies
+  any HS256/HS512 signature against an empty key.
+- **SQL injection via metric names (critical)**: Metric names supplied through
+  GraphQL (`[String!]`) were interpolated raw into `json_extract` SQL expressions.
+  Names are now validated against `^[a-zA-Z0-9_]+$` in
+  `jobsMetricStatisticsHistogram` and `buildFloatJSONCondition`.
+- **Path traversal via line-protocol tags (critical)**: `cluster` and `host`
+  tags from the metric line protocol flowed unvalidated into `path.Join` for
+  checkpoint/WAL file paths, enabling arbitrary file writes outside the
+  checkpoint root via NATS (unauthenticated) or `POST /api/write`. Path-traversal
+  sequences are now rejected in `DecodeLine` before the tags become path
+  components.
+- **CORS `AllowCredentials` disabled**: CORS middleware no longer sets
+  `AllowCredentials: true`, which was incompatible with `AllowedOrigins: ["*"]`
+  and could enable cross-origin credential theft.
+- **HSTS header added**: `Strict-Transport-Security` is now set for all
+  HTTPS connections.
+- **Security response headers**: Added `X-Content-Type-Options: nosniff`,
+  `X-Frame-Options: DENY`, `Referrer-Policy: same-origin`, and a conservative
+  `Content-Security-Policy` (blocks `frame-ancestors`, `object-src`, `base-uri`)
+  to harden against clickjacking and base-tag injection.
+- **Stored XSS in job message**: `job.metaData.message` is now rendered as
+  escaped text (CSS `white-space: pre-wrap`) instead of raw `{@html ...}` in
+  `Job.root` and `JobFootprint`.
+- **SQL injection in tag queries**: The tag-scope `IN` list and manager project
+  subquery in `CountTags` are now parameterized instead of interpolating
+  `user.Username` / `user.Projects` values sourced from OIDC/LDAP.
+- **GraphQL DoS hardening**: Query cost is bounded with `FixedComplexityLimit`
+  (5000). Non-positive `items-per-page` and `page` values are rejected with HTTP
+  400 to prevent integer underflow into unbounded `LIMIT`/`OFFSET` queries.
+- **CSRF defense-in-depth**: State-changing requests with a cross-site
+  `Sec-Fetch-Site` header are now rejected (fails open for non-browser clients),
+  complementing the existing `SameSite=Lax` session cookie.
+- **NATS API security warning**: A startup warning is now logged when NATS
+  subscriptions are enabled, reminding operators that the NATS API has no
+  application-layer authentication and that publish ACLs must be restricted at
+  the broker.
 
 ### Bug fixes
 
