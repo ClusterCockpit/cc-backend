@@ -965,8 +965,11 @@ const docTemplate = `{
         "/api/user/{id}": {
             "post": {
                 "description": "Allows admins to add/remove roles and projects for a user",
+                "consumes": [
+                    "application/json"
+                ],
                 "produces": [
-                    "text/plain"
+                    "application/json"
                 ],
                 "tags": [
                     "User"
@@ -981,35 +984,26 @@ const docTemplate = `{
                         "required": true
                     },
                     {
-                        "type": "string",
-                        "description": "Role to add",
-                        "name": "add-role",
-                        "in": "formData"
-                    },
-                    {
-                        "type": "string",
-                        "description": "Role to remove",
-                        "name": "remove-role",
-                        "in": "formData"
-                    },
-                    {
-                        "type": "string",
-                        "description": "Project to add",
-                        "name": "add-project",
-                        "in": "formData"
-                    },
-                    {
-                        "type": "string",
-                        "description": "Project to remove",
-                        "name": "remove-project",
-                        "in": "formData"
+                        "description": "Single Field Changes",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/api.UpdateUserAPIRequest"
+                        }
                     }
                 ],
                 "responses": {
                     "200": {
-                        "description": "Success message",
+                        "description": "OK",
                         "schema": {
-                            "type": "string"
+                            "$ref": "#/definitions/api.DefaultAPIResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/api.ErrorResponse"
                         }
                     },
                     "403": {
@@ -1937,6 +1931,31 @@ const docTemplate = `{
                     "description": "Tag Type",
                     "type": "string",
                     "example": "Debug"
+                }
+            }
+        },
+        "api.UpdateUserAPIRequest": {
+            "type": "object",
+            "properties": {
+                "add-role": {
+                    "description": "Role to add to user $ID",
+                    "type": "string",
+                    "example": "user"
+                },
+                "remove-role": {
+                    "description": "Role to remove from user $ID",
+                    "type": "string",
+                    "example": "user"
+                },
+                "add-project": {
+                    "description": "Project to add to user $ID managed array",
+                    "type": "string",
+                    "example": "abcd100"
+                },
+                "remove-project": {
+                    "description": "Project to remove from user $ID managed array",
+                    "type": "string",
+                    "example": "abcd100"
                 }
             }
         },

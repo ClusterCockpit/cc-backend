@@ -632,7 +632,7 @@ func securedCheck(user *schema.User, r *http.Request) error {
 	}
 	// If SplitHostPort fails, IPAddress is already just a host (no port)
 
-	// If nothing declared in config: Continue
+	// If nothing declared in config: Continue // FIXME: Allow All If Not Declared?
 	if len(config.Keys.APIAllowedIPs) == 0 {
 		return nil
 	}
