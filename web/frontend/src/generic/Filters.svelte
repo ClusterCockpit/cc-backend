@@ -73,6 +73,7 @@
     userMatch: "contains",
     // Filter Modals
     cluster: null,
+    subCluster: null,
     partition: null,
     states: allJobStates,
     shared: "",
@@ -107,6 +108,7 @@
     user: filterPresets?.user || "",
     userMatch: filterPresets?.userMatch || "contains",
     cluster: filterPresets?.cluster || null,
+    subCluster: filterPresets?.subCluster || null,
     partition: filterPresets?.partition || null,
     states:
       filterPresets?.states || filterPresets?.state
@@ -158,6 +160,7 @@
     if (filters.dbId.length != 0)
       items.push({ dbId: filters.dbId });
     if (filters.cluster) items.push({ cluster: { eq: filters.cluster } });
+    if (filters.subCluster) items.push({ subCluster: { eq: filters.subCluster } });
     if (filters.partition) items.push({ partition: { eq: filters.partition } });
     if (filters.states.length != allJobStates?.length)
       items.push({ state: filters.states });
@@ -267,6 +270,7 @@
       opts.push(`userMatch=${filters.userMatch}`);
     // Filter Modals
     if (filters.cluster) opts.push(`cluster=${filters.cluster}`);
+    if (filters.subCluster) opts.push(`subCluster=${filters.subCluster}`);
     if (filters.partition) opts.push(`partition=${filters.partition}`);
     if (filters.states.length != allJobStates?.length)
       for (let state of filters.states) opts.push(`state=${state}`);
@@ -346,7 +350,7 @@
         {/if}
         <DropdownItem header>Manage Filters</DropdownItem>
         <DropdownItem onclick={() => (isClusterOpen = true)}>
-          <Icon name="cpu" /> Cluster/Partition
+          <Icon name="cpu" /> Cluster/SubCluster/Partition
         </DropdownItem>
         <DropdownItem onclick={() => (isJobStatesOpen = true)}>
           <Icon name="gear-fill" /> Job States
@@ -440,6 +444,9 @@
   {#if filters.cluster}
     <Info icon="cpu" onclick={() => (isClusterOpen = true)}>
       {filters.cluster}
+      {#if filters.subCluster}
+        [{filters.subCluster}]
+      {/if}
       {#if filters.partition}
         ({filters.partition})
       {/if}
@@ -603,6 +610,7 @@
   bind:isOpen={isClusterOpen}
   presetCluster={filters.cluster}
   presetPartition={filters.partition}
+  presetSubCluster={filters.subCluster}
   {disableClusterSelection}
   setFilter={(filter) => updateFilters(filter)}
 />
