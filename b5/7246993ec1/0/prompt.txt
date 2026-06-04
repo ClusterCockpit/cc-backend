@@ -1,0 +1,5 @@
+I did a security review with Opus 4.7 . Fixes are already applied. Repeat the audit and check if anything severe was missed in the previous audit
+
+---
+
+Fix the three top items
