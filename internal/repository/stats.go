@@ -909,6 +909,13 @@ func (r *JobRepository) jobsMetricStatisticsHistogram(
 	filters []*model.JobFilter,
 	bins *int,
 ) (*model.MetricHistoPoints, error) {
+	// The metric name is interpolated into the json_extract() path of the SQL
+	// below. SQLite parses double-quoted strings as literals, so reject anything
+	// that is not a plain metric identifier to prevent SQL injection.
+	if !validMetricName.MatchString(metric) {
+		return nil, fmt.Errorf("invalid metric name: %q", metric)
+	}
+
 	// Peak value defines the upper bound for binning: values are distributed across
 	// bins from 0 to peak. First try to get peak from filtered cluster, otherwise
 	// scan all clusters to find the maximum peak value.

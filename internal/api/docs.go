@@ -398,11 +398,6 @@ const docTemplate = `{
         },
         "/api/jobs/edit_meta/": {
             "patch": {
-                "security": [
-                    {
-                        "ApiKeyAuth": []
-                    }
-                ],
                 "description": "Edit key value pairs in metadata json of job specified by jobID, StartTime and Cluster\nIf a key already exists its content will be overwritten",
                 "consumes": [
                     "application/json"
@@ -413,7 +408,7 @@ const docTemplate = `{
                 "tags": [
                     "Job add and modify"
                 ],
-                "summary": "Edit meta-data json by request",
+                "summary": "Edit meta-data json of job identified by request",
                 "parameters": [
                     {
                         "description": "Specifies job and payload to add or update",
@@ -456,12 +451,17 @@ const docTemplate = `{
                             "$ref": "#/definitions/api.ErrorResponse"
                         }
                     }
-                }
+                },
+                "security": [
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ]
             }
         },
         "/api/jobs/edit_meta/{id}": {
             "patch": {
-                "description": "Edit key value pairs in job metadata json\nIf a key already exists its content will be overwritten",
+                "description": "Edit key value pairs in job metadata json of job specified by database id\nIf a key already exists its content will be overwritten",
                 "consumes": [
                     "application/json"
                 ],
@@ -471,7 +471,7 @@ const docTemplate = `{
                 "tags": [
                     "Job add and modify"
                 ],
-                "summary": "Edit meta-data json",
+                "summary": "Edit meta-data json of job identified by database id",
                 "parameters": [
                     {
                         "type": "integer",
@@ -481,7 +481,7 @@ const docTemplate = `{
                         "required": true
                     },
                     {
-                        "description": "Kay value pair to add",
+                        "description": "Metadata Key value pair to add or update",
                         "name": "request",
                         "in": "body",
                         "required": true,
@@ -725,6 +725,64 @@ const docTemplate = `{
                     },
                     "404": {
                         "description": "Job or tag does not exist",
+                        "schema": {
+                            "$ref": "#/definitions/api.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/api.ErrorResponse"
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/jobs/used_nodes": {
+            "get": {
+                "description": "Get a map of cluster names to lists of unique hostnames that are currently in use by running jobs that started before the specified timestamp.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Job query"
+                ],
+                "summary": "Lists used nodes by cluster",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Unix timestamp to filter jobs (jobs with start_time \u003c ts)",
+                        "name": "ts",
+                        "in": "query",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Map of cluster names to hostname lists",
+                        "schema": {
+                            "$ref": "#/definitions/api.GetUsedNodesAPIResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/api.ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/api.ErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
                         "schema": {
                             "$ref": "#/definitions/api.ErrorResponse"
                         }
@@ -1339,63 +1397,6 @@ const docTemplate = `{
                 "responses": {
                     "200": {
                         "description": "ok",
-                        "schema": {
-                            "type": "string"
-                        }
-                    },
-                    "400": {
-                        "description": "Bad Request",
-                        "schema": {
-                            "$ref": "#/definitions/api.ErrorResponse"
-                        }
-                    },
-                    "401": {
-                        "description": "Unauthorized",
-                        "schema": {
-                            "$ref": "#/definitions/api.ErrorResponse"
-                        }
-                    },
-                    "403": {
-                        "description": "Forbidden",
-                        "schema": {
-                            "$ref": "#/definitions/api.ErrorResponse"
-                        }
-                    },
-                    "500": {
-                        "description": "Internal Server Error",
-                        "schema": {
-                            "$ref": "#/definitions/api.ErrorResponse"
-                        }
-                    }
-                },
-                "security": [
-                    {
-                        "ApiKeyAuth": []
-                    }
-                ]
-            }
-        },
-        "/healthcheck/": {
-            "get": {
-                "description": "This endpoint allows the users to check if a node is healthy",
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "healthcheck"
-                ],
-                "summary": "HealthCheck endpoint",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "Selector",
-                        "name": "selector",
-                        "in": "query"
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "Debug dump",
                         "schema": {
                             "type": "string"
                         }
@@ -2062,6 +2063,52 @@ const docTemplate = `{
                 }
             }
         },
+        "api.GetUsedNodesAPIResponse": {
+            "type": "object",
+            "properties": {
+                "usedNodes": {
+                    "description": "Map of cluster names to lists of used node hostnames",
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        }
+                    }
+                }
+            }
+        },
+        "api.JobMetaRequest": {
+            "type": "object",
+            "required": [
+                "jobId"
+            ],
+            "properties": {
+                "cluster": {
+                    "description": "Cluster of job",
+                    "type": "string",
+                    "example": "fritz"
+                },
+                "jobId": {
+                    "description": "Cluster Job ID of job",
+                    "type": "integer",
+                    "example": 123000
+                },
+                "payload": {
+                    "description": "Content to Add to Job Meta_Data",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/api.EditMetaRequest"
+                        }
+                    ]
+                },
+                "startTime": {
+                    "description": "Start Time of job as epoch",
+                    "type": "integer",
+                    "example": 1649723812
+                }
+            }
+        },
         "api.JobMetricWithName": {
             "type": "object",
             "properties": {
@@ -2193,13 +2240,6 @@ const docTemplate = `{
                         "type": "number",
                         "format": "float64"
                     }
-                },
-                "exclusive": {
-                    "description": "for backwards compatibility",
-                    "type": "integer",
-                    "maximum": 2,
-                    "minimum": 0,
-                    "example": 1
                 },
                 "footprint": {
                     "type": "object",

@@ -151,7 +151,10 @@ func (api *NatsAPI) StartSubscriptions() error {
 			return err
 		}
 
-		cclog.Info("NATS API subscriptions started")
+		cclog.Warnf("NATS API subscriptions started on subjects %q and %q — these are UNAUTHENTICATED: "+
+			"anyone with publish rights on the broker can start/stop jobs and update node state. "+
+			"Restrict publish ACLs on the NATS broker to trusted producers only.",
+			s.SubjectJobEvent, s.SubjectNodeState)
 	}
 	return nil
 }

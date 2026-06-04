@@ -25,14 +25,20 @@ type JWTSessionAuthenticator struct {
 var _ Authenticator = (*JWTSessionAuthenticator)(nil)
 
 func (ja *JWTSessionAuthenticator) Init() error {
-	if pubKey := os.Getenv("CROSS_LOGIN_JWT_HS512_KEY"); pubKey != "" {
-		bytes, err := base64.StdEncoding.DecodeString(pubKey)
-		if err != nil {
-			cclog.Warn("Could not decode cross login JWT HS512 key")
-			return err
-		}
-		ja.loginTokenKey = bytes
+	pubKey := os.Getenv("CROSS_LOGIN_JWT_HS512_KEY")
+	if pubKey == "" {
+		// Without a configured key the HMAC verification below would run against
+		// an empty key, which lets anyone forge a valid token. Refuse to register
+		// the authenticator in that case so JWT session login is simply disabled.
+		return errors.New("CROSS_LOGIN_JWT_HS512_KEY not set: JWT session login disabled")
 	}
+
+	bytes, err := base64.StdEncoding.DecodeString(pubKey)
+	if err != nil {
+		cclog.Warn("Could not decode cross login JWT HS512 key")
+		return err
+	}
+	ja.loginTokenKey = bytes
 
 	cclog.Info("JWT Session authenticator successfully registered")
 	return nil
@@ -60,6 +66,12 @@ func (ja *JWTSessionAuthenticator) Login(
 
 	token, err := jwt.Parse(rawtoken, func(t *jwt.Token) (any, error) {
 		if t.Method == jwt.SigningMethodHS256 || t.Method == jwt.SigningMethodHS512 {
+			// Defense in depth: an empty key would verify any HMAC signature.
+			// Init() already refuses to register without a key, so this should
+			// never trigger, but guard explicitly rather than trust the chain.
+			if len(ja.loginTokenKey) == 0 {
+				return nil, errors.New("HS login key not configured")
+			}
 			return ja.loginTokenKey, nil
 		}
 		return nil, fmt.Errorf("unkown signing method for login token: %s (known: HS256, HS512, EdDSA)", t.Method.Alg())

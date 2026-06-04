@@ -23,6 +23,7 @@ import (
 
 	"github.com/99designs/gqlgen/graphql"
 	"github.com/99designs/gqlgen/graphql/handler"
+	"github.com/99designs/gqlgen/graphql/handler/extension"
 	"github.com/99designs/gqlgen/graphql/handler/transport"
 	"github.com/99designs/gqlgen/graphql/playground"
 	"github.com/ClusterCockpit/cc-backend/internal/api"
@@ -49,6 +50,12 @@ var buildInfo web.Build
 const (
 	envDebug = "DEBUG"
 )
+
+// maxQueryComplexity bounds the cost of a single GraphQL query to mitigate
+// denial-of-service via deeply nested or heavily aliased queries. The default
+// per-field cost is 1, so this leaves ample headroom for legitimate dashboard
+// queries while rejecting pathological ones.
+const maxQueryComplexity = 5000
 
 // Server encapsulates the HTTP server state and dependencies
 type Server struct {
@@ -90,6 +97,7 @@ func (s *Server) init() error {
 		generated.NewExecutableSchema(generated.Config{Resolvers: resolver}))
 
 	graphQLServer.AddTransport(transport.POST{})
+	graphQLServer.Use(extension.FixedComplexityLimit(maxQueryComplexity))
 
 	// Inject a per-request stats cache so that grouped statistics queries
 	// sharing the same (filter, groupBy) pair are executed only once.
@@ -129,11 +137,49 @@ func (s *Server) init() error {
 	s.router.Use(middleware.Compress(5))
 	s.router.Use(middleware.Recoverer)
 	s.router.Use(cors.Handler(cors.Options{
-		AllowCredentials: true,
+		AllowCredentials: false,
 		AllowedHeaders:   []string{"X-Requested-With", "Content-Type", "Authorization", "Origin"},
 		AllowedMethods:   []string{"GET", "POST", "HEAD", "OPTIONS"},
 		AllowedOrigins:   []string{"*"},
 	}))
+	s.router.Use(func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(rw http.ResponseWriter, r *http.Request) {
+			h := rw.Header()
+			h.Set("X-Content-Type-Options", "nosniff")
+			h.Set("X-Frame-Options", "DENY")
+			h.Set("Referrer-Policy", "same-origin")
+			// Conservative CSP: blocks clickjacking (frame-ancestors), plugin
+			// content (object-src) and <base> injection (base-uri) without
+			// restricting scripts/styles, so it cannot break the self-hosted
+			// SPA which relies on inline scripts. A full script-src policy needs
+			// per-template nonces and should be added separately.
+			h.Set("Content-Security-Policy", "frame-ancestors 'none'; object-src 'none'; base-uri 'self'")
+			if r.TLS != nil || r.Header.Get("X-Forwarded-Proto") == "https" {
+				h.Set("Strict-Transport-Security", "max-age=31536000; includeSubDomains")
+			}
+			next.ServeHTTP(rw, r)
+		})
+	})
+
+	// CSRF defense-in-depth on top of the SameSite=Lax session cookie: reject
+	// cross-site state-changing requests. Modern browsers set Sec-Fetch-Site on
+	// every request, so this stops a malicious site from driving cookie-
+	// authenticated POST/PUT/DELETE/PATCH calls. It fails open when the header is
+	// absent or not "cross-site", so non-browser API clients and the same-origin
+	// SPA are unaffected.
+	s.router.Use(func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(rw http.ResponseWriter, r *http.Request) {
+			switch r.Method {
+			case http.MethodGet, http.MethodHead, http.MethodOptions, http.MethodTrace:
+			default:
+				if r.Header.Get("Sec-Fetch-Site") == "cross-site" {
+					http.Error(rw, "cross-site request blocked", http.StatusForbidden)
+					return
+				}
+			}
+			next.ServeHTTP(rw, r)
+		})
+	})
 
 	s.restAPIHandle = api.New()
 

@@ -314,6 +314,24 @@ job,function=stop_job event="{\"jobId\":123,\"cluster\":\"test\",\"startTime\":1
 - Messages are logged; no responses are sent back to publishers
 - If NATS client is unavailable, API subscriptions are skipped (logged as warning)
 
+### Security Considerations
+
+**The NATS API has no application-layer authentication or authorization.** Unlike
+the REST endpoints (which require a JWT with `RoleAPI`), the subscribers process
+any message delivered on the configured subjects. Anyone with publish rights to
+those subjects on the broker can:
+
+- Insert arbitrary jobs (potentially attributed to other users)
+- Mark running jobs as stopped, triggering archive/finalization
+- Overwrite node state and health metadata for any cluster
+
+Operators MUST restrict publish ACLs at the NATS broker (per-account or
+per-subject permissions) so that only trusted producers — e.g. the scheduler
+integration on a known host or service account — can publish to the configured
+`subject-job-event` and `subject-node-state` subjects. A shared, unrestricted
+NATS broker is not a safe deployment topology for this API. A startup warning
+is logged when these subscriptions are enabled.
+
 ## Development Guidelines
 
 ### Performance

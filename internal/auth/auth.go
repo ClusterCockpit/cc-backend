@@ -9,7 +9,6 @@ package auth
 import (
 	"bytes"
 	"context"
-	"crypto/rand"
 	"database/sql"
 	"encoding/base64"
 	"encoding/json"
@@ -17,6 +16,7 @@ import (
 	"fmt"
 	"net"
 	"net/http"
+	"net/url"
 	"os"
 	"sync"
 	"time"
@@ -187,19 +187,15 @@ func Init(authCfg *json.RawMessage) {
 
 		sessKey := os.Getenv("SESSION_KEY")
 		if sessKey == "" {
-			cclog.Warn("environment variable 'SESSION_KEY' not set (will use non-persistent random key)")
-			bytes := make([]byte, 32)
-			if _, err := rand.Read(bytes); err != nil {
-				cclog.Fatal("Error while initializing authentication -> failed to generate random bytes for session key")
-			}
-			authInstance.sessionStore = sessions.NewCookieStore(bytes)
-		} else {
-			bytes, err := base64.StdEncoding.DecodeString(sessKey)
-			if err != nil {
-				cclog.Fatal("Error while initializing authentication -> decoding session key failed")
-			}
-			authInstance.sessionStore = sessions.NewCookieStore(bytes)
+			cclog.Fatal("environment variable 'SESSION_KEY' not set: refusing to start with an ephemeral session key. " +
+				"Set SESSION_KEY in .env (base64-encoded 32 random bytes); a random key would invalidate all sessions on every restart " +
+				"and prevent sessions from validating across replicas.")
 		}
+		keyBytes, err := base64.StdEncoding.DecodeString(sessKey)
+		if err != nil {
+			cclog.Fatal("Error while initializing authentication -> decoding session key failed")
+		}
+		authInstance.sessionStore = sessions.NewCookieStore(keyBytes)
 
 		if d, err := time.ParseDuration(config.Keys.SessionMaxAge); err == nil {
 			authInstance.SessionMaxAge = d
@@ -325,6 +321,7 @@ func (auth *Authentication) SaveSession(rw http.ResponseWriter, r *http.Request,
 		session.Options.Secure = false
 	}
 	session.Options.SameSite = http.SameSiteLaxMode
+	session.Options.HttpOnly = true
 	session.Values["username"] = user.Username
 	session.Values["projects"] = user.Projects
 	session.Values["roles"] = user.Roles
@@ -388,9 +385,12 @@ func (auth *Authentication) Login(
 			cclog.Infof("login successfull: user: %#v (roles: %v, projects: %v)", user.Username, user.Roles, user.Projects)
 			ctx := context.WithValue(r.Context(), repository.ContextUserKey, user)
 
-			if r.FormValue("redirect") != "" {
-				http.RedirectHandler(r.FormValue("redirect"), http.StatusFound).ServeHTTP(rw, r.WithContext(ctx))
-				return
+			if redirect := r.FormValue("redirect"); redirect != "" {
+				if u, perr := url.Parse(redirect); perr == nil && u.Scheme == "" && u.Host == "" {
+					http.RedirectHandler(redirect, http.StatusFound).ServeHTTP(rw, r.WithContext(ctx))
+					return
+				}
+				cclog.Warnf("login redirect rejected (not a relative path): %q", redirect)
 			}
 
 			http.RedirectHandler("/", http.StatusFound).ServeHTTP(rw, r.WithContext(ctx))
