@@ -1,0 +1,31 @@
+{
+  "cli_version": "0.5.1",
+  "checkpoint_id": "bc18358a9343",
+  "strategy": "manual-commit",
+  "branch": "release/v1.5",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "CLAUDE.md",
+    "cmd/cc-backend/server.go",
+    "internal/api/api_test.go",
+    "internal/api/nats.go",
+    "internal/api/nats_test.go",
+    "internal/auth/auth.go",
+    "internal/auth/jwtCookieSession.go"
+  ],
+  "sessions": [
+    {
+      "metadata": "/bc/18358a9343/0/metadata.json",
+      "transcript": "/bc/18358a9343/0/full.jsonl",
+      "content_hash": "/bc/18358a9343/0/content_hash.txt",
+      "prompt": "/bc/18358a9343/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 54,
+    "cache_creation_tokens": 173942,
+    "cache_read_tokens": 3830360,
+    "output_tokens": 36489,
+    "api_call_count": 39
+  }
+}

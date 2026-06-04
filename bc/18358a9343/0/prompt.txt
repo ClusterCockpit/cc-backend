@@ -1,0 +1,5 @@
+Do a security audit of the authentication in this application.
+
+---
+
+Fix 1-3
