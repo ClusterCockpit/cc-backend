@@ -1,0 +1,30 @@
+{
+  "cli_version": "0.5.1",
+  "checkpoint_id": "de7d47a85c7c",
+  "strategy": "manual-commit",
+  "branch": "release/v1.5",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "cmd/cc-backend/server.go",
+    "internal/api/job.go",
+    "internal/repository/jobQuery.go",
+    "internal/repository/tags.go",
+    "web/frontend/src/Job.root.svelte",
+    "web/frontend/src/generic/helper/JobFootprint.svelte"
+  ],
+  "sessions": [
+    {
+      "metadata": "/de/7d47a85c7c/0/metadata.json",
+      "transcript": "/de/7d47a85c7c/0/full.jsonl",
+      "content_hash": "/de/7d47a85c7c/0/content_hash.txt",
+      "prompt": "/de/7d47a85c7c/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 648,
+    "cache_creation_tokens": 35140,
+    "cache_read_tokens": 3400773,
+    "output_tokens": 25533,
+    "api_call_count": 29
+  }
+}
