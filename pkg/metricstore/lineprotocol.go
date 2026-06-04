@@ -22,6 +22,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -196,6 +197,16 @@ var decodeStatePool = sync.Pool{
 // When the checkpoint format is "wal" each successfully decoded sample is also
 // sent to WALMessages so the WAL staging goroutine can persist it durably
 // before the next binary snapshot.
+// isValidPathComponent reports whether s is safe to use as a single filesystem
+// path component (cluster or host name) when building checkpoint/WAL paths. It
+// rejects path-traversal sequences and embedded separators. An empty string is
+// allowed because a missing host tag is legitimate and does not escape the root.
+func isValidPathComponent(s string) bool {
+	return !strings.Contains(s, "..") &&
+		!strings.Contains(s, "/") &&
+		!strings.Contains(s, "\\")
+}
+
 func DecodeLine(dec *lineprotocol.Decoder,
 	ms *MemoryStore,
 	clusterDefault string,
@@ -280,6 +291,17 @@ func DecodeLine(dec *lineprotocol.Decoder,
 				st.subTypeBuf = append(st.subTypeBuf, val...)
 			default:
 			}
+		}
+
+		// cluster and host are taken verbatim from attacker-controllable line
+		// protocol tags and are later used as filesystem path components for the
+		// checkpoint/WAL files (path.Join(RootDir, cluster, host)). Reject
+		// path-traversal sequences so a malicious tag cannot escape the
+		// checkpoint root. Skip the offending sample; the rest of the batch is
+		// still processed.
+		if !isValidPathComponent(cluster) || !isValidPathComponent(host) {
+			cclog.Warnf("[METRICSTORE]> rejecting metric with invalid cluster/host tag (cluster=%q host=%q)", cluster, host)
+			continue
 		}
 
 		// If the cluster or host changed, the lvl was set to nil

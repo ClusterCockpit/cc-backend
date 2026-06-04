@@ -336,8 +336,18 @@ func buildTimeCondition(field string, cond *config.TimeRange, query sq.SelectBui
 	}
 }
 
+// validMetricName guards metric/footprint names that are interpolated into the
+// json_extract() path of footprint queries. SQLite treats double-quoted strings
+// as string literals, so an unescaped name (e.g. containing a `"`) would allow
+// SQL injection. Legitimate metric names only use these characters.
+var validMetricName = regexp.MustCompile(`^[a-zA-Z0-9_]+$`)
+
 // buildFloatJSONCondition creates a filter on a numeric field within the footprint JSON column, using BETWEEN only if required.
 func buildFloatJSONCondition(jsonField string, cond *model.FloatRange, query sq.SelectBuilder) sq.SelectBuilder {
+	if !validMetricName.MatchString(jsonField) {
+		cclog.Warnf("buildFloatJSONCondition: rejecting invalid metric name %q", jsonField)
+		return query.Where("0 = 1")
+	}
 	query = query.Where("JSON_VALID(footprint)")
 	if cond.From > 0.0 && cond.To > 0.0 {
 		return query.Where("JSON_EXTRACT(footprint, \"$."+jsonField+"\") BETWEEN ? AND ?", cond.From, cond.To)
