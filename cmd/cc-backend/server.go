@@ -129,11 +129,19 @@ func (s *Server) init() error {
 	s.router.Use(middleware.Compress(5))
 	s.router.Use(middleware.Recoverer)
 	s.router.Use(cors.Handler(cors.Options{
-		AllowCredentials: true,
+		AllowCredentials: false,
 		AllowedHeaders:   []string{"X-Requested-With", "Content-Type", "Authorization", "Origin"},
 		AllowedMethods:   []string{"GET", "POST", "HEAD", "OPTIONS"},
 		AllowedOrigins:   []string{"*"},
 	}))
+	s.router.Use(func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(rw http.ResponseWriter, r *http.Request) {
+			if r.TLS != nil || r.Header.Get("X-Forwarded-Proto") == "https" {
+				rw.Header().Set("Strict-Transport-Security", "max-age=31536000; includeSubDomains")
+			}
+			next.ServeHTTP(rw, r)
+		})
+	})
 
 	s.restAPIHandle = api.New()
 
