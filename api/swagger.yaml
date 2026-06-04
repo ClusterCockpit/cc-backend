@@ -102,6 +102,16 @@ definitions:
         description: Page id returned
         type: integer
     type: object
+  api.GetUsedNodesAPIResponse:
+    properties:
+      usedNodes:
+        additionalProperties:
+          items:
+            type: string
+          type: array
+        description: Map of cluster names to lists of used node hostnames
+        type: object
+    type: object
   api.JobMetaRequest:
     properties:
       cluster:
@@ -214,12 +224,6 @@ definitions:
           format: float64
           type: number
         type: object
-      exclusive:
-        description: for backwards compatibility
-        example: 1
-        maximum: 2
-        minimum: 0
-        type: integer
       footprint:
         additionalProperties:
           format: float64
@@ -1151,7 +1155,7 @@ paths:
             $ref: '#/definitions/api.ErrorResponse'
       security:
       - ApiKeyAuth: []
-      summary: Edit meta-data json by request
+      summary: Edit meta-data json of job identified by request
       tags:
       - Job add and modify
   /api/jobs/edit_meta/{id}:
@@ -1159,7 +1163,7 @@ paths:
       consumes:
       - application/json
       description: |-
-        Edit key value pairs in job metadata json
+        Edit key value pairs in job metadata json of job specified by database id
         If a key already exists its content will be overwritten
       parameters:
       - description: Job Database ID
@@ -1167,7 +1171,7 @@ paths:
         name: id
         required: true
         type: integer
-      - description: Kay value pair to add
+      - description: Metadata Key value pair to add or update
         in: body
         name: request
         required: true
@@ -1198,7 +1202,7 @@ paths:
             $ref: '#/definitions/api.ErrorResponse'
       security:
       - ApiKeyAuth: []
-      summary: Edit meta-data json
+      summary: Edit meta-data json of job identified by database id
       tags:
       - Job add and modify
   /api/jobs/start_job/:
@@ -1346,6 +1350,44 @@ paths:
       summary: Adds one or more tags to a job
       tags:
       - Job add and modify
+  /api/jobs/used_nodes:
+    get:
+      description: Get a map of cluster names to lists of unique hostnames that are
+        currently in use by running jobs that started before the specified timestamp.
+      parameters:
+      - description: Unix timestamp to filter jobs (jobs with start_time < ts)
+        in: query
+        name: ts
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Map of cluster names to hostname lists
+          schema:
+            $ref: '#/definitions/api.GetUsedNodesAPIResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+      security:
+      - ApiKeyAuth: []
+      summary: Lists used nodes by cluster
+      tags:
+      - Job query
   /api/nodestats/:
     post:
       description: |-
@@ -1657,42 +1699,6 @@ paths:
       - ApiKeyAuth: []
       tags:
       - free
-  /healthcheck/:
-    get:
-      description: This endpoint allows the users to check if a node is healthy
-      parameters:
-      - description: Selector
-        in: query
-        name: selector
-        type: string
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: Debug dump
-          schema:
-            type: string
-        "400":
-          description: Bad Request
-          schema:
-            $ref: '#/definitions/api.ErrorResponse'
-        "401":
-          description: Unauthorized
-          schema:
-            $ref: '#/definitions/api.ErrorResponse'
-        "403":
-          description: Forbidden
-          schema:
-            $ref: '#/definitions/api.ErrorResponse'
-        "500":
-          description: Internal Server Error
-          schema:
-            $ref: '#/definitions/api.ErrorResponse'
-      security:
-      - ApiKeyAuth: []
-      summary: HealthCheck endpoint
-      tags:
-      - healthcheck
   /jobs/tag_job/{id}:
     delete:
       consumes:
