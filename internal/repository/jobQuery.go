@@ -76,8 +76,15 @@ func (r *JobRepository) QueryJobs(
 	}
 
 	if page != nil && page.ItemsPerPage != -1 {
+		// -1 is the only valid non-positive value ("load all"); reject other
+		// non-positive values so that uint64(page.ItemsPerPage) cannot underflow
+		// into a huge limit. Clamp Page to >= 1 to avoid the same on the offset.
+		if page.ItemsPerPage < 1 {
+			return nil, fmt.Errorf("invalid items-per-page value: %d", page.ItemsPerPage)
+		}
+		p := max(page.Page, 1)
 		limit := uint64(page.ItemsPerPage)
-		query = query.Offset((uint64(page.Page) - 1) * limit).Limit(limit)
+		query = query.Offset((uint64(p) - 1) * limit).Limit(limit)
 	}
 
 	for _, f := range filters {
