@@ -1,0 +1,1 @@
+This application uses a files based checkpointing mechanism using a WAL algorithm for crash recovery. Analyse when the wal files are reset. Currently the wal files are not reset and continously grow after a start.
