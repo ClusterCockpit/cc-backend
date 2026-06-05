@@ -71,6 +71,13 @@ This is also the default.
   filters by exact node hostname (`eq`) instead of substring match
   (`contains`), avoiding incorrect matches when one hostname is a prefix of
   another.
+- **WAL files not reset on shutdown**: On graceful shutdown the metricstore wrote
+  a final binary snapshot but never rotated the per-host `current.wal` files (the
+  `RotateWALFilesAfterShutdown` helper was defined but never called). The stale
+  WAL files were replayed and then appended to again on the next start, so they
+  grew without bound across restarts and were only ever reset at the next periodic
+  checkpoint. `Shutdown` now rotates the WAL files for all successfully
+  snapshotted hosts.
 
 ### Dependencies
 
