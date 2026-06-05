@@ -172,14 +172,20 @@ func handleUserCommands() error {
 		return fmt.Errorf("--add-user and --del-user can only be used if authentication is enabled")
 	}
 
-	if !config.Keys.DisableAuthentication {
-		if cfg := ccconf.GetPackageConfig("auth"); cfg != nil {
-			auth.Init(&cfg)
-		} else {
-			cclog.Warn("Authentication disabled due to missing configuration")
-			auth.Init(nil)
+	// Always initialize the auth subsystem so the HTTP server and REST API have a
+	// valid (non-nil) auth instance, even when authentication is disabled. With
+	// authentication disabled, Init only sets up an ephemeral session store and
+	// registers no authenticators (see auth.Init).
+	if cfg := ccconf.GetPackageConfig("auth"); cfg != nil {
+		auth.Init(&cfg)
+	} else {
+		if !config.Keys.DisableAuthentication {
+			cclog.Warn("Authentication enabled but no auth configuration found")
 		}
+		auth.Init(nil)
+	}
 
+	if !config.Keys.DisableAuthentication {
 		// Check for default security keys
 		checkDefaultSecurityKeys()
 
@@ -337,6 +343,12 @@ func initSubsystems() error {
 }
 
 func runServer(ctx context.Context) error {
+	// Derive a cancelable context so the startup-error path below can trigger the
+	// same graceful-shutdown sequence as a signal (via the signal handler that
+	// waits on ctx.Done()).
+	ctx, cancel := context.WithCancel(ctx)
+	defer cancel()
+
 	var wg sync.WaitGroup
 
 	// Initialize metric store if configuration is provided
@@ -438,24 +450,30 @@ func runServer(ctx context.Context) error {
 	// Wait for either:
 	// 1. An error from server startup
 	// 2. Completion of all goroutines (normal shutdown or crash)
+	var runErr error
 	select {
-	case err := <-errChan:
+	case runErr = <-errChan:
 		// errChan will be closed when waitDone is closed, which happens
 		// when all goroutines complete (either from normal shutdown or error)
-		if err != nil {
-			return err
-		}
 	case <-time.After(100 * time.Millisecond):
 		// Give the server 100ms to start and report any immediate startup errors
 		// After that, just wait for normal shutdown completion
 		select {
-		case err := <-errChan:
-			if err != nil {
-				return err
-			}
+		case runErr = <-errChan:
 		case <-waitDone:
 			// Normal shutdown completed
 		}
+	}
+
+	if runErr != nil {
+		// A subsystem failed (e.g. the HTTP server could not bind). Trigger the
+		// graceful-shutdown path for the subsystems that were already started
+		// (metricstore checkpoint, archiver flush, taskmanager) by cancelling the
+		// context the signal handler waits on, then wait for it to finish so we
+		// don't exit before the final checkpoint is written.
+		cancel()
+		<-waitDone
+		return runErr
 	}
 
 	cclog.Print("Graceful shutdown completed!")
