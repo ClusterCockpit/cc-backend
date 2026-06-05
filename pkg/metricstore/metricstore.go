@@ -308,8 +308,14 @@ func Shutdown() {
 	lastCheckpointMu.Unlock()
 
 	if Keys.Checkpoints.FileFormat == "wal" {
-		// WAL files are deleted per-host inside ToCheckpointWAL workers.
-		files, _, err = ms.ToCheckpointWAL(Keys.Checkpoints.RootDir, from.Unix(), time.Now().Unix())
+		var successDirs []string
+		files, successDirs, err = ms.ToCheckpointWAL(Keys.Checkpoints.RootDir, from.Unix(), time.Now().Unix())
+		// The final binary snapshot now captures all in-memory data for these
+		// hosts, making their current.wal redundant. The staging goroutines have
+		// already exited, so remove the WAL files directly (the channel-based
+		// RotateWALFiles is no longer safe to call). Without this, current.wal
+		// files survive shutdown and keep growing across restarts.
+		RotateWALFilesAfterShutdown(successDirs)
 	} else {
 		files, err = ms.ToCheckpoint(Keys.Checkpoints.RootDir, from.Unix(), time.Now().Unix())
 	}
