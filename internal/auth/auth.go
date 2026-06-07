@@ -9,6 +9,7 @@ package auth
 import (
 	"bytes"
 	"context"
+	"crypto/rand"
 	"database/sql"
 	"encoding/base64"
 	"encoding/json"
@@ -187,18 +188,35 @@ func Init(authCfg *json.RawMessage) {
 
 		sessKey := os.Getenv("SESSION_KEY")
 		if sessKey == "" {
-			cclog.Fatal("environment variable 'SESSION_KEY' not set: refusing to start with an ephemeral session key. " +
-				"Set SESSION_KEY in .env (base64-encoded 32 random bytes); a random key would invalidate all sessions on every restart " +
-				"and prevent sessions from validating across replicas.")
+			if !config.Keys.DisableAuthentication {
+				cclog.Fatal("environment variable 'SESSION_KEY' not set: refusing to start with an ephemeral session key. " +
+					"Set SESSION_KEY in .env (base64-encoded 32 random bytes); a random key would invalidate all sessions on every restart " +
+					"and prevent sessions from validating across replicas.")
+			}
+			// Authentication is disabled: no user sessions are issued, so an
+			// ephemeral random key is sufficient and SESSION_KEY is not required.
+			ephemeralKey := make([]byte, 32)
+			if _, err := rand.Read(ephemeralKey); err != nil {
+				cclog.Fatalf("Error while initializing authentication -> generating ephemeral session key failed: %v", err)
+			}
+			authInstance.sessionStore = sessions.NewCookieStore(ephemeralKey)
+		} else {
+			keyBytes, err := base64.StdEncoding.DecodeString(sessKey)
+			if err != nil {
+				cclog.Fatal("Error while initializing authentication -> decoding session key failed")
+			}
+			authInstance.sessionStore = sessions.NewCookieStore(keyBytes)
 		}
-		keyBytes, err := base64.StdEncoding.DecodeString(sessKey)
-		if err != nil {
-			cclog.Fatal("Error while initializing authentication -> decoding session key failed")
-		}
-		authInstance.sessionStore = sessions.NewCookieStore(keyBytes)
 
 		if d, err := time.ParseDuration(config.Keys.SessionMaxAge); err == nil {
 			authInstance.SessionMaxAge = d
+		}
+
+		// When authentication is disabled no authenticators are required; the
+		// session store created above is enough for the server to run with a
+		// valid (non-nil) auth instance.
+		if config.Keys.DisableAuthentication {
+			return
 		}
 
 		if authCfg == nil {

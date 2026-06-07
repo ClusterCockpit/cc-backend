@@ -415,7 +415,9 @@ func (s *Server) Start(ctx context.Context) error {
 
 	if !strings.HasSuffix(config.Keys.Addr, ":80") && config.Keys.RedirectHTTPTo != "" {
 		go func() {
-			http.ListenAndServe(":80", http.RedirectHandler(config.Keys.RedirectHTTPTo, http.StatusMovedPermanently))
+			if err := http.ListenAndServe(":80", http.RedirectHandler(config.Keys.RedirectHTTPTo, http.StatusMovedPermanently)); err != nil {
+				cclog.Errorf("HTTP-to-HTTPS redirect listener on :80 failed: %v", err)
+			}
 		}()
 	}
 
@@ -459,6 +461,11 @@ func (s *Server) Shutdown(ctx context.Context) {
 	nc := nats.GetClient()
 	if nc != nil {
 		nc.Close()
+	}
+	// Stop the NATS API worker goroutines after the client is closed (no more
+	// subscription callbacks can enqueue once the connection is down).
+	if s.natsAPIHandle != nil {
+		s.natsAPIHandle.Shutdown()
 	}
 	cclog.Infof("Shutdown: NATS closed (%v)", time.Since(natsStart))
 

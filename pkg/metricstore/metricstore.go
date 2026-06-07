@@ -275,10 +275,15 @@ func Shutdown() {
 	totalStart := time.Now()
 
 	shutdownFuncMu.Lock()
-	defer shutdownFuncMu.Unlock()
-	if shutdownFunc != nil {
-		shutdownFunc()
+	if shutdownFunc == nil {
+		// Already shut down (or never initialized): nothing to do. This keeps
+		// Shutdown idempotent so it is safe to call from more than one path.
+		shutdownFuncMu.Unlock()
+		return
 	}
+	shutdownFunc()
+	shutdownFunc = nil
+	shutdownFuncMu.Unlock()
 	cclog.Infof("[METRICSTORE]> Background workers cancelled (%v)", time.Since(totalStart))
 
 	if Keys.Checkpoints.FileFormat == "wal" {
