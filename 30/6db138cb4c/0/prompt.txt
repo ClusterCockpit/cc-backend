@@ -1,0 +1,1 @@
+Update CLAUDE.md to reflect goleaser commit tags for commits
