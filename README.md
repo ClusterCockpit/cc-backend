@@ -1,10 +1,9 @@
 # NOTE
 
-While we do our best to keep the master branch in a usable state, there is no guarantee the master branch works.
-Please do not use it for production!
+While we do our best to keep the master branch in a usable state, there is no
+guarantee the master branch works. Please do not use it for production!
 
-Please have a look at the [Release
-Notes](https://github.com/ClusterCockpit/cc-backend/blob/master/ReleaseNotes.md)
+Please have a look at the [Release Notes](https://github.com/ClusterCockpit/cc-backend/blob/master/ReleaseNotes.md)
 for breaking changes!
 
 # ClusterCockpit REST and GraphQL API backend
