@@ -341,6 +341,21 @@ records, archives) at scale. All code changes must prioritize maximum throughput
 and minimal latency. Avoid unnecessary allocations, prefer streaming over
 buffering, and be mindful of lock contention. When in doubt, benchmark.
 
+### Commit Message Convention
+
+Commits must use conventional commit prefixes so goreleaser can generate the
+changelog automatically. Only commits with these prefixes appear in releases:
+
+| Prefix  | Changelog group        |
+|---------|------------------------|
+| `feat:` | New Features           |
+| `fix:`  | Bug fixes              |
+| `sec:`  | Security updates       |
+| `docs:` | Documentation updates  |
+
+Scoped variants are also recognised, e.g. `feat(api):`, `fix(deps):`.
+Commits without one of these prefixes are excluded from the changelog.
+
 ### Change Impact Analysis
 
 For any significant change, you MUST:
