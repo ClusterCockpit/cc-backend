@@ -12,7 +12,6 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"os"
 	"time"
 
 	"github.com/ClusterCockpit/cc-backend/internal/repository"
@@ -27,6 +26,14 @@ type OpenIDConfig struct {
 	Provider          string `json:"provider"`
 	SyncUserOnLogin   bool   `json:"sync-user-on-login"`
 	UpdateUserOnLogin bool   `json:"update-user-on-login"`
+
+	// OAuth2 client ID for the OIDC provider.
+	// Overridden by the OID_CLIENT_ID environment variable when set.
+	ClientID string `json:"client-id"`
+
+	// OAuth2 client secret for the OIDC provider.
+	// Overridden by the OID_CLIENT_SECRET environment variable when set.
+	ClientSecret string `json:"client-secret"`
 }
 
 type OIDC struct {
@@ -66,13 +73,13 @@ func NewOIDC(a *Authentication) *OIDC {
 	if err != nil {
 		cclog.Fatal(err)
 	}
-	clientID := os.Getenv("OID_CLIENT_ID")
+	clientID := secretFromEnv("OID_CLIENT_ID", Keys.OpenIDConfig.ClientID)
 	if clientID == "" {
-		cclog.Warn("environment variable 'OID_CLIENT_ID' not set (Open ID connect auth will not work)")
+		cclog.Warn("OIDC client ID not configured ('client-id' in config or 'OID_CLIENT_ID' env): Open ID connect auth will not work")
 	}
-	clientSecret := os.Getenv("OID_CLIENT_SECRET")
+	clientSecret := secretFromEnv("OID_CLIENT_SECRET", Keys.OpenIDConfig.ClientSecret)
 	if clientSecret == "" {
-		cclog.Warn("environment variable 'OID_CLIENT_SECRET' not set (Open ID connect auth will not work)")
+		cclog.Warn("OIDC client secret not configured ('client-secret' in config or 'OID_CLIENT_SECRET' env): Open ID connect auth will not work")
 	}
 
 	client := &oauth2.Config{

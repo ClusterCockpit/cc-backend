@@ -12,8 +12,8 @@ specified, the application will call
 config file and binding to a TCP port (so it can take a privileged port), but
 before it starts accepting any connections. This is good for security, but also
 means that the `var/` directory must be readable and writeable by this user.
-The `.env` and `config.json` files may contain secrets and should not be
-readable by this user. If these files are changed, the server must be restarted.
+The `config.json` file may contain secrets and should not be readable by this
+user. If this file is changed, the server must be restarted.
 
 ```sh
 # 1. Clone this repository somewhere in your home
@@ -25,11 +25,9 @@ make
 sudo mkdir -p /opt/monitoring/cc-backend/
 cp ./cc-backend /opt/monitoring/cc-backend/
 
-# 3. Modify the `./config.json` and env-template.txt file from the configs directory to your liking and put it in the target directory
+# 3. Modify the `./config.json` file from the configs directory to your liking and put it in the target directory
 cp ./configs/config.json /opt/monitoring/config.json
-cp ./configs/env-template.txt /opt/monitoring/.env
-vim /opt/monitoring/config.json # do your thing...
-vim /opt/monitoring/.env # do your thing...
+vim /opt/monitoring/config.json # do your thing (including the secrets under "auth")...
 
 # 4. (Optional) Customization: Add your versions of the login view, legal texts, and logo image.
 # You may use the templates in `./web/templates` as blueprint. Every overwrite separate.

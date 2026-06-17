@@ -10,7 +10,6 @@ import (
 	"encoding/base64"
 	"errors"
 	"net/http"
-	"os"
 	"strings"
 	"time"
 
@@ -39,6 +38,23 @@ type JWTAuthConfig struct {
 
 	// Should an existent user be updated in the DB based on the information in the token
 	UpdateUserOnLogin bool `json:"update-user-on-login"`
+
+	// Base64 encoded Ed25519 public key used to validate JWTs.
+	// Overridden by the JWT_PUBLIC_KEY environment variable when set.
+	PublicKey string `json:"public-key"`
+
+	// Base64 encoded Ed25519 private key used to sign JWTs.
+	// Overridden by the JWT_PRIVATE_KEY environment variable when set.
+	PrivateKey string `json:"private-key"`
+
+	// Base64 encoded Ed25519 public key for accepting externally generated JWTs.
+	// Overridden by the CROSS_LOGIN_JWT_PUBLIC_KEY environment variable when set.
+	CrossLoginPublicKey string `json:"cross-login-public-key"`
+
+	// Base64 encoded HMAC (HS256/HS512) key for accepting externally generated
+	// session login tokens.
+	// Overridden by the CROSS_LOGIN_JWT_HS512_KEY environment variable when set.
+	CrossLoginHS512Key string `json:"cross-login-hs512-key"`
 }
 
 type JWTAuthenticator struct {
@@ -47,9 +63,10 @@ type JWTAuthenticator struct {
 }
 
 func (ja *JWTAuthenticator) Init() error {
-	pubKey, privKey := os.Getenv("JWT_PUBLIC_KEY"), os.Getenv("JWT_PRIVATE_KEY")
+	pubKey := secretFromEnv("JWT_PUBLIC_KEY", Keys.JwtConfig.PublicKey)
+	privKey := secretFromEnv("JWT_PRIVATE_KEY", Keys.JwtConfig.PrivateKey)
 	if pubKey == "" || privKey == "" {
-		cclog.Warn("environment variables 'JWT_PUBLIC_KEY' or 'JWT_PRIVATE_KEY' not set (token based authentication will not work)")
+		cclog.Warn("JWT public/private key not configured ('public-key'/'private-key' in config or 'JWT_PUBLIC_KEY'/'JWT_PRIVATE_KEY' env): token based authentication will not work")
 	} else {
 		bytes, err := base64.StdEncoding.DecodeString(pubKey)
 		if err != nil {
@@ -121,7 +138,7 @@ func (ja *JWTAuthenticator) AuthViaJWT(
 // ProvideJWT generates a new JWT that can be used for authentication
 func (ja *JWTAuthenticator) ProvideJWT(user *schema.User) (string, error) {
 	if ja.privateKey == nil {
-		return "", errors.New("environment variable 'JWT_PRIVATE_KEY' not set")
+		return "", errors.New("JWT private key not configured ('private-key' in config or 'JWT_PRIVATE_KEY' env)")
 	}
 
 	now := time.Now()
