@@ -152,6 +152,21 @@ ln -s <your-existing-job-archive> ./var/job-archive
 ./cc-backend -help
 ```
 
+### Authentication and sessions
+
+Browser sessions are stored server-side in the SQLite database (the `sessions`
+table) using [`alexedwards/scs`](https://github.com/alexedwards/scs); only an
+opaque random token is kept in the session cookie. No cookie-signing secret is
+required, so the former `SESSION_KEY` environment variable is no longer used and
+can be removed from your `.env`.
+
+The session cookie's `Secure` flag is set automatically when cc-backend serves
+HTTPS itself (i.e. `https-cert-file` and `https-key-file` are configured in
+`config.json`); otherwise it is left unset so that plain-HTTP development works.
+For production deployments, serve cc-backend over HTTPS so the session cookie is
+marked `Secure`. If you terminate TLS at a reverse proxy, prefer letting
+cc-backend serve HTTPS directly for now so the flag is applied.
+
 ## Database Configuration
 
 cc-backend uses SQLite as its database. For large installations, SQLite memory

@@ -1,10 +1,48 @@
-# `cc-backend` version 1.5.4
+# `cc-backend` version 1.6.0
+
+Supports job archive version 3 and database version 12.
+
+This release replaces the browser session implementation and requires a database
+migration to version 12. Run `./cc-backend -migrate-db` after upgrading; the new
+`sessions` table is created automatically (a fresh `-init-db` also creates it).
+Existing login sessions are invalidated by the upgrade, so users have to log in
+again once. See the behavior changes below regarding the session cookie `Secure`
+flag and the removal of the `SESSION_KEY` environment variable.
+For release specific notes visit the [ClusterCockpit Documentation](https://clusterockpit.org/docs/release/).
+
+## Changes in 1.6.0
+
+### Behavior changes
+
+- **Session backend replaced (`gorilla/sessions` → `alexedwards/scs`)**: Browser
+  sessions are now managed by `github.com/alexedwards/scs/v2` with server-side
+  storage in the SQLite database (new `sessions` table, database version 12)
+  instead of `gorilla/sessions` client-side cookie storage. Only an opaque random
+  token is stored in the cookie; the session payload lives server-side. Sessions
+  still survive backend restarts. This requires the database migration noted above
+  and invalidates existing sessions.
+- **Session cookie `Secure` flag**: The `Secure` attribute on the session cookie
+  is now derived from the server configuration — it is set when cc-backend
+  terminates TLS itself (`https-cert-file` and `https-key-file` configured) and
+  unset otherwise. Previously the flag was effectively never set. Deployments that
+  terminate TLS at a reverse proxy and want the `Secure` flag should serve
+  cc-backend over HTTPS directly for now.
+- **`SESSION_KEY` removed**: The `SESSION_KEY` environment variable is no longer
+  used and should be removed from your `.env`. Server-side sessions use random
+  tokens, so no cookie-signing secret is required. It is ignored if left in place.
+
+### Dependencies
+
+- **Added** `github.com/alexedwards/scs/v2` and
+  `github.com/alexedwards/scs/sqlite3store`.
+- **Removed** `github.com/gorilla/sessions` (and `github.com/gorilla/securecookie`).
+
+## Changes in 1.5.4
 
 Supports job archive version 3 and database version 11.
 
-This is a security and bugfix release of `cc-backend`, the API backend and
+This was a security and bugfix release of `cc-backend`, the API backend and
 frontend implementation of ClusterCockpit.
-For release specific notes visit the [ClusterCockpit Documentation](https://clusterockpit.org/docs/release/).
 If you are upgrading from v1.5.1 no database migration is required.
 If you are upgrading from v1.5.0 you need to do another DB migration. This
 should not take long. For optimal database performance after the migration it is
@@ -14,8 +52,6 @@ and `VACUUM` commands. Depending on your database size (more then 40GB) the
 While we are confident that the memory issue with the metricstore cleanup move
 policy is fixed, it is still recommended to use delete policy for cleanup.
 This is also the default.
-
-## Changes in 1.5.4
 
 ### Security fixes
 
