@@ -4,7 +4,7 @@ import {
     setContextClient,
     fetchExchange,
 } from "@urql/svelte";
-import { setContext, getContext, hasContext, onDestroy, tick } from "svelte";
+import { setContext, getContext, onDestroy, tick } from "svelte";
 import { readable } from "svelte/store";
 import { round } from "mathjs";
 
@@ -21,14 +21,11 @@ import { round } from "mathjs";
  * - Adds 'getHardwareTopology' to the context, a function that takes a cluster nad subCluster and returns the subCluster topology (or undefined)
  */
 export function init(extraInitQuery = "") {
-    const jwt = hasContext("jwt")
-        ? getContext("jwt")
-        : getContext("cc-config")["jwt"];
-
+    // The web UI authenticates GraphQL requests via the session cookie
+    // (same-origin), so no Authorization header is attached here. External
+    // clients use a JWT against /query directly.
     const client = new Client({
         url: `${window.location.origin}/query`,
-        fetchOptions:
-            jwt != null ? { headers: { Authorization: `Bearer ${jwt}` } } : {},
         exchanges: [
             expiringCacheExchange({
                 ttl: 5 * 60 * 1000,

@@ -12,6 +12,8 @@ require (
 	github.com/ClusterCockpit/cc-lib/v2 v2.12.0
 	github.com/ClusterCockpit/cc-line-protocol/v2 v2.4.0
 	github.com/Masterminds/squirrel v1.5.4
+	github.com/alexedwards/scs/sqlite3store v0.0.0-20251002162104-209de6e426de
+	github.com/alexedwards/scs/v2 v2.9.0
 	github.com/aws/aws-sdk-go-v2 v1.41.7
 	github.com/aws/aws-sdk-go-v2/config v1.32.18
 	github.com/aws/aws-sdk-go-v2/credentials v1.19.17
@@ -25,7 +27,6 @@ require (
 	github.com/golang-jwt/jwt/v5 v5.3.1
 	github.com/golang-migrate/migrate/v4 v4.19.1
 	github.com/google/gops v0.3.29
-	github.com/gorilla/sessions v1.4.0
 	github.com/jmoiron/sqlx v1.4.0
 	github.com/joho/godotenv v1.5.1
 	github.com/mattn/go-sqlite3 v1.14.44
@@ -80,7 +81,6 @@ require (
 	github.com/go-viper/mapstructure/v2 v2.5.0 // indirect
 	github.com/goccy/go-yaml v1.19.2 // indirect
 	github.com/google/uuid v1.6.0 // indirect
-	github.com/gorilla/securecookie v1.1.2 // indirect
 	github.com/gorilla/websocket v1.5.3 // indirect
 	github.com/hashicorp/golang-lru/v2 v2.0.7 // indirect
 	github.com/influxdata/influxdb-client-go/v2 v2.14.0 // indirect

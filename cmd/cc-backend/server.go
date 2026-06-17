@@ -121,6 +121,7 @@ func (s *Server) init() error {
 	}
 
 	authHandle := auth.GetAuthInstance()
+	sessionManager := authHandle.SessionManager()
 
 	// Middleware must be defined before routes in chi
 	s.router.Use(func(next http.Handler) http.Handler {
@@ -220,10 +221,12 @@ func (s *Server) init() error {
 			})
 		}
 
-		s.router.Post("/login", authHandle.Login(loginFailureHandler).ServeHTTP)
-		s.router.HandleFunc("/jwt-login", authHandle.Login(loginFailureHandler).ServeHTTP)
+		// Login/logout mutate the session, so they are wrapped with
+		// scs.LoadAndSave, which commits the session and writes the cookie.
+		s.router.Post("/login", sessionManager.LoadAndSave(authHandle.Login(loginFailureHandler)).ServeHTTP)
+		s.router.Handle("/jwt-login", sessionManager.LoadAndSave(authHandle.Login(loginFailureHandler)))
 
-		s.router.Post("/logout", authHandle.Logout(
+		s.router.Post("/logout", sessionManager.LoadAndSave(authHandle.Logout(
 			http.HandlerFunc(func(rw http.ResponseWriter, r *http.Request) {
 				rw.Header().Add("Content-Type", "text/html; charset=utf-8")
 				rw.WriteHeader(http.StatusOK)
@@ -234,7 +237,7 @@ func (s *Server) init() error {
 					Build:   buildInfo,
 					Infos:   info,
 				})
-			})).ServeHTTP)
+			}))).ServeHTTP)
 	}
 
 	if flagDev {
@@ -246,6 +249,10 @@ func (s *Server) init() error {
 	// Secured routes (require authentication)
 	s.router.Group(func(secured chi.Router) {
 		if !config.Keys.DisableAuthentication {
+			// Non-buffering session load: makes the session available to
+			// AuthViaSession without wrapping/buffering the (potentially large,
+			// e.g. GraphQL /query) response.
+			secured.Use(authHandle.LoadSession)
 			secured.Use(func(next http.Handler) http.Handler {
 				return authHandle.Auth(
 					next,
@@ -309,6 +316,7 @@ func (s *Server) init() error {
 	// the /config page route that is registered in the secured group)
 	s.router.Group(func(configapi chi.Router) {
 		if !config.Keys.DisableAuthentication {
+			configapi.Use(authHandle.LoadSession)
 			configapi.Use(func(next http.Handler) http.Handler {
 				return authHandle.AuthConfigAPI(next, onFailureResponse)
 			})
@@ -319,6 +327,7 @@ func (s *Server) init() error {
 	// Frontend API routes
 	s.router.Route("/frontend", func(frontendapi chi.Router) {
 		if !config.Keys.DisableAuthentication {
+			frontendapi.Use(authHandle.LoadSession)
 			frontendapi.Use(func(next http.Handler) http.Handler {
 				return authHandle.AuthFrontendAPI(next, onFailureResponse)
 			})

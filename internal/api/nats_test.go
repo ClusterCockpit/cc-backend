@@ -156,7 +156,6 @@ func setupNatsTest(t *testing.T) *NatsAPI {
 
 	archiver.Start(repository.GetJobRepository(), context.Background())
 
-	t.Setenv("SESSION_KEY", "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=")
 	if cfg := ccconf.GetPackageConfig("auth"); cfg != nil {
 		auth.Init(&cfg)
 	} else {
