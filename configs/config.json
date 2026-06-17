@@ -18,6 +18,10 @@
       "trigger": 180,
       "resolutions": [240, 60]
     },
+    "footer-links": {
+      "imprint": "/imprint",
+      "privacy": "/privacy"
+    },
     "api-subjects": {
       "subject-job-event": "cc.job.event",
       "subject-node-state": "cc.node.state"

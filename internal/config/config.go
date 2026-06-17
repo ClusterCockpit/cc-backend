@@ -80,6 +80,18 @@ type ProgramConfig struct {
 
 	// Database tuning configuration
 	DbConfig *DbConfig `json:"db-config"`
+
+	// Optional external/legal links shown in the footer.
+	FooterLinks FooterLinksConfig `json:"footer-links"`
+}
+
+// FooterLinksConfig configures the legal/footer links rendered in the UI.
+// Each value may be an internal path (e.g. "/imprint") or an external URL.
+type FooterLinksConfig struct {
+	// Target URL/path for the "Imprint" footer entry.
+	Imprint string `json:"imprint"`
+	// Target URL/path for the "Privacy Policy" footer entry.
+	Privacy string `json:"privacy"`
 }
 
 type DbConfig struct {
@@ -145,6 +157,10 @@ var Keys ProgramConfig = ProgramConfig{
 	SessionMaxAge:             "168h",
 	StopJobsExceedingWalltime: 0,
 	ShortRunningJobsDuration:  5 * 60,
+	FooterLinks: FooterLinksConfig{
+		Imprint: "/imprint",
+		Privacy: "/privacy",
+	},
 }
 
 func Init(mainConfig json.RawMessage) {
