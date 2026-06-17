@@ -17,6 +17,7 @@ import (
 	"net"
 	"net/http"
 	"net/url"
+	"os"
 	"sync"
 	"time"
 
@@ -114,6 +115,18 @@ type AuthConfig struct {
 
 // Keys holds the global authentication configuration
 var Keys AuthConfig
+
+// secretFromEnv resolves a secret from the environment or config. The
+// environment variable takes precedence when set and non-empty; otherwise the
+// value configured in config.json is used. This lets deployments inject secrets
+// via the environment (or a secret manager) while keeping config.json
+// self-contained for simple setups.
+func secretFromEnv(envVar, configValue string) string {
+	if v := os.Getenv(envVar); v != "" {
+		return v
+	}
+	return configValue
+}
 
 // Authentication manages all authentication methods and session handling
 type Authentication struct {

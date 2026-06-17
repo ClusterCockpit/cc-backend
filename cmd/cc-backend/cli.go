@@ -17,7 +17,7 @@ var (
 )
 
 func cliInit() {
-	flag.BoolVar(&flagInit, "init", false, "Setup var directory, initialize sqlite database file, config.json and .env")
+	flag.BoolVar(&flagInit, "init", false, "Setup var directory, initialize sqlite database file and config.json")
 	flag.BoolVar(&flagReinitDB, "init-db", false, "Go through job-archive and re-initialize the 'job', 'tag', and 'jobtag' tables (all running jobs will be lost!)")
 	flag.BoolVar(&flagSyncLDAP, "sync-ldap", false, "Sync the 'hpc_user' table with ldap")
 	flag.BoolVar(&flagServer, "server", false, "Start a server, continues listening on port after initialization and argument handling")

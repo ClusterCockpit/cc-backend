@@ -44,8 +44,11 @@ func main() {
 		os.Exit(1)
 	}
 
+	// Print the value for use as auth.jwts.cross-login-public-key in config.json.
+	// It may alternatively be supplied via the CROSS_LOGIN_JWT_PUBLIC_KEY
+	// environment variable, which takes precedence.
 	fmt.Fprintf(os.Stdout,
-		"CROSS_LOGIN_JWT_PUBLIC_KEY=%#v\n",
+		"cross-login-public-key: %#v\n",
 		base64.StdEncoding.EncodeToString(pubkey))
 }
 

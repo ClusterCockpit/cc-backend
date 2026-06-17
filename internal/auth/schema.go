@@ -34,6 +34,22 @@ var configSchema = `
         "update-user-on-login": {
           "description": "Should an existent user attributes in the DB be updated at login attempt with values provided in JWT.",
           "type": "boolean"
+        },
+        "public-key": {
+          "description": "Base64 encoded Ed25519 public key used to validate JWTs. Overridden by the JWT_PUBLIC_KEY environment variable when set.",
+          "type": "string"
+        },
+        "private-key": {
+          "description": "Base64 encoded Ed25519 private key used to sign JWTs. Overridden by the JWT_PRIVATE_KEY environment variable when set.",
+          "type": "string"
+        },
+        "cross-login-public-key": {
+          "description": "Base64 encoded Ed25519 public key for accepting externally generated JWTs. Overridden by the CROSS_LOGIN_JWT_PUBLIC_KEY environment variable when set.",
+          "type": "string"
+        },
+        "cross-login-hs512-key": {
+          "description": "Base64 encoded HMAC (HS256/HS512) key for accepting externally generated session login tokens. Overridden by the CROSS_LOGIN_JWT_HS512_KEY environment variable when set.",
+          "type": "string"
         }
       },
       "required": ["max-age"]
@@ -52,6 +68,14 @@ var configSchema = `
         "update-user-on-login": {
           "description": "Should an existent user attributes in the DB be updated at login attempt with values provided.",
           "type": "boolean"
+        },
+        "client-id": {
+          "description": "OAuth2 client ID for the OIDC provider. Overridden by the OID_CLIENT_ID environment variable when set.",
+          "type": "string"
+        },
+        "client-secret": {
+          "description": "OAuth2 client secret for the OIDC provider. Overridden by the OID_CLIENT_SECRET environment variable when set.",
+          "type": "string"
         }
       },
       "required": ["provider"]
@@ -103,6 +127,10 @@ var configSchema = `
         "update-user-on-login": {
           "description": "Should an existent user attributes in the DB be updated at login attempt with values from LDAP.",
           "type": "boolean"
+        },
+        "sync-password": {
+          "description": "Password for the LDAP admin account used for syncing. Overridden by the LDAP_ADMIN_PASSWORD environment variable when set.",
+          "type": "string"
         }
       },
       "required": ["url", "user-base", "search-dn", "user-bind", "user-filter"]

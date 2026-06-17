@@ -11,7 +11,6 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
-	"os"
 
 	cclog "github.com/ClusterCockpit/cc-lib/v2/ccLogger"
 	"github.com/ClusterCockpit/cc-lib/v2/schema"
@@ -27,10 +26,11 @@ type JWTCookieSessionAuthenticator struct {
 var _ Authenticator = (*JWTCookieSessionAuthenticator)(nil)
 
 func (ja *JWTCookieSessionAuthenticator) Init() error {
-	pubKey, privKey := os.Getenv("JWT_PUBLIC_KEY"), os.Getenv("JWT_PRIVATE_KEY")
+	pubKey := secretFromEnv("JWT_PUBLIC_KEY", Keys.JwtConfig.PublicKey)
+	privKey := secretFromEnv("JWT_PRIVATE_KEY", Keys.JwtConfig.PrivateKey)
 	if pubKey == "" || privKey == "" {
-		cclog.Warn("environment variables 'JWT_PUBLIC_KEY' or 'JWT_PRIVATE_KEY' not set (token based authentication will not work)")
-		return errors.New("environment variables 'JWT_PUBLIC_KEY' or 'JWT_PRIVATE_KEY' not set (token based authentication will not work)")
+		cclog.Warn("JWT public/private key not configured ('public-key'/'private-key' in config or 'JWT_PUBLIC_KEY'/'JWT_PRIVATE_KEY' env): token based authentication will not work")
+		return errors.New("JWT public/private key not configured: token based authentication will not work")
 	} else {
 		bytes, err := base64.StdEncoding.DecodeString(pubKey)
 		if err != nil {
@@ -47,8 +47,8 @@ func (ja *JWTCookieSessionAuthenticator) Init() error {
 	}
 
 	// Look for external public keys
-	pubKeyCrossLogin, keyFound := os.LookupEnv("CROSS_LOGIN_JWT_PUBLIC_KEY")
-	if keyFound && pubKeyCrossLogin != "" {
+	pubKeyCrossLogin := secretFromEnv("CROSS_LOGIN_JWT_PUBLIC_KEY", Keys.JwtConfig.CrossLoginPublicKey)
+	if pubKeyCrossLogin != "" {
 		bytes, err := base64.StdEncoding.DecodeString(pubKeyCrossLogin)
 		if err != nil {
 			cclog.Warn("Could not decode cross login JWT public key")
@@ -57,8 +57,8 @@ func (ja *JWTCookieSessionAuthenticator) Init() error {
 		ja.publicKeyCrossLogin = ed25519.PublicKey(bytes)
 	} else {
 		ja.publicKeyCrossLogin = nil
-		cclog.Debug("environment variable 'CROSS_LOGIN_JWT_PUBLIC_KEY' not set (cross login token based authentication will not work)")
-		return errors.New("environment variable 'CROSS_LOGIN_JWT_PUBLIC_KEY' not set (cross login token based authentication will not work)")
+		cclog.Debug("cross login JWT public key not configured ('cross-login-public-key' in config or 'CROSS_LOGIN_JWT_PUBLIC_KEY' env): cross login token based authentication will not work")
+		return errors.New("cross login JWT public key not configured: cross login token based authentication will not work")
 	}
 
 	// Warn if other necessary settings are not configured

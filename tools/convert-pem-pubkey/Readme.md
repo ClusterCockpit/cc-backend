@@ -11,7 +11,7 @@ MCowBQYDK2VwAyEA+51iXX8BdLFocrppRxIw52xCOf8xFSH/eNilN5IHVGc=
 Unfortunately, ClusterCockpit does not handle this format (yet). You can use this tool to convert the public PEM key into a representation for CC:
 
 ```
-CROSS_LOGIN_JWT_PUBLIC_KEY="+51iXX8BdLFocrppRxIw52xCOf8xFSH/eNilN5IHVGc="
+cross-login-public-key: "+51iXX8BdLFocrppRxIw52xCOf8xFSH/eNilN5IHVGc="
 ```
 
 Instructions
@@ -19,7 +19,9 @@ Instructions
 - `cd tools/convert-pem-pubkey/`
 - Insert your public ed25519 PEM key into `dummy.pub`
 - `go run . dummy.pub`
-- Copy the result into ClusterCockpit's `.env`
+- Set the result as `cross-login-public-key` under `auth.jwts` in ClusterCockpit's
+  `config.json` (or supply it via the `CROSS_LOGIN_JWT_PUBLIC_KEY` environment
+  variable, which takes precedence)
 - (Re)start ClusterCockpit backend
 
 Now CC can validate generated JWTs from the external provider.
