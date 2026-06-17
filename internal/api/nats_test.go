@@ -157,6 +157,8 @@ func setupNatsTest(t *testing.T) *NatsAPI {
 	archiver.Start(repository.GetJobRepository(), context.Background())
 
 	t.Setenv("SESSION_KEY", "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=")
+	t.Setenv("JWT_PUBLIC_KEY", "kzfYrYy+TzpanWZHJ5qSdMj5uKUWgq74BWhQG6copP0=")
+	t.Setenv("JWT_PRIVATE_KEY", "dtPC/6dWJFKZK7KZ78CvWuynylOmjBFyMsUWArwmodOTN9itjL5POlqdZkcnmpJ0yPm4pRaCrvgFaFAbpyik/Q==")
 	if cfg := ccconf.GetPackageConfig("auth"); cfg != nil {
 		auth.Init(&cfg)
 	} else {

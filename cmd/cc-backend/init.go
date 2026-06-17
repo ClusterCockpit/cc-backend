@@ -18,14 +18,17 @@ import (
 	"github.com/ClusterCockpit/cc-lib/v2/util"
 )
 
-const envString = `
-# Base64 encoded Ed25519 keys (DO NOT USE THESE TWO IN PRODUCTION!)
-# You can generate your own keypair using the gen-keypair tool
-JWT_PUBLIC_KEY="kzfYrYy+TzpanWZHJ5qSdMj5uKUWgq74BWhQG6copP0="
-JWT_PRIVATE_KEY="dtPC/6dWJFKZK7KZ78CvWuynylOmjBFyMsUWArwmodOTN9itjL5POlqdZkcnmpJ0yPm4pRaCrvgFaFAbpyik/Q=="
-
-# Some random bytes used as secret for cookie-based sessions (DO NOT USE THIS ONE IN PRODUCTION)
-SESSION_KEY="67d829bf61dc5f87a73fd814e2c9f629"
+// configLocalString is the development-only secret overlay written by -init.
+// It is gitignored and only honored when the server runs with -dev; in
+// production secrets must be supplied via environment variables. The keys below
+// are well-known demo values and MUST NOT be used in production.
+const configLocalString = `{
+  "secrets": {
+    "JWT_PUBLIC_KEY": "kzfYrYy+TzpanWZHJ5qSdMj5uKUWgq74BWhQG6copP0=",
+    "JWT_PRIVATE_KEY": "dtPC/6dWJFKZK7KZ78CvWuynylOmjBFyMsUWArwmodOTN9itjL5POlqdZkcnmpJ0yPm4pRaCrvgFaFAbpyik/Q==",
+    "SESSION_KEY": "67d829bf61dc5f87a73fd814e2c9f629"
+  }
+}
 `
 
 const configString = `
@@ -72,8 +75,8 @@ func initEnv() {
 		cclog.Abortf("Could not write default ./config.json with permissions '0o666'. Application initialization failed, exited.\nError: %s\n", err.Error())
 	}
 
-	if err := os.WriteFile(".env", []byte(envString), 0o666); err != nil {
-		cclog.Abortf("Could not write default ./.env file with permissions '0o666'. Application initialization failed, exited.\nError: %s\n", err.Error())
+	if err := os.WriteFile("config.local.json", []byte(configLocalString), 0o600); err != nil {
+		cclog.Abortf("Could not write default ./config.local.json file with permissions '0o600'. Application initialization failed, exited.\nError: %s\n", err.Error())
 	}
 
 	if err := os.Mkdir("var", 0o777); err != nil {

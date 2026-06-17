@@ -19,7 +19,9 @@ Instructions
 - `cd tools/convert-pem-pubkey/`
 - Insert your public ed25519 PEM key into `dummy.pub`
 - `go run . dummy.pub`
-- Copy the result into ClusterCockpit's `.env`
+- Provide the result as the `CROSS_LOGIN_JWT_PUBLIC_KEY` secret: export it as an
+  environment variable (production) or add it to `config.local.json` under
+  `secrets` (development, requires `-dev`)
 - (Re)start ClusterCockpit backend
 
 Now CC can validate generated JWTs from the external provider.

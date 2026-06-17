@@ -9,11 +9,11 @@ import (
 	"fmt"
 	"net"
 	"net/http"
-	"os"
 	"strings"
 	"time"
 
 	"github.com/ClusterCockpit/cc-backend/internal/repository"
+	"github.com/ClusterCockpit/cc-backend/internal/secrets"
 	cclog "github.com/ClusterCockpit/cc-lib/v2/ccLogger"
 	"github.com/ClusterCockpit/cc-lib/v2/schema"
 	"github.com/go-ldap/ldap/v3"
@@ -44,9 +44,9 @@ type LdapAuthenticator struct {
 var _ Authenticator = (*LdapAuthenticator)(nil)
 
 func (la *LdapAuthenticator) Init() error {
-	la.syncPassword = os.Getenv("LDAP_ADMIN_PASSWORD")
+	la.syncPassword, _ = secrets.Get("LDAP_ADMIN_PASSWORD")
 	if la.syncPassword == "" {
-		cclog.Warn("environment variable 'LDAP_ADMIN_PASSWORD' not set (ldap sync will not work)")
+		cclog.Warn("secret 'LDAP_ADMIN_PASSWORD' not set (ldap sync will not work)")
 	}
 
 	if Keys.LdapConfig.UserAttr != "" {
@@ -89,7 +89,8 @@ func (la *LdapAuthenticator) CanLogin(
 			lc.UserBase,
 			ldap.ScopeWholeSubtree, ldap.NeverDerefAliases, 0, 0, false,
 			fmt.Sprintf("(&%s(%s=%s))", lc.UserFilter, la.UIDAttr, ldap.EscapeFilter(username)),
-			[]string{"dn", la.UIDAttr, la.UserAttr}, nil)
+			[]string{"dn", la.UIDAttr, la.UserAttr}, nil,
+		)
 
 		sr, err := l.Search(searchRequest)
 		if err != nil {
@@ -169,7 +170,8 @@ func (la *LdapAuthenticator) Sync() error {
 		lc.UserBase,
 		ldap.ScopeWholeSubtree, ldap.NeverDerefAliases, 0, 0, false,
 		lc.UserFilter,
-		[]string{"dn", la.UIDAttr, la.UserAttr}, nil))
+		[]string{"dn", la.UIDAttr, la.UserAttr}, nil,
+	))
 	if err != nil {
 		cclog.Warn("LDAP search error")
 		return err

@@ -21,11 +21,11 @@ var configSchema = `
       }
     },
     "user": {
-      "description": "Drop root permissions once .env was read and the port was taken. Only applicable if using privileged port.",
+      "description": "Drop root permissions once secrets were read and the port was taken. Only applicable if using privileged port.",
       "type": "string"
     },
     "group": {
-      "description": "Drop root permissions once .env was read and the port was taken. Only applicable if using privileged port.",
+      "description": "Drop root permissions once secrets were read and the port was taken. Only applicable if using privileged port.",
       "type": "string"
     },
     "disable-authentication": {

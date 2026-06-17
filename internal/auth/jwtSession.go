@@ -10,9 +10,9 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
-	"os"
 	"strings"
 
+	"github.com/ClusterCockpit/cc-backend/internal/secrets"
 	cclog "github.com/ClusterCockpit/cc-lib/v2/ccLogger"
 	"github.com/ClusterCockpit/cc-lib/v2/schema"
 	"github.com/golang-jwt/jwt/v5"
@@ -25,7 +25,7 @@ type JWTSessionAuthenticator struct {
 var _ Authenticator = (*JWTSessionAuthenticator)(nil)
 
 func (ja *JWTSessionAuthenticator) Init() error {
-	pubKey := os.Getenv("CROSS_LOGIN_JWT_HS512_KEY")
+	pubKey, _ := secrets.Get("CROSS_LOGIN_JWT_HS512_KEY")
 	if pubKey == "" {
 		// Without a configured key the HMAC verification below would run against
 		// an empty key, which lets anyone forge a valid token. Refuse to register

@@ -161,9 +161,15 @@ applied automatically on startup. Version tracking in `version` table.
     - `username`: Authentication username (optional)
     - `password`: Authentication password (optional)
     - `creds-file-path`: Path to NATS credentials file (optional)
-- **.env**: Environment variables (secrets like JWT keys)
-  - Copy from `configs/env-template.txt`
-  - NEVER commit this file
+- **Secrets** (JWT keys, session key, LDAP/OIDC credentials): resolved by
+  `internal/secrets` with the order **environment variable → `config.local.json`
+  overlay (dev only) → error if required**.
+  - Production: provide secrets via environment variables. A `config.local.json`
+    present on disk is rejected when the server runs without `-dev`.
+  - Development: copy `configs/config.local.template.json` to `config.local.json`
+    (gitignored, written automatically by `-init`); only honored with `-dev`.
+  - `secrets.Validate` reports all missing required secrets at once at startup and
+    logs each resolved secret's source at debug level.
 - **cluster.json**: Cluster topology and metric definitions (loaded from archive or config)
 
 ## Database
@@ -333,6 +339,17 @@ NATS broker is not a safe deployment topology for this API. A startup warning
 is logged when these subscriptions are enabled.
 
 ## Development Guidelines
+
+### Code Formatting
+
+Go code is formatted with [gofumpt](https://github.com/mvdan/gofumpt) (a stricter
+superset of `gofmt`), not plain `gofmt`. Run it on any files you change before
+committing:
+
+```bash
+gofumpt -w <files>      # format specific files
+gofumpt -l ./...        # list files that are not formatted
+```
 
 ### Performance
 

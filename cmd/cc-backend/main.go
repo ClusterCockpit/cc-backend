@@ -27,6 +27,7 @@ import (
 	"github.com/ClusterCockpit/cc-backend/internal/importer"
 	"github.com/ClusterCockpit/cc-backend/internal/metricdispatch"
 	"github.com/ClusterCockpit/cc-backend/internal/repository"
+	"github.com/ClusterCockpit/cc-backend/internal/secrets"
 	"github.com/ClusterCockpit/cc-backend/internal/tagger"
 	"github.com/ClusterCockpit/cc-backend/internal/taskmanager"
 	"github.com/ClusterCockpit/cc-backend/pkg/archive"
@@ -39,7 +40,6 @@ import (
 	"github.com/ClusterCockpit/cc-lib/v2/schema"
 	"github.com/ClusterCockpit/cc-lib/v2/util"
 	"github.com/google/gops/agent"
-	"github.com/joho/godotenv"
 
 	_ "github.com/mattn/go-sqlite3"
 )
@@ -85,13 +85,6 @@ func initGops() error {
 
 	if err := agent.Listen(agent.Options{}); err != nil {
 		return fmt.Errorf("starting gops agent: %w", err)
-	}
-	return nil
-}
-
-func loadEnvironment() error {
-	if err := godotenv.Load(); err != nil {
-		return fmt.Errorf("loading .env file: %w", err)
 	}
 	return nil
 }
@@ -224,7 +217,7 @@ func checkDefaultSecurityKeys() {
 	// Default JWT public key from init.go
 	defaultJWTPublic := "kzfYrYy+TzpanWZHJ5qSdMj5uKUWgq74BWhQG6copP0="
 
-	if os.Getenv("JWT_PUBLIC_KEY") == defaultJWTPublic {
+	if pubKey, _ := secrets.Get("JWT_PUBLIC_KEY"); pubKey == defaultJWTPublic {
 		cclog.Warn("Using default JWT keys - not recommended for production environments")
 	}
 }
@@ -495,7 +488,7 @@ func run() error {
 	if flagInit {
 		initEnv()
 		cclog.Exit("Successfully setup environment!\n" +
-			"Please review config.json and .env and adjust it to your needs.\n" +
+			"Please review config.json and config.local.json and adjust them to your needs.\n" +
 			"Add your job-archive at ./var/job-archive.")
 	}
 
@@ -505,17 +498,18 @@ func run() error {
 	}
 
 	// Initialize subsystems in dependency order:
-	// 1. Load environment variables from .env file (contains sensitive configuration)
-	// 2. Load configuration from config.json (may reference environment variables)
+	// 1. Initialize the secret resolver (env vars, with a dev-only config.local.json
+	//    overlay; see internal/secrets for the full resolution order)
+	// 2. Load configuration from config.json
 	// 3. Handle database migration commands if requested
 	// 4. Initialize database connection (requires config for connection string)
 	// 5. Handle user commands if requested (requires database and authentication config)
 	// 6. Initialize subsystems like archive and metrics (require config and database)
 
-	// Load environment and configuration
-	if err := loadEnvironment(); err != nil {
-		return err
-	}
+	// Initialize the secret resolver. Environment variables always take
+	// precedence; the config.local.json overlay is only honored in development
+	// mode (-dev) and is rejected outright in production.
+	secrets.Init(flagDev, "config.local.json")
 
 	if err := initConfiguration(); err != nil {
 		return err
@@ -581,7 +575,8 @@ func run() error {
 
 		cclog.Infof("Cleaning up checkpoints older than %s...", from.Format(time.RFC3339))
 		n, err := metricstore.CleanupCheckpoints(
-			metricstore.Keys.Checkpoints.RootDir, cleanupDir, from.Unix(), deleteMode)
+			metricstore.Keys.Checkpoints.RootDir, cleanupDir, from.Unix(), deleteMode,
+		)
 		if err != nil {
 			return fmt.Errorf("checkpoint cleanup: %w", err)
 		}

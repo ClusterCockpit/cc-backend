@@ -24,7 +24,7 @@ type ProgramConfig struct {
 
 	APISubjects *NATSConfig `json:"api-subjects"`
 
-	// Drop root permissions once .env was read and the port was taken.
+	// Drop root permissions once secrets were read and the port was taken.
 	User  string `json:"user"`
 	Group string `json:"group"`
 

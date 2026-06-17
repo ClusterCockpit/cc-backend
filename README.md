@@ -129,13 +129,23 @@ git clone https://github.com/ClusterCockpit/cc-backend.git
 cd ./cc-backend/
 make
 
-# EDIT THE .env FILE BEFORE YOU DEPLOY (Change the secrets)!
-# If authentication is disabled, it can be empty.
-cp configs/env-template.txt  .env
-vim .env
-
 cp configs/config.json .
 vim config.json
+
+# Provide secrets (JWT keys, session key, optional LDAP/OIDC credentials).
+# Secret resolution order (highest precedence first):
+#   1. Environment variables (use these in production)
+#   2. A gitignored config.local.json overlay (development only, requires -dev)
+# A required secret that resolves to neither aborts startup. config.local.json
+# is rejected outright when the server runs without -dev.
+#
+# For local development, copy the template overlay and edit the demo secrets:
+cp configs/config.local.template.json config.local.json
+vim config.local.json
+#
+# For production, export the secrets in the environment instead, e.g.:
+#   export JWT_PUBLIC_KEY=... JWT_PRIVATE_KEY=... SESSION_KEY=...
+# If authentication is disabled, no secrets are required.
 
 #Optional: Link an existing job archive:
 ln -s <your-existing-job-archive> ./var/job-archive

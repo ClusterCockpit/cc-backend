@@ -12,10 +12,10 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"os"
 	"time"
 
 	"github.com/ClusterCockpit/cc-backend/internal/repository"
+	"github.com/ClusterCockpit/cc-backend/internal/secrets"
 	cclog "github.com/ClusterCockpit/cc-lib/v2/ccLogger"
 	"github.com/ClusterCockpit/cc-lib/v2/schema"
 	"github.com/coreos/go-oidc/v3/oidc"
@@ -66,13 +66,13 @@ func NewOIDC(a *Authentication) *OIDC {
 	if err != nil {
 		cclog.Fatal(err)
 	}
-	clientID := os.Getenv("OID_CLIENT_ID")
+	clientID, _ := secrets.Get("OID_CLIENT_ID")
 	if clientID == "" {
-		cclog.Warn("environment variable 'OID_CLIENT_ID' not set (Open ID connect auth will not work)")
+		cclog.Warn("secret 'OID_CLIENT_ID' not set (Open ID connect auth will not work)")
 	}
-	clientSecret := os.Getenv("OID_CLIENT_SECRET")
+	clientSecret, _ := secrets.Get("OID_CLIENT_SECRET")
 	if clientSecret == "" {
-		cclog.Warn("environment variable 'OID_CLIENT_SECRET' not set (Open ID connect auth will not work)")
+		cclog.Warn("secret 'OID_CLIENT_SECRET' not set (Open ID connect auth will not work)")
 	}
 
 	client := &oauth2.Config{

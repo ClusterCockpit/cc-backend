@@ -1,0 +1,16 @@
+{
+  "//": "Development-only secret overlay. Copy to ./config.local.json (gitignored).",
+  "//1": "Only honored when cc-backend runs with -dev; rejected in production.",
+  "//2": "Environment variables always take precedence over these values.",
+  "//3": "DO NOT use these demo keys in production - generate your own.",
+  "//4": "Generate a JWT keypair with: go run tools/gen-keypair/main.go",
+  "secrets": {
+    "JWT_PUBLIC_KEY": "kzfYrYy+TzpanWZHJ5qSdMj5uKUWgq74BWhQG6copP0=",
+    "JWT_PRIVATE_KEY": "dtPC/6dWJFKZK7KZ78CvWuynylOmjBFyMsUWArwmodOTN9itjL5POlqdZkcnmpJ0yPm4pRaCrvgFaFAbpyik/Q==",
+    "SESSION_KEY": "67d829bf61dc5f87a73fd814e2c9f629",
+    "//CROSS_LOGIN_JWT_PUBLIC_KEY": "Optional: base64 Ed25519 public key for accepting externally generated JWTs",
+    "//LDAP_ADMIN_PASSWORD": "Optional: bind password for the LDAP server",
+    "//OID_CLIENT_ID": "Optional: OpenID Connect client id",
+    "//OID_CLIENT_SECRET": "Optional: OpenID Connect client secret"
+  }
+}

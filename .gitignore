@@ -1,6 +1,7 @@
 /cc-backend
 /.env
 /config.json
+/config.local.json
 /uiConfig.json
 
 /var/job-archive

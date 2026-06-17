@@ -12,6 +12,10 @@ NotifyAccess=all
 Restart=on-failure
 RestartSec=30
 TimeoutStopSec=100
+# Secrets (JWT keys, session key, optional LDAP/OIDC credentials) are read from
+# the environment in production. Provide them via this file (KEY=value lines,
+# root-owned, mode 0600). The leading '-' makes the file optional.
+EnvironmentFile=-/opt/monitoring/cc-backend/secrets.env
 ExecStart=/opt/monitoring/cc-backend/cc-backend --config ./config.json --server
 
 [Install]

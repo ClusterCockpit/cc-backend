@@ -10,10 +10,10 @@ import (
 	"encoding/base64"
 	"errors"
 	"net/http"
-	"os"
 	"strings"
 	"time"
 
+	"github.com/ClusterCockpit/cc-backend/internal/secrets"
 	cclog "github.com/ClusterCockpit/cc-lib/v2/ccLogger"
 	"github.com/ClusterCockpit/cc-lib/v2/schema"
 	"github.com/golang-jwt/jwt/v5"
@@ -47,9 +47,10 @@ type JWTAuthenticator struct {
 }
 
 func (ja *JWTAuthenticator) Init() error {
-	pubKey, privKey := os.Getenv("JWT_PUBLIC_KEY"), os.Getenv("JWT_PRIVATE_KEY")
+	pubKey, _ := secrets.Get("JWT_PUBLIC_KEY")
+	privKey, _ := secrets.Get("JWT_PRIVATE_KEY")
 	if pubKey == "" || privKey == "" {
-		cclog.Warn("environment variables 'JWT_PUBLIC_KEY' or 'JWT_PRIVATE_KEY' not set (token based authentication will not work)")
+		cclog.Warn("secrets 'JWT_PUBLIC_KEY' or 'JWT_PRIVATE_KEY' not set (token based authentication will not work)")
 	} else {
 		bytes, err := base64.StdEncoding.DecodeString(pubKey)
 		if err != nil {

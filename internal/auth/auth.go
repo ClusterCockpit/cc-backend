@@ -18,7 +18,6 @@ import (
 	"net"
 	"net/http"
 	"net/url"
-	"os"
 	"sync"
 	"time"
 
@@ -26,6 +25,7 @@ import (
 
 	"github.com/ClusterCockpit/cc-backend/internal/config"
 	"github.com/ClusterCockpit/cc-backend/internal/repository"
+	"github.com/ClusterCockpit/cc-backend/internal/secrets"
 	cclog "github.com/ClusterCockpit/cc-lib/v2/ccLogger"
 	"github.com/ClusterCockpit/cc-lib/v2/schema"
 	"github.com/ClusterCockpit/cc-lib/v2/util"
@@ -186,15 +186,33 @@ func Init(authCfg *json.RawMessage) {
 		// Start background cleanup of rate limiters
 		startRateLimiterCleanup()
 
-		sessKey := os.Getenv("SESSION_KEY")
-		if sessKey == "" {
-			if !config.Keys.DisableAuthentication {
-				cclog.Fatal("environment variable 'SESSION_KEY' not set: refusing to start with an ephemeral session key. " +
-					"Set SESSION_KEY in .env (base64-encoded 32 random bytes); a random key would invalidate all sessions on every restart " +
-					"and prevent sessions from validating across replicas.")
+		// Decode the auth configuration up-front so the set of required secrets
+		// (which depends on the configured authenticators) is known before any
+		// secret is consumed.
+		if !config.Keys.DisableAuthentication && authCfg != nil {
+			config.Validate(configSchema, *authCfg)
+			dec := json.NewDecoder(bytes.NewReader(*authCfg))
+			dec.DisallowUnknownFields()
+			if err := dec.Decode(&Keys); err != nil {
+				cclog.Errorf("error while decoding auth config: %v", err)
 			}
-			// Authentication is disabled: no user sessions are issued, so an
-			// ephemeral random key is sufficient and SESSION_KEY is not required.
+		}
+
+		// Validate that every required secret resolves to a non-empty value,
+		// reporting all missing secrets at once (rather than aborting on the
+		// first). This runs before the session store is built so that, e.g., a
+		// missing SESSION_KEY and missing JWT keys are reported together.
+		if !config.Keys.DisableAuthentication {
+			if err := secrets.Validate(requiredSecrets()); err != nil {
+				cclog.Fatalf("authentication secret validation failed: %v", err)
+			}
+		}
+
+		sessKey, _ := secrets.Get("SESSION_KEY")
+		if sessKey == "" {
+			// Only reachable when authentication is disabled (otherwise the
+			// validation above already aborted). No user sessions are issued, so
+			// an ephemeral random key is sufficient.
 			ephemeralKey := make([]byte, 32)
 			if _, err := rand.Read(ephemeralKey); err != nil {
 				cclog.Fatalf("Error while initializing authentication -> generating ephemeral session key failed: %v", err)
@@ -221,13 +239,6 @@ func Init(authCfg *json.RawMessage) {
 
 		if authCfg == nil {
 			return
-		}
-
-		config.Validate(configSchema, *authCfg)
-		dec := json.NewDecoder(bytes.NewReader(*authCfg))
-		dec.DisallowUnknownFields()
-		if err := dec.Decode(&Keys); err != nil {
-			cclog.Errorf("error while decoding ldap config: %v", err)
 		}
 
 		if Keys.LdapConfig != nil {
@@ -271,6 +282,35 @@ func Init(authCfg *json.RawMessage) {
 		}
 		authInstance.authenticators = append(authInstance.authenticators, authInstance.LocalAuth)
 	})
+}
+
+// requiredSecrets builds the list of secrets that must be resolvable given the
+// currently configured authenticators. Secrets for disabled features are
+// omitted; cross-login keys are optional and only enable extra login paths.
+func requiredSecrets() []secrets.Spec {
+	specs := []secrets.Spec{
+		{Name: "SESSION_KEY", Required: true, Feature: "session cookies"},
+	}
+	if Keys.JwtConfig != nil {
+		specs = append(
+			specs,
+			secrets.Spec{Name: "JWT_PUBLIC_KEY", Required: true, Feature: "JWT authentication"},
+			secrets.Spec{Name: "JWT_PRIVATE_KEY", Required: true, Feature: "JWT authentication"},
+			secrets.Spec{Name: "CROSS_LOGIN_JWT_HS512_KEY", Required: false, Feature: "JWT session login"},
+			secrets.Spec{Name: "CROSS_LOGIN_JWT_PUBLIC_KEY", Required: false, Feature: "JWT cross login"},
+		)
+	}
+	if Keys.LdapConfig != nil {
+		specs = append(specs, secrets.Spec{Name: "LDAP_ADMIN_PASSWORD", Required: true, Feature: "LDAP"})
+	}
+	if Keys.OpenIDConfig != nil {
+		specs = append(
+			specs,
+			secrets.Spec{Name: "OID_CLIENT_ID", Required: true, Feature: "OIDC"},
+			secrets.Spec{Name: "OID_CLIENT_SECRET", Required: true, Feature: "OIDC"},
+		)
+	}
+	return specs
 }
 
 func GetAuthInstance() *Authentication {

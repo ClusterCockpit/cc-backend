@@ -12,8 +12,15 @@ specified, the application will call
 config file and binding to a TCP port (so it can take a privileged port), but
 before it starts accepting any connections. This is good for security, but also
 means that the `var/` directory must be readable and writeable by this user.
-The `.env` and `config.json` files may contain secrets and should not be
-readable by this user. If these files are changed, the server must be restarted.
+The `config.json` and the `secrets.env` files may contain secrets and should not
+be readable by this user. If these files are changed, the server must be
+restarted.
+
+Secrets (JWT keys, session key, optional LDAP/OIDC credentials) are read from
+**environment variables** in production. The provided systemd unit loads them
+from `secrets.env` (`KEY=value` lines) via `EnvironmentFile=`. The file-based
+`config.local.json` overlay is a development-only convenience and is rejected
+when the server runs without the `-dev` flag.
 
 ```sh
 # 1. Clone this repository somewhere in your home
@@ -25,11 +32,18 @@ make
 sudo mkdir -p /opt/monitoring/cc-backend/
 cp ./cc-backend /opt/monitoring/cc-backend/
 
-# 3. Modify the `./config.json` and env-template.txt file from the configs directory to your liking and put it in the target directory
+# 3. Modify the `./config.json` from the configs directory to your liking and put it in the target directory
 cp ./configs/config.json /opt/monitoring/config.json
-cp ./configs/env-template.txt /opt/monitoring/.env
 vim /opt/monitoring/config.json # do your thing...
-vim /opt/monitoring/.env # do your thing...
+
+# Provide secrets as environment variables via the systemd EnvironmentFile.
+# Create /opt/monitoring/cc-backend/secrets.env with KEY=value lines, e.g.:
+#   JWT_PUBLIC_KEY=...
+#   JWT_PRIVATE_KEY=...
+#   SESSION_KEY=...
+# Then restrict its permissions:
+install -m 0600 /dev/null /opt/monitoring/cc-backend/secrets.env
+vim /opt/monitoring/cc-backend/secrets.env # add your secrets
 
 # 4. (Optional) Customization: Add your versions of the login view, legal texts, and logo image.
 # You may use the templates in `./web/templates` as blueprint. Every overwrite separate.
