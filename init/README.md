@@ -37,6 +37,13 @@ cp privacy.tmpl /opt/monitoring/cc-backend/var/
 # Ensure your logo, and any images you use in your login template has a suitable size.
 cp -R img /opt/monitoring/cc-backend/img
 
+# 4b. (Optional) Instead of overriding imprint.tmpl/privacy.tmpl, you can point the
+# footer links to external pages via "main.footer-links" in config.json:
+#   "footer-links": { "imprint": "https://example.com/imprint", "privacy": "https://example.com/privacy" }
+# Values may be internal paths (default "/imprint", "/privacy") or external URLs;
+# external URLs (http/https) open in a new browser tab. An empty value falls back
+# to the internal page.
+
 # 5. Copy the systemd service unit file. You may adopt it to your needs.
 sudo cp ./init/clustercockpit.service /etc/systemd/system/clustercockpit.service
 
