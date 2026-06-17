@@ -14,6 +14,7 @@ import (
 	"fmt"
 	"os"
 	"os/signal"
+	goruntime "runtime"
 	"runtime/debug"
 	"strings"
 	"sync"
@@ -171,14 +172,20 @@ func handleUserCommands() error {
 		return fmt.Errorf("--add-user and --del-user can only be used if authentication is enabled")
 	}
 
-	if !config.Keys.DisableAuthentication {
-		if cfg := ccconf.GetPackageConfig("auth"); cfg != nil {
-			auth.Init(&cfg)
-		} else {
-			cclog.Warn("Authentication disabled due to missing configuration")
-			auth.Init(nil)
+	// Always initialize the auth subsystem so the HTTP server and REST API have a
+	// valid (non-nil) auth instance, even when authentication is disabled. With
+	// authentication disabled, Init only sets up an ephemeral session store and
+	// registers no authenticators (see auth.Init).
+	if cfg := ccconf.GetPackageConfig("auth"); cfg != nil {
+		auth.Init(&cfg)
+	} else {
+		if !config.Keys.DisableAuthentication {
+			cclog.Warn("Authentication enabled but no auth configuration found")
 		}
+		auth.Init(nil)
+	}
 
+	if !config.Keys.DisableAuthentication {
 		// Check for default security keys
 		checkDefaultSecurityKeys()
 
@@ -336,6 +343,12 @@ func initSubsystems() error {
 }
 
 func runServer(ctx context.Context) error {
+	// Derive a cancelable context so the startup-error path below can trigger the
+	// same graceful-shutdown sequence as a signal (via the signal handler that
+	// waits on ctx.Done()).
+	ctx, cancel := context.WithCancel(ctx)
+	defer cancel()
+
 	var wg sync.WaitGroup
 
 	// Initialize metric store if configuration is provided
@@ -437,24 +450,30 @@ func runServer(ctx context.Context) error {
 	// Wait for either:
 	// 1. An error from server startup
 	// 2. Completion of all goroutines (normal shutdown or crash)
+	var runErr error
 	select {
-	case err := <-errChan:
+	case runErr = <-errChan:
 		// errChan will be closed when waitDone is closed, which happens
 		// when all goroutines complete (either from normal shutdown or error)
-		if err != nil {
-			return err
-		}
 	case <-time.After(100 * time.Millisecond):
 		// Give the server 100ms to start and report any immediate startup errors
 		// After that, just wait for normal shutdown completion
 		select {
-		case err := <-errChan:
-			if err != nil {
-				return err
-			}
+		case runErr = <-errChan:
 		case <-waitDone:
 			// Normal shutdown completed
 		}
+	}
+
+	if runErr != nil {
+		// A subsystem failed (e.g. the HTTP server could not bind). Trigger the
+		// graceful-shutdown path for the subsystems that were already started
+		// (metricstore checkpoint, archiver flush, taskmanager) by cancelling the
+		// context the signal handler waits on, then wait for it to finish so we
+		// don't exit before the final checkpoint is written.
+		cancel()
+		<-waitDone
+		return runErr
 	}
 
 	cclog.Print("Graceful shutdown completed!")
@@ -534,6 +553,43 @@ func run() error {
 	// Initialize subsystems (archive, metrics, taggers)
 	if err := initSubsystems(); err != nil {
 		return err
+	}
+
+	// Handle checkpoint cleanup
+	if flagCleanupCheckpoints {
+		mscfg := ccconf.GetPackageConfig("metric-store")
+		if mscfg == nil {
+			return fmt.Errorf("metric-store configuration required for checkpoint cleanup")
+		}
+		if err := json.Unmarshal(mscfg, &metricstore.Keys); err != nil {
+			return fmt.Errorf("decoding metric-store config: %w", err)
+		}
+		if metricstore.Keys.NumWorkers <= 0 {
+			metricstore.Keys.NumWorkers = min(goruntime.NumCPU()/2+1, metricstore.DefaultMaxWorkers)
+		}
+
+		d, err := time.ParseDuration(metricstore.Keys.RetentionInMemory)
+		if err != nil {
+			return fmt.Errorf("parsing retention-in-memory: %w", err)
+		}
+		from := time.Now().Add(-d)
+		deleteMode := metricstore.Keys.Cleanup == nil || metricstore.Keys.Cleanup.Mode != "archive"
+		cleanupDir := ""
+		if !deleteMode {
+			cleanupDir = metricstore.Keys.Cleanup.RootDir
+		}
+
+		cclog.Infof("Cleaning up checkpoints older than %s...", from.Format(time.RFC3339))
+		n, err := metricstore.CleanupCheckpoints(
+			metricstore.Keys.Checkpoints.RootDir, cleanupDir, from.Unix(), deleteMode)
+		if err != nil {
+			return fmt.Errorf("checkpoint cleanup: %w", err)
+		}
+		if deleteMode {
+			cclog.Exitf("Cleanup done: %d checkpoint files deleted.", n)
+		} else {
+			cclog.Exitf("Cleanup done: %d checkpoint files archived to parquet.", n)
+		}
 	}
 
 	// Exit if start server is not requested

@@ -6,11 +6,11 @@
 // This file implements ingestion of InfluxDB line-protocol metric data received
 // over NATS. Each line encodes one metric sample with the following structure:
 //
-//	<measurement>[,cluster=<c>][,hostname=<h>][,type=<t>][,type-id=<id>][,subtype=<s>][,stype-id=<id>] value=<v> [<timestamp>]
+//	<measurement>[,cluster=<c>][,hostname=<h>][,type=<t>][,type-id=<id>][,stype=<s>][,stype-id=<id>] value=<v> [<timestamp>]
 //
 // The measurement name identifies the metric (e.g. "cpu_load"). Tags provide
 // routing information (cluster, host) and optional sub-device selectors (type,
-// subtype). Only one field is expected per line: "value".
+// stype). Only one field is expected per line: "value".
 //
 // After decoding, each sample is:
 //  1. Written to the in-memory store via ms.WriteToLevel.
@@ -22,6 +22,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -103,7 +104,7 @@ func ReceiveNats(ms *MemoryStore,
 // reorder prepends prefix to buf in-place when buf has enough spare capacity,
 // avoiding an allocation. Falls back to a regular append otherwise.
 //
-// It is used to assemble the "type<type-id>" and "subtype<stype-id>" selector
+// It is used to assemble the "type<type-id>" and "stype<stype-id>" selector
 // strings when the type tag arrives before the type-id tag in the line, so the
 // two byte slices need to be concatenated in tag-declaration order regardless
 // of wire order.
@@ -145,7 +146,7 @@ type decodeState struct {
 	// current line. Reset at the start of each line's tag-decode loop.
 	typeBuf []byte
 
-	// subTypeBuf accumulates the concatenated "subtype"+"stype-id" tag value.
+	// subTypeBuf accumulates the concatenated "stype"+"stype-id" tag value.
 	// Reset at the start of each line's tag-decode loop.
 	subTypeBuf []byte
 
@@ -186,7 +187,7 @@ var decodeStatePool = sync.Pool{
 //   - The Level pointer (host-level node in the metric tree) is cached across
 //     consecutive lines that share the same cluster+host pair to avoid
 //     repeated lock acquisitions on the root and cluster levels.
-//   - []byte→string conversions for type/subtype selectors are cached via
+//   - []byte→string conversions for type/stype selectors are cached via
 //     prevType*/prevSubType* fields because batches typically repeat the same
 //     sub-device identifiers.
 //   - Timestamp parsing tries Second precision first; if that fails it retries
@@ -196,6 +197,16 @@ var decodeStatePool = sync.Pool{
 // When the checkpoint format is "wal" each successfully decoded sample is also
 // sent to WALMessages so the WAL staging goroutine can persist it durably
 // before the next binary snapshot.
+// isValidPathComponent reports whether s is safe to use as a single filesystem
+// path component (cluster or host name) when building checkpoint/WAL paths. It
+// rejects path-traversal sequences and embedded separators. An empty string is
+// allowed because a missing host tag is legitimate and does not escape the root.
+func isValidPathComponent(s string) bool {
+	return !strings.Contains(s, "..") &&
+		!strings.Contains(s, "/") &&
+		!strings.Contains(s, "\\")
+}
+
 func DecodeLine(dec *lineprotocol.Decoder,
 	ms *MemoryStore,
 	clusterDefault string,
@@ -269,8 +280,8 @@ func DecodeLine(dec *lineprotocol.Decoder,
 				}
 			case "type-id":
 				st.typeBuf = append(st.typeBuf, val...)
-			case "subtype":
-				// We cannot be sure that the "subtype" tag comes before the "stype-id" tag:
+			case "stype":
+				// We cannot be sure that the "stype" tag comes before the "stype-id" tag:
 				if len(st.subTypeBuf) == 0 {
 					st.subTypeBuf = append(st.subTypeBuf, val...)
 				} else {
@@ -282,6 +293,17 @@ func DecodeLine(dec *lineprotocol.Decoder,
 			}
 		}
 
+		// cluster and host are taken verbatim from attacker-controllable line
+		// protocol tags and are later used as filesystem path components for the
+		// checkpoint/WAL files (path.Join(RootDir, cluster, host)). Reject
+		// path-traversal sequences so a malicious tag cannot escape the
+		// checkpoint root. Skip the offending sample; the rest of the batch is
+		// still processed.
+		if !isValidPathComponent(cluster) || !isValidPathComponent(host) {
+			cclog.Warnf("[METRICSTORE]> rejecting metric with invalid cluster/host tag (cluster=%q host=%q)", cluster, host)
+			continue
+		}
+
 		// If the cluster or host changed, the lvl was set to nil
 		if lvl == nil {
 			st.selector = st.selector[:2]
@@ -291,7 +313,7 @@ func DecodeLine(dec *lineprotocol.Decoder,
 		}
 
 		// subtypes: cache []byte→string conversions; messages in a batch typically
-		// share the same type/subtype so the hit rate is very high.
+		// share the same type/stype so the hit rate is very high.
 		st.selector = st.selector[:0]
 		if len(st.typeBuf) > 0 {
 			if !bytes.Equal(st.typeBuf, st.prevTypeBytes) {

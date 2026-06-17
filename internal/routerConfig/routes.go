@@ -239,6 +239,9 @@ func buildFilterPresets(query url.Values) map[string]any {
 	if query.Get("cluster") != "" {
 		filterPresets["cluster"] = query.Get("cluster")
 	}
+	if query.Get("subCluster") != "" {
+		filterPresets["subCluster"] = query.Get("subCluster")
+	}
 	if query.Get("partition") != "" {
 		filterPresets["partition"] = query.Get("partition")
 	}
@@ -309,7 +312,7 @@ func buildFilterPresets(query url.Values) map[string]any {
 			if parts[0] == "lessthan" {
 				lt, lte := strconv.Atoi(parts[1])
 				if lte == nil {
-					filterPresets["numNodes"] = map[string]int{"from": 1, "to": lt}
+					filterPresets["numNodes"] = map[string]int{"from": 0, "to": lt}
 				}
 			} else if parts[0] == "morethan" {
 				mt, mte := strconv.Atoi(parts[1])
@@ -331,7 +334,7 @@ func buildFilterPresets(query url.Values) map[string]any {
 			if parts[0] == "lessthan" {
 				lt, lte := strconv.Atoi(parts[1])
 				if lte == nil {
-					filterPresets["numHWThreads"] = map[string]int{"from": 1, "to": lt}
+					filterPresets["numHWThreads"] = map[string]int{"from": 0, "to": lt}
 				}
 			} else if parts[0] == "morethan" {
 				mt, mte := strconv.Atoi(parts[1])
@@ -353,7 +356,7 @@ func buildFilterPresets(query url.Values) map[string]any {
 			if parts[0] == "lessthan" {
 				lt, lte := strconv.Atoi(parts[1])
 				if lte == nil {
-					filterPresets["numAccelerators"] = map[string]int{"from": 1, "to": lt}
+					filterPresets["numAccelerators"] = map[string]int{"from": 0, "to": lt}
 				}
 			} else if parts[0] == "morethan" {
 				mt, mte := strconv.Atoi(parts[1])
@@ -409,7 +412,7 @@ func buildFilterPresets(query url.Values) map[string]any {
 			if parts[0] == "lessthan" {
 				lt, lte := strconv.Atoi(parts[1])
 				if lte == nil {
-					filterPresets["energy"] = map[string]int{"from": 1, "to": lt}
+					filterPresets["energy"] = map[string]int{"from": 0, "to": lt}
 				}
 			} else if parts[0] == "morethan" {
 				mt, mte := strconv.Atoi(parts[1])
@@ -435,7 +438,7 @@ func buildFilterPresets(query url.Values) map[string]any {
 					if lte == nil {
 						statEntry := map[string]any{
 							"field": parts[0],
-							"from":  1,
+							"from":  0,
 							"to":    lt,
 						}
 						statList = append(statList, statEntry)

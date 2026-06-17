@@ -1,6 +1,6 @@
 TARGET = ./cc-backend
 FRONTEND = ./web/frontend
-VERSION = 1.5.2
+VERSION = 1.5.4
 GIT_HASH := $(shell git rev-parse --short HEAD || echo 'development')
 CURRENT_TIME = $(shell date +"%Y-%m-%d:T%H:%M:%S")
 LD_FLAGS = '-s -X main.date=${CURRENT_TIME} -X main.version=${VERSION} -X main.commit=${GIT_HASH}'
@@ -36,7 +36,7 @@ SVELTE_SRC = $(wildcard $(FRONTEND)/src/*.svelte)                 \
 			 $(wildcard $(FRONTEND)/src/header/*.svelte)          \
 			 $(wildcard $(FRONTEND)/src/job/*.svelte)
 
-.PHONY: clean distclean test tags frontend swagger graphql $(TARGET)
+.PHONY: clean distclean fmt lint test tags frontend swagger graphql $(TARGET)
 
 .NOTPARALLEL:
 
@@ -74,6 +74,14 @@ test:
 	@go build ./...
 	@go vet ./...
 	@go test ./...
+
+fmt:
+	$(info ===>  FORMAT)
+	@gofumpt -l -w .
+
+lint:
+	$(info ===>  LINT)
+	@golangci-lint run ./...
 
 tags:
 	$(info ===>  TAGS)

@@ -170,6 +170,7 @@ func setup(t *testing.T) *api.RestAPI {
 
 	archiver.Start(repository.GetJobRepository(), context.Background())
 
+	t.Setenv("SESSION_KEY", "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=")
 	if cfg := ccconf.GetPackageConfig("auth"); cfg != nil {
 		auth.Init(&cfg)
 	} else {

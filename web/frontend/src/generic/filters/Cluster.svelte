@@ -1,10 +1,11 @@
 <!--
-  @component Filter sub-component for selecting cluster and subCluster
+  @component Filter sub-component for selecting cluster, partition and subCluster
 
   Properties:
   - `isOpen Bool?`: Is this filter component opened [Bindable, Default: false]
   - `presetCluster String?`: The latest selected cluster [Default: ""]
   - `presetPartition String?`: The latest selected partition [Default: ""]
+  - `presetSubCluster String?`: The latest selected subCluster [Default: ""]
   - `disableClusterSelection Bool?`: Is the selection disabled [Default: false]
   - `setFilter Func`: The callback function to apply current filter selection
 -->
@@ -26,6 +27,7 @@
     isOpen = $bindable(false),
     presetCluster = "",
     presetPartition = "",
+    presetSubCluster = "",
     disableClusterSelection = false,
     setFilter
   } = $props();
@@ -36,10 +38,11 @@
   const clusterInfos = $derived($initialized ? getContext("clusters") : null);
   let pendingCluster = $derived(presetCluster);
   let pendingPartition = $derived(presetPartition);
+  let pendingSubCluster = $derived(presetSubCluster);
 </script>
 
 <Modal {isOpen} toggle={() => (isOpen = !isOpen)}>
-  <ModalHeader>Select Cluster & Slurm Partition</ModalHeader>
+  <ModalHeader>Select Cluster, SubCluster & Partition</ModalHeader>
   <ModalBody>
     {#if $initialized}
       <h4>Cluster</h4>
@@ -51,7 +54,7 @@
           <ListGroupItem
             disabled={disableClusterSelection}
             active={pendingCluster == null}
-            onclick={() => ((pendingCluster = null), (pendingPartition = null))}
+            onclick={() => ((pendingCluster = null), (pendingPartition = null), (pendingSubCluster = null))}
           >
             Any Cluster
           </ListGroupItem>
@@ -60,7 +63,7 @@
               disabled={disableClusterSelection}
               active={pendingCluster == cluster.name}
               onclick={() => (
-                (pendingCluster = cluster.name), (pendingPartition = null)
+                (pendingCluster = cluster.name), (pendingPartition = null), (pendingSubCluster = null)
               )}
             >
               {cluster.name}
@@ -71,7 +74,27 @@
     {/if}
     {#if $initialized && pendingCluster != null}
       <br />
-      <h4>Partiton</h4>
+      <h4>SubCluster</h4>
+      <ListGroup>
+        <ListGroupItem
+          active={pendingSubCluster == null}
+          onclick={() => (pendingSubCluster = null)}
+        >
+          Any SubCluster
+        </ListGroupItem>
+        {#each clusterInfos?.find((c) => c.name == pendingCluster)?.subClusters as subCluster}
+          <ListGroupItem
+            active={pendingSubCluster == subCluster.name}
+            onclick={() => (pendingSubCluster = subCluster.name)}
+          >
+            {subCluster.name}
+          </ListGroupItem>
+        {/each}
+      </ListGroup>
+    {/if}
+    {#if $initialized && pendingCluster != null}
+      <br />
+      <h4>Partition</h4>
       <ListGroup>
         <ListGroupItem
           active={pendingPartition == null}
@@ -95,7 +118,7 @@
       color="primary"
       onclick={() => {
         isOpen = false;
-        setFilter({ cluster: pendingCluster, partition: pendingPartition });
+        setFilter({ cluster: pendingCluster, subCluster: pendingSubCluster, partition: pendingPartition });
       }}>Close & Apply</Button
     >
     {#if !disableClusterSelection}
@@ -105,7 +128,8 @@
           isOpen = false;
           pendingCluster = null;
           pendingPartition = null;
-          setFilter({ cluster: pendingCluster, partition: pendingPartition})
+          pendingSubCluster = null;
+          setFilter({ cluster: pendingCluster, subCluster: pendingSubCluster, partition: pendingPartition })
         }}>Reset</Button
       >
     {/if}

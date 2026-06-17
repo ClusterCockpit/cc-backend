@@ -107,6 +107,33 @@ func sortAndPageStats(allStats []*model.JobsStatistics, sortBy *model.SortByAggr
 	return sorted
 }
 
+// sortByFieldName maps a SortByAggregate enum to the corresponding reqFields key.
+// This ensures the DB computes the column that sortAndPageStats will sort by.
+func sortByFieldName(sortBy model.SortByAggregate) string {
+	switch sortBy {
+	case model.SortByAggregateTotaljobs:
+		return "totalJobs"
+	case model.SortByAggregateTotalusers:
+		return "totalUsers"
+	case model.SortByAggregateTotalwalltime:
+		return "totalWalltime"
+	case model.SortByAggregateTotalnodes:
+		return "totalNodes"
+	case model.SortByAggregateTotalnodehours:
+		return "totalNodeHours"
+	case model.SortByAggregateTotalcores:
+		return "totalCores"
+	case model.SortByAggregateTotalcorehours:
+		return "totalCoreHours"
+	case model.SortByAggregateTotalaccs:
+		return "totalAccs"
+	case model.SortByAggregateTotalacchours:
+		return "totalAccHours"
+	default:
+		return "totalJobs"
+	}
+}
+
 // statsFieldGetter returns a function that extracts the sortable int field
 // from a JobsStatistics struct for the given sort key.
 func statsFieldGetter(sortBy model.SortByAggregate) func(*model.JobsStatistics) int {

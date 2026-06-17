@@ -1,16 +1,173 @@
-# `cc-backend` version 1.5.2
+# `cc-backend` version 1.5.4
 
 Supports job archive version 3 and database version 11.
 
-This is a bugfix release of `cc-backend`, the API backend and frontend
-implementation of ClusterCockpit.
+This is a security and bugfix release of `cc-backend`, the API backend and
+frontend implementation of ClusterCockpit.
 For release specific notes visit the [ClusterCockpit Documentation](https://clusterockpit.org/docs/release/).
 If you are upgrading from v1.5.1 no database migration is required.
 If you are upgrading from v1.5.0 you need to do another DB migration. This
 should not take long. For optimal database performance after the migration it is
 recommended to apply the new `optimize-db` flag, which runs the sqlite `ANALYZE`
 and `VACUUM` commands. Depending on your database size (more then 40GB) the
-`VACUUM` may take up to 2h.
+`VACUUM` may take up to 2h. You can also run the `ANALYZE` command manually.
+While we are confident that the memory issue with the metricstore cleanup move
+policy is fixed, it is still recommended to use delete policy for cleanup.
+This is also the default.
+
+## Changes in 1.5.4
+
+### Security fixes
+
+- **JWT HMAC empty-key bypass (critical)**: `jwtSession.go` now refuses to
+  register when `CROSS_LOGIN_JWT_HS512_KEY` is unset. Previously, an empty HMAC
+  key allowed unauthenticated admin token forgery because `golang-jwt` verifies
+  any HS256/HS512 signature against an empty key.
+- **SQL injection via metric names (critical)**: Metric names supplied through
+  GraphQL (`[String!]`) were interpolated raw into `json_extract` SQL expressions.
+  Names are now validated against `^[a-zA-Z0-9_]+$` in
+  `jobsMetricStatisticsHistogram` and `buildFloatJSONCondition`.
+- **Path traversal via line-protocol tags (critical)**: `cluster` and `host`
+  tags from the metric line protocol flowed unvalidated into `path.Join` for
+  checkpoint/WAL file paths, enabling arbitrary file writes outside the
+  checkpoint root via NATS (unauthenticated) or `POST /api/write`. Path-traversal
+  sequences are now rejected in `DecodeLine` before the tags become path
+  components.
+- **CORS `AllowCredentials` disabled**: CORS middleware no longer sets
+  `AllowCredentials: true`, which was incompatible with `AllowedOrigins: ["*"]`
+  and could enable cross-origin credential theft.
+- **HSTS header added**: `Strict-Transport-Security` is now set for all
+  HTTPS connections.
+- **Security response headers**: Added `X-Content-Type-Options: nosniff`,
+  `X-Frame-Options: DENY`, `Referrer-Policy: same-origin`, and a conservative
+  `Content-Security-Policy` (blocks `frame-ancestors`, `object-src`, `base-uri`)
+  to harden against clickjacking and base-tag injection.
+- **Stored XSS in job message**: `job.metaData.message` is now rendered as
+  escaped text (CSS `white-space: pre-wrap`) instead of raw `{@html ...}` in
+  `Job.root` and `JobFootprint`.
+- **SQL injection in tag queries**: The tag-scope `IN` list and manager project
+  subquery in `CountTags` are now parameterized instead of interpolating
+  `user.Username` / `user.Projects` values sourced from OIDC/LDAP.
+- **GraphQL DoS hardening**: Query cost is bounded with `FixedComplexityLimit`
+  (5000). Non-positive `items-per-page` and `page` values are rejected with HTTP
+  400 to prevent integer underflow into unbounded `LIMIT`/`OFFSET` queries.
+- **CSRF defense-in-depth**: State-changing requests with a cross-site
+  `Sec-Fetch-Site` header are now rejected (fails open for non-browser clients),
+  complementing the existing `SameSite=Lax` session cookie.
+- **NATS API security warning**: A startup warning is now logged when NATS
+  subscriptions are enabled, reminding operators that the NATS API has no
+  application-layer authentication and that publish ACLs must be restricted at
+  the broker.
+
+### Bug fixes
+
+- **Roofline legend placement**: Roofline plot legends now use fixed
+  coordinates instead of dynamic placement, preventing the legend from
+  overlapping data points or being rendered off-canvas (#546).
+- **Subcluster usage tab labels**: Subcluster names in the status dashboard
+  usage tabs are no longer force-capitalized; the original cluster-defined
+  casing is preserved.
+- **NodeListRow host filter**: The running-jobs query in the node list row now
+  filters by exact node hostname (`eq`) instead of substring match
+  (`contains`), avoiding incorrect matches when one hostname is a prefix of
+  another.
+- **WAL files not reset on shutdown**: On graceful shutdown the metricstore wrote
+  a final binary snapshot but never rotated the per-host `current.wal` files (the
+  `RotateWALFilesAfterShutdown` helper was defined but never called). The stale
+  WAL files were replayed and then appended to again on the next start, so they
+  grew without bound across restarts and were only ever reset at the next periodic
+  checkpoint. `Shutdown` now rotates the WAL files for all successfully
+  snapshotted hosts.
+
+### Dependencies
+
+- **Go module upgrades**: Refreshed Go module dependencies to their latest
+  compatible versions.
+
+## Changes in 1.5.3
+
+### Bug fixes
+
+- **OIDC role extraction**: Fixed role extraction from OIDC tokens where roles
+  were not correctly parsed from the token claims. Roles are now always
+  requested from the token regardless of other configuration.
+- **OIDC user sync role changes**: `SyncUser` and `UpdateUser` callbacks now
+  allow all role changes, removing a restriction that prevented role updates
+  during OIDC-driven user synchronization.
+- **OIDC projects array**: Projects array from the OIDC token is now submitted
+  and applied when syncing user attributes.
+- **WAL message drops during checkpoint**: WAL writes are now paused during
+  binary checkpoint creation. Previously, disk I/O contention between
+  checkpoint writes and WAL staging caused over 1.4 million dropped messages
+  per checkpoint cycle.
+- **WAL rotation skipped for all nodes**: `RotateWALFiles` used a non-blocking
+  send on a small channel. With thousands of nodes, the channel filled instantly
+  and nearly all hosts were skipped, leaving WAL files unrotated. Replaced with
+  a blocking send using a shared 2-minute deadline.
+- **Log viewer auto-refresh**: Fixed the log viewer component not auto-refreshing
+  correctly.
+- **SameSite cookie setting**: Relaxed the SameSite cookie attribute to improve
+  compatibility with OIDC redirect flows.
+- **WAL not rotated on partial checkpoint failure**: When binary checkpointing
+  failed for some hosts, WAL files for successfully checkpointed hosts were not
+  rotated and the checkpoint timestamp was not advanced. Partial successes now
+  correctly advance the checkpoint and rotate WAL files for completed hosts.
+- **Unbounded WAL file growth**: If binary checkpointing consistently failed for
+  a host, its `current.wal` file grew without limit until disk exhaustion. A new
+  `max-wal-size` configuration option (in the `checkpoints` block) allows setting
+  a per-host WAL size cap in bytes. When exceeded, the WAL is force-rotated.
+  Defaults to 0 (unlimited) for backward compatibility.
+
+- **Doubleranged filter fixes**: Range filters now correctly handle zero as a
+  boundary value. Improved validation and UI text for "more than equal" and
+  "less than equal" range selections.
+- **Lineprotocol body parsing interrupted**: Switched from `ReadTimeout` to
+  `ReadHeaderTimeout` so that long-running metric submissions are no longer
+  cut off mid-stream.
+- **Checkpoint archiving continues on error**: A single cluster's archiving
+  failure no longer aborts the entire cleanup operation. Errors are collected
+  and reported per cluster.
+- **Parquet row group overflow**: Added periodic flush during checkpoint
+  archiving to prevent exceeding the parquet-go 32k column-write limit.
+- **Removed metrics excluded from subcluster config**: Metrics removed from a
+  subcluster are no longer returned by `GetMetricConfigSubCluster`.
+
+### MetricStore performance
+
+- **WAL writer throughput**: Decoupled WAL file flushing from message processing
+  using a periodic 5-second batch flush (up to 4096 messages per cycle),
+  significantly increasing metric ingestion throughput.
+- **Improved shutdown time**: HTTP shutdown timeout reduced; metricstore and
+  archiver now shut down concurrently. Overall shutdown deadline raised to
+  60 seconds.
+
+### New features
+
+- **Manual checkpoint cleanup flag**: New `-cleanup-checkpoints` CLI flag
+  triggers checkpoint cleanup without starting the server, useful for
+  maintenance windows or automated cleanup scripts.
+- **Explicit node state queries in node view**: Node health and scheduler state
+  are now fetched independently from metric data for fresher status information.
+
+### Development tooling
+
+- **Make targets for formatting and linting**: New `make fmt` and `make lint`
+  targets using `gofumpt` and `golangci-lint`. Configuration added in
+  `.golangci.yml` and `gopls.json`.
+
+### New tools
+
+- **binaryCheckpointReader**: New utility tool (`tools/binaryCheckpointReader`)
+  that reads `.wal` or `.bin` checkpoint files produced by the metricstore
+  WAL/snapshot system and dumps their contents to a human-readable `.txt` file.
+  Useful for debugging and inspecting checkpoint data. Usage:
+  `go run ./tools/binaryCheckpointReader <file.wal|file.bin>`
+
+### Logging improvements
+
+- **Reduced tagger log noise**: Missing metrics and expression evaluation errors
+  in the job classification tagger are now logged at debug level instead of
+  error level.
 
 ## Changes in 1.5.2
 
@@ -19,6 +176,14 @@ and `VACUUM` commands. Depending on your database size (more then 40GB) the
 - **Memory spike in parquet writer**: Fixed memory spikes when using the
   metricstore move (archive) policy with the parquet writer. The writer now
   processes data in a streaming fashion to avoid accumulating large allocations.
+- **Top list query fixes**: Fixed top list queries in analysis and dashboard
+  views.
+- **Exclude down nodes from HealthCheck**: Down nodes are now excluded from
+  health checks in both the REST and NATS handlers.
+- **Node state priority order**: Node state determination now enforces a
+  priority order. Exception: idle+down results in idle.
+- **Blocking ReceiveNats call**: Fixed a blocking NATS receive call in the
+  metricstore.
 
 ### Database performance
 
@@ -33,6 +198,16 @@ and `VACUUM` commands. Depending on your database size (more then 40GB) the
   write load.
 - **Increased default SQLite timeout**: The default SQLite connection timeout
   has been raised to reduce spurious timeout errors under load.
+- **Optimized stats queries**: Improved sortby handling in stats queries, fixed
+  cache key passing, and simplified a stats query condition that caused an
+  expensive unnecessary subquery.
+
+### MetricStore performance
+
+- **Sharded WAL consumer**: The WAL consumer is now sharded for significantly
+  higher write throughput.
+- **NATS contention fix**: Fixed contention in the metricstore NATS ingestion
+  path.
 
 ### NATS API
 
@@ -52,6 +227,24 @@ and `VACUUM` commands. Depending on your database size (more then 40GB) the
   operation.
 - **Checkpoint archiving log**: Added an informational log message when the
   metricstore checkpoint archiving process runs.
+- **Auth failure context**: Auth failure log messages now include more context
+  information.
+
+### Behavior changes
+
+- **DB-based metricHealth**: Replaced heuristic-based metric health with
+  DB-based metric health for the node view, providing more accurate health
+  status information.
+- **Removed minRunningFor filter remnants**: Cleaned up remaining `minRunningFor`
+  references from the GraphQL schema and query builder.
+
+### Frontend
+
+- **Streamlined statsSeries**: Unified stats series calculation and rendering
+  across plot components.
+- **Clarified plot titles**: Improved titles in dashboard and health views.
+- **Bumped frontend dependencies**: Updated frontend dependencies to latest
+  versions.
 
 ### Dependencies
 
@@ -67,7 +260,7 @@ and `VACUUM` commands. Depending on your database size (more then 40GB) the
   running has to be allowed to execute the journalctl command.
 - The user configuration keys for the ui have changed. Therefore old user
   configuration persisted in the database is not used anymore. It is recommended
-  to configure the metrics shown in the ui-config sestion and remove all records
+  to configure the metrics shown in the ui-config section and remove all records
   in the table after the update.
 - Currently energy footprint metrics of type energy are ignored for calculating
   total energy.

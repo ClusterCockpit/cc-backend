@@ -133,10 +133,10 @@ func (pt *prefixedTarget) WriteFile(name string, data []byte) error {
 // ClusterAwareParquetWriter organizes Parquet output by cluster.
 // Each cluster gets its own subdirectory with a cluster.json config file.
 type ClusterAwareParquetWriter struct {
-	target       ParquetTarget
-	maxSizeMB    int
-	writers      map[string]*ParquetWriter
-	clusterCfgs  map[string]*schema.Cluster
+	target      ParquetTarget
+	maxSizeMB   int
+	writers     map[string]*ParquetWriter
+	clusterCfgs map[string]*schema.Cluster
 }
 
 // NewClusterAwareParquetWriter creates a writer that routes jobs to per-cluster ParquetWriters.

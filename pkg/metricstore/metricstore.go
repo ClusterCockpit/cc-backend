@@ -8,7 +8,7 @@
 //
 // The package organizes metrics in a tree structure (cluster → host → component) and
 // provides concurrent read/write access to metric data with configurable aggregation strategies.
-// Background goroutines handle periodic checkpointing (JSON or Avro format), archiving old data,
+// Background goroutines handle periodic checkpointing (JSON or WAL/binary format), archiving old data,
 // and enforcing retention policies.
 //
 // Key features:
@@ -16,7 +16,7 @@
 //   - Hierarchical data organization (selectors)
 //   - Concurrent checkpoint/archive workers
 //   - Support for sum and average aggregation
-//   - NATS integration for metric ingestion
+//   - NATS integration for metric ingestion via InfluxDB line protocol
 package metricstore
 
 import (
@@ -113,7 +113,8 @@ type MemoryStore struct {
 //  6. Optionally subscribes to NATS for real-time metric ingestion
 //
 // Parameters:
-//   - rawConfig: JSON configuration for the metric store (see MetricStoreConfig)
+//   - rawConfig: JSON configuration for the metric store (see MetricStoreConfig); may be nil to use defaults
+//   - metrics: Map of metric names to their configurations (frequency and aggregation strategy)
 //   - wg: WaitGroup that will be incremented for each background goroutine started
 //
 // The function will call cclog.Fatal on critical errors during initialization.
@@ -271,19 +272,37 @@ func (ms *MemoryStore) SetNodeProvider(provider NodeProvider) {
 //
 // Note: This function blocks until the final checkpoint is written.
 func Shutdown() {
+	totalStart := time.Now()
+
 	shutdownFuncMu.Lock()
-	defer shutdownFuncMu.Unlock()
-	if shutdownFunc != nil {
-		shutdownFunc()
+	if shutdownFunc == nil {
+		// Already shut down (or never initialized): nothing to do. This keeps
+		// Shutdown idempotent so it is safe to call from more than one path.
+		shutdownFuncMu.Unlock()
+		return
 	}
+	shutdownFunc()
+	shutdownFunc = nil
+	shutdownFuncMu.Unlock()
+	cclog.Infof("[METRICSTORE]> Background workers cancelled (%v)", time.Since(totalStart))
 
 	if Keys.Checkpoints.FileFormat == "wal" {
+		// Signal producers to stop sending before closing channels,
+		// preventing send-on-closed-channel panics from in-flight NATS workers.
+		walShuttingDown.Store(true)
+		// Brief grace period for in-flight DecodeLine calls to complete.
+		time.Sleep(100 * time.Millisecond)
+
 		for _, ch := range walShardChs {
 			close(ch)
 		}
+		drainStart := time.Now()
+		WaitForWALStagingDrain()
+		cclog.Infof("[METRICSTORE]> WAL staging goroutines exited (%v)", time.Since(drainStart))
 	}
 
-	cclog.Infof("[METRICSTORE]> Writing to '%s'...\n", Keys.Checkpoints.RootDir)
+	cclog.Infof("[METRICSTORE]> Writing checkpoint to '%s'...", Keys.Checkpoints.RootDir)
+	checkpointStart := time.Now()
 	var files int
 	var err error
 
@@ -294,19 +313,22 @@ func Shutdown() {
 	lastCheckpointMu.Unlock()
 
 	if Keys.Checkpoints.FileFormat == "wal" {
-		var hostDirs []string
-		files, hostDirs, err = ms.ToCheckpointWAL(Keys.Checkpoints.RootDir, from.Unix(), time.Now().Unix())
-		if err == nil {
-			RotateWALFilesAfterShutdown(hostDirs)
-		}
+		var successDirs []string
+		files, successDirs, err = ms.ToCheckpointWAL(Keys.Checkpoints.RootDir, from.Unix(), time.Now().Unix())
+		// The final binary snapshot now captures all in-memory data for these
+		// hosts, making their current.wal redundant. The staging goroutines have
+		// already exited, so remove the WAL files directly (the channel-based
+		// RotateWALFiles is no longer safe to call). Without this, current.wal
+		// files survive shutdown and keep growing across restarts.
+		RotateWALFilesAfterShutdown(successDirs)
 	} else {
 		files, err = ms.ToCheckpoint(Keys.Checkpoints.RootDir, from.Unix(), time.Now().Unix())
 	}
 
 	if err != nil {
-		cclog.Errorf("[METRICSTORE]> Writing checkpoint failed: %s\n", err.Error())
+		cclog.Errorf("[METRICSTORE]> Writing checkpoint failed: %s", err.Error())
 	}
-	cclog.Infof("[METRICSTORE]> Done! (%d files written)\n", files)
+	cclog.Infof("[METRICSTORE]> Done! (%d files written in %v, total shutdown: %v)", files, time.Since(checkpointStart), time.Since(totalStart))
 }
 
 // Retention starts a background goroutine that periodically frees old metric data.
@@ -702,16 +724,16 @@ func (m *MemoryStore) Read(selector util.Selector, metric string, from, to, reso
 		} else if from != cfrom || to != cto || len(data) != len(cdata) {
 			missingfront, missingback := int((from-cfrom)/minfo.Frequency), int((to-cto)/minfo.Frequency)
 			if missingfront != 0 {
-				return ErrDataDoesNotAlign
+				return ErrDataDoesNotAlignMissingFront
 			}
 
 			newlen := len(cdata) - missingback
 			if newlen < 1 {
-				return ErrDataDoesNotAlign
+				return ErrDataDoesNotAlignMissingBack
 			}
 			cdata = cdata[0:newlen]
 			if len(cdata) != len(data) {
-				return ErrDataDoesNotAlign
+				return ErrDataDoesNotAlignDataLenMismatch
 			}
 
 			from, to = cfrom, cto

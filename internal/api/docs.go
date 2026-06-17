@@ -398,11 +398,6 @@ const docTemplate = `{
         },
         "/api/jobs/edit_meta/": {
             "patch": {
-                "security": [
-                    {
-                        "ApiKeyAuth": []
-                    }
-                ],
                 "description": "Edit key value pairs in metadata json of job specified by jobID, StartTime and Cluster\nIf a key already exists its content will be overwritten",
                 "consumes": [
                     "application/json"
@@ -413,7 +408,7 @@ const docTemplate = `{
                 "tags": [
                     "Job add and modify"
                 ],
-                "summary": "Edit meta-data json by request",
+                "summary": "Edit meta-data json of job identified by request",
                 "parameters": [
                     {
                         "description": "Specifies job and payload to add or update",
@@ -456,12 +451,17 @@ const docTemplate = `{
                             "$ref": "#/definitions/api.ErrorResponse"
                         }
                     }
-                }
+                },
+                "security": [
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ]
             }
         },
         "/api/jobs/edit_meta/{id}": {
             "patch": {
-                "description": "Edit key value pairs in job metadata json\nIf a key already exists its content will be overwritten",
+                "description": "Edit key value pairs in job metadata json of job specified by database id\nIf a key already exists its content will be overwritten",
                 "consumes": [
                     "application/json"
                 ],
@@ -471,7 +471,7 @@ const docTemplate = `{
                 "tags": [
                     "Job add and modify"
                 ],
-                "summary": "Edit meta-data json",
+                "summary": "Edit meta-data json of job identified by database id",
                 "parameters": [
                     {
                         "type": "integer",
@@ -481,7 +481,7 @@ const docTemplate = `{
                         "required": true
                     },
                     {
-                        "description": "Kay value pair to add",
+                        "description": "Metadata Key value pair to add or update",
                         "name": "request",
                         "in": "body",
                         "required": true,
@@ -743,6 +743,64 @@ const docTemplate = `{
                 ]
             }
         },
+        "/api/jobs/used_nodes": {
+            "get": {
+                "description": "Get a map of cluster names to lists of unique hostnames that are currently in use by running jobs that started before the specified timestamp.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Job query"
+                ],
+                "summary": "Lists used nodes by cluster",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Unix timestamp to filter jobs (jobs with start_time \u003c ts)",
+                        "name": "ts",
+                        "in": "query",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Map of cluster names to hostname lists",
+                        "schema": {
+                            "$ref": "#/definitions/api.GetUsedNodesAPIResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/api.ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/api.ErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/api.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/api.ErrorResponse"
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ]
+            }
+        },
         "/api/jobs/{id}": {
             "get": {
                 "description": "Job to get is specified by database ID\nReturns full job resource information according to 'Job' scheme and all metrics according to 'JobData'.",
@@ -965,8 +1023,11 @@ const docTemplate = `{
         "/api/user/{id}": {
             "post": {
                 "description": "Allows admins to add/remove roles and projects for a user",
+                "consumes": [
+                    "application/json"
+                ],
                 "produces": [
-                    "text/plain"
+                    "application/json"
                 ],
                 "tags": [
                     "User"
@@ -981,35 +1042,26 @@ const docTemplate = `{
                         "required": true
                     },
                     {
-                        "type": "string",
-                        "description": "Role to add",
-                        "name": "add-role",
-                        "in": "formData"
-                    },
-                    {
-                        "type": "string",
-                        "description": "Role to remove",
-                        "name": "remove-role",
-                        "in": "formData"
-                    },
-                    {
-                        "type": "string",
-                        "description": "Project to add",
-                        "name": "add-project",
-                        "in": "formData"
-                    },
-                    {
-                        "type": "string",
-                        "description": "Project to remove",
-                        "name": "remove-project",
-                        "in": "formData"
+                        "description": "Single Field Changes",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/api.UpdateUserAPIRequest"
+                        }
                     }
                 ],
                 "responses": {
                     "200": {
-                        "description": "Success message",
+                        "description": "OK",
                         "schema": {
-                            "type": "string"
+                            "$ref": "#/definitions/api.DefaultAPIResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/api.ErrorResponse"
                         }
                     },
                     "403": {
@@ -1345,63 +1397,6 @@ const docTemplate = `{
                 "responses": {
                     "200": {
                         "description": "ok",
-                        "schema": {
-                            "type": "string"
-                        }
-                    },
-                    "400": {
-                        "description": "Bad Request",
-                        "schema": {
-                            "$ref": "#/definitions/api.ErrorResponse"
-                        }
-                    },
-                    "401": {
-                        "description": "Unauthorized",
-                        "schema": {
-                            "$ref": "#/definitions/api.ErrorResponse"
-                        }
-                    },
-                    "403": {
-                        "description": "Forbidden",
-                        "schema": {
-                            "$ref": "#/definitions/api.ErrorResponse"
-                        }
-                    },
-                    "500": {
-                        "description": "Internal Server Error",
-                        "schema": {
-                            "$ref": "#/definitions/api.ErrorResponse"
-                        }
-                    }
-                },
-                "security": [
-                    {
-                        "ApiKeyAuth": []
-                    }
-                ]
-            }
-        },
-        "/healthcheck/": {
-            "get": {
-                "description": "This endpoint allows the users to check if a node is healthy",
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "healthcheck"
-                ],
-                "summary": "HealthCheck endpoint",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "Selector",
-                        "name": "selector",
-                        "in": "query"
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "Debug dump",
                         "schema": {
                             "type": "string"
                         }
@@ -1940,6 +1935,31 @@ const docTemplate = `{
                 }
             }
         },
+        "api.UpdateUserAPIRequest": {
+            "type": "object",
+            "properties": {
+                "add-role": {
+                    "description": "Role to add to user $ID",
+                    "type": "string",
+                    "example": "user"
+                },
+                "remove-role": {
+                    "description": "Role to remove from user $ID",
+                    "type": "string",
+                    "example": "user"
+                },
+                "add-project": {
+                    "description": "Project to add to user $ID managed array",
+                    "type": "string",
+                    "example": "abcd100"
+                },
+                "remove-project": {
+                    "description": "Project to remove from user $ID managed array",
+                    "type": "string",
+                    "example": "abcd100"
+                }
+            }
+        },
         "api.DefaultAPIResponse": {
             "type": "object",
             "properties": {
@@ -2040,6 +2060,52 @@ const docTemplate = `{
                 "page": {
                     "description": "Page id returned",
                     "type": "integer"
+                }
+            }
+        },
+        "api.GetUsedNodesAPIResponse": {
+            "type": "object",
+            "properties": {
+                "usedNodes": {
+                    "description": "Map of cluster names to lists of used node hostnames",
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        }
+                    }
+                }
+            }
+        },
+        "api.JobMetaRequest": {
+            "type": "object",
+            "required": [
+                "jobId"
+            ],
+            "properties": {
+                "cluster": {
+                    "description": "Cluster of job",
+                    "type": "string",
+                    "example": "fritz"
+                },
+                "jobId": {
+                    "description": "Cluster Job ID of job",
+                    "type": "integer",
+                    "example": 123000
+                },
+                "payload": {
+                    "description": "Content to Add to Job Meta_Data",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/api.EditMetaRequest"
+                        }
+                    ]
+                },
+                "startTime": {
+                    "description": "Start Time of job as epoch",
+                    "type": "integer",
+                    "example": 1649723812
                 }
             }
         },
@@ -2174,13 +2240,6 @@ const docTemplate = `{
                         "type": "number",
                         "format": "float64"
                     }
-                },
-                "exclusive": {
-                    "description": "for backwards compatibility",
-                    "type": "integer",
-                    "maximum": 2,
-                    "minimum": 0,
-                    "example": 1
                 },
                 "footprint": {
                     "type": "object",

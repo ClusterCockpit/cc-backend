@@ -311,26 +311,33 @@ func (r *JobRepository) CountTags(user *schema.User) (tags []schema.Tag, counts 
 		LeftJoin("jobtag jt ON t.id = jt.tag_id").
 		GroupBy("t.tag_type, t.tag_name")
 
-	// Build scope list for filtering
-	var scopeBuilder strings.Builder
-	scopeBuilder.WriteString(`"global"`)
+	// Build scope list for filtering. Values are parameterized rather than
+	// interpolated because user.Username originates from external identity
+	// providers (OIDC/LDAP) and must not be trusted as SQL.
+	scopes := []string{"global"}
 	if user != nil {
-		scopeBuilder.WriteString(`,"`)
-		scopeBuilder.WriteString(user.Username)
-		scopeBuilder.WriteString(`"`)
+		scopes = append(scopes, user.Username)
 		if user.HasAnyRole([]schema.Role{schema.RoleAdmin, schema.RoleSupport}) {
-			scopeBuilder.WriteString(`,"admin"`)
+			scopes = append(scopes, "admin")
 		}
 	}
-	q = q.Where("t.tag_scope IN (" + scopeBuilder.String() + ")")
+	q = q.Where(sq.Eq{"t.tag_scope": scopes})
 
 	// Handle Job Ownership
 	if user != nil && user.HasAnyRole([]schema.Role{schema.RoleAdmin, schema.RoleSupport}) { // ADMIN || SUPPORT: Count all jobs
 		// cclog.Debug("CountTags: User Admin or Support -> Count all Jobs for Tags")
 		// Unchanged: Needs to be own case still, due to UserRole/NoRole compatibility handling in else case
-	} else if user != nil && user.HasRole(schema.RoleManager) { // MANAGER: Count own jobs plus project's jobs
-		// Build ("project1", "project2", ...) list of variable length directly in SQL string
-		q = q.Where("jt.job_id IN (SELECT id FROM job WHERE job.hpc_user = ? OR job.project IN (\""+strings.Join(user.Projects, "\",\"")+"\"))", user.Username)
+	} else if user != nil && user.HasRole(schema.RoleManager) && len(user.Projects) > 0 { // MANAGER: Count own jobs plus project's jobs
+		// Build a parameterized ("?", "?", ...) placeholder list for the
+		// variable-length project set instead of interpolating values into SQL.
+		args := make([]any, 0, len(user.Projects)+1)
+		args = append(args, user.Username)
+		placeholders := make([]string, len(user.Projects))
+		for i, p := range user.Projects {
+			placeholders[i] = "?"
+			args = append(args, p)
+		}
+		q = q.Where("jt.job_id IN (SELECT id FROM job WHERE job.hpc_user = ? OR job.project IN ("+strings.Join(placeholders, ",")+"))", args...)
 	} else if user != nil { // USER OR NO ROLE (Compatibility): Only count own jobs
 		q = q.Where("jt.job_id IN (SELECT id FROM job WHERE job.hpc_user = ?)", user.Username)
 	}

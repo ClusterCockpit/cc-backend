@@ -21,7 +21,7 @@
   let {
     sliderMin,
     sliderMax,
-    fromPreset = 1,
+    fromPreset = 0,
     toPreset = 100,
     changeRange
   } = $props();
@@ -33,9 +33,9 @@
   /* Derived */
   let pendingValues = $derived([fromPreset, toPreset]);
   let sliderFrom = $derived(Math.max(((fromPreset  == null ? sliderMin : fromPreset)  - sliderMin) / (sliderMax - sliderMin), 0.));
-  let sliderTo = $derived(Math.min(((toPreset == null ? sliderMin : toPreset) - sliderMin) / (sliderMax - sliderMin), 1.));
-  let inputFieldFrom = $derived(fromPreset ? fromPreset.toString() : null);
-  let inputFieldTo = $derived(toPreset ? toPreset.toString() : null);
+  let sliderTo = $derived(Math.min(((toPreset == null ? sliderMax : toPreset) - sliderMin) / (sliderMax - sliderMin), 1.));
+  let inputFieldFrom = $derived(fromPreset != null ? fromPreset.toString() : null);
+  let inputFieldTo = $derived(toPreset != null ? toPreset.toString() : null);
 
   /* Var Init */
   let timeoutId = null;
@@ -79,17 +79,22 @@
     evt.preventDefault()
     evt.stopPropagation()
     const newV = Number.parseInt(evt.target.value);
-    const newP = clamp((newV - sliderMin) / (sliderMax - sliderMin), 0., 1.)
+    const newP = clamp((newV - sliderMin) / (sliderMax - sliderMin), 0., 1., target)
     updateStates(newV, newP, target);
   }
 
-  function clamp(x, testMin, testMax) {
-    return x < testMin
-      ? testMin
-      : (x > testMax 
-        ? testMax
-        : x
-      );
+  function clamp(x, testMin, testMax, target) {
+    if (isNaN(x)) {
+      if (target == 'from') return testMin
+      else if (target == 'to') return testMax
+    } else {
+      return x < testMin
+        ? testMin
+        : (x > testMax 
+          ? testMax
+          : x
+        );
+    }
   }
 
   function draggable(node) {
@@ -159,23 +164,23 @@
 
 <div class="double-range-container">
   <div class="header">
-    <input class="form-control" type="text" placeholder="from..." value={inputFieldFrom}
+    <input class="form-control" type="text" placeholder={`${sliderMin} ...`} value={inputFieldFrom}
       oninput={(e) => {
         inputChanged(e, 'from');
       }}
     />
 
-    {#if inputFieldFrom != sliderMin?.toString() && inputFieldTo != sliderMax?.toString() }
+    {#if (inputFieldFrom && inputFieldFrom != sliderMin?.toString()) && inputFieldTo != null }
       <span>Selected: Range <b> {inputFieldFrom} </b> - <b> {inputFieldTo} </b></span>
-    {:else if inputFieldFrom != sliderMin?.toString() && inputFieldTo == sliderMax?.toString() }
-      <span>Selected: More than <b> {inputFieldFrom} </b> </span>
-    {:else if inputFieldFrom == sliderMin?.toString() && inputFieldTo != sliderMax?.toString() }
-      <span>Selected: Less than <b> {inputFieldTo} </b></span>
+    {:else if (inputFieldFrom && inputFieldFrom != sliderMin?.toString()) && inputFieldTo == null }
+      <span>Selected: More Than Equal <b> {inputFieldFrom} </b> </span>
+    {:else if (!inputFieldFrom || inputFieldFrom == sliderMin?.toString()) && inputFieldTo != null }
+      <span>Selected: Less Than Equal <b> {inputFieldTo} </b></span>
     {:else}
       <span><i>No Selection</i></span>
     {/if}
 
-    <input class="form-control" type="text" placeholder="to..." value={inputFieldTo}
+    <input class="form-control" type="text" placeholder={`... ${sliderMax} ...`} value={inputFieldTo}
       oninput={(e) => {
         inputChanged(e, 'to');
       }}

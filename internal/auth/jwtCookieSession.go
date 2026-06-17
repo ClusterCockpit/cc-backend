@@ -9,6 +9,7 @@ import (
 	"crypto/ed25519"
 	"encoding/base64"
 	"errors"
+	"fmt"
 	"net/http"
 	"os"
 
@@ -119,22 +120,26 @@ func (ja *JWTCookieSessionAuthenticator) Login(
 		rawtoken = jwtCookie.Value
 	}
 
-	token, err := jwt.Parse(rawtoken, func(t *jwt.Token) (any, error) {
-		if t.Method != jwt.SigningMethodEdDSA {
-			return nil, errors.New("only Ed25519/EdDSA supported")
-		}
+	parser := jwt.NewParser(jwt.WithValidMethods([]string{jwt.SigningMethodEdDSA.Alg()}))
 
-		unvalidatedIssuer, success := t.Claims.(jwt.MapClaims)["iss"].(string)
-		if success && unvalidatedIssuer == jc.TrustedIssuer {
-			// The (unvalidated) issuer seems to be the expected one,
-			// use public cross login key from config
-			return ja.publicKeyCrossLogin, nil
-		}
+	unverified, _, perr := parser.ParseUnverified(rawtoken, jwt.MapClaims{})
+	if perr != nil {
+		cclog.Warn("JWT cookie session: error while parsing token")
+		return nil, perr
+	}
+	issuer, _ := unverified.Claims.(jwt.MapClaims)["iss"].(string)
 
-		// No cross login key configured or issuer not expected
-		// Try own key
-		return ja.publicKey, nil
-	})
+	var key any
+	switch issuer {
+	case jc.TrustedIssuer:
+		key = ja.publicKeyCrossLogin
+	case "":
+		key = ja.publicKey
+	default:
+		return nil, fmt.Errorf("untrusted JWT issuer: %q", issuer)
+	}
+
+	token, err := parser.Parse(rawtoken, func(*jwt.Token) (any, error) { return key, nil })
 	if err != nil {
 		cclog.Warn("JWT cookie session: error while parsing token")
 		return nil, err

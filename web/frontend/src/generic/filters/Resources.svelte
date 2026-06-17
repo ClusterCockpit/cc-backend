@@ -98,44 +98,38 @@
   // Pending
   let pendingNumNodes = $derived({
     from: presetNumNodes.from,
-    to: (presetNumNodes.to == 0) ? maxNumNodes : presetNumNodes.to
+    to: (presetNumNodes.to == 0) ? null : presetNumNodes.to
   });
   let pendingNumHWThreads = $derived({
     from: presetNumHWThreads.from,
-    to: (presetNumHWThreads.to == 0) ? maxNumHWThreads : presetNumHWThreads.to
+    to: (presetNumHWThreads.to == 0) ? null : presetNumHWThreads.to
   });
   let pendingNumAccelerators = $derived({
     from: presetNumAccelerators.from,
-    to: (presetNumAccelerators.to == 0) ? maxNumAccelerators : presetNumAccelerators.to
+    to: (presetNumAccelerators.to == 0) ? null : presetNumAccelerators.to
   });
   let pendingNamedNode = $derived(presetNamedNode);
   let pendingNodeMatch = $derived(presetNodeMatch);
   // Changable States
   let nodesState = $derived({
-    from: presetNumNodes.from,
-    to: (presetNumNodes.to == 0) ? maxNumNodes : presetNumNodes.to
+    from: presetNumNodes?.from || 0,
+    to: (presetNumNodes.to == 0) ? null : presetNumNodes.to
   });
   let threadState = $derived({
-    from: presetNumHWThreads.from,
-    to: (presetNumHWThreads.to == 0) ? maxNumHWThreads : presetNumHWThreads.to
+    from: presetNumHWThreads?.from || 0,
+    to: (presetNumHWThreads.to == 0) ? null : presetNumHWThreads.to
   });
   let accState = $derived({
-    from: presetNumAccelerators.from,
-    to: (presetNumAccelerators.to == 0) ? maxNumAccelerators : presetNumAccelerators.to
+    from: presetNumAccelerators?.from || 0,
+    to: (presetNumAccelerators.to == 0) ? null : presetNumAccelerators.to
   });
 
   const initialized = $derived(getContext("initialized") || false);
   const clusterInfos = $derived($initialized ? getContext("clusters") : null);
   // Is Selection Active
-  const nodesActive = $derived(!(JSON.stringify(nodesState) === JSON.stringify({ from: 1, to: maxNumNodes })));
-  const threadActive = $derived(!(JSON.stringify(threadState) === JSON.stringify({ from: 1, to: maxNumHWThreads })));
-  const accActive = $derived(!(JSON.stringify(accState) === JSON.stringify({ from: 1, to: maxNumAccelerators })));
-  // Block Apply if null
-  const disableApply = $derived(
-    nodesState.from === null || nodesState.to === null ||
-    threadState.from === null || threadState.to === null ||
-    accState.from === null || accState.to === null
-  );
+  const nodesActive = $derived(!(JSON.stringify(nodesState) === JSON.stringify({ from: 0, to: null })));
+  const threadActive = $derived(!(JSON.stringify(threadState) === JSON.stringify({ from: 0, to: null })));
+  const accActive = $derived(!(JSON.stringify(accState) === JSON.stringify({ from: 0, to: null })));
 
   /* Reactive Effects | Svelte 5 onMount */
   $effect(() => {
@@ -153,58 +147,28 @@
     }
   });
 
-  $effect(() => {
-    if (
-      $initialized &&
-      pendingNumNodes.from == null &&
-      pendingNumNodes.to == null
-    ) {
-      nodesState = { from: 1, to: maxNumNodes };
-    }
-  });
-
-  $effect(() => {
-    if (
-      $initialized &&
-      pendingNumHWThreads.from == null && 
-      pendingNumHWThreads.to == null 
-    ) {
-      threadState = { from: 1, to: maxNumHWThreads };
-    }
-  });
-
-  $effect(() => {
-    if (
-      $initialized &&
-      pendingNumAccelerators.from == null &&
-      pendingNumAccelerators.to == null
-    ) {
-      accState = { from: 1, to: maxNumAccelerators };
-    }
-  });
-
   /* Functions */
   function setResources() {
     if (nodesActive) {
       pendingNumNodes = {
-        from: nodesState.from,
-        to: (nodesState.to == maxNumNodes) ? 0 : nodesState.to
+        from: (!nodesState?.from) ? 0 : nodesState.from,
+        to: (nodesState.to === null) ? 0 : nodesState.to
       };
     } else {
       pendingNumNodes = { from: null, to: null};
     };
     if (threadActive) {
       pendingNumHWThreads = {
-        from: threadState.from,
-        to: (threadState.to == maxNumHWThreads) ? 0 : threadState.to
+        from: (!threadState?.from) ? 0 : threadState.from,
+        to: (threadState.to === null) ? 0 : threadState.to
       };
     } else {
       pendingNumHWThreads = { from: null, to: null};
     };
     if (accActive) {
       pendingNumAccelerators = {
-        from: accState.from,
-        to: (accState.to == maxNumAccelerators) ? 0 : accState.to
+        from: (!accState?.from) ? 0 : accState.from,
+        to: (accState.to === null) ? 0 : accState.to
       };
     } else {
       pendingNumAccelerators = { from: null, to: null};
@@ -249,7 +213,7 @@
           nodesState.from = detail[0];
           nodesState.to = detail[1];
         }}
-        sliderMin={1}
+        sliderMin={0}
         sliderMax={maxNumNodes}
         fromPreset={nodesState.from}
         toPreset={nodesState.to}
@@ -269,7 +233,7 @@
           threadState.from = detail[0];
           threadState.to = detail[1];
         }}
-        sliderMin={1}
+        sliderMin={0}
         sliderMax={maxNumHWThreads}
         fromPreset={threadState.from}
         toPreset={threadState.to}
@@ -289,7 +253,7 @@
             accState.from = detail[0];
             accState.to = detail[1];
           }}
-          sliderMin={1}
+          sliderMin={0}
           sliderMax={maxNumAccelerators}
           fromPreset={accState.from}
           toPreset={accState.to}
@@ -300,7 +264,6 @@
   <ModalFooter>
     <Button
       color="primary"
-      disabled={disableApply}
       onclick={() => {
         isOpen = false;
         setResources();

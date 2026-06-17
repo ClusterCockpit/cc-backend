@@ -63,10 +63,10 @@ func DefaultConfig() *RepositoryConfig {
 		MaxIdleConnections:    4,
 		ConnectionMaxLifetime: time.Hour,
 		ConnectionMaxIdleTime: 10 * time.Minute,
-		MinRunningJobDuration: 600, // 10 minutes
-		DbCacheSizeMB:        2048,  // 2GB per connection
-		DbSoftHeapLimitMB:    16384, // 16GB process-wide
-		BusyTimeoutMs:        60000, // 60 seconds
+		MinRunningJobDuration: 600,   // 10 minutes
+		DbCacheSizeMB:         2048,  // 2GB per connection
+		DbSoftHeapLimitMB:     16384, // 16GB process-wide
+		BusyTimeoutMs:         60000, // 60 seconds
 	}
 }
 

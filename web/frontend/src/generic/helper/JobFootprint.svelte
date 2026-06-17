@@ -228,7 +228,7 @@
     {/each}
     {#if job?.metaData?.message}
       <hr class="mt-1 mb-2" />
-      {@html job.metaData.message}
+      <span style="white-space: pre-wrap">{job.metaData.message}</span>
     {/if}
   </CardBody>
 </Card>

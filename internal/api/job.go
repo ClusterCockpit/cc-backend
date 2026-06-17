@@ -166,11 +166,19 @@ func (api *RestAPI) getJobs(rw http.ResponseWriter, r *http.Request) {
 				handleError(err, http.StatusBadRequest, rw)
 				return
 			}
+			if x < 1 {
+				handleError(fmt.Errorf("page must be >= 1"), http.StatusBadRequest, rw)
+				return
+			}
 			page.Page = x
 		case "items-per-page":
 			x, err := strconv.Atoi(vals[0])
 			if err != nil {
 				handleError(err, http.StatusBadRequest, rw)
+				return
+			}
+			if x < 1 {
+				handleError(fmt.Errorf("items-per-page must be >= 1"), http.StatusBadRequest, rw)
 				return
 			}
 			page.ItemsPerPage = x

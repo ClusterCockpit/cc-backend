@@ -79,6 +79,8 @@ func (api *RestAPI) MountAPIRoutes(r chi.Router) {
 	// REST API Uses TokenAuth
 	// User List
 	r.Get("/users/", api.getUsers)
+	// User Edit
+	r.Post("/user/{id}", api.updateUserByRequest)
 	// Cluster List
 	r.Get("/clusters/", api.getClusters)
 	// Slurm node state
@@ -152,7 +154,7 @@ func (api *RestAPI) MountConfigAPIRoutes(r chi.Router) {
 		r.Put("/config/users/", api.createUser)
 		r.Get("/config/users/", api.getUsers)
 		r.Delete("/config/users/", api.deleteUser)
-		r.Post("/config/user/{id}", api.updateUser)
+		r.Post("/config/user/{id}", api.updateUserByForm)
 		r.Post("/config/notice/", api.editNotice)
 		r.Get("/config/taggers/", api.getTaggers)
 		r.Post("/config/taggers/run/", api.runTagger)

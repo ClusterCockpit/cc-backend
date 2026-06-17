@@ -314,6 +314,24 @@ job,function=stop_job event="{\"jobId\":123,\"cluster\":\"test\",\"startTime\":1
 - Messages are logged; no responses are sent back to publishers
 - If NATS client is unavailable, API subscriptions are skipped (logged as warning)
 
+### Security Considerations
+
+**The NATS API has no application-layer authentication or authorization.** Unlike
+the REST endpoints (which require a JWT with `RoleAPI`), the subscribers process
+any message delivered on the configured subjects. Anyone with publish rights to
+those subjects on the broker can:
+
+- Insert arbitrary jobs (potentially attributed to other users)
+- Mark running jobs as stopped, triggering archive/finalization
+- Overwrite node state and health metadata for any cluster
+
+Operators MUST restrict publish ACLs at the NATS broker (per-account or
+per-subject permissions) so that only trusted producers — e.g. the scheduler
+integration on a known host or service account — can publish to the configured
+`subject-job-event` and `subject-node-state` subjects. A shared, unrestricted
+NATS broker is not a safe deployment topology for this API. A startup warning
+is logged when these subscriptions are enabled.
+
 ## Development Guidelines
 
 ### Performance
@@ -322,6 +340,21 @@ This application processes large volumes of HPC monitoring data (metrics, job
 records, archives) at scale. All code changes must prioritize maximum throughput
 and minimal latency. Avoid unnecessary allocations, prefer streaming over
 buffering, and be mindful of lock contention. When in doubt, benchmark.
+
+### Commit Message Convention
+
+Commits must use conventional commit prefixes so goreleaser can generate the
+changelog automatically. Only commits with these prefixes appear in releases:
+
+| Prefix  | Changelog group        |
+|---------|------------------------|
+| `feat:` | New Features           |
+| `fix:`  | Bug fixes              |
+| `sec:`  | Security updates       |
+| `docs:` | Documentation updates  |
+
+Scoped variants are also recognised, e.g. `feat(api):`, `fix(deps):`.
+Commits without one of these prefixes are excluded from the changelog.
 
 ### Change Impact Analysis
 

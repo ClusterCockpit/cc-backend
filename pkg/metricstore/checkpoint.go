@@ -86,11 +86,12 @@ var (
 
 // Checkpointing starts a background worker that periodically saves metric data to disk.
 //
-// Checkpoints are written every 12 hours (hardcoded).
+// The checkpoint interval is read from Keys.CheckpointInterval (default: 12 hours).
 //
 // Format behaviour:
-//   - "json": Periodic checkpointing every checkpointInterval
-//   - "wal":  Periodic binary snapshots + WAL rotation every checkpointInterval
+//   - "json": Writes a JSON snapshot file per host every interval
+//   - "wal":  Writes a binary snapshot file per host every interval, then rotates
+//     the current.wal files for all successfully checkpointed hosts
 func Checkpointing(wg *sync.WaitGroup, ctx context.Context) {
 	lastCheckpointMu.Lock()
 	lastCheckpoint = time.Now()
@@ -99,7 +100,6 @@ func Checkpointing(wg *sync.WaitGroup, ctx context.Context) {
 	ms := GetMemoryStore()
 
 	wg.Go(func() {
-
 		d := 12 * time.Hour // default checkpoint interval
 		if Keys.CheckpointInterval != "" {
 			parsed, err := time.ParseDuration(Keys.CheckpointInterval)
@@ -126,10 +126,15 @@ func Checkpointing(wg *sync.WaitGroup, ctx context.Context) {
 				cclog.Infof("[METRICSTORE]> start checkpointing (starting at %s)...", from.Format(time.RFC3339))
 
 				if Keys.Checkpoints.FileFormat == "wal" {
+					// Pause WAL writes: the binary snapshot captures all in-memory
+					// data, so WAL records written during checkpoint are redundant
+					// and would be deleted during rotation anyway.
+					walCheckpointActive.Store(true)
 					n, hostDirs, err := ms.ToCheckpointWAL(Keys.Checkpoints.RootDir, from.Unix(), now.Unix())
 					if err != nil {
 						cclog.Errorf("[METRICSTORE]> binary checkpointing failed: %s", err.Error())
-					} else {
+					}
+					if n > 0 {
 						cclog.Infof("[METRICSTORE]> done: %d binary snapshot files created", n)
 						lastCheckpointMu.Lock()
 						lastCheckpoint = now
@@ -137,6 +142,8 @@ func Checkpointing(wg *sync.WaitGroup, ctx context.Context) {
 						// Rotate WAL files for successfully checkpointed hosts.
 						RotateWALFiles(hostDirs)
 					}
+					walCheckpointActive.Store(false)
+					walDropped.Store(0)
 				} else {
 					n, err := ms.ToCheckpoint(Keys.Checkpoints.RootDir, from.Unix(), now.Unix())
 					if err != nil {

@@ -222,6 +222,13 @@ func TriggerArchiving(job *schema.Job) {
 func Shutdown(timeout time.Duration) error {
 	cclog.Info("Initiating archiver shutdown...")
 
+	// Guard against Shutdown being called when Start was never run: closing a nil
+	// channel and receiving from a nil workerDone would panic/block forever.
+	if archiveChannel == nil {
+		cclog.Warn("Archiver shutdown called but archiver was never started")
+		return nil
+	}
+
 	// Close channel to signal no more jobs will be accepted
 	close(archiveChannel)
 

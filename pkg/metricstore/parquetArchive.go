@@ -99,7 +99,7 @@ func newParquetArchiveWriter(filename string) (*parquetArchiveWriter, error) {
 
 // WriteCheckpointFile streams a CheckpointFile tree directly to Parquet rows,
 // writing metrics in sorted order without materializing all rows in memory.
-// Produces one row group per call (typically one host's data).
+// Call FlushRowGroup() after writing all checkpoint files for a host.
 func (w *parquetArchiveWriter) WriteCheckpointFile(cf *CheckpointFile, cluster, hostname, scope, scopeID string) error {
 	w.writeLevel(cf, cluster, hostname, scope, scopeID)
 
@@ -112,10 +112,15 @@ func (w *parquetArchiveWriter) WriteCheckpointFile(cf *CheckpointFile, cluster, 
 		w.batch = w.batch[:0]
 	}
 
+	return nil
+}
+
+// FlushRowGroup flushes the current row group to the Parquet file.
+// Should be called once per host after all checkpoint files for that host are written.
+func (w *parquetArchiveWriter) FlushRowGroup() error {
 	if err := w.writer.Flush(); err != nil {
 		return fmt.Errorf("flushing parquet row group: %w", err)
 	}
-
 	return nil
 }
 

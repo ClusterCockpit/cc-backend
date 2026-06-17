@@ -237,7 +237,7 @@
                   The following note was added by administrators:
                 </Card>
                 <Card body>
-                  {@html thisJob.metaData.message}
+                  <span style="white-space: pre-wrap">{thisJob.metaData.message}</span>
                 </Card>
               </CardBody>
             </TabPane>

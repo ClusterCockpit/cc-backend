@@ -146,7 +146,9 @@ var (
 
 	// ErrDataDoesNotAlign indicates that aggregated data from child scopes
 	// does not align with the parent scope's expected timestamps/intervals.
-	ErrDataDoesNotAlign error = errors.New("[METRICSTORE]> data from lower granularities does not align")
+	ErrDataDoesNotAlignMissingFront    error = errors.New("[METRICSTORE]> data from lower granularities does not align (missing data prior to start of the buffers)")
+	ErrDataDoesNotAlignMissingBack     error = errors.New("[METRICSTORE]> data from lower granularities does not align (missing data after the end of the buffers)")
+	ErrDataDoesNotAlignDataLenMismatch error = errors.New("[METRICSTORE]> data from lower granularities does not align (collected data length is different than expected data length)")
 )
 
 // buffer stores time-series data for a single metric at a specific hierarchical level.

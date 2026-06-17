@@ -69,6 +69,7 @@ import (
 	"strings"
 	"sync"
 	"sync/atomic"
+	"time"
 
 	cclog "github.com/ClusterCockpit/cc-lib/v2/ccLogger"
 	"github.com/ClusterCockpit/cc-lib/v2/schema"
@@ -91,6 +92,18 @@ var walShardRotateChs []chan walRotateReq
 // walNumShards stores the number of shards (set during WALStaging init).
 var walNumShards int
 
+// walStagingWg tracks WALStaging goroutine exits for shutdown synchronization.
+var walStagingWg sync.WaitGroup
+
+// walShuttingDown is set before closing shard channels to prevent
+// SendWALMessage from sending on a closed channel (which panics in Go).
+var walShuttingDown atomic.Bool
+
+// walCheckpointActive is set during binary checkpoint writes.
+// While active, SendWALMessage skips sending (returns true) because the
+// snapshot captures all in-memory data, making WAL writes redundant.
+var walCheckpointActive atomic.Bool
+
 // WALMessage represents a single metric write to be appended to the WAL.
 // Cluster and Node are NOT stored in the WAL record (inferred from file path).
 type WALMessage struct {
@@ -111,9 +124,16 @@ type walRotateReq struct {
 
 // walFileState holds an open WAL file handle and buffered writer for one host directory.
 type walFileState struct {
-	f *os.File
-	w *bufio.Writer
+	f     *os.File
+	w     *bufio.Writer
+	dirty bool
+	size  int64 // approximate bytes written (tracked from open + writes)
 }
+
+// walFlushInterval controls how often dirty WAL files are flushed to disk.
+// Decoupling flushes from message processing lets the consumer run at memory
+// speed, amortizing syscall overhead across many writes.
+const walFlushInterval = 1 * time.Second
 
 // walShardIndex computes which shard a message belongs to based on cluster+node.
 // Uses FNV-1a hash for fast, well-distributed mapping.
@@ -126,10 +146,13 @@ func walShardIndex(cluster, node string) int {
 }
 
 // SendWALMessage routes a WAL message to the appropriate shard channel.
-// Returns false if the channel is full (message dropped).
+// Returns false if the channel is full or shutdown is in progress.
 func SendWALMessage(msg *WALMessage) bool {
-	if walShardChs == nil {
+	if walShardChs == nil || walShuttingDown.Load() {
 		return false
+	}
+	if walCheckpointActive.Load() {
+		return true // Data safe in memory; snapshot will capture it
 	}
 	shard := walShardIndex(msg.Cluster, msg.Node)
 	select {
@@ -164,7 +187,9 @@ func WALStaging(wg *sync.WaitGroup, ctx context.Context) {
 		msgCh := walShardChs[i]
 		rotateCh := walShardRotateChs[i]
 
+		walStagingWg.Add(1)
 		wg.Go(func() {
+			defer walStagingWg.Done()
 			hostFiles := make(map[string]*walFileState)
 
 			defer func() {
@@ -198,7 +223,11 @@ func WALStaging(wg *sync.WaitGroup, ctx context.Context) {
 
 				// Write file header magic if file is new (empty).
 				info, err := f.Stat()
-				if err == nil && info.Size() == 0 {
+				var fileSize int64
+				if err == nil {
+					fileSize = info.Size()
+				}
+				if err == nil && fileSize == 0 {
 					var hdr [4]byte
 					binary.LittleEndian.PutUint32(hdr[:], walFileMagic)
 					if _, err := w.Write(hdr[:]); err != nil {
@@ -206,9 +235,10 @@ func WALStaging(wg *sync.WaitGroup, ctx context.Context) {
 						f.Close()
 						return nil
 					}
+					fileSize = 4
 				}
 
-				ws = &walFileState{f: f, w: w}
+				ws = &walFileState{f: f, w: w, size: fileSize}
 				hostFiles[hostDir] = ws
 				return ws
 			}
@@ -219,9 +249,31 @@ func WALStaging(wg *sync.WaitGroup, ctx context.Context) {
 				if ws == nil {
 					return
 				}
-				if err := writeWALRecordDirect(ws.w, msg); err != nil {
+
+				// Enforce max WAL size: force-rotate before writing if limit is exceeded.
+				// The in-memory store still holds the data; only crash-recovery coverage is lost.
+				if maxSize := Keys.Checkpoints.MaxWALSize; maxSize > 0 && ws.size >= maxSize {
+					cclog.Warnf("[METRICSTORE]> WAL: force-rotating %s (size %d >= limit %d)",
+						hostDir, ws.size, maxSize)
+					ws.w.Flush()
+					ws.f.Close()
+					walPath := path.Join(hostDir, "current.wal")
+					if err := os.Remove(walPath); err != nil && !os.IsNotExist(err) {
+						cclog.Errorf("[METRICSTORE]> WAL: remove %s: %v", walPath, err)
+					}
+					delete(hostFiles, hostDir)
+					ws = getOrOpenWAL(hostDir)
+					if ws == nil {
+						return
+					}
+				}
+
+				n, err := writeWALRecordDirect(ws.w, msg)
+				if err != nil {
 					cclog.Errorf("[METRICSTORE]> WAL: write record: %v", err)
 				}
+				ws.size += int64(n)
+				ws.dirty = true
 			}
 
 			processRotate := func(req walRotateReq) {
@@ -238,58 +290,57 @@ func WALStaging(wg *sync.WaitGroup, ctx context.Context) {
 				close(req.done)
 			}
 
-			flushAll := func() {
+			flushDirty := func() {
 				for _, ws := range hostFiles {
-					if ws.f != nil {
+					if ws.dirty {
 						ws.w.Flush()
+						ws.dirty = false
 					}
 				}
 			}
 
-			drain := func() {
-				for {
+			ticker := time.NewTicker(walFlushInterval)
+			defer ticker.Stop()
+
+			// drainBatch processes up to 4096 pending messages without blocking.
+			// Returns false if the channel was closed.
+			drainBatch := func() bool {
+				for range 4096 {
 					select {
 					case msg, ok := <-msgCh:
 						if !ok {
-							return
+							flushDirty()
+							return false
 						}
 						processMsg(msg)
 					case req := <-rotateCh:
 						processRotate(req)
 					default:
-						flushAll()
-						return
+						return true
 					}
 				}
+				return true
 			}
 
 			for {
 				select {
 				case <-ctx.Done():
-					drain()
+					// On shutdown, skip draining buffered messages — a full binary
+					// checkpoint will be written from in-memory state, making
+					// buffered WAL records redundant.
+					flushDirty()
 					return
 				case msg, ok := <-msgCh:
 					if !ok {
 						return
 					}
 					processMsg(msg)
-
-					// Drain up to 256 more messages without blocking to batch writes.
-					for range 256 {
-						select {
-						case msg, ok := <-msgCh:
-							if !ok {
-								return
-							}
-							processMsg(msg)
-						case req := <-rotateCh:
-							processRotate(req)
-						default:
-							goto flushed
-						}
+					if !drainBatch() {
+						return
 					}
-				flushed:
-					flushAll()
+					// No flush here — timer handles periodic flushing.
+				case <-ticker.C:
+					flushDirty()
 				case req := <-rotateCh:
 					processRotate(req)
 				}
@@ -298,23 +349,45 @@ func WALStaging(wg *sync.WaitGroup, ctx context.Context) {
 	}
 }
 
+// WaitForWALStagingDrain blocks until all WALStaging goroutines have exited.
+// Must be called after closing walShardChs to ensure all file handles are
+// flushed and closed before checkpoint writes begin.
+func WaitForWALStagingDrain() {
+	walStagingWg.Wait()
+}
+
 // RotateWALFiles sends rotation requests for the given host directories
 // and blocks until all rotations complete. Each request is routed to the
 // shard that owns the host directory.
+//
+// If shutdown is in progress (WAL staging goroutines may have exited),
+// rotation is skipped to avoid deadlocking on abandoned channels.
 func RotateWALFiles(hostDirs []string) {
-	if walShardRotateChs == nil {
+	if walShardRotateChs == nil || walShuttingDown.Load() {
 		return
 	}
-	dones := make([]chan struct{}, len(hostDirs))
-	for i, dir := range hostDirs {
-		dones[i] = make(chan struct{})
-		// Extract cluster/node from hostDir to find the right shard.
-		// hostDir = rootDir/cluster/node
+	deadline := time.After(2 * time.Minute)
+	dones := make([]chan struct{}, 0, len(hostDirs))
+	for _, dir := range hostDirs {
+		done := make(chan struct{})
 		shard := walShardIndexFromDir(dir)
-		walShardRotateChs[shard] <- walRotateReq{hostDir: dir, done: dones[i]}
+		select {
+		case walShardRotateChs[shard] <- walRotateReq{hostDir: dir, done: done}:
+			dones = append(dones, done)
+		case <-deadline:
+			cclog.Warnf("[METRICSTORE]> WAL rotation send timed out, %d of %d hosts remaining",
+				len(hostDirs)-len(dones), len(hostDirs))
+			goto waitDones
+		}
 	}
+waitDones:
 	for _, done := range dones {
-		<-done
+		select {
+		case <-done:
+		case <-time.After(30 * time.Second):
+			cclog.Warn("[METRICSTORE]> WAL rotation completion timed out, continuing")
+			return
+		}
 	}
 }
 
@@ -327,8 +400,9 @@ func walShardIndexFromDir(hostDir string) int {
 	return walShardIndex(cluster, node)
 }
 
-// RotateWALFiles sends rotation requests for the given host directories
-// and blocks until all rotations complete.
+// RotateWALFilesAfterShutdown directly removes current.wal files for the given
+// host directories. Used after shutdown, when WALStaging goroutines have already
+// exited and the channel-based RotateWALFiles is no longer safe to call.
 func RotateWALFilesAfterShutdown(hostDirs []string) {
 	for _, dir := range hostDirs {
 		walPath := path.Join(dir, "current.wal")
@@ -338,142 +412,66 @@ func RotateWALFilesAfterShutdown(hostDirs []string) {
 	}
 }
 
-// writeWALRecordDirect encodes a WAL record directly into the bufio.Writer,
-// avoiding heap allocations by using a stack-allocated scratch buffer for
-// the fixed-size header/trailer and computing CRC inline.
-func writeWALRecordDirect(w *bufio.Writer, msg *WALMessage) error {
-	// Compute payload size.
+// writeWALRecordDirect encodes a WAL record into a contiguous buffer first,
+// then writes it to the bufio.Writer in a single call. This prevents partial
+// records in the write buffer if a write error occurs mid-record (e.g. disk full).
+// Returns the number of bytes written and any error.
+func writeWALRecordDirect(w *bufio.Writer, msg *WALMessage) (int, error) {
+	// Compute payload and total record size.
 	payloadSize := 8 + 2 + len(msg.MetricName) + 1 + 4
 	for _, s := range msg.Selector {
 		payloadSize += 1 + len(s)
 	}
+	// Total: 8 (header) + payload + 4 (CRC).
+	totalSize := 8 + payloadSize + 4
 
-	// Write magic + payload length (8 bytes header).
-	var hdr [8]byte
-	binary.LittleEndian.PutUint32(hdr[0:4], walRecordMagic)
-	binary.LittleEndian.PutUint32(hdr[4:8], uint32(payloadSize))
-	if _, err := w.Write(hdr[:]); err != nil {
-		return err
+	// Use stack buffer for typical small records, heap-allocate only for large ones.
+	var stackBuf [256]byte
+	var buf []byte
+	if totalSize <= len(stackBuf) {
+		buf = stackBuf[:totalSize]
+	} else {
+		buf = make([]byte, totalSize)
 	}
 
-	// We need to compute CRC over the payload as we write it.
-	crc := crc32.NewIEEE()
+	// Header: magic + payload length.
+	binary.LittleEndian.PutUint32(buf[0:4], walRecordMagic)
+	binary.LittleEndian.PutUint32(buf[4:8], uint32(payloadSize))
+
+	// Payload starts at offset 8.
+	p := 8
 
 	// Timestamp (8 bytes).
-	var scratch [8]byte
-	binary.LittleEndian.PutUint64(scratch[:8], uint64(msg.Timestamp))
-	crc.Write(scratch[:8])
-	if _, err := w.Write(scratch[:8]); err != nil {
-		return err
-	}
+	binary.LittleEndian.PutUint64(buf[p:p+8], uint64(msg.Timestamp))
+	p += 8
 
 	// Metric name length (2 bytes) + metric name.
-	binary.LittleEndian.PutUint16(scratch[:2], uint16(len(msg.MetricName)))
-	crc.Write(scratch[:2])
-	if _, err := w.Write(scratch[:2]); err != nil {
-		return err
-	}
-	nameBytes := []byte(msg.MetricName)
-	crc.Write(nameBytes)
-	if _, err := w.Write(nameBytes); err != nil {
-		return err
-	}
+	binary.LittleEndian.PutUint16(buf[p:p+2], uint16(len(msg.MetricName)))
+	p += 2
+	p += copy(buf[p:], msg.MetricName)
 
 	// Selector count (1 byte).
-	scratch[0] = byte(len(msg.Selector))
-	crc.Write(scratch[:1])
-	if _, err := w.Write(scratch[:1]); err != nil {
-		return err
-	}
+	buf[p] = byte(len(msg.Selector))
+	p++
 
 	// Selectors (1-byte length + bytes each).
 	for _, sel := range msg.Selector {
-		scratch[0] = byte(len(sel))
-		crc.Write(scratch[:1])
-		if _, err := w.Write(scratch[:1]); err != nil {
-			return err
-		}
-		selBytes := []byte(sel)
-		crc.Write(selBytes)
-		if _, err := w.Write(selBytes); err != nil {
-			return err
-		}
+		buf[p] = byte(len(sel))
+		p++
+		p += copy(buf[p:], sel)
 	}
 
 	// Value (4 bytes, float32 bits).
-	binary.LittleEndian.PutUint32(scratch[:4], math.Float32bits(float32(msg.Value)))
-	crc.Write(scratch[:4])
-	if _, err := w.Write(scratch[:4]); err != nil {
-		return err
-	}
+	binary.LittleEndian.PutUint32(buf[p:p+4], math.Float32bits(float32(msg.Value)))
+	p += 4
 
-	// CRC32 (4 bytes).
-	binary.LittleEndian.PutUint32(scratch[:4], crc.Sum32())
-	_, err := w.Write(scratch[:4])
-	return err
-}
+	// CRC32 over payload (bytes 8..8+payloadSize).
+	crc := crc32.ChecksumIEEE(buf[8 : 8+payloadSize])
+	binary.LittleEndian.PutUint32(buf[p:p+4], crc)
 
-// buildWALPayload encodes a WALMessage into a binary payload (without magic/length/CRC).
-func buildWALPayload(msg *WALMessage) []byte {
-	size := 8 + 2 + len(msg.MetricName) + 1 + 4
-	for _, s := range msg.Selector {
-		size += 1 + len(s)
-	}
-
-	buf := make([]byte, 0, size)
-
-	// Timestamp (8 bytes, little-endian int64)
-	var ts [8]byte
-	binary.LittleEndian.PutUint64(ts[:], uint64(msg.Timestamp))
-	buf = append(buf, ts[:]...)
-
-	// Metric name (2-byte length prefix + bytes)
-	var mLen [2]byte
-	binary.LittleEndian.PutUint16(mLen[:], uint16(len(msg.MetricName)))
-	buf = append(buf, mLen[:]...)
-	buf = append(buf, msg.MetricName...)
-
-	// Selector count (1 byte)
-	buf = append(buf, byte(len(msg.Selector)))
-
-	// Selectors (1-byte length prefix + bytes each)
-	for _, sel := range msg.Selector {
-		buf = append(buf, byte(len(sel)))
-		buf = append(buf, sel...)
-	}
-
-	// Value (4 bytes, float32 bit representation)
-	var val [4]byte
-	binary.LittleEndian.PutUint32(val[:], math.Float32bits(float32(msg.Value)))
-	buf = append(buf, val[:]...)
-
-	return buf
-}
-
-// writeWALRecord appends a binary WAL record to the writer.
-// Format: [4B magic][4B payload_len][payload][4B CRC32]
-func writeWALRecord(w io.Writer, msg *WALMessage) error {
-	payload := buildWALPayload(msg)
-	crc := crc32.ChecksumIEEE(payload)
-
-	record := make([]byte, 0, 4+4+len(payload)+4)
-
-	var magic [4]byte
-	binary.LittleEndian.PutUint32(magic[:], walRecordMagic)
-	record = append(record, magic[:]...)
-
-	var pLen [4]byte
-	binary.LittleEndian.PutUint32(pLen[:], uint32(len(payload)))
-	record = append(record, pLen[:]...)
-
-	record = append(record, payload...)
-
-	var crcBytes [4]byte
-	binary.LittleEndian.PutUint32(crcBytes[:], crc)
-	record = append(record, crcBytes[:]...)
-
-	_, err := w.Write(record)
-	return err
+	// Single atomic write to the buffered writer.
+	n, err := w.Write(buf)
+	return n, err
 }
 
 // readWALRecord reads one WAL record from the reader.
@@ -697,13 +695,32 @@ func (m *MemoryStore) ToCheckpointWAL(dir string, from, to int64) (int, []string
 		selector []string
 	}
 
-	n, errs := int32(0), int32(0)
+	totalWork := len(levels)
+	cclog.Infof("[METRICSTORE]> Starting binary checkpoint for %d hosts with %d workers", totalWork, Keys.NumWorkers)
+
+	n, errs, completed := int32(0), int32(0), int32(0)
 	var successDirs []string
 	var successMu sync.Mutex
 
 	var wg sync.WaitGroup
 	wg.Add(Keys.NumWorkers)
 	work := make(chan workItem, Keys.NumWorkers*2)
+
+	// Progress logging goroutine.
+	stopProgress := make(chan struct{})
+	go func() {
+		ticker := time.NewTicker(10 * time.Second)
+		defer ticker.Stop()
+		for {
+			select {
+			case <-ticker.C:
+				cclog.Infof("[METRICSTORE]> Checkpoint progress: %d/%d hosts (%d written, %d errors)",
+					atomic.LoadInt32(&completed), totalWork, atomic.LoadInt32(&n), atomic.LoadInt32(&errs))
+			case <-stopProgress:
+				return
+			}
+		}
+	}()
 
 	for range Keys.NumWorkers {
 		go func() {
@@ -712,6 +729,7 @@ func (m *MemoryStore) ToCheckpointWAL(dir string, from, to int64) (int, []string
 				err := wi.level.toCheckpointBinary(wi.hostDir, from, to, m)
 				if err != nil {
 					if err == ErrNoNewArchiveData {
+						atomic.AddInt32(&completed, 1)
 						continue
 					}
 					cclog.Errorf("[METRICSTORE]> binary checkpoint error for %s: %v", wi.hostDir, err)
@@ -722,6 +740,7 @@ func (m *MemoryStore) ToCheckpointWAL(dir string, from, to int64) (int, []string
 					successDirs = append(successDirs, wi.hostDir)
 					successMu.Unlock()
 				}
+				atomic.AddInt32(&completed, 1)
 			}
 		}()
 	}
@@ -736,6 +755,7 @@ func (m *MemoryStore) ToCheckpointWAL(dir string, from, to int64) (int, []string
 	}
 	close(work)
 	wg.Wait()
+	close(stopProgress)
 
 	if errs > 0 {
 		return int(n), successDirs, fmt.Errorf("[METRICSTORE]> %d errors during binary checkpoint (%d successes)", errs, n)

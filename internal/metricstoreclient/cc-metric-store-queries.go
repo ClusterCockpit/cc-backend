@@ -236,4 +236,3 @@ func (ccms *CCMetricStore) buildNodeQueries(
 
 	return queries, assignedScope, nil
 }
-

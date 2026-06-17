@@ -34,7 +34,8 @@
   function setRanges() {
     for (let as of availableStats) {
       if (as.enabled) {
-        as.to = (as.to == as.peak) ? 0 : as.to
+        as.from = (!as?.from) ? 0 : as.from,
+        as.to = (as.to == null) ? 0 : as.to
       }
     };
   }
@@ -42,8 +43,8 @@
   function resetRanges() {
     for (let as of availableStats) {
       as.enabled = false
-      as.from = 1
-      as.to = as.peak
+      as.from = null
+      as.to = null
     };
   }
 </script>
@@ -66,13 +67,13 @@
           changeRange={(detail) => {
             aStat.from = detail[0];
             aStat.to = detail[1];
-            if (aStat.from == 1 && aStat.to == aStat.peak) {
+            if (aStat.from == 0 && aStat.to === null) {
               aStat.enabled = false;
             } else {
               aStat.enabled = true;
             }
           }}
-          sliderMin={1}
+          sliderMin={0}
           sliderMax={aStat.peak}
           fromPreset={aStat.from}
           toPreset={aStat.to}

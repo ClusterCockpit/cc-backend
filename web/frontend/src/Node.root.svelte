@@ -54,11 +54,16 @@
   const paging = { itemsPerPage: 50, page: 1 };
   const sorting = { field: "startTime", type: "col", order: "DESC" };
   const nodeMetricsQuery = gql`
-    query ($cluster: String!, $nodes: [String!], $from: Time!, $to: Time!) {
+    query (
+      $cluster: String!,
+      $nodes: [String!],
+      $from: Time!,
+      $to: Time!, 
+      $nodeFilter: [NodeFilter!]!,
+      $sorting: OrderByInput!
+    ) {
       nodeMetrics(cluster: $cluster, nodes: $nodes, from: $from, to: $to) {
         host
-        nodeState
-        metricHealth
         subCluster
         metrics {
           name
@@ -79,7 +84,14 @@
             }
           }
         }
-      }
+      },
+      nodeStatus: nodes(filter: $nodeFilter, order: $sorting) {
+          count
+          items {
+            schedulerState
+            healthState
+          }
+        }
     }
   `;
   const nodeJobsQuery = gql`
@@ -146,6 +158,8 @@
         nodes: [hostname],
         from: from?.toISOString(),
         to: to?.toISOString(),
+        nodeFilter: { hostname: { eq: hostname }},
+        sorting // $sorting unused in backend: Use placeholder
       },
     })
   );
@@ -157,8 +171,8 @@
     })
   );
 
-  const thisNodeState = $derived($nodeMetricsData?.data?.nodeMetrics[0]?.nodeState || 'notindb');
-  const thisMetricHealth = $derived($nodeMetricsData?.data?.nodeMetrics[0]?.metricHealth || 'unknown');
+  const thisNodeState = $derived($nodeMetricsData?.data?.nodeStatus?.items[0]?.schedulerState || 'notindb');
+  const thisMetricHealth = $derived($nodeMetricsData?.data?.nodeStatus?.items[0]?.healthState || 'unknown');
 </script>
 
 <Row cols={{ xs: 2, lg: 3}}>

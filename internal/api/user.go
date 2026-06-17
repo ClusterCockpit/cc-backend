@@ -24,6 +24,14 @@ type APIReturnedUser struct {
 	Projects []string `json:"projects"`
 }
 
+// UpdateUserAPIRequest model
+type UpdateUserAPIRequest struct {
+	NewRole string `json:"add-role" example:"user"`          // Role to add to user $ID
+	DelRole string `json:"remove-role" example:"user"`       // Role to remove from user $ID
+	NewProj string `json:"add-project" example:"abcd100"`    // Project to add to user $ID managed array
+	DelProj string `json:"remove-project" example:"abcd100"` // Project to remove from user $ID managed array
+}
+
 // getUsers godoc
 // @summary     Returns a list of users
 // @tags User
@@ -58,22 +66,74 @@ func (api *RestAPI) getUsers(rw http.ResponseWriter, r *http.Request) {
 	}
 }
 
-// updateUser godoc
+// updateUserByRequest godoc
 // @summary     Update user roles and projects
 // @tags User
 // @description Allows admins to add/remove roles and projects for a user
-// @produce     plain
-// @param       id          path   string  true  "Username"
-// @param       add-role    formData string false "Role to add"
-// @param       remove-role formData string false "Role to remove"
-// @param       add-project formData string false "Project to add"
-// @param       remove-project formData string false "Project to remove"
+// @accept      json
+// @produce     json
+// @param       id      path string                    true "Username"
+// @param       request body api.UpdateUserAPIRequest  true "Single Field Changes"
 // @success     200     {string} string "Success message"
 // @failure     403     {object} api.ErrorResponse "Forbidden"
 // @failure     422     {object} api.ErrorResponse "Unprocessable Entity"
 // @security    ApiKeyAuth
 // @router      /api/user/{id} [post]
-func (api *RestAPI) updateUser(rw http.ResponseWriter, r *http.Request) {
+func (api *RestAPI) updateUserByRequest(rw http.ResponseWriter, r *http.Request) {
+
+	if user := repository.GetUserFromContext(r.Context()); !user.HasRole(schema.RoleAdmin) {
+		handleError(fmt.Errorf("only admins are allowed to update a user"), http.StatusForbidden, rw)
+		return
+	}
+
+	// Get Values
+	var req UpdateUserAPIRequest
+	if err := decode(r.Body, &req); err != nil {
+		handleError(fmt.Errorf("decoding request failed: %w", err), http.StatusBadRequest, rw)
+		return
+	}
+
+	rw.Header().Set("Content-Type", "application/json")
+
+	// Handle role updates
+	if req.NewRole != "" {
+		if err := repository.GetUserRepository().AddRole(r.Context(), chi.URLParam(r, "id"), req.NewRole); err != nil {
+			handleError(fmt.Errorf("adding role failed: %w", err), http.StatusUnprocessableEntity, rw)
+			return
+		}
+		if err := json.NewEncoder(rw).Encode(DefaultAPIResponse{Message: fmt.Sprintf("Add Role Success for user %s", chi.URLParam(r, "id"))}); err != nil {
+			cclog.Errorf("Failed to encode response: %v", err)
+		}
+	} else if req.DelRole != "" {
+		if err := repository.GetUserRepository().RemoveRole(r.Context(), chi.URLParam(r, "id"), req.DelRole); err != nil {
+			handleError(fmt.Errorf("removing role failed: %w", err), http.StatusUnprocessableEntity, rw)
+			return
+		}
+		if err := json.NewEncoder(rw).Encode(DefaultAPIResponse{Message: fmt.Sprintf("Remove Role Success for user %s", chi.URLParam(r, "id"))}); err != nil {
+			cclog.Errorf("Failed to encode response: %v", err)
+		}
+	} else if req.NewProj != "" {
+		if err := repository.GetUserRepository().AddProject(r.Context(), chi.URLParam(r, "id"), req.NewProj); err != nil {
+			handleError(fmt.Errorf("adding project failed: %w", err), http.StatusUnprocessableEntity, rw)
+			return
+		}
+		if err := json.NewEncoder(rw).Encode(DefaultAPIResponse{Message: fmt.Sprintf("Add Project Success for user %s", chi.URLParam(r, "id"))}); err != nil {
+			cclog.Errorf("Failed to encode response: %v", err)
+		}
+	} else if req.DelProj != "" {
+		if err := repository.GetUserRepository().RemoveProject(r.Context(), chi.URLParam(r, "id"), req.DelProj); err != nil {
+			handleError(fmt.Errorf("removing project failed: %w", err), http.StatusUnprocessableEntity, rw)
+			return
+		}
+		if err := json.NewEncoder(rw).Encode(DefaultAPIResponse{Message: fmt.Sprintf("Remove Project Success for user %s", chi.URLParam(r, "id"))}); err != nil {
+			cclog.Errorf("Failed to encode response: %v", err)
+		}
+	} else {
+		handleError(fmt.Errorf("no operation specified: must provide add-role, remove-role, add-project, or remove-project"), http.StatusBadRequest, rw)
+	}
+}
+
+func (api *RestAPI) updateUserByForm(rw http.ResponseWriter, r *http.Request) {
 	// SecuredCheck() only worked with TokenAuth: Removed
 
 	if user := repository.GetUserFromContext(r.Context()); !user.HasRole(schema.RoleAdmin) {

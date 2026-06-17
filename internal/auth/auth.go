@@ -17,6 +17,7 @@ import (
 	"fmt"
 	"net"
 	"net/http"
+	"net/url"
 	"os"
 	"sync"
 	"time"
@@ -164,12 +165,17 @@ func (auth *Authentication) AuthViaSession(
 		return nil, errors.New("invalid session data")
 	}
 
+	authSourceInt, ok := session.Values["authSource"].(int)
+	if !ok {
+		authSourceInt = int(schema.AuthViaLocalPassword)
+	}
+
 	return &schema.User{
 		Username:   username,
 		Projects:   projects,
 		Roles:      roles,
 		AuthType:   schema.AuthSession,
-		AuthSource: -1,
+		AuthSource: schema.AuthSource(authSourceInt),
 	}, nil
 }
 
@@ -182,22 +188,35 @@ func Init(authCfg *json.RawMessage) {
 
 		sessKey := os.Getenv("SESSION_KEY")
 		if sessKey == "" {
-			cclog.Warn("environment variable 'SESSION_KEY' not set (will use non-persistent random key)")
-			bytes := make([]byte, 32)
-			if _, err := rand.Read(bytes); err != nil {
-				cclog.Fatal("Error while initializing authentication -> failed to generate random bytes for session key")
+			if !config.Keys.DisableAuthentication {
+				cclog.Fatal("environment variable 'SESSION_KEY' not set: refusing to start with an ephemeral session key. " +
+					"Set SESSION_KEY in .env (base64-encoded 32 random bytes); a random key would invalidate all sessions on every restart " +
+					"and prevent sessions from validating across replicas.")
 			}
-			authInstance.sessionStore = sessions.NewCookieStore(bytes)
+			// Authentication is disabled: no user sessions are issued, so an
+			// ephemeral random key is sufficient and SESSION_KEY is not required.
+			ephemeralKey := make([]byte, 32)
+			if _, err := rand.Read(ephemeralKey); err != nil {
+				cclog.Fatalf("Error while initializing authentication -> generating ephemeral session key failed: %v", err)
+			}
+			authInstance.sessionStore = sessions.NewCookieStore(ephemeralKey)
 		} else {
-			bytes, err := base64.StdEncoding.DecodeString(sessKey)
+			keyBytes, err := base64.StdEncoding.DecodeString(sessKey)
 			if err != nil {
 				cclog.Fatal("Error while initializing authentication -> decoding session key failed")
 			}
-			authInstance.sessionStore = sessions.NewCookieStore(bytes)
+			authInstance.sessionStore = sessions.NewCookieStore(keyBytes)
 		}
 
 		if d, err := time.ParseDuration(config.Keys.SessionMaxAge); err == nil {
 			authInstance.SessionMaxAge = d
+		}
+
+		// When authentication is disabled no authenticators are required; the
+		// session store created above is enough for the server to run with a
+		// valid (non-nil) auth instance.
+		if config.Keys.DisableAuthentication {
+			return
 		}
 
 		if authCfg == nil {
@@ -319,10 +338,12 @@ func (auth *Authentication) SaveSession(rw http.ResponseWriter, r *http.Request,
 		}
 		session.Options.Secure = false
 	}
-	session.Options.SameSite = http.SameSiteStrictMode
+	session.Options.SameSite = http.SameSiteLaxMode
+	session.Options.HttpOnly = true
 	session.Values["username"] = user.Username
 	session.Values["projects"] = user.Projects
 	session.Values["roles"] = user.Roles
+	session.Values["authSource"] = int(user.AuthSource)
 	if err := auth.sessionStore.Save(r, rw, session); err != nil {
 		cclog.Warnf("session save failed: %s", err.Error())
 		http.Error(rw, err.Error(), http.StatusInternalServerError)
@@ -382,9 +403,12 @@ func (auth *Authentication) Login(
 			cclog.Infof("login successfull: user: %#v (roles: %v, projects: %v)", user.Username, user.Roles, user.Projects)
 			ctx := context.WithValue(r.Context(), repository.ContextUserKey, user)
 
-			if r.FormValue("redirect") != "" {
-				http.RedirectHandler(r.FormValue("redirect"), http.StatusFound).ServeHTTP(rw, r.WithContext(ctx))
-				return
+			if redirect := r.FormValue("redirect"); redirect != "" {
+				if u, perr := url.Parse(redirect); perr == nil && u.Scheme == "" && u.Host == "" {
+					http.RedirectHandler(redirect, http.StatusFound).ServeHTTP(rw, r.WithContext(ctx))
+					return
+				}
+				cclog.Warnf("login redirect rejected (not a relative path): %q", redirect)
 			}
 
 			http.RedirectHandler("/", http.StatusFound).ServeHTTP(rw, r.WithContext(ctx))
@@ -626,7 +650,7 @@ func securedCheck(user *schema.User, r *http.Request) error {
 	}
 	// If SplitHostPort fails, IPAddress is already just a host (no port)
 
-	// If nothing declared in config: Continue
+	// If nothing declared in config: Continue // FIXME: Allow All If Not Declared?
 	if len(config.Keys.APIAllowedIPs) == 0 {
 		return nil
 	}
