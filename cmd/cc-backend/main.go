@@ -91,6 +91,19 @@ func initGops() error {
 func initConfiguration() error {
 	ccconf.Init(flagConfigFile)
 
+	// Warn about unrecognized top-level config sections. A common mistake is
+	// nesting a setting at the wrong level (e.g. placing "resampling" next to
+	// "main" instead of inside it), which is otherwise silently ignored.
+	knownSections := map[string]bool{
+		"main": true, "auth": true, "nats": true, "archive": true,
+		"metric-store": true, "metric-store-external": true, "cron": true, "ui": true,
+	}
+	for _, k := range ccconf.GetKeys() {
+		if !knownSections[k] {
+			cclog.Warnf("ignoring unrecognized top-level config section %q (check nesting in config file)", k)
+		}
+	}
+
 	cfg := ccconf.GetPackageConfig("main")
 	if cfg == nil {
 		return fmt.Errorf("main configuration must be present")
