@@ -18,16 +18,6 @@ import (
 	"github.com/ClusterCockpit/cc-lib/v2/util"
 )
 
-const envString = `
-# Base64 encoded Ed25519 keys (DO NOT USE THESE TWO IN PRODUCTION!)
-# You can generate your own keypair using the gen-keypair tool
-JWT_PUBLIC_KEY="kzfYrYy+TzpanWZHJ5qSdMj5uKUWgq74BWhQG6copP0="
-JWT_PRIVATE_KEY="dtPC/6dWJFKZK7KZ78CvWuynylOmjBFyMsUWArwmodOTN9itjL5POlqdZkcnmpJ0yPm4pRaCrvgFaFAbpyik/Q=="
-
-# Some random bytes used as secret for cookie-based sessions (DO NOT USE THIS ONE IN PRODUCTION)
-SESSION_KEY="67d829bf61dc5f87a73fd814e2c9f629"
-`
-
 const configString = `
 {
   "main": {
@@ -53,7 +43,9 @@ const configString = `
   },
   "auth": {
     "jwts": {
-      "max-age": "2000h"
+      "max-age": "2000h",
+      "public-key": "kzfYrYy+TzpanWZHJ5qSdMj5uKUWgq74BWhQG6copP0=",
+      "private-key": "dtPC/6dWJFKZK7KZ78CvWuynylOmjBFyMsUWArwmodOTN9itjL5POlqdZkcnmpJ0yPm4pRaCrvgFaFAbpyik/Q=="
     }
   }
 }
@@ -66,10 +58,6 @@ func initEnv() {
 
 	if err := os.WriteFile("config.json", []byte(configString), 0o666); err != nil {
 		cclog.Abortf("Could not write default ./config.json with permissions '0o666'. Application initialization failed, exited.\nError: %s\n", err.Error())
-	}
-
-	if err := os.WriteFile(".env", []byte(envString), 0o666); err != nil {
-		cclog.Abortf("Could not write default ./.env file with permissions '0o666'. Application initialization failed, exited.\nError: %s\n", err.Error())
 	}
 
 	if err := os.Mkdir("var", 0o777); err != nil {

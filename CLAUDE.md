@@ -161,9 +161,15 @@ applied automatically on startup. Version tracking in `version` table.
     - `username`: Authentication username (optional)
     - `password`: Authentication password (optional)
     - `creds-file-path`: Path to NATS credentials file (optional)
-- **.env**: Environment variables (secrets like JWT keys)
-  - Copy from `configs/env-template.txt`
-  - NEVER commit this file
+- **Secrets** (JWT keys, LDAP sync password, OIDC client id/secret, cross-login
+  keys): configured directly in `config.json` under the `auth` section where they
+  are used (e.g. `auth.jwts.public-key`, `auth.jwts.private-key`,
+  `auth.ldap.sync-password`, `auth.oidc.client-id`/`client-secret`).
+  - Each secret may also be supplied via its environment variable
+    (`JWT_PUBLIC_KEY`, `JWT_PRIVATE_KEY`, `LDAP_ADMIN_PASSWORD`, `OID_CLIENT_ID`,
+    `OID_CLIENT_SECRET`, `CROSS_LOGIN_JWT_PUBLIC_KEY`, `CROSS_LOGIN_JWT_HS512_KEY`).
+  - The environment variable takes precedence over the value in `config.json`.
+  - The former `.env`/godotenv mechanism has been removed.
 - **cluster.json**: Cluster topology and metric definitions (loaded from archive or config)
 
 ## Database

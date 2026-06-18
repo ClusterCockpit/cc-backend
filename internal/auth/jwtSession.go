@@ -10,7 +10,6 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
-	"os"
 	"strings"
 
 	cclog "github.com/ClusterCockpit/cc-lib/v2/ccLogger"
@@ -25,12 +24,12 @@ type JWTSessionAuthenticator struct {
 var _ Authenticator = (*JWTSessionAuthenticator)(nil)
 
 func (ja *JWTSessionAuthenticator) Init() error {
-	pubKey := os.Getenv("CROSS_LOGIN_JWT_HS512_KEY")
+	pubKey := secretFromEnv("CROSS_LOGIN_JWT_HS512_KEY", Keys.JwtConfig.CrossLoginHS512Key)
 	if pubKey == "" {
 		// Without a configured key the HMAC verification below would run against
 		// an empty key, which lets anyone forge a valid token. Refuse to register
 		// the authenticator in that case so JWT session login is simply disabled.
-		return errors.New("CROSS_LOGIN_JWT_HS512_KEY not set: JWT session login disabled")
+		return errors.New("cross login HS512 key not configured ('cross-login-hs512-key' in config or 'CROSS_LOGIN_JWT_HS512_KEY' env): JWT session login disabled")
 	}
 
 	bytes, err := base64.StdEncoding.DecodeString(pubKey)

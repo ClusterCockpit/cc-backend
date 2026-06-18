@@ -39,7 +39,6 @@ import (
 	"github.com/ClusterCockpit/cc-lib/v2/schema"
 	"github.com/ClusterCockpit/cc-lib/v2/util"
 	"github.com/google/gops/agent"
-	"github.com/joho/godotenv"
 
 	_ "github.com/mattn/go-sqlite3"
 )
@@ -85,13 +84,6 @@ func initGops() error {
 
 	if err := agent.Listen(agent.Options{}); err != nil {
 		return fmt.Errorf("starting gops agent: %w", err)
-	}
-	return nil
-}
-
-func loadEnvironment() error {
-	if err := godotenv.Load(); err != nil {
-		return fmt.Errorf("loading .env file: %w", err)
 	}
 	return nil
 }
@@ -224,7 +216,14 @@ func checkDefaultSecurityKeys() {
 	// Default JWT public key from init.go
 	defaultJWTPublic := "kzfYrYy+TzpanWZHJ5qSdMj5uKUWgq74BWhQG6copP0="
 
-	if os.Getenv("JWT_PUBLIC_KEY") == defaultJWTPublic {
+	// Resolve the public key the same way the authenticators do: environment
+	// variable takes precedence over the value configured in config.json.
+	pubKey := os.Getenv("JWT_PUBLIC_KEY")
+	if pubKey == "" && auth.Keys.JwtConfig != nil {
+		pubKey = auth.Keys.JwtConfig.PublicKey
+	}
+
+	if pubKey == defaultJWTPublic {
 		cclog.Warn("Using default JWT keys - not recommended for production environments")
 	}
 }
@@ -495,7 +494,7 @@ func run() error {
 	if flagInit {
 		initEnv()
 		cclog.Exit("Successfully setup environment!\n" +
-			"Please review config.json and .env and adjust it to your needs.\n" +
+			"Please review config.json and adjust it to your needs.\n" +
 			"Add your job-archive at ./var/job-archive.")
 	}
 
@@ -505,17 +504,12 @@ func run() error {
 	}
 
 	// Initialize subsystems in dependency order:
-	// 1. Load environment variables from .env file (contains sensitive configuration)
-	// 2. Load configuration from config.json (may reference environment variables)
-	// 3. Handle database migration commands if requested
-	// 4. Initialize database connection (requires config for connection string)
-	// 5. Handle user commands if requested (requires database and authentication config)
-	// 6. Initialize subsystems like archive and metrics (require config and database)
-
-	// Load environment and configuration
-	if err := loadEnvironment(); err != nil {
-		return err
-	}
+	// 1. Load configuration from config.json (secrets live in config; individual
+	//    secrets may be overridden via environment variables)
+	// 2. Handle database migration commands if requested
+	// 3. Initialize database connection (requires config for connection string)
+	// 4. Handle user commands if requested (requires database and authentication config)
+	// 5. Initialize subsystems like archive and metrics (require config and database)
 
 	if err := initConfiguration(); err != nil {
 		return err

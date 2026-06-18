@@ -129,12 +129,11 @@ git clone https://github.com/ClusterCockpit/cc-backend.git
 cd ./cc-backend/
 make
 
-# EDIT THE .env FILE BEFORE YOU DEPLOY (Change the secrets)!
-# If authentication is disabled, it can be empty.
-cp configs/env-template.txt  .env
-vim .env
-
 cp configs/config.json .
+# EDIT config.json BEFORE YOU DEPLOY: change the secrets under "auth.jwts"
+# ("public-key"/"private-key"). Each secret can also be supplied via an
+# environment variable (e.g. JWT_PUBLIC_KEY), which takes precedence over the
+# value in config.json.
 vim config.json
 
 #Optional: Link an existing job archive:
@@ -151,6 +150,27 @@ ln -s <your-existing-job-archive> ./var/job-archive
 # Show other options:
 ./cc-backend -help
 ```
+
+### Authentication and sessions
+
+Browser sessions are stored server-side in the SQLite database (the `sessions`
+table) using [`alexedwards/scs`](https://github.com/alexedwards/scs); only an
+opaque random token is kept in the session cookie. No cookie-signing secret is
+required, so the former `SESSION_KEY` environment variable is no longer used.
+
+Secrets (JWT keys, LDAP sync password, OIDC client id/secret, cross-login keys)
+are configured directly in `config.json` under the `auth` section. Each secret
+may also be supplied via its environment variable (e.g. `JWT_PUBLIC_KEY`,
+`JWT_PRIVATE_KEY`, `LDAP_ADMIN_PASSWORD`, `OID_CLIENT_ID`, `OID_CLIENT_SECRET`,
+`CROSS_LOGIN_JWT_PUBLIC_KEY`, `CROSS_LOGIN_JWT_HS512_KEY`); the environment
+variable takes precedence when set. The previous `.env` file is no longer used.
+
+The session cookie's `Secure` flag is set automatically when cc-backend serves
+HTTPS itself (i.e. `https-cert-file` and `https-key-file` are configured in
+`config.json`); otherwise it is left unset so that plain-HTTP development works.
+For production deployments, serve cc-backend over HTTPS so the session cookie is
+marked `Secure`. If you terminate TLS at a reverse proxy, prefer letting
+cc-backend serve HTTPS directly for now so the flag is applied.
 
 ## Database Configuration
 

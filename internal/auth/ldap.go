@@ -9,7 +9,6 @@ import (
 	"fmt"
 	"net"
 	"net/http"
-	"os"
 	"strings"
 	"time"
 
@@ -33,6 +32,10 @@ type LdapConfig struct {
 	// Should a non-existent user be added to the DB if user exists in ldap directory
 	SyncUserOnLogin   bool `json:"sync-user-on-login"`
 	UpdateUserOnLogin bool `json:"update-user-on-login"`
+
+	// Password for the LDAP admin account used for syncing (optional).
+	// Overridden by the LDAP_ADMIN_PASSWORD environment variable when set.
+	SyncPassword string `json:"sync-password"`
 }
 
 type LdapAuthenticator struct {
@@ -44,9 +47,9 @@ type LdapAuthenticator struct {
 var _ Authenticator = (*LdapAuthenticator)(nil)
 
 func (la *LdapAuthenticator) Init() error {
-	la.syncPassword = os.Getenv("LDAP_ADMIN_PASSWORD")
+	la.syncPassword = secretFromEnv("LDAP_ADMIN_PASSWORD", Keys.LdapConfig.SyncPassword)
 	if la.syncPassword == "" {
-		cclog.Warn("environment variable 'LDAP_ADMIN_PASSWORD' not set (ldap sync will not work)")
+		cclog.Warn("LDAP admin password not configured ('sync-password' in config or 'LDAP_ADMIN_PASSWORD' env): ldap sync will not work")
 	}
 
 	if Keys.LdapConfig.UserAttr != "" {

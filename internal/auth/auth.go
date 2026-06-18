@@ -9,9 +9,8 @@ package auth
 import (
 	"bytes"
 	"context"
-	"crypto/rand"
 	"database/sql"
-	"encoding/base64"
+	"encoding/gob"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -29,7 +28,8 @@ import (
 	cclog "github.com/ClusterCockpit/cc-lib/v2/ccLogger"
 	"github.com/ClusterCockpit/cc-lib/v2/schema"
 	"github.com/ClusterCockpit/cc-lib/v2/util"
-	"github.com/gorilla/sessions"
+	"github.com/alexedwards/scs/sqlite3store"
+	"github.com/alexedwards/scs/v2"
 )
 
 // Authenticator is the interface for all authentication methods.
@@ -116,9 +116,21 @@ type AuthConfig struct {
 // Keys holds the global authentication configuration
 var Keys AuthConfig
 
+// secretFromEnv resolves a secret from the environment or config. The
+// environment variable takes precedence when set and non-empty; otherwise the
+// value configured in config.json is used. This lets deployments inject secrets
+// via the environment (or a secret manager) while keeping config.json
+// self-contained for simple setups.
+func secretFromEnv(envVar, configValue string) string {
+	if v := os.Getenv(envVar); v != "" {
+		return v
+	}
+	return configValue
+}
+
 // Authentication manages all authentication methods and session handling
 type Authentication struct {
-	sessionStore   *sessions.CookieStore
+	sessionManager *scs.SessionManager
 	LdapAuth       *LdapAuthenticator
 	JwtAuth        *JWTAuthenticator
 	LocalAuth      *LocalAuthenticator
@@ -126,49 +138,80 @@ type Authentication struct {
 	SessionMaxAge  time.Duration
 }
 
+// SessionManager exposes the scs session manager so the HTTP router can install
+// the session middleware (LoadAndSave on write paths, LoadSession on read paths).
+func (auth *Authentication) SessionManager() *scs.SessionManager {
+	return auth.sessionManager
+}
+
+// LoadSession is a non-buffering, read-only session middleware. It loads any
+// existing session into the request context so AuthViaSession can read it, but
+// (unlike scs.LoadAndSave) it never wraps the ResponseWriter and never commits,
+// so large responses (e.g. the GraphQL /query endpoint) stream without being
+// buffered in memory. Use it on routes that only read the session to
+// authenticate; use scs.LoadAndSave on the login/logout routes that mutate it.
+func (auth *Authentication) LoadSession(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(rw http.ResponseWriter, r *http.Request) {
+		var token string
+		if c, err := r.Cookie(auth.sessionManager.Cookie.Name); err == nil {
+			token = c.Value
+		}
+		ctx, err := auth.sessionManager.Load(r.Context(), token)
+		if err != nil {
+			cclog.Errorf("session load failed: %s", err.Error())
+			http.Error(rw, "internal server error", http.StatusInternalServerError)
+			return
+		}
+		next.ServeHTTP(rw, r.WithContext(ctx))
+	})
+}
+
+// expireSessionCookie clears a (corrupted) session cookie on the client. Used on
+// read paths where there is no commit to drive the deletion.
+func expireSessionCookie(rw http.ResponseWriter) {
+	http.SetCookie(rw, &http.Cookie{
+		Name:     "session",
+		Path:     "/",
+		MaxAge:   -1,
+		HttpOnly: true,
+		SameSite: http.SameSiteLaxMode,
+	})
+}
+
 func (auth *Authentication) AuthViaSession(
 	rw http.ResponseWriter,
 	r *http.Request,
 ) (*schema.User, error) {
-	session, err := auth.sessionStore.Get(r, "session")
-	if err != nil {
-		cclog.Error("Error while getting session store")
-		return nil, err
-	}
-
-	if session.IsNew {
+	// The session data was loaded into the request context by the LoadSession
+	// middleware. No active session cookie => not logged in (mirrors session.IsNew).
+	ctx := r.Context()
+	if !auth.sessionManager.Exists(ctx, "username") {
 		return nil, nil
 	}
 
 	// Validate session data with proper type checking
-	username, ok := session.Values["username"].(string)
-	if !ok || username == "" {
+	username := auth.sessionManager.GetString(ctx, "username")
+	if username == "" {
 		cclog.Warn("Invalid session: missing or invalid username")
-		// Invalidate the corrupted session
-		session.Options.MaxAge = -1
-		_ = auth.sessionStore.Save(r, rw, session)
+		expireSessionCookie(rw)
 		return nil, errors.New("invalid session data")
 	}
 
-	projects, ok := session.Values["projects"].([]string)
+	projects, ok := auth.sessionManager.Get(ctx, "projects").([]string)
 	if !ok {
 		cclog.Warn("Invalid session: projects not found or invalid type, using empty list")
 		projects = []string{}
 	}
 
-	roles, ok := session.Values["roles"].([]string)
+	roles, ok := auth.sessionManager.Get(ctx, "roles").([]string)
 	if !ok || len(roles) == 0 {
 		cclog.Warn("Invalid session: missing or invalid roles")
-		// Invalidate the corrupted session
-		session.Options.MaxAge = -1
-		_ = auth.sessionStore.Save(r, rw, session)
+		expireSessionCookie(rw)
 		return nil, errors.New("invalid session data")
 	}
 
-	authSourceInt, ok := session.Values["authSource"].(int)
-	if !ok {
-		authSourceInt = int(schema.AuthViaLocalPassword)
-	}
+	// GetInt returns 0 (== schema.AuthViaLocalPassword) when the key is absent.
+	authSourceInt := auth.sessionManager.GetInt(ctx, "authSource")
 
 	return &schema.User{
 		Username:   username,
@@ -186,31 +229,30 @@ func Init(authCfg *json.RawMessage) {
 		// Start background cleanup of rate limiters
 		startRateLimiterCleanup()
 
-		sessKey := os.Getenv("SESSION_KEY")
-		if sessKey == "" {
-			if !config.Keys.DisableAuthentication {
-				cclog.Fatal("environment variable 'SESSION_KEY' not set: refusing to start with an ephemeral session key. " +
-					"Set SESSION_KEY in .env (base64-encoded 32 random bytes); a random key would invalidate all sessions on every restart " +
-					"and prevent sessions from validating across replicas.")
-			}
-			// Authentication is disabled: no user sessions are issued, so an
-			// ephemeral random key is sufficient and SESSION_KEY is not required.
-			ephemeralKey := make([]byte, 32)
-			if _, err := rand.Read(ephemeralKey); err != nil {
-				cclog.Fatalf("Error while initializing authentication -> generating ephemeral session key failed: %v", err)
-			}
-			authInstance.sessionStore = sessions.NewCookieStore(ephemeralKey)
-		} else {
-			keyBytes, err := base64.StdEncoding.DecodeString(sessKey)
-			if err != nil {
-				cclog.Fatal("Error while initializing authentication -> decoding session key failed")
-			}
-			authInstance.sessionStore = sessions.NewCookieStore(keyBytes)
-		}
+		// Server-side sessions via scs, persisted in the existing SQLite DB so
+		// sessions survive restarts. Only an opaque random token is stored in the
+		// cookie, so no secret signing key (the former SESSION_KEY) is required.
+		gob.Register([]string{}) // user.Projects / user.Roles are stored as []string
+		sm := scs.New()
+		sm.Store = sqlite3store.New(repository.GetConnection().DB.DB)
+		sm.Cookie.Name = "session"
+		sm.Cookie.Path = "/"
+		sm.Cookie.HttpOnly = true
+		sm.Cookie.SameSite = http.SameSiteLaxMode
+		// scs sets Secure globally (no per-request option). Enable it when this
+		// process terminates TLS itself. Deployments terminating TLS at a reverse
+		// proxy can set this via a future config flag if needed.
+		sm.Cookie.Secure = config.Keys.HTTPSCertFile != ""
 
-		if d, err := time.ParseDuration(config.Keys.SessionMaxAge); err == nil {
+		if d, err := time.ParseDuration(config.Keys.SessionMaxAge); err == nil && d != 0 {
+			sm.Lifetime = d
 			authInstance.SessionMaxAge = d
+		} else {
+			// SessionMaxAge of 0/empty means "do not expire": approximate with a
+			// long absolute lifetime (the cookie remains persistent).
+			sm.Lifetime = 10 * 365 * 24 * time.Hour
 		}
+		authInstance.sessionManager = sm
 
 		// When authentication is disabled no authenticators are required; the
 		// session store created above is enough for the server to run with a
@@ -319,36 +361,22 @@ func handleLdapUser(ldapUser *schema.User) {
 }
 
 func (auth *Authentication) SaveSession(rw http.ResponseWriter, r *http.Request, user *schema.User) error {
-	session, err := auth.sessionStore.New(r, "session")
-	if err != nil {
-		cclog.Errorf("session creation failed: %s", err.Error())
+	// The login routes are wrapped by scs.LoadAndSave, which loaded the session
+	// into the request context and will commit it (persist to the store and write
+	// the Set-Cookie header) after the handler returns.
+	ctx := r.Context()
+
+	// Generate a new session token to prevent session fixation.
+	if err := auth.sessionManager.RenewToken(ctx); err != nil {
+		cclog.Errorf("session renew failed: %s", err.Error())
 		http.Error(rw, err.Error(), http.StatusInternalServerError)
 		return err
 	}
 
-	if auth.SessionMaxAge != 0 {
-		session.Options.MaxAge = int(auth.SessionMaxAge.Seconds())
-	}
-	if r.TLS == nil && r.Header.Get("X-Forwarded-Proto") != "https" {
-		// If neither TLS or an encrypted reverse proxy are used, do not mark cookies as secure.
-		cclog.Warn("Authenticating with unencrypted request. Session cookies will not have Secure flag set (insecure for production)")
-		if r.Header.Get("X-Forwarded-Proto") == "" {
-			// This warning will not be printed if e.g. X-Forwarded-Proto == http
-			cclog.Warn("If you are using a reverse proxy, make sure X-Forwarded-Proto is set")
-		}
-		session.Options.Secure = false
-	}
-	session.Options.SameSite = http.SameSiteLaxMode
-	session.Options.HttpOnly = true
-	session.Values["username"] = user.Username
-	session.Values["projects"] = user.Projects
-	session.Values["roles"] = user.Roles
-	session.Values["authSource"] = int(user.AuthSource)
-	if err := auth.sessionStore.Save(r, rw, session); err != nil {
-		cclog.Warnf("session save failed: %s", err.Error())
-		http.Error(rw, err.Error(), http.StatusInternalServerError)
-		return err
-	}
+	auth.sessionManager.Put(ctx, "username", user.Username)
+	auth.sessionManager.Put(ctx, "projects", user.Projects)
+	auth.sessionManager.Put(ctx, "roles", user.Roles)
+	auth.sessionManager.Put(ctx, "authSource", int(user.AuthSource))
 
 	return nil
 }
@@ -609,18 +637,11 @@ func (auth *Authentication) AuthFrontendAPI(
 
 func (auth *Authentication) Logout(onsuccess http.Handler) http.Handler {
 	return http.HandlerFunc(func(rw http.ResponseWriter, r *http.Request) {
-		session, err := auth.sessionStore.Get(r, "session")
-		if err != nil {
+		// The logout route is wrapped by scs.LoadAndSave: Destroy removes the
+		// session from the store and the middleware clears the cookie on the way out.
+		if err := auth.sessionManager.Destroy(r.Context()); err != nil {
 			http.Error(rw, err.Error(), http.StatusInternalServerError)
 			return
-		}
-
-		if !session.IsNew {
-			session.Options.MaxAge = -1
-			if err := auth.sessionStore.Save(r, rw, session); err != nil {
-				http.Error(rw, err.Error(), http.StatusInternalServerError)
-				return
-			}
 		}
 
 		onsuccess.ServeHTTP(rw, r)

@@ -76,6 +76,32 @@ type PlotConfiguration struct {
 	ResamplePolicy  string   `json:"resample-policy"`
 }
 
+const (
+	defaultImprintLink = "/imprint"
+	defaultPrivacyLink = "/privacy"
+)
+
+// FooterLink is the render-time representation of a single footer legal link.
+type FooterLink struct {
+	URL      string // Resolved target: internal path or external URL.
+	External bool   // True if the target is an external URL (opened in a new tab).
+}
+
+// FooterLinks holds the resolved legal links shown in the site footer.
+type FooterLinks struct {
+	Imprint FooterLink
+	Privacy FooterLink
+}
+
+// resolveFooterLink falls back to def when v is empty and flags external URLs.
+func resolveFooterLink(v, def string) FooterLink {
+	if v == "" {
+		v = def
+	}
+	external := strings.HasPrefix(v, "http://") || strings.HasPrefix(v, "https://")
+	return FooterLink{URL: v, External: external}
+}
+
 var UIDefaults = WebConfig{
 	JobList: JobListConfig{
 		UsePaging:     false,
@@ -270,6 +296,7 @@ type Page struct {
 	Config        map[string]any         // UI settings for the currently logged in user (e.g. line width, ...)
 	Resampling    *config.ResampleConfig // If not nil, defines resampling trigger and resolutions
 	Redirect      string                 // The originally requested URL, for intermediate login handling
+	FooterLinks   FooterLinks            // Resolved legal links for the site footer
 }
 
 func RenderTemplate(rw http.ResponseWriter, file string, page *Page) {
@@ -291,6 +318,11 @@ func RenderTemplate(rw http.ResponseWriter, file string, page *Page) {
 				page.SubClusters[cluster.Name] = append(page.SubClusters[cluster.Name], sc.Name)
 			}
 		}
+	}
+
+	page.FooterLinks = FooterLinks{
+		Imprint: resolveFooterLink(config.Keys.FooterLinks.Imprint, defaultImprintLink),
+		Privacy: resolveFooterLink(config.Keys.FooterLinks.Privacy, defaultPrivacyLink),
 	}
 
 	cclog.Debugf("Page config : %v\n", page.Config)

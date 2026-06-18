@@ -21,11 +21,11 @@ var configSchema = `
       }
     },
     "user": {
-      "description": "Drop root permissions once .env was read and the port was taken. Only applicable if using privileged port.",
+      "description": "Drop root permissions once the config was read and the port was taken. Only applicable if using privileged port.",
       "type": "string"
     },
     "group": {
-      "description": "Drop root permissions once .env was read and the port was taken. Only applicable if using privileged port.",
+      "description": "Drop root permissions once the config was read and the port was taken. Only applicable if using privileged port.",
       "type": "string"
     },
     "disable-authentication": {
@@ -126,6 +126,20 @@ var configSchema = `
         }
       },
       "required": ["subject-job-event", "subject-node-state"]
+    },
+    "footer-links": {
+      "description": "Optional footer links for legal pages (imprint/privacy). Each value may be an internal path or an external URL.",
+      "type": "object",
+      "properties": {
+        "imprint": {
+          "description": "Target URL/path for the footer imprint link.",
+          "type": "string"
+        },
+        "privacy": {
+          "description": "Target URL/path for the footer privacy link.",
+          "type": "string"
+        }
+      }
     },
     "nodestate-retention": {
       "description": "Node state retention configuration for cleaning up old node_state rows.",

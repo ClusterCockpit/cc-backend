@@ -9,7 +9,9 @@
   },
   "auth": {
     "jwts": {
-      "max-age": "2000h"
+      "max-age": "2000h",
+      "public-key": "kzfYrYy+TzpanWZHJ5qSdMj5uKUWgq74BWhQG6copP0=",
+      "private-key": "dtPC/6dWJFKZK7KZ78CvWuynylOmjBFyMsUWArwmodOTN9itjL5POlqdZkcnmpJ0yPm4pRaCrvgFaFAbpyik/Q=="
     }
   },
   "metric-store-external": [
