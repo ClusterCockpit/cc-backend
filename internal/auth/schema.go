@@ -131,6 +131,13 @@ var configSchema = `
         "sync-password": {
           "description": "Password for the LDAP admin account used for syncing. Overridden by the LDAP_ADMIN_PASSWORD environment variable when set.",
           "type": "string"
+        },
+        "role-filters": {
+          "description": "Maps an elevated role to an LDAP filter; accounts matching the filter are granted that role. LDAP is authoritative for every role listed here (roles are added and removed to match group membership), while roles not listed are preserved. Applied during sync and at login. Valid keys: admin, support, api, manager.",
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          }
         }
       },
       "required": ["url", "user-base", "search-dn", "user-bind", "user-filter"]
