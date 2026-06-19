@@ -76,6 +76,13 @@ var configSchema = `
         "client-secret": {
           "description": "OAuth2 client secret for the OIDC provider. Overridden by the OID_CLIENT_SECRET environment variable when set.",
           "type": "string"
+        },
+        "role-mapping": {
+          "description": "Maps an OIDC role/group claim value (from realm_access/resource_access) to a CC role. Valid target roles: admin, support, api, manager, user. This is the sole source of roles: only mapped roles are honored, unmapped token roles are ignored (literal CC role names must be mapped explicitly). Users without any mapped role receive the base 'user' role.",
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          }
         }
       },
       "required": ["provider"]
