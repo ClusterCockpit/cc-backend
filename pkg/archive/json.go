@@ -27,47 +27,73 @@ func DecodeJobData(r io.Reader, k string) (schema.JobData, error) {
 
 	if err, ok := data.(error); ok {
 		cclog.Warn("Error in decoded job data set")
-		return nil, err
+		return schema.JobData{}, err
 	}
 
 	return data.(schema.JobData), nil
 }
 
-func DecodeJobStats(r io.Reader, k string) (schema.ScopedJobStats, error) {
-	jobData, err := DecodeJobData(r, k)
-	// Convert schema.JobData to schema.ScopedJobStats
-	if jobData != nil {
-		scopedJobStats := make(schema.ScopedJobStats)
-		for metric, metricData := range jobData {
-			if _, ok := scopedJobStats[metric]; !ok {
-				scopedJobStats[metric] = make(map[schema.MetricScope][]*schema.ScopedStats)
+// scopedStatsFromMetrics converts a flat metric->scope->JobMetric map into the
+// corresponding metric->scope->[]*ScopedStats map. It preserves the "remove
+// empty" cleanup behaviour: a scope with no series is dropped, and a metric
+// with no remaining scopes is dropped.
+func scopedStatsFromMetrics(metrics map[string]schema.ScopedMetrics) map[string]schema.ScopedMetricStats {
+	result := make(map[string]schema.ScopedMetricStats)
+	for metric, metricData := range metrics {
+		if _, ok := result[metric]; !ok {
+			result[metric] = make(schema.ScopedMetricStats)
+		}
+
+		for scope, jobMetric := range metricData {
+			if _, ok := result[metric][scope]; !ok {
+				result[metric][scope] = make([]*schema.ScopedStats, 0)
 			}
 
-			for scope, jobMetric := range metricData {
-				if _, ok := scopedJobStats[metric][scope]; !ok {
-					scopedJobStats[metric][scope] = make([]*schema.ScopedStats, 0)
-				}
+			for _, series := range jobMetric.Series {
+				result[metric][scope] = append(result[metric][scope], &schema.ScopedStats{
+					Hostname: series.Hostname,
+					ID:       series.ID,
+					Data:     &series.Statistics,
+				})
+			}
 
-				for _, series := range jobMetric.Series {
-					scopedJobStats[metric][scope] = append(scopedJobStats[metric][scope], &schema.ScopedStats{
-						Hostname: series.Hostname,
-						ID:       series.ID,
-						Data:     &series.Statistics,
-					})
-				}
-
-				// So that one can later check len(scopedJobStats[metric][scope]): Remove from map if empty
-				if len(scopedJobStats[metric][scope]) == 0 {
-					delete(scopedJobStats[metric], scope)
-					if len(scopedJobStats[metric]) == 0 {
-						delete(scopedJobStats, metric)
-					}
+			// So that one can later check len(result[metric][scope]): Remove from map if empty
+			if len(result[metric][scope]) == 0 {
+				delete(result[metric], scope)
+				if len(result[metric]) == 0 {
+					delete(result, metric)
 				}
 			}
 		}
-		return scopedJobStats, nil
 	}
-	return nil, err
+	return result
+}
+
+func DecodeJobStats(r io.Reader, k string) (schema.ScopedJobStats, error) {
+	jobData, err := DecodeJobData(r, k)
+	if err != nil {
+		return schema.ScopedJobStats{}, err
+	}
+
+	// Convert schema.JobData to schema.ScopedJobStats
+	scopedJobStats := schema.ScopedJobStats{
+		Metrics: scopedStatsFromMetrics(jobData.Metrics),
+	}
+
+	// Project array-valued metric groups (e.g. filesystems) analogously.
+	for _, group := range jobData.Groups {
+		scopedGroup := schema.ScopedStatsGroup{Key: group.Key}
+		for _, inst := range group.Instances {
+			scopedGroup.Instances = append(scopedGroup.Instances, schema.ScopedStatsGroupInstance{
+				Name:    inst.Name,
+				Type:    inst.Type,
+				Metrics: scopedStatsFromMetrics(inst.Metrics),
+			})
+		}
+		scopedJobStats.Groups = append(scopedJobStats.Groups, scopedGroup)
+	}
+
+	return scopedJobStats, nil
 }
 
 func DecodeJobMeta(r io.Reader) (*schema.Job, error) {

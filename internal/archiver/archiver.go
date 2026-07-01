@@ -65,11 +65,11 @@ func ArchiveJob(job *schema.Job, ctx context.Context) (*schema.Job, error) {
 		return nil, err
 	}
 
-	job.Statistics = make(map[string]schema.JobStatistics)
+	job.Statistics = schema.JobStatisticsSet{Metrics: make(map[string]schema.JobStatistics)}
 
-	for metric, data := range jobData {
+	for metric, data := range jobData.Metrics {
 		avg, min, max := 0.0, math.MaxFloat32, -math.MaxFloat32
-		nodeData, ok := data["node"]
+		nodeData, ok := data[schema.MetricScopeNode]
 		if !ok {
 			// This should never happen ?
 			continue
@@ -82,7 +82,7 @@ func ArchiveJob(job *schema.Job, ctx context.Context) (*schema.Job, error) {
 		}
 
 		// Round AVG Result to 2 Digits
-		job.Statistics[metric] = schema.JobStatistics{
+		job.Statistics.Metrics[metric] = schema.JobStatistics{
 			Unit: schema.Unit{
 				Prefix: archive.GetMetricConfig(job.Cluster, metric).Unit.Prefix,
 				Base:   archive.GetMetricConfig(job.Cluster, metric).Unit.Base,
@@ -90,6 +90,44 @@ func ArchiveJob(job *schema.Job, ctx context.Context) (*schema.Job, error) {
 			Avg: (math.Round((avg/float64(job.NumNodes))*100) / 100),
 			Min: min,
 			Max: max,
+		}
+	}
+
+	// Compute the same node-scope statistics for each array-valued metric group
+	// instance (e.g. per-filesystem) and attach it as a group in the statistics
+	// set so it round-trips into the job-meta "statistics" JSON.
+	for _, group := range jobData.Groups {
+		for _, inst := range group.Instances {
+			instStats := make(map[string]schema.JobStatistics)
+			for metric, data := range inst.Metrics {
+				avg, min, max := 0.0, math.MaxFloat32, -math.MaxFloat32
+				nodeData, ok := data[schema.MetricScopeNode]
+				if !ok {
+					// This should never happen ?
+					continue
+				}
+
+				for _, series := range nodeData.Series {
+					avg += series.Statistics.Avg
+					min = math.Min(min, series.Statistics.Min)
+					max = math.Max(max, series.Statistics.Max)
+				}
+
+				// Prefer the unit from a MetricConfig if one exists, otherwise
+				// fall back to the unit already present on the JobMetric.
+				unit := nodeData.Unit
+				if mc := archive.GetMetricConfig(job.Cluster, metric); mc != nil {
+					unit = schema.Unit{Prefix: mc.Unit.Prefix, Base: mc.Unit.Base}
+				}
+
+				instStats[metric] = schema.JobStatistics{
+					Unit: unit,
+					Avg:  (math.Round((avg/float64(job.NumNodes))*100) / 100),
+					Min:  min,
+					Max:  max,
+				}
+			}
+			job.Statistics.AddGroupInstance(group.Key, inst.Name, inst.Type, instStats)
 		}
 	}
 

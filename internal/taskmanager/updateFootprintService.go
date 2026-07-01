@@ -80,7 +80,7 @@ func RegisterFootprintWorker() {
 							continue
 						}
 
-						job.Statistics = make(map[string]schema.JobStatistics)
+						job.Statistics = schema.JobStatisticsSet{Metrics: make(map[string]schema.JobStatistics)}
 
 						for _, metric := range allMetrics {
 							avg, min, max := 0.0, 0.0, 0.0
@@ -98,7 +98,7 @@ func RegisterFootprintWorker() {
 							}
 
 							// Add values rounded to 2 digits: repo.LoadStats may return unrounded
-							job.Statistics[metric] = schema.JobStatistics{
+							job.Statistics.Metrics[metric] = schema.JobStatistics{
 								Unit: schema.Unit{
 									Prefix: archive.GetMetricConfig(job.Cluster, metric).Unit.Prefix,
 									Base:   archive.GetMetricConfig(job.Cluster, metric).Unit.Base,

@@ -196,7 +196,7 @@ func cleanup() {
 func TestRestApi(t *testing.T) {
 	restapi := setup(t)
 	t.Cleanup(cleanup)
-	testData := schema.JobData{
+	testData := schema.JobData{Metrics: map[string]schema.ScopedMetrics{
 		"load_one": map[schema.MetricScope]*schema.JobMetric{
 			schema.MetricScopeNode: {
 				Unit:     schema.Unit{Base: "load"},
@@ -210,7 +210,7 @@ func TestRestApi(t *testing.T) {
 				},
 			},
 		},
-	}
+	}}
 
 	metricstore.TestLoadDataCallback = func(job *schema.Job, metrics []string, scopes []schema.MetricScope, ctx context.Context, resolution int) (schema.JobData, error) {
 		return testData, nil
@@ -497,7 +497,7 @@ func TestStopJobWithReusedJobId(t *testing.T) {
 	restapi := setup(t)
 	t.Cleanup(cleanup)
 
-	testData := schema.JobData{
+	testData := schema.JobData{Metrics: map[string]schema.ScopedMetrics{
 		"load_one": map[schema.MetricScope]*schema.JobMetric{
 			schema.MetricScopeNode: {
 				Unit:     schema.Unit{Base: "load"},
@@ -511,7 +511,7 @@ func TestStopJobWithReusedJobId(t *testing.T) {
 				},
 			},
 		},
-	}
+	}}
 
 	metricstore.TestLoadDataCallback = func(job *schema.Job, metrics []string, scopes []schema.MetricScope, ctx context.Context, resolution int) (schema.JobData, error) {
 		return testData, nil

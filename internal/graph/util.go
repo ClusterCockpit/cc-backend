@@ -61,7 +61,7 @@ func (r *queryResolver) rooflineHeatmap(
 			return nil, err
 		}
 
-		flops_, membw_ := jobdata["flops_any"], jobdata["mem_bw"]
+		flops_, membw_ := jobdata.Metrics["flops_any"], jobdata.Metrics["mem_bw"]
 		if flops_ == nil && membw_ == nil {
 			cclog.Warnf("rooflineHeatmap(): 'flops_any' or 'mem_bw' missing for job %d", *job.ID)
 			continue

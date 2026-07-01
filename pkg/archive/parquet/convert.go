@@ -23,7 +23,7 @@ func JobToParquetRow(meta *schema.Job, data *schema.JobData) (*ParquetJobRow, er
 	}
 
 	var statisticsJSON []byte
-	if meta.Statistics != nil {
+	if meta.Statistics.Metrics != nil {
 		statisticsJSON, err = json.Marshal(meta.Statistics)
 		if err != nil {
 			return nil, fmt.Errorf("marshal statistics: %w", err)

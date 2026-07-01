@@ -89,7 +89,7 @@ func (ccms *InternalMetricStore) LoadData(
 	queries, assignedScope, err := buildQueries(job, metrics, scopes, int64(resolution))
 	if err != nil {
 		cclog.Errorf("Error while building queries for jobId %d, Metrics %v, Scopes %v: %s", job.JobID, metrics, scopes, err.Error())
-		return nil, err
+		return schema.JobData{}, err
 	}
 
 	// Verify assignment is correct - log any inconsistencies for debugging
@@ -110,11 +110,11 @@ func (ccms *InternalMetricStore) LoadData(
 	resBody, err := FetchData(req)
 	if err != nil {
 		cclog.Errorf("Error while fetching data : %s", err.Error())
-		return nil, err
+		return schema.JobData{}, err
 	}
 
 	var errors []string
-	jobData := make(schema.JobData)
+	jobData := schema.JobData{Metrics: make(map[string]schema.ScopedMetrics)}
 
 	// Add safety check for potential index out of range errors
 	if len(resBody.Results) != len(req.Queries) || len(assignedScope) != len(req.Queries) {
@@ -139,8 +139,8 @@ func (ccms *InternalMetricStore) LoadData(
 			continue
 		}
 
-		if _, ok := jobData[metric]; !ok {
-			jobData[metric] = make(map[schema.MetricScope]*schema.JobMetric)
+		if _, ok := jobData.Metrics[metric]; !ok {
+			jobData.Metrics[metric] = make(schema.ScopedMetrics)
 		}
 
 		res := mc.Timestep
@@ -148,14 +148,14 @@ func (ccms *InternalMetricStore) LoadData(
 			res = int(row[0].Resolution)
 		}
 
-		jobMetric, ok := jobData[metric][scope]
+		jobMetric, ok := jobData.Metrics[metric][scope]
 		if !ok {
 			jobMetric = &schema.JobMetric{
 				Unit:     mc.Unit,
 				Timestep: res,
 				Series:   make([]schema.Series, 0),
 			}
-			jobData[metric][scope] = jobMetric
+			jobData.Metrics[metric][scope] = jobMetric
 		}
 
 		for ndx, res := range row {
@@ -183,9 +183,9 @@ func (ccms *InternalMetricStore) LoadData(
 
 		// So that one can later check len(jobData):
 		if len(jobMetric.Series) == 0 {
-			delete(jobData[metric], scope)
-			if len(jobData[metric]) == 0 {
-				delete(jobData, metric)
+			delete(jobData.Metrics[metric], scope)
+			if len(jobData.Metrics[metric]) == 0 {
+				delete(jobData.Metrics, metric)
 			}
 		}
 	}
@@ -407,7 +407,7 @@ func (ccms *InternalMetricStore) LoadScopedStats(
 	queries, assignedScope, err := buildQueries(job, metrics, scopes, 0)
 	if err != nil {
 		cclog.Errorf("Error while building queries for jobId %d, Metrics %v, Scopes %v: %s", job.JobID, metrics, scopes, err.Error())
-		return nil, err
+		return schema.ScopedJobStats{}, err
 	}
 
 	req := APIQueryRequest{
@@ -422,11 +422,11 @@ func (ccms *InternalMetricStore) LoadScopedStats(
 	resBody, err := FetchData(req)
 	if err != nil {
 		cclog.Errorf("Error while fetching data : %s", err.Error())
-		return nil, err
+		return schema.ScopedJobStats{}, err
 	}
 
 	var errors []string
-	scopedJobStats := make(schema.ScopedJobStats)
+	scopedJobStats := schema.ScopedJobStats{Metrics: make(map[string]schema.ScopedMetricStats)}
 
 	for i, row := range resBody.Results {
 		if len(row) == 0 {
@@ -437,12 +437,12 @@ func (ccms *InternalMetricStore) LoadScopedStats(
 		metric := query.Metric
 		scope := assignedScope[i]
 
-		if _, ok := scopedJobStats[metric]; !ok {
-			scopedJobStats[metric] = make(map[schema.MetricScope][]*schema.ScopedStats)
+		if _, ok := scopedJobStats.Metrics[metric]; !ok {
+			scopedJobStats.Metrics[metric] = make(schema.ScopedMetricStats)
 		}
 
-		if _, ok := scopedJobStats[metric][scope]; !ok {
-			scopedJobStats[metric][scope] = make([]*schema.ScopedStats, 0)
+		if _, ok := scopedJobStats.Metrics[metric][scope]; !ok {
+			scopedJobStats.Metrics[metric][scope] = make([]*schema.ScopedStats, 0)
 		}
 
 		for ndx, res := range row {
@@ -456,7 +456,7 @@ func (ccms *InternalMetricStore) LoadScopedStats(
 
 			SanitizeStats(&res.Avg, &res.Min, &res.Max)
 
-			scopedJobStats[metric][scope] = append(scopedJobStats[metric][scope], &schema.ScopedStats{
+			scopedJobStats.Metrics[metric][scope] = append(scopedJobStats.Metrics[metric][scope], &schema.ScopedStats{
 				Hostname: query.Hostname,
 				ID:       id,
 				Data: &schema.MetricStatistics{
@@ -467,11 +467,11 @@ func (ccms *InternalMetricStore) LoadScopedStats(
 			})
 		}
 
-		// So that one can later check len(scopedJobStats[metric][scope]): Remove from map if empty
-		if len(scopedJobStats[metric][scope]) == 0 {
-			delete(scopedJobStats[metric], scope)
-			if len(scopedJobStats[metric]) == 0 {
-				delete(scopedJobStats, metric)
+		// So that one can later check len(scopedJobStats.Metrics[metric][scope]): Remove from map if empty
+		if len(scopedJobStats.Metrics[metric][scope]) == 0 {
+			delete(scopedJobStats.Metrics[metric], scope)
+			if len(scopedJobStats.Metrics[metric]) == 0 {
+				delete(scopedJobStats.Metrics, metric)
 			}
 		}
 	}
@@ -695,14 +695,14 @@ func (ccms *InternalMetricStore) LoadNodeListData(
 		// Init Nested Map Data Structures If Not Found
 		hostData, ok := data[query.Hostname]
 		if !ok {
-			hostData = make(schema.JobData)
+			hostData = schema.JobData{Metrics: make(map[string]schema.ScopedMetrics)}
 			data[query.Hostname] = hostData
 		}
 
-		metricData, ok := hostData[metric]
+		metricData, ok := hostData.Metrics[metric]
 		if !ok {
-			metricData = make(map[schema.MetricScope]*schema.JobMetric)
-			data[query.Hostname][metric] = metricData
+			metricData = make(schema.ScopedMetrics)
+			data[query.Hostname].Metrics[metric] = metricData
 		}
 
 		scopeData, ok := metricData[scope]
@@ -712,7 +712,7 @@ func (ccms *InternalMetricStore) LoadNodeListData(
 				Timestep: res,
 				Series:   make([]schema.Series, 0),
 			}
-			data[query.Hostname][metric][scope] = scopeData
+			data[query.Hostname].Metrics[metric][scope] = scopeData
 		}
 
 		for ndx, res := range row {

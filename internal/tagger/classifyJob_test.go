@@ -64,10 +64,10 @@ func TestClassifyJobMatch(t *testing.T) {
 		parameters: make(map[string]any),
 		tagType:    "jobClass",
 		repo:       mockRepo,
-		getStatistics: func(job *schema.Job) (map[string]schema.JobStatistics, error) {
-			return map[string]schema.JobStatistics{
+		getStatistics: func(job *schema.Job) (schema.JobStatisticsSet, error) {
+			return schema.JobStatisticsSet{Metrics: map[string]schema.JobStatistics{
 				"flops_any": {Min: 0, Max: 200, Avg: 150},
-			}, nil
+			}}, nil
 		},
 		getMetricConfig: func(cluster, subCluster string) map[string]*schema.Metric {
 			return map[string]*schema.Metric{
@@ -120,10 +120,10 @@ func TestMatch_NoMatch(t *testing.T) {
 		parameters: make(map[string]any),
 		tagType:    "jobClass",
 		repo:       mockRepo,
-		getStatistics: func(job *schema.Job) (map[string]schema.JobStatistics, error) {
-			return map[string]schema.JobStatistics{
+		getStatistics: func(job *schema.Job) (schema.JobStatisticsSet, error) {
+			return schema.JobStatisticsSet{Metrics: map[string]schema.JobStatistics{
 				"flops_any": {Min: 0, Max: 50, Avg: 20}, // Avg 20 < 100
-			}, nil
+			}}, nil
 		},
 		getMetricConfig: func(cluster, subCluster string) map[string]*schema.Metric {
 			return map[string]*schema.Metric{
