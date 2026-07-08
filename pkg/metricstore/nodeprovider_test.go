@@ -161,3 +161,104 @@ func TestFromCheckpointProviderErrorFallsBack(t *testing.T) {
 		t.Fatalf("expected fallback to cutoff load (4 files), got %d", n)
 	}
 }
+
+func TestDeleteCheckpointsSkipsUsedNodes(t *testing.T) {
+	oldWorkers := Keys.NumWorkers
+	Keys.NumWorkers = 2
+	t.Cleanup(func() { Keys.NumWorkers = oldWorkers })
+
+	dir := t.TempDir()
+	writeTestCheckpoint(t, filepath.Join(dir, "fritz", "node001"), 1000)
+	writeTestCheckpoint(t, filepath.Join(dir, "fritz", "node002"), 1000)
+
+	used := map[string][]string{"fritz": {"node001"}}
+	n, err := deleteCheckpoints(dir, 3000, used)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if n != 1 {
+		t.Fatalf("expected 1 file deleted, got %d", n)
+	}
+	if _, err := os.Stat(filepath.Join(dir, "fritz", "node001", "1000.json")); err != nil {
+		t.Errorf("used node's checkpoint must survive: %v", err)
+	}
+	if _, err := os.Stat(filepath.Join(dir, "fritz", "node002", "1000.json")); !os.IsNotExist(err) {
+		t.Error("unused node's checkpoint must be deleted")
+	}
+}
+
+func TestArchiveCheckpointsSkipsUsedNodes(t *testing.T) {
+	oldWorkers := Keys.NumWorkers
+	Keys.NumWorkers = 2
+	t.Cleanup(func() { Keys.NumWorkers = oldWorkers })
+
+	cpDir := t.TempDir()
+	archiveDir := t.TempDir()
+	writeTestCheckpoint(t, filepath.Join(cpDir, "fritz", "node001"), 1000)
+	writeTestCheckpoint(t, filepath.Join(cpDir, "fritz", "node002"), 1000)
+
+	used := map[string][]string{"fritz": {"node001"}}
+	n, err := archiveCheckpoints(cpDir, archiveDir, 3000, used)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if n != 1 {
+		t.Fatalf("expected 1 file archived, got %d", n)
+	}
+	if _, err := os.Stat(filepath.Join(cpDir, "fritz", "node001", "1000.json")); err != nil {
+		t.Errorf("used node's checkpoint must survive: %v", err)
+	}
+	if _, err := os.Stat(filepath.Join(cpDir, "fritz", "node002", "1000.json")); !os.IsNotExist(err) {
+		t.Error("unused node's checkpoint must be removed after archiving")
+	}
+	if _, err := os.Stat(filepath.Join(archiveDir, "fritz", "3000.parquet")); err != nil {
+		t.Errorf("parquet archive must exist: %v", err)
+	}
+}
+
+func TestCleanupCheckpointsAbortsOnProviderError(t *testing.T) {
+	oldWorkers := Keys.NumWorkers
+	Keys.NumWorkers = 2
+	t.Cleanup(func() { Keys.NumWorkers = oldWorkers })
+
+	oldMS := msInstance
+	msInstance = newTestStore()
+	msInstance.SetNodeProvider(&fakeNodeProvider{err: errTestProvider})
+	t.Cleanup(func() { msInstance = oldMS })
+
+	dir := t.TempDir()
+	writeTestCheckpoint(t, filepath.Join(dir, "fritz", "node001"), 1000)
+
+	if _, err := CleanupCheckpoints(dir, "", 3000, true); err == nil {
+		t.Fatal("expected error when GetUsedNodes fails")
+	}
+	if _, err := os.Stat(filepath.Join(dir, "fritz", "node001", "1000.json")); err != nil {
+		t.Errorf("no files may be deleted when provider errors: %v", err)
+	}
+}
+
+func TestCleanupCheckpointsUsedNodesSurvive(t *testing.T) {
+	oldWorkers := Keys.NumWorkers
+	Keys.NumWorkers = 2
+	t.Cleanup(func() { Keys.NumWorkers = oldWorkers })
+
+	oldMS := msInstance
+	msInstance = newTestStore()
+	msInstance.SetNodeProvider(&fakeNodeProvider{nodes: map[string][]string{"fritz": {"node001"}}})
+	t.Cleanup(func() { msInstance = oldMS })
+
+	dir := t.TempDir()
+	writeTestCheckpoint(t, filepath.Join(dir, "fritz", "node001"), 1000)
+	writeTestCheckpoint(t, filepath.Join(dir, "fritz", "node002"), 1000)
+
+	n, err := CleanupCheckpoints(dir, "", 3000, true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if n != 1 {
+		t.Fatalf("expected 1 file deleted, got %d", n)
+	}
+	if _, err := os.Stat(filepath.Join(dir, "fritz", "node001", "1000.json")); err != nil {
+		t.Errorf("used node's checkpoint must survive: %v", err)
+	}
+}
