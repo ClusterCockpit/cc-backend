@@ -251,9 +251,11 @@ func (ms *MemoryStore) GetMetricFrequency(metricName string) (int64, error) {
 }
 
 // SetNodeProvider sets the NodeProvider implementation for the MemoryStore.
-// This must be called during initialization to provide job state information
-// for selective buffer retention during Free operations.
-// If not set, the Free function will fall back to freeing all buffers.
+// The provider supplies the set of nodes in use by running jobs, which is
+// consulted by Free (selective buffer retention), FromCheckpoint (full-history
+// loading for used hosts), and CleanupCheckpoints (skipping used hosts).
+// It must be set before Init(): the checkpoint load inside Init reads it.
+// If not set, all three fall back to their provider-less behavior.
 func (ms *MemoryStore) SetNodeProvider(provider NodeProvider) {
 	ms.nodeProvider = provider
 }

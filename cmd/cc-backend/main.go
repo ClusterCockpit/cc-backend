@@ -589,6 +589,11 @@ func run() error {
 			cleanupDir = metricstore.Keys.Cleanup.RootDir
 		}
 
+		// Wire the job repository as NodeProvider so cleanup skips hosts
+		// with running jobs (same injection as runServer).
+		metricstore.InitMetrics(metricstore.BuildMetricList())
+		metricstore.GetMemoryStore().SetNodeProvider(repository.GetJobRepository())
+
 		cclog.Infof("Cleaning up checkpoints older than %s...", from.Format(time.RFC3339))
 		n, err := metricstore.CleanupCheckpoints(
 			metricstore.Keys.Checkpoints.RootDir, cleanupDir, from.Unix(), deleteMode)
