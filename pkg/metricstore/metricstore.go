@@ -633,6 +633,19 @@ func GetSelectors(ms *MemoryStore, excludeSelectors map[string][]string) [][]str
 	return filteredSelectors
 }
 
+// isNodeUsed reports whether cluster/host appears in the used-nodes map
+// returned by NodeProvider.GetUsedNodes. Host lists are sorted per the
+// interface contract, so lookup is a binary search. A nil map means no
+// node is in use.
+func isNodeUsed(used map[string][]string, cluster, host string) bool {
+	hosts, ok := used[cluster]
+	if !ok {
+		return false
+	}
+	_, found := slices.BinarySearch(hosts, host)
+	return found
+}
+
 // GetPaths returns a list of lists (paths) to the specified depth.
 func (ms *MemoryStore) GetPaths(targetDepth int) [][]string {
 	var results [][]string
