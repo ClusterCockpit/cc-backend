@@ -367,15 +367,10 @@ func runServer(ctx context.Context) error {
 	haveMetricstore := false
 	mscfg := ccconf.GetPackageConfig("metric-store")
 	if mscfg != nil {
-		metrics := metricstore.BuildMetricList()
-		// The NodeProvider MUST be set before Init: the checkpoint load inside
-		// Init consults it to load the full history for nodes with running
-		// jobs. InitMetrics is sync.Once-guarded, so the second call inside
-		// Init is a no-op. The repository is injected as NodeProvider to
-		// break the import cycle.
-		metricstore.InitMetrics(metrics)
-		metricstore.GetMemoryStore().SetNodeProvider(repository.GetJobRepository())
-		metricstore.Init(mscfg, metrics, &wg)
+		// The repository is injected as NodeProvider (breaking the import
+		// cycle) so the checkpoint load inside Init can fetch the full
+		// history for nodes with running jobs.
+		metricstore.Init(mscfg, metricstore.BuildMetricList(), repository.GetJobRepository(), &wg)
 
 		metricstore.MetricStoreHandle = &metricstore.InternalMetricStore{}
 		haveMetricstore = true

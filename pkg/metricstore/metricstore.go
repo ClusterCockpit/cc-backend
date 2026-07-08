@@ -115,6 +115,9 @@ type MemoryStore struct {
 // Parameters:
 //   - rawConfig: JSON configuration for the metric store (see MetricStoreConfig); may be nil to use defaults
 //   - metrics: Map of metric names to their configurations (frequency and aggregation strategy)
+//   - provider: NodeProvider consulted during the checkpoint restore (and later by
+//     Free/CleanupCheckpoints) to preserve data for nodes with running jobs; may be
+//     nil, in which case all provider-aware paths fall back to their plain behavior
 //   - wg: WaitGroup that will be incremented for each background goroutine started
 //
 // The function will call cclog.Fatal on critical errors during initialization.
@@ -122,7 +125,7 @@ type MemoryStore struct {
 //
 // Note: Signal handling must be implemented by the caller. Call Shutdown() when
 // receiving termination signals to ensure checkpoint data is persisted.
-func Init(rawConfig json.RawMessage, metrics map[string]MetricConfig, wg *sync.WaitGroup) {
+func Init(rawConfig json.RawMessage, metrics map[string]MetricConfig, provider NodeProvider, wg *sync.WaitGroup) {
 	startupTime := time.Now()
 
 	if rawConfig != nil {
@@ -144,6 +147,9 @@ func Init(rawConfig json.RawMessage, metrics map[string]MetricConfig, wg *sync.W
 	InitMetrics(metrics)
 
 	ms := GetMemoryStore()
+	if provider != nil {
+		ms.SetNodeProvider(provider)
+	}
 
 	d, err := time.ParseDuration(Keys.RetentionInMemory)
 	if err != nil {
@@ -254,8 +260,9 @@ func (ms *MemoryStore) GetMetricFrequency(metricName string) (int64, error) {
 // The provider supplies the set of nodes in use by running jobs, which is
 // consulted by Free (selective buffer retention), FromCheckpoint (full-history
 // loading for used hosts), and CleanupCheckpoints (skipping used hosts).
-// It must be set before Init(): the checkpoint load inside Init reads it.
-// If not set, all three fall back to their provider-less behavior.
+// Server startup passes the provider to Init() directly; this setter serves
+// callers that do not run Init (tests, the -cleanup-checkpoints CLI path).
+// If not set, all provider-aware paths fall back to their plain behavior.
 func (ms *MemoryStore) SetNodeProvider(provider NodeProvider) {
 	ms.nodeProvider = provider
 }
