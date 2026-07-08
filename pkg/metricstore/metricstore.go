@@ -42,7 +42,6 @@ import (
 type GlobalState struct {
 	mu                sync.RWMutex
 	lastRetentionTime int64
-	selectorsExcluded bool
 }
 
 var (
@@ -440,29 +439,7 @@ func MemoryUsageTracker(wg *sync.WaitGroup, ctx context.Context) {
 				metricDataGB := ms.SizeInGB()
 				cclog.Infof("[METRICSTORE]> memory usage: %.2f GB actual (%.2f GB metric data)", actualMemoryGB, metricDataGB)
 
-				freedExcluded := 0
 				freedEmergency := 0
-				var err error
-
-				state.mu.RLock()
-				lastRetention := state.lastRetentionTime
-				selectorsExcluded := state.selectorsExcluded
-				state.mu.RUnlock()
-
-				if lastRetention != 0 && selectorsExcluded {
-					freedExcluded, err = ms.Free(nil, lastRetention)
-					if err != nil {
-						cclog.Errorf("[METRICSTORE]> error while force-freeing the excluded buffers: %s", err)
-					}
-
-					if freedExcluded > 0 {
-						debug.FreeOSMemory()
-						cclog.Infof("[METRICSTORE]> done: %d excluded buffers force-freed", freedExcluded)
-					}
-				}
-
-				runtime.ReadMemStats(&mem)
-				actualMemoryGB = float64(mem.Alloc) / 1e9
 
 				if actualMemoryGB > float64(Keys.MemoryCap) {
 					cclog.Warnf("[METRICSTORE]> memory usage %.2f GB exceeds cap %d GB, starting emergency buffer freeing", actualMemoryGB, Keys.MemoryCap)
@@ -556,13 +533,11 @@ func Free(ms *MemoryStore, t time.Time) (int, error) {
 	// If the length of the map returned by GetUsedNodes() is 0,
 	// then use default Free method with nil selector
 	case 0:
-		state.selectorsExcluded = false
 		return ms.Free(nil, t.Unix())
 
 	// Else formulate selectors, exclude those from the map
 	// and free the rest of the selectors
 	default:
-		state.selectorsExcluded = true
 		selectors := GetSelectors(ms, excludeSelectors)
 		return FreeSelected(ms, selectors, t)
 	}
