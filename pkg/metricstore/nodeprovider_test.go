@@ -6,7 +6,14 @@
 package metricstore
 
 import (
+	"encoding/json"
+	"errors"
+	"fmt"
+	"os"
+	"path/filepath"
 	"testing"
+
+	"github.com/ClusterCockpit/cc-lib/v2/schema"
 )
 
 // fakeNodeProvider implements NodeProvider for tests.
@@ -18,6 +25,8 @@ type fakeNodeProvider struct {
 func (f *fakeNodeProvider) GetUsedNodes(ts int64) (map[string][]string, error) {
 	return f.nodes, f.err
 }
+
+var errTestProvider = errors.New("provider failure")
 
 func TestIsNodeUsed(t *testing.T) {
 	used := map[string][]string{"fritz": {"node001", "node003"}}
@@ -42,5 +51,113 @@ func TestIsNodeUsed(t *testing.T) {
 	}
 	if isNodeUsed(map[string][]string{}, "fritz", "node001") {
 		t.Error("empty map must report false")
+	}
+}
+
+// newTestStore builds a minimal MemoryStore without touching the singleton.
+func newTestStore() *MemoryStore {
+	return &MemoryStore{
+		Metrics: map[string]MetricConfig{
+			"cpu_load": {Frequency: 60, offset: 0},
+		},
+		root: Level{
+			metrics:  make([]*buffer, 1),
+			children: make(map[string]*Level),
+		},
+	}
+}
+
+// writeTestCheckpoint writes a valid JSON checkpoint file <ts>.json into dir.
+func writeTestCheckpoint(t *testing.T, dir string, ts int64) {
+	t.Helper()
+	cf := &CheckpointFile{
+		From: ts,
+		To:   ts + 120,
+		Metrics: map[string]*CheckpointMetrics{
+			"cpu_load": {Frequency: 60, Start: ts, Data: []schema.Float{1.0, 2.0, 3.0}},
+		},
+		Children: make(map[string]*CheckpointFile),
+	}
+	data, err := json.Marshal(cf)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, fmt.Sprintf("%d.json", ts)), data, 0o644); err != nil {
+		t.Fatal(err)
+	}
+}
+
+// writeThreeCheckpointsPerHost creates ts 1000/2000/5000 for node001+node002.
+func writeThreeCheckpointsPerHost(t *testing.T, dir string) {
+	t.Helper()
+	for _, host := range []string{"node001", "node002"} {
+		hostDir := filepath.Join(dir, "fritz", host)
+		writeTestCheckpoint(t, hostDir, 1000)
+		writeTestCheckpoint(t, hostDir, 2000)
+		writeTestCheckpoint(t, hostDir, 5000)
+	}
+}
+
+func TestFromCheckpointLoadsAllFilesForUsedNodes(t *testing.T) {
+	oldWorkers := Keys.NumWorkers
+	Keys.NumWorkers = 2
+	t.Cleanup(func() { Keys.NumWorkers = oldWorkers })
+
+	dir := t.TempDir()
+	writeThreeCheckpointsPerHost(t, dir)
+
+	ms := newTestStore()
+	ms.SetNodeProvider(&fakeNodeProvider{nodes: map[string][]string{"fritz": {"node001"}}})
+
+	n, err := ms.FromCheckpoint(dir, 3000)
+	if err != nil {
+		t.Fatal(err)
+	}
+	// node001 (used): all 3 files. node002: bridge 2000.json + 5000.json = 2.
+	if n != 5 {
+		t.Fatalf("expected 5 files loaded, got %d", n)
+	}
+}
+
+func TestFromCheckpointWithoutProviderKeepsCutoff(t *testing.T) {
+	oldWorkers := Keys.NumWorkers
+	Keys.NumWorkers = 2
+	t.Cleanup(func() { Keys.NumWorkers = oldWorkers })
+
+	dir := t.TempDir()
+	writeThreeCheckpointsPerHost(t, dir)
+
+	ms := newTestStore()
+
+	n, err := ms.FromCheckpoint(dir, 3000)
+	if err != nil {
+		t.Fatal(err)
+	}
+	// 2 files per host, no provider set.
+	if n != 4 {
+		t.Fatalf("expected 4 files loaded, got %d", n)
+	}
+}
+
+func TestFromCheckpointProviderErrorFallsBack(t *testing.T) {
+	oldWorkers := Keys.NumWorkers
+	Keys.NumWorkers = 2
+	t.Cleanup(func() { Keys.NumWorkers = oldWorkers })
+
+	dir := t.TempDir()
+	writeThreeCheckpointsPerHost(t, dir)
+
+	ms := newTestStore()
+	ms.SetNodeProvider(&fakeNodeProvider{err: errTestProvider})
+
+	n, err := ms.FromCheckpoint(dir, 3000)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if n != 4 {
+		t.Fatalf("expected fallback to cutoff load (4 files), got %d", n)
 	}
 }
