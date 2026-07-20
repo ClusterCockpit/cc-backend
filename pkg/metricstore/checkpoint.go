@@ -501,6 +501,9 @@ func (l *Level) loadFile(cf *CheckpointFile, m *MemoryStore) error {
 			next:      nil,
 			archived:  true,
 		}
+		// Front-load the single scan so the first stat query hits the cache
+		// instead of lazily rescanning this checkpoint-loaded buffer.
+		b.recomputeStats()
 
 		minfo, ok := m.Metrics[name]
 		if !ok {

@@ -250,3 +250,30 @@ func TestStatsFastPathThenPartialTail(t *testing.T) {
 		t.Errorf("Avg = %v, want 4.0", s.Avg)
 	}
 }
+
+func TestCheckpointLoadedBufferStatsEager(t *testing.T) {
+	// Mirror how loadFile constructs a buffer: bare struct, data assigned
+	// directly with cap==len, then stats computed eagerly.
+	data := []schema.Float{2.0, 4.0, 6.0}
+	n := len(data)
+	b := &buffer{
+		frequency: 10,
+		start:     95,
+		data:      data[0:n:n],
+		archived:  true,
+	}
+	b.recomputeStats() // the eager call loadFile will perform
+
+	if !b.statsValid {
+		t.Error("statsValid = false, want true after eager recompute at load")
+	}
+	if b.statSamples != 3 {
+		t.Errorf("statSamples = %d, want 3", b.statSamples)
+	}
+	if b.statMin != 2.0 || b.statMax != 6.0 {
+		t.Errorf("statMin/statMax = %v/%v, want 2.0/6.0", b.statMin, b.statMax)
+	}
+	if b.statSum != 12.0 {
+		t.Errorf("statSum = %v, want 12.0", b.statSum)
+	}
+}
