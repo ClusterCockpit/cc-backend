@@ -7,6 +7,7 @@ package metricstore
 
 import (
 	"math"
+	"sync"
 	"testing"
 
 	"github.com/ClusterCockpit/cc-lib/v2/schema"
@@ -172,7 +173,7 @@ func TestStatsOverwriteThenFullQuery(t *testing.T) {
 		t.Fatalf("stats() error = %v", err)
 	}
 	if s.Min != 2.0 {
-		t.Errorf("Min = %v, want 2.0 (recomputed after overwrite)", s.Min)
+		t.Errorf("Min = %v, want 2.0 (scanned after overwrite)", s.Min)
 	}
 	if s.Max != 99.0 {
 		t.Errorf("Max = %v, want 99.0", s.Max)
@@ -180,8 +181,8 @@ func TestStatsOverwriteThenFullQuery(t *testing.T) {
 	if s.Samples != 3 {
 		t.Errorf("Samples = %d, want 3", s.Samples)
 	}
-	if !b.statsValid {
-		t.Error("statsValid should be true after the recompute triggered by the query")
+	if b.statsValid {
+		t.Error("statsValid should still be false: the read path must not mutate buffer state")
 	}
 }
 
@@ -194,7 +195,10 @@ func TestStatsMultiBufferChain(t *testing.T) {
 	b2.data = append(b2.data, 4.0, 5.0, 6.0)
 	b2.prev = b1
 	b1.next = b2
-	// b1/b2 built bare: statsValid is false (zero value) -> stats() must recompute.
+	// b1/b2 built bare: statsValid is false (zero value). Recompute here to mirror
+	// checkpoint-loaded valid buffers, so the fast-path cache fold is exercised.
+	b1.recomputeStats()
+	b2.recomputeStats()
 
 	s, _, _, err := b2.stats(100, 160)
 	if err != nil {
@@ -220,7 +224,10 @@ func TestStatsFastPathThenPartialTail(t *testing.T) {
 	// b3: 7,8,9 at t=160,170,180 (end=190; not fully covered -> scans; only t=160 < 170)
 	// Query [100, 170) includes t=100,110,120,130,140,150,160 = values 1..7 (7 points).
 	// t=170 is excluded since 170 >= to. Expected: Samples=7, Sum=28, Min=1, Max=7, Avg=4.0.
-	// Buffers built bare: statsValid is false (zero value) -> stats() must recompute.
+	// Buffers built bare: statsValid is false (zero value). Recompute on b1/b2 to mirror
+	// checkpoint-loaded valid buffers so the fast path fires for them; b3 is only
+	// partially covered by the query so it still scans regardless of validity,
+	// giving intended mixed fast-path-then-scan coverage.
 
 	b1 := &buffer{data: make([]schema.Float, 0, 3), frequency: 10, start: 95}
 	b1.data = append(b1.data, 1.0, 2.0, 3.0)
@@ -235,6 +242,10 @@ func TestStatsFastPathThenPartialTail(t *testing.T) {
 	b2.prev = b1
 	b2.next = b3
 	b3.prev = b2
+
+	b1.recomputeStats()
+	b2.recomputeStats()
+	b3.recomputeStats()
 
 	s, _, _, err := b3.stats(100, 170)
 	if err != nil {
@@ -275,5 +286,127 @@ func TestCheckpointLoadedBufferStatsEager(t *testing.T) {
 	}
 	if b.statSum != 12.0 {
 		t.Errorf("statSum = %v, want 12.0", b.statSum)
+	}
+}
+
+// TestStatsConcurrentQueriesNoRace guards against the data race fixed by making
+// the stats() read path non-mutating: previously an invalid buffer's stats()
+// call would run recomputeStats() (a write) under only the caller's shared
+// RLock (see MemoryStore.Stats -> Level.findBuffers), so concurrent readers on
+// the same buffer could race on statSum/statSamples/statMin/statMax/statsValid.
+// Run with -race; both subtests must be race-clean.
+func TestStatsConcurrentQueriesNoRace(t *testing.T) {
+	const goroutines = 50
+
+	t.Run("valid buffer", func(t *testing.T) {
+		b := newBuffer(100, 10)
+		vals := []schema.Float{3.0, 1.0, 5.0, 2.0, 4.0}
+		for i, v := range vals {
+			ts := int64(100 + i*10)
+			if _, err := b.write(ts, v); err != nil {
+				t.Fatalf("write(%d) error = %v", ts, err)
+			}
+		}
+		if !b.statsValid {
+			t.Fatal("precondition: statsValid should be true for an append-only buffer")
+		}
+
+		from, to := int64(100), int64(150)
+		expected, _, _, err := b.stats(from, to)
+		if err != nil {
+			t.Fatalf("stats() error = %v", err)
+		}
+
+		var wg sync.WaitGroup
+		for i := 0; i < goroutines; i++ {
+			wg.Add(1)
+			go func() {
+				defer wg.Done()
+				s, _, _, err := b.stats(from, to)
+				if err != nil {
+					t.Errorf("stats() error = %v", err)
+					return
+				}
+				if s != expected {
+					t.Errorf("stats() = %+v, want %+v", s, expected)
+				}
+			}()
+		}
+		wg.Wait()
+	})
+
+	t.Run("invalid buffer after overwrite", func(t *testing.T) {
+		b := newBuffer(100, 10)
+		if _, err := b.write(100, schema.Float(1.0)); err != nil {
+			t.Fatalf("write error = %v", err)
+		}
+		if _, err := b.write(110, schema.Float(2.0)); err != nil {
+			t.Fatalf("write error = %v", err)
+		}
+		if _, err := b.write(120, schema.Float(3.0)); err != nil {
+			t.Fatalf("write error = %v", err)
+		}
+		if _, err := b.write(100, schema.Float(99.0)); err != nil { // overwrite -> statsValid false
+			t.Fatalf("write error = %v", err)
+		}
+		if b.statsValid {
+			t.Fatal("precondition: statsValid should be false after overwrite")
+		}
+
+		from, to := int64(100), int64(130)
+		expected, _, _, err := b.stats(from, to)
+		if err != nil {
+			t.Fatalf("stats() error = %v", err)
+		}
+
+		var wg sync.WaitGroup
+		for i := 0; i < goroutines; i++ {
+			wg.Add(1)
+			go func() {
+				defer wg.Done()
+				s, _, _, err := b.stats(from, to)
+				if err != nil {
+					t.Errorf("stats() error = %v", err)
+					return
+				}
+				if s != expected {
+					t.Errorf("stats() = %+v, want %+v", s, expected)
+				}
+			}()
+		}
+		wg.Wait()
+	})
+}
+
+// TestStatsGappedChain covers a multi-buffer chain with a real time gap between
+// buffers: b1's last real point is at t=120, and b2's first real point is at
+// t=170, so t=130,140,150,160 have no data anywhere (unlike an in-buffer,
+// NaN-filled gap). The query spans the gap; only the real points on either
+// side should be counted.
+func TestStatsGappedChain(t *testing.T) {
+	b1 := &buffer{data: make([]schema.Float, 0, 3), frequency: 10, start: 95}
+	b1.data = append(b1.data, 1.0, 2.0, 3.0) // t=100,110,120 (end=130)
+
+	b2 := &buffer{data: make([]schema.Float, 0, 3), frequency: 10, start: 165}
+	b2.data = append(b2.data, 4.0, 5.0, 6.0) // t=170,180,190 (end=200)
+
+	b1.next = b2
+	b2.prev = b1
+
+	b1.recomputeStats()
+	b2.recomputeStats()
+
+	s, _, _, err := b2.stats(100, 200)
+	if err != nil {
+		t.Fatalf("stats() error = %v", err)
+	}
+	if s.Samples != 6 {
+		t.Errorf("Samples = %d, want 6 (gap contributes no samples)", s.Samples)
+	}
+	if s.Min != 1.0 || s.Max != 6.0 {
+		t.Errorf("Min/Max = %v/%v, want 1.0/6.0", s.Min, s.Max)
+	}
+	if s.Avg != 3.5 {
+		t.Errorf("Avg = %v, want 3.5", s.Avg)
 	}
 }
