@@ -84,3 +84,39 @@ func TestWriteOverwriteInvalidatesStats(t *testing.T) {
 		t.Error("statsValid = true, want false after overwrite")
 	}
 }
+
+func TestRecomputeStatsRebuildsAfterOverwrite(t *testing.T) {
+	b := newBuffer(100, 10)
+	b.write(100, schema.Float(1.0))
+	b.write(110, schema.Float(2.0))
+	b.write(100, schema.Float(99.0)) // overwrite -> statsValid false, min stale
+
+	b.recomputeStats()
+
+	if !b.statsValid {
+		t.Error("statsValid = false, want true after recompute")
+	}
+	if b.statSamples != 2 {
+		t.Errorf("statSamples = %d, want 2", b.statSamples)
+	}
+	if b.statSum != 101.0 {
+		t.Errorf("statSum = %v, want 101.0", b.statSum)
+	}
+	if b.statMin != 2.0 {
+		t.Errorf("statMin = %v, want 2.0 (1.0 was overwritten)", b.statMin)
+	}
+	if b.statMax != 99.0 {
+		t.Errorf("statMax = %v, want 99.0", b.statMax)
+	}
+}
+
+func TestRecomputeStatsEmptyBuffer(t *testing.T) {
+	b := newBuffer(100, 10)
+	b.recomputeStats()
+	if b.statSamples != 0 || b.statSum != 0 {
+		t.Errorf("empty buffer stats = samples %d sum %v, want 0/0", b.statSamples, b.statSum)
+	}
+	if b.statMin != math.MaxFloat32 || b.statMax != -math.MaxFloat32 {
+		t.Errorf("empty buffer min/max = %v/%v, want sentinels", b.statMin, b.statMax)
+	}
+}

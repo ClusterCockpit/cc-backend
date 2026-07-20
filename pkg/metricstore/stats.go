@@ -20,6 +20,33 @@ type Stats struct {
 	Max     schema.Float
 }
 
+// recomputeStats rebuilds the buffer's running statistics from a single full
+// scan of its data and marks them valid. Used after an overwrite invalidated
+// the incremental aggregate, and at checkpoint load time.
+func (b *buffer) recomputeStats() {
+	sum, samples := 0.0, 0
+	min, max := math.MaxFloat32, -math.MaxFloat32
+	for _, v := range b.data {
+		xf := float64(v)
+		if math.IsNaN(xf) {
+			continue
+		}
+		samples++
+		sum += xf
+		if xf < min {
+			min = xf
+		}
+		if xf > max {
+			max = xf
+		}
+	}
+	b.statSum = sum
+	b.statSamples = samples
+	b.statMin = min
+	b.statMax = max
+	b.statsValid = true
+}
+
 func (b *buffer) stats(from, to int64) (Stats, int64, int64, error) {
 	if from < b.start {
 		if b.prev != nil {
