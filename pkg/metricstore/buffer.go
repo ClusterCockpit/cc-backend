@@ -42,6 +42,7 @@ package metricstore
 
 import (
 	"errors"
+	"math"
 	"sync"
 	"time"
 
@@ -176,6 +177,17 @@ type buffer struct {
 	archived  bool
 	closed    bool
 	lastUsed  int64
+
+	// Running statistics over the non-NaN values currently in data.
+	// avg is derived as statSum/statSamples, never stored.
+	// statsValid is false when the cached aggregate may be stale (after an
+	// overwrite, or for a bare-constructed buffer); a stats query recomputes
+	// before using the cache. Zero value (false) fails safe to "recompute".
+	statSum     float64
+	statSamples int
+	statMin     float64
+	statMax     float64
+	statsValid  bool
 }
 
 func newBuffer(ts, freq int64) *buffer {
@@ -187,6 +199,11 @@ func newBuffer(ts, freq int64) *buffer {
 	b.archived = false
 	b.closed = false
 	b.data = b.data[:0]
+	b.statSum = 0
+	b.statSamples = 0
+	b.statMin = math.MaxFloat32
+	b.statMax = -math.MaxFloat32
+	b.statsValid = true
 	return b
 }
 
