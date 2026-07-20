@@ -57,7 +57,7 @@ func TestWriteUpdatesRunningStats(t *testing.T) {
 func TestWriteNaNExcludedFromStats(t *testing.T) {
 	b := newBuffer(100, 10)
 	b.write(100, schema.Float(2.0))
-	b.write(110, schema.NaN)  // explicit NaN
+	b.write(110, schema.NaN)        // explicit NaN
 	b.write(130, schema.Float(4.0)) // leaves a NaN-filled gap at t=120
 
 	if b.statSamples != 2 {
