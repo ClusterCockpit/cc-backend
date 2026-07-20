@@ -74,7 +74,7 @@ func (b *buffer) stats(from, to int64) (Stats, int64, int64, error) {
 		// past the buffer's real data instead of scanning each point. Any slots
 		// between len(data) and cap are handled as gaps by the normal loop after
 		// t advances, so the returned `to` matches the scan semantics.
-		if idx <= 0 && t <= b.firstWrite() && b.end() <= to {
+		if len(b.data) > 0 && idx <= 0 && t <= b.firstWrite() && b.end() <= to {
 			if !b.statsValid {
 				b.recomputeStats()
 			}

@@ -210,3 +210,43 @@ func TestStatsMultiBufferChain(t *testing.T) {
 		t.Errorf("Avg = %v, want 3.5", s.Avg)
 	}
 }
+
+func TestStatsFastPathThenPartialTail(t *testing.T) {
+	// Regression test: three buffers (all frequency 10) where the query fast-paths
+	// earlier fully-covered buffers, then only PARTIALLY covers the last buffer.
+	// b1: positions 0,1,2 = 1,2,3 at t=95,105,115 (end=125, fully in [100,190))
+	// b2: positions 0,1,2 = 4,5,6 at t=125,135,145 (end=155, fully in [100,190))
+	// b3: positions 0,1,2 = 7,8,9 at t=155,165,175 (end=185, only 155,165 in [100,170))
+	// Query [100, 170) includes: 105, 115, 125, 135, 145, 155, 165 (7 points from b1,b2,b3).
+	// Note: 175 is not included since 175 >= 170.
+	// Expected: Samples=7, Sum=28, Min=1, Max=7, Avg=4.0.
+	// Buffers built bare: statsValid is false (zero value) -> stats() must recompute.
+
+	b1 := &buffer{data: make([]schema.Float, 0, 3), frequency: 10, start: 95}
+	b1.data = append(b1.data, 1.0, 2.0, 3.0)
+
+	b2 := &buffer{data: make([]schema.Float, 0, 3), frequency: 10, start: 125}
+	b2.data = append(b2.data, 4.0, 5.0, 6.0)
+
+	b3 := &buffer{data: make([]schema.Float, 0, 3), frequency: 10, start: 155}
+	b3.data = append(b3.data, 7.0, 8.0, 9.0)
+
+	b1.next = b2
+	b2.prev = b1
+	b2.next = b3
+	b3.prev = b2
+
+	s, _, _, err := b3.stats(100, 170)
+	if err != nil {
+		t.Fatalf("stats() error = %v", err)
+	}
+	if s.Samples != 7 {
+		t.Errorf("Samples = %d, want 7", s.Samples)
+	}
+	if s.Min != 1.0 || s.Max != 7.0 {
+		t.Errorf("Min/Max = %v/%v, want 1.0/7.0", s.Min, s.Max)
+	}
+	if s.Avg != 4.0 {
+		t.Errorf("Avg = %v, want 4.0", s.Avg)
+	}
+}
