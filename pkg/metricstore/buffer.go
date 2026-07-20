@@ -207,6 +207,23 @@ func newBuffer(ts, freq int64) *buffer {
 	return b
 }
 
+// updateStats folds a single value into the buffer's running statistics.
+// NaN values are ignored so they never affect min/max/sum/samples.
+func (b *buffer) updateStats(value schema.Float) {
+	xf := float64(value)
+	if math.IsNaN(xf) {
+		return
+	}
+	b.statSum += xf
+	b.statSamples++
+	if xf < b.statMin {
+		b.statMin = xf
+	}
+	if xf > b.statMax {
+		b.statMax = xf
+	}
+}
+
 // write appends a timestamped value to the buffer chain.
 //
 // Returns the head buffer (which may be newly created if capacity was reached).
@@ -241,6 +258,9 @@ func (b *buffer) write(ts int64, value schema.Float) (*buffer, error) {
 	// Overwriting value or writing value from past
 	if idx < len(b.data) {
 		b.data[idx] = value
+		// The replaced value may have been the running min/max; the cached
+		// aggregate can no longer be trusted. Force a recompute on next query.
+		b.statsValid = false
 		return b, nil
 	}
 
@@ -250,6 +270,7 @@ func (b *buffer) write(ts int64, value schema.Float) (*buffer, error) {
 	}
 
 	b.data = append(b.data, value)
+	b.updateStats(value)
 	return b, nil
 }
 
