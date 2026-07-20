@@ -7,6 +7,7 @@ package metricstore
 
 import (
 	"errors"
+	"fmt"
 	"math"
 
 	"github.com/ClusterCockpit/cc-lib/v2/schema"
@@ -142,9 +143,11 @@ func (m *MemoryStore) Stats(selector util.Selector, metric string, from, to int6
 		if n == 0 {
 			from, to = cfrom, cto
 		} else if from != cfrom {
-			return ErrDataDoesNotAlignMissingFront
+			return fmt.Errorf("%w: metric=%s buf#%d want[%d,%d] got[%d,%d]",
+				ErrDataDoesNotAlignMissingFront, metric, n, from, to, cfrom, cto)
 		} else if to != cto {
-			return ErrDataDoesNotAlignMissingBack
+			return fmt.Errorf("%w: metric=%s buf#%d want[%d,%d] got[%d,%d]",
+				ErrDataDoesNotAlignMissingBack, metric, n, from, to, cfrom, cto)
 		}
 
 		samples += stats.Samples

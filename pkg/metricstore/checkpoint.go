@@ -298,13 +298,12 @@ func (l *Level) toCheckpointFile(from, to int64, m *MemoryStore) (*CheckpointFil
 		}
 
 		data := make([]schema.Float, (to-from)/b.frequency+1)
-		data, start, end, err := b.read(from, to, data)
+
+		// trim=true: read() returns only the real data extent, sliced so that
+		// Data[0] aligns with Start (the checkpoint reload contract).
+		data, start, _, err := b.read(from, to, data, true)
 		if err != nil {
 			return nil, err
-		}
-
-		for i := int((end - start) / b.frequency); i < len(data); i++ {
-			data[i] = schema.NaN
 		}
 
 		retval.Metrics[metric] = &CheckpointMetrics{

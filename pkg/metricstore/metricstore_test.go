@@ -141,23 +141,35 @@ func TestBufferWriteOverwrite(t *testing.T) {
 
 // ─── Buffer read ──────────────────────────────────────────────────────────────
 
-// TestBufferReadBeforeFirstWrite verifies that 'from' is clamped to firstWrite
-// when the requested range starts before any data in the chain.
+// TestBufferReadBeforeFirstWrite verifies that a range starting before any data
+// in the chain returns the full requested window with the leading, unwritten
+// points NaN-filled, and reports the real data extent (dataFrom) via the second
+// return value (rather than clamping 'from' forward and truncating).
 func TestBufferReadBeforeFirstWrite(t *testing.T) {
 	b := newBuffer(100, 10) // firstWrite = 100
 	b.write(100, schema.Float(1.0))
 	b.write(110, schema.Float(2.0))
 
 	data := make([]schema.Float, 10)
-	result, adjustedFrom, _, err := b.read(50, 120, data)
+	result, dataFrom, dataTo, err := b.read(50, 120, data, false)
 	if err != nil {
 		t.Fatalf("read() error = %v", err)
 	}
-	if adjustedFrom != 100 {
-		t.Errorf("adjustedFrom = %d, want 100 (clamped to firstWrite)", adjustedFrom)
+	// Real data extent, not the requested window: first sample at 100, last at 110.
+	if dataFrom != 100 || dataTo != 120 {
+		t.Errorf("dataFrom/dataTo = %d/%d, want 100/120", dataFrom, dataTo)
 	}
-	if len(result) != 2 {
-		t.Errorf("len(result) = %d, want 2", len(result))
+	// Full window [50,120) step 10 = 7 points; first 5 predate firstWrite=100 -> NaN.
+	if len(result) != 7 {
+		t.Fatalf("len(result) = %d, want 7", len(result))
+	}
+	for i := 0; i < 5; i++ {
+		if !result[i].IsNaN() {
+			t.Errorf("result[%d] = %v, want NaN", i, result[i])
+		}
+	}
+	if result[5] != 1.0 || result[6] != 2.0 {
+		t.Errorf("result[5:7] = %v, want [1 2]", result[5:7])
 	}
 }
 
@@ -177,7 +189,7 @@ func TestBufferReadChain(t *testing.T) {
 	b1.next = b2
 
 	data := make([]schema.Float, 6)
-	result, from, to, err := b2.read(100, 160, data)
+	result, from, to, err := b2.read(100, 160, data, false)
 	if err != nil {
 		t.Fatalf("read() error = %v", err)
 	}
@@ -219,7 +231,7 @@ func TestBufferReadIdxAfterSwitch(t *testing.T) {
 	// from=0 triggers the walkback to b1 (from < b2.firstWrite=5).
 	// After clamping, the loop runs t=5,15,25,35.
 	data := make([]schema.Float, 4)
-	result, _, _, err := b2.read(0, 36, data)
+	result, _, _, err := b2.read(0, 36, data, false)
 	if err != nil {
 		t.Fatalf("read() error = %v", err)
 	}
@@ -247,7 +259,7 @@ func TestBufferReadNaNValues(t *testing.T) {
 	b.write(120, schema.Float(3.0))
 
 	data := make([]schema.Float, 3)
-	result, _, _, err := b.read(100, 130, data)
+	result, _, _, err := b.read(100, 130, data, false)
 	if err != nil {
 		t.Fatalf("read() error = %v", err)
 	}
@@ -274,7 +286,7 @@ func TestBufferReadAccumulation(t *testing.T) {
 
 	// Pre-populate data slice (simulates a second metric being summed in).
 	data := []schema.Float{2.0, 1.0, 0.0}
-	result, _, _, err := b.read(100, 120, data)
+	result, _, _, err := b.read(100, 120, data, false)
 	if err != nil {
 		t.Fatalf("read() error = %v", err)
 	}
@@ -577,7 +589,7 @@ func TestBufferRead(t *testing.T) {
 
 	// Read data
 	data := make([]schema.Float, 3)
-	result, from, to, err := b.read(100, 130, data)
+	result, from, to, err := b.read(100, 130, data, false)
 	if err != nil {
 		t.Errorf("buffer.read() error = %v", err)
 	}

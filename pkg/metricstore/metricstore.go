@@ -708,32 +708,36 @@ func (m *MemoryStore) Read(selector util.Selector, metric string, from, to, reso
 		return nil, 0, 0, 0, errors.New("[METRICSTORE]> unknown metric: " + metric)
 	}
 
+	// data spans the full requested window; every scope's read() writes into the
+	// same index-aligned slice (NaN where it has no value), so aggregation never
+	// needs trimming. dataFrom/dataTo track the real (non-NaN) extent of the first
+	// scope seen; later scopes that report a different extent are misaligned. We
+	// no longer abort on misalignment — the full NaN-padded window is still
+	// returned for display — but we log it so the condition stays visible.
 	n, data := 0, make([]schema.Float, (to-from)/minfo.Frequency+1)
+	var dataFrom, dataTo int64
 
 	err := m.root.findBuffers(selector, minfo.offset, func(b *buffer) error {
-		cdata, cfrom, cto, err := b.read(from, to, data)
+		cdata, cfrom, cto, err := b.read(from, to, data, false)
 		if err != nil {
 			return err
 		}
 
 		if n == 0 {
-			from, to = cfrom, cto
-		} else if from != cfrom || to != cto || len(data) != len(cdata) {
-			missingfront, missingback := int((from-cfrom)/minfo.Frequency), int((to-cto)/minfo.Frequency)
-			if missingfront != 0 {
-				return ErrDataDoesNotAlignMissingFront
+			dataFrom, dataTo = cfrom, cto
+		} else if cfrom != dataFrom || cto != dataTo {
+			missingfront, missingback := int((dataFrom-cfrom)/minfo.Frequency), int((dataTo-cto)/minfo.Frequency)
+			switch {
+			case missingfront != 0:
+				cclog.Warnf("%s", fmt.Errorf("%w: metric=%s buf#%d freq=%d ref[%d,%d] this[%d,%d] missingfront=%d pts",
+					ErrDataDoesNotAlignMissingFront, metric, n, minfo.Frequency, dataFrom, dataTo, cfrom, cto, missingfront))
+			case missingback != 0:
+				cclog.Warnf("%s", fmt.Errorf("%w: metric=%s buf#%d freq=%d ref[%d,%d] this[%d,%d] missingback=%d pts",
+					ErrDataDoesNotAlignMissingBack, metric, n, minfo.Frequency, dataFrom, dataTo, cfrom, cto, missingback))
+			default:
+				cclog.Warnf("%s", fmt.Errorf("%w: metric=%s buf#%d ref[%d,%d] this[%d,%d]",
+					ErrDataDoesNotAlignDataLenMismatch, metric, n, dataFrom, dataTo, cfrom, cto))
 			}
-
-			newlen := len(cdata) - missingback
-			if newlen < 1 {
-				return ErrDataDoesNotAlignMissingBack
-			}
-			cdata = cdata[0:newlen]
-			if len(cdata) != len(data) {
-				return ErrDataDoesNotAlignDataLenMismatch
-			}
-
-			from, to = cfrom, cto
 		}
 
 		data = cdata

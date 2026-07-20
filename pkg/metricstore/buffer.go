@@ -303,43 +303,134 @@ func (b *buffer) firstWrite() int64 {
 //   - error:          Non-nil on failure
 //
 // Panics if 'data' slice is too small to hold all values in [from, to).
-func (b *buffer) read(from, to int64, data []schema.Float) ([]schema.Float, int64, int64, error) {
-	// Walk back to the buffer that covers 'from', adjusting if we hit the oldest.
-	for from < b.firstWrite() {
-		if b.prev == nil {
-			from = b.firstWrite()
-			break
-		}
+// func (b *buffer) read(from, to int64, data []schema.Float) ([]schema.Float, int64, int64, error) {
+// 	// Walk back to the buffer that covers 'from', adjusting if we hit the oldest.
+// 	for from < b.firstWrite() {
+// 		if b.prev == nil {
+// 			from = b.firstWrite()
+// 			break
+// 		}
+// 		b = b.prev
+// 	}
+
+// 	i := 0
+// 	t := from
+// 	for ; t < to; t += b.frequency {
+// 		idx := int((t - b.start) / b.frequency)
+// 		if idx >= cap(b.data) {
+// 			if b.next == nil {
+// 				break
+// 			}
+// 			b = b.next
+// 			// Recalculate idx in the new buffer; a gap between buffers may exist.
+// 			idx = int((t - b.start) / b.frequency)
+// 		}
+
+// 		if idx >= len(b.data) {
+// 			if b.next == nil || to <= b.next.start {
+// 				break
+// 			}
+// 			data[i] += schema.NaN // NaN + anything = NaN; propagates missing data
+// 		} else if t < b.start {
+// 			data[i] += schema.NaN // gap before this buffer's first write
+// 		} else {
+// 			data[i] += b.data[idx]
+// 		}
+// 		i++
+// 	}
+
+// 	return data[:i], from, t, nil
+// }
+
+// read retrieves time-series data from the buffer chain for the specified time range.
+//
+// Traverses the buffer chain backwards (via prev links) if 'from' precedes the current
+// buffer's start. Missing data points are represented as NaN. Values are accumulated
+// into the provided 'data' slice (using +=, so caller must zero-initialize if needed).
+//
+// Points with no stored data (before the oldest write, in inter-buffer gaps, or
+// past the newest write) are NaN-filled while scanning. Whether those NaN pads
+// are kept is controlled by 'trim':
+//
+//   - trim == false: the returned slice always spans the full requested window
+//     [from, to), NaN where missing. Use this when several scopes accumulate
+//     into one index-aligned slice (aggregation) or when the caller wants the
+//     whole window for display.
+//   - trim == true: the returned slice is cut down to the real data extent
+//     [dataFrom, dataTo), i.e. leading and trailing NaN pads are dropped so that
+//     result[0] aligns with dataFrom. Use this when persisting only real data
+//     (checkpointing).
+//
+// The second and third return values report the actual extent of real (non-NaN)
+// data found within the window: dataFrom is the timestamp of the first stored
+// sample and dataTo is one frequency past the last. When the buffer fully covers
+// the request these equal from/to; when a scope holds less data they shrink,
+// which is how callers detect misalignment across aggregated scopes. If no real
+// data exists in the window both equal 'from' (and a trimmed read returns an
+// empty slice).
+//
+// Parameters:
+//   - from: Start timestamp (Unix seconds)
+//   - to:   End timestamp (Unix seconds, exclusive)
+//   - data: Pre-allocated slice to accumulate results (must be large enough)
+//   - trim: If true, cut the result to the real data extent; if false, keep the
+//     full NaN-padded [from, to) window.
+//
+// Returns:
+//   - []schema.Float: Full [from, to) window, or the [dataFrom, dataTo) slice if trim
+//   - int64:          dataFrom — timestamp of the first real sample in the window
+//   - int64:          dataTo   — one frequency past the last real sample
+//   - error:          Non-nil on failure
+//
+// Panics if 'data' slice is too small to hold all values in [from, to).
+func (b *buffer) read(from, to int64, data []schema.Float, trim bool) ([]schema.Float, int64, int64, error) {
+	// Walk back toward the buffer that covers 'from'. Do NOT clamp 'from'
+	// forward when it predates the oldest write; those leading points are
+	// NaN-filled below so the full requested window is always available.
+	for from < b.firstWrite() && b.prev != nil {
 		b = b.prev
 	}
 
+	freq := b.frequency // constant across the chain for this metric level
 	i := 0
 	t := from
+	dataFrom, dataTo := from, from // real (non-NaN) data extent within [from, to)
+	haveData := false
 	for ; t < to; t += b.frequency {
 		idx := int((t - b.start) / b.frequency)
 		if idx >= cap(b.data) {
 			if b.next == nil {
-				break
+				data[i] += schema.NaN // past the newest buffer; rest is missing
+				i++
+				continue
 			}
 			b = b.next
 			// Recalculate idx in the new buffer; a gap between buffers may exist.
 			idx = int((t - b.start) / b.frequency)
 		}
 
-		if idx >= len(b.data) {
-			if b.next == nil || to <= b.next.start {
-				break
-			}
+		if idx >= len(b.data) || t < b.start {
+			// Not yet written, or in the gap before this buffer's first write.
 			data[i] += schema.NaN // NaN + anything = NaN; propagates missing data
-		} else if t < b.start {
-			data[i] += schema.NaN // gap before this buffer's first write
 		} else {
 			data[i] += b.data[idx]
+			if !haveData {
+				dataFrom = t
+				haveData = true
+			}
+			dataTo = t + b.frequency
 		}
 		i++
 	}
 
-	return data[:i], from, t, nil
+	if trim {
+		// Drop leading/trailing NaN pads so result[0] aligns with dataFrom.
+		front := int((dataFrom - from) / freq)
+		back := int((dataTo - from) / freq)
+		return data[front:back], dataFrom, dataTo, nil
+	}
+
+	return data[:i], dataFrom, dataTo, nil
 }
 
 // free removes buffers older than the specified timestamp from the chain.
