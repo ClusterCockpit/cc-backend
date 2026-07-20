@@ -183,12 +183,12 @@ func Init(mainConfig json.RawMessage) {
 func targetPointsForPolicy(policy string) int {
 	switch policy {
 	case "low":
-		return 200
+		return 300
 	case "medium":
-		return 500
+		return 600
 	case "high":
 		return 1000
 	default:
-		return 500
+		return 600
 	}
 }
