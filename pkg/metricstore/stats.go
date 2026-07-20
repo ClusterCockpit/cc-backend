@@ -55,9 +55,6 @@ func (b *buffer) stats(from, to int64) (Stats, int64, int64, error) {
 		from = b.start
 	}
 
-	// TODO: Check if b.closed and if so and the full buffer is queried,
-	// use b.statistics instead of iterating over the buffer.
-
 	samples := 0
 	sum, min, max := 0.0, math.MaxFloat32, -math.MaxFloat32
 
@@ -72,6 +69,31 @@ func (b *buffer) stats(from, to int64) (Stats, int64, int64, error) {
 			idx = int((t - b.start) / b.frequency)
 		}
 
+		// Fast path: standing at this buffer's first data point (idx 0) with the
+		// whole buffer inside [from, to). Fold in the cached aggregate and jump
+		// past the buffer's real data instead of scanning each point. Any slots
+		// between len(data) and cap are handled as gaps by the normal loop after
+		// t advances, so the returned `to` matches the scan semantics.
+		if idx <= 0 && t <= b.firstWrite() && b.end() <= to {
+			if !b.statsValid {
+				b.recomputeStats()
+			}
+			if b.statSamples > 0 {
+				sum += b.statSum
+				samples += b.statSamples
+				if b.statMin < min {
+					min = b.statMin
+				}
+				if b.statMax > max {
+					max = b.statMax
+				}
+			}
+			// Position t at the buffer's last real data point; the loop's
+			// t += frequency then advances into the trailing gap / next buffer.
+			t = b.end() - b.frequency
+			continue
+		}
+
 		if t < b.start || idx >= len(b.data) {
 			continue
 		}
@@ -81,10 +103,14 @@ func (b *buffer) stats(from, to int64) (Stats, int64, int64, error) {
 			continue
 		}
 
-		samples += 1
+		samples++
 		sum += xf
-		min = math.Min(min, xf)
-		max = math.Max(max, xf)
+		if xf < min {
+			min = xf
+		}
+		if xf > max {
+			max = xf
+		}
 	}
 
 	return Stats{

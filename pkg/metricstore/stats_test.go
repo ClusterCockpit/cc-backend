@@ -120,3 +120,93 @@ func TestRecomputeStatsEmptyBuffer(t *testing.T) {
 		t.Errorf("empty buffer min/max = %v/%v, want sentinels", b.statMin, b.statMax)
 	}
 }
+
+func TestStatsFullBufferMatchesScan(t *testing.T) {
+	b := newBuffer(100, 10)
+	b.write(100, schema.Float(3.0))
+	b.write(110, schema.Float(1.0))
+	b.write(120, schema.Float(5.0))
+	// Range fully covers the buffer (from before firstWrite, to at/after end).
+	s, _, _, err := b.stats(100, 130)
+	if err != nil {
+		t.Fatalf("stats() error = %v", err)
+	}
+	if s.Samples != 3 {
+		t.Errorf("Samples = %d, want 3", s.Samples)
+	}
+	if s.Min != 1.0 || s.Max != 5.0 {
+		t.Errorf("Min/Max = %v/%v, want 1.0/5.0", s.Min, s.Max)
+	}
+	if s.Avg != 3.0 {
+		t.Errorf("Avg = %v, want 3.0", s.Avg)
+	}
+}
+
+func TestStatsPartialRangeScans(t *testing.T) {
+	b := newBuffer(100, 10)
+	b.write(100, schema.Float(3.0)) // t=100
+	b.write(110, schema.Float(1.0)) // t=110
+	b.write(120, schema.Float(5.0)) // t=120
+	// Partial range: only t=110 and t=120 (from excludes t=100).
+	s, _, _, err := b.stats(110, 130)
+	if err != nil {
+		t.Fatalf("stats() error = %v", err)
+	}
+	if s.Samples != 2 {
+		t.Errorf("Samples = %d, want 2", s.Samples)
+	}
+	if s.Min != 1.0 || s.Max != 5.0 {
+		t.Errorf("Min/Max = %v/%v, want 1.0/5.0", s.Min, s.Max)
+	}
+}
+
+func TestStatsOverwriteThenFullQuery(t *testing.T) {
+	b := newBuffer(100, 10)
+	b.write(100, schema.Float(1.0))
+	b.write(110, schema.Float(2.0))
+	b.write(120, schema.Float(3.0))
+	b.write(100, schema.Float(99.0)) // overwrite the running min -> statsValid false
+
+	s, _, _, err := b.stats(100, 130)
+	if err != nil {
+		t.Fatalf("stats() error = %v", err)
+	}
+	if s.Min != 2.0 {
+		t.Errorf("Min = %v, want 2.0 (recomputed after overwrite)", s.Min)
+	}
+	if s.Max != 99.0 {
+		t.Errorf("Max = %v, want 99.0", s.Max)
+	}
+	if s.Samples != 3 {
+		t.Errorf("Samples = %d, want 3", s.Samples)
+	}
+	if !b.statsValid {
+		t.Error("statsValid should be true after the recompute triggered by the query")
+	}
+}
+
+func TestStatsMultiBufferChain(t *testing.T) {
+	// Two full buffers of cap=3 (interior buffers are always full).
+	// b1: t=100,110,120 = 1,2,3 ; b2: t=130,140,150 = 4,5,6.
+	b1 := &buffer{data: make([]schema.Float, 0, 3), frequency: 10, start: 95}
+	b1.data = append(b1.data, 1.0, 2.0, 3.0)
+	b2 := &buffer{data: make([]schema.Float, 0, 3), frequency: 10, start: 125}
+	b2.data = append(b2.data, 4.0, 5.0, 6.0)
+	b2.prev = b1
+	b1.next = b2
+	// b1/b2 built bare: statsValid is false (zero value) -> stats() must recompute.
+
+	s, _, _, err := b2.stats(100, 160)
+	if err != nil {
+		t.Fatalf("stats() error = %v", err)
+	}
+	if s.Samples != 6 {
+		t.Errorf("Samples = %d, want 6", s.Samples)
+	}
+	if s.Min != 1.0 || s.Max != 6.0 {
+		t.Errorf("Min/Max = %v/%v, want 1.0/6.0", s.Min, s.Max)
+	}
+	if s.Avg != 3.5 {
+		t.Errorf("Avg = %v, want 3.5", s.Avg)
+	}
+}
