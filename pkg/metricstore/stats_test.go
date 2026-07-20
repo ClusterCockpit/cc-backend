@@ -214,12 +214,12 @@ func TestStatsMultiBufferChain(t *testing.T) {
 func TestStatsFastPathThenPartialTail(t *testing.T) {
 	// Regression test: three buffers (all frequency 10) where the query fast-paths
 	// earlier fully-covered buffers, then only PARTIALLY covers the last buffer.
-	// b1: positions 0,1,2 = 1,2,3 at t=95,105,115 (end=125, fully in [100,190))
-	// b2: positions 0,1,2 = 4,5,6 at t=125,135,145 (end=155, fully in [100,190))
-	// b3: positions 0,1,2 = 7,8,9 at t=155,165,175 (end=185, only 155,165 in [100,170))
-	// Query [100, 170) includes: 105, 115, 125, 135, 145, 155, 165 (7 points from b1,b2,b3).
-	// Note: 175 is not included since 175 >= 170.
-	// Expected: Samples=7, Sum=28, Min=1, Max=7, Avg=4.0.
+	// firstWrite = start + frequency/2, so with start=95 the first value is at t=100.
+	// b1: 1,2,3 at t=100,110,120 (end=130, fully in [100,170) -> fast path folds all 3)
+	// b2: 4,5,6 at t=130,140,150 (end=160, fully in [100,170) -> fast path folds all 3)
+	// b3: 7,8,9 at t=160,170,180 (end=190; not fully covered -> scans; only t=160 < 170)
+	// Query [100, 170) includes t=100,110,120,130,140,150,160 = values 1..7 (7 points).
+	// t=170 is excluded since 170 >= to. Expected: Samples=7, Sum=28, Min=1, Max=7, Avg=4.0.
 	// Buffers built bare: statsValid is false (zero value) -> stats() must recompute.
 
 	b1 := &buffer{data: make([]schema.Float, 0, 3), frequency: 10, start: 95}
