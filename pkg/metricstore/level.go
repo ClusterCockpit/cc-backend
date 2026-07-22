@@ -130,45 +130,6 @@ func (l *Level) findLevelOrCreate(selector []string, nMetrics int) *Level {
 	return child.findLevelOrCreate(selector[1:], nMetrics)
 }
 
-// collectPaths gathers all selector paths at the specified depth in the tree.
-//
-// Recursively traverses children, collecting paths when currentDepth+1 == targetDepth.
-// Each path is a selector that can be used with findLevel() or findBuffers().
-//
-// Explicitly copies slices to avoid shared underlying arrays between siblings, preventing
-// unintended mutations.
-//
-// Parameters:
-//   - currentDepth: Depth of current level (0 = root)
-//   - targetDepth:  Depth to collect paths from
-//   - currentPath:  Path accumulated so far
-//   - results:      Output slice (appended to)
-//
-// Example: collectPaths(0, 2, []string{}, &results) collects all 2-level paths
-// like []string{"emmy", "node001"}, []string{"emmy", "node002"}, etc.
-func (l *Level) collectPaths(currentDepth, targetDepth int, currentPath []string, results *[][]string) {
-	l.lock.RLock()
-	defer l.lock.RUnlock()
-
-	for key, child := range l.children {
-		if child == nil {
-			continue
-		}
-
-		// We explicitly make a new slice and copy data to avoid sharing underlying arrays between siblings
-		newPath := make([]string, len(currentPath))
-		copy(newPath, currentPath)
-		newPath = append(newPath, key)
-
-		// Check depth, and just return if depth reached
-		if currentDepth+1 == targetDepth {
-			*results = append(*results, newPath)
-		} else {
-			child.collectPaths(currentDepth+1, targetDepth, newPath, results)
-		}
-	}
-}
-
 // free removes buffers older than the retention threshold from the entire subtree.
 //
 // Recursively frees buffers in this level's metrics and all child levels. Buffers
@@ -243,15 +204,17 @@ func (l *Level) freeAndCheckEmpty(t int64) (int, bool, error) {
 // retention path when a NodeProvider reports nodes in use by running jobs:
 // used nodes are never freed, so never empty, so never pruned. Holding the root
 // write lock for the full pass matches the existing root free (ms.Free(nil, t)).
+//
+// Holding the root lock for the entire traversal is intentional: it serializes
+// this pass against findLevelOrCreate (which RLocks root first), preventing a
+// writer from grabbing a node pointer that this pass then deletes as empty,
+// which would silently lose data. Do not "optimize" this to per-cluster locking.
 func (l *Level) freeExcludingUsed(t int64, used map[string][]string) (int, error) {
 	l.lock.Lock()
 	defer l.lock.Unlock()
 
 	total := 0
 	for cluster, clusterLvl := range l.children {
-		if clusterLvl == nil {
-			continue
-		}
 		n, empty, err := clusterLvl.freeNodesExcludingUsed(t, used[cluster])
 		total += n
 		if err != nil {
@@ -274,9 +237,6 @@ func (l *Level) freeNodesExcludingUsed(t int64, usedHosts []string) (int, bool, 
 
 	n := 0
 	for node, nodeLvl := range l.children {
-		if nodeLvl == nil {
-			continue
-		}
 		if _, found := slices.BinarySearch(usedHosts, node); found {
 			continue // used node: preserve entirely
 		}

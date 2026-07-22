@@ -555,17 +555,6 @@ func isNodeUsed(used map[string][]string, cluster, host string) bool {
 	return found
 }
 
-// GetPaths returns a list of lists (paths) to the specified depth.
-func (ms *MemoryStore) GetPaths(targetDepth int) [][]string {
-	var results [][]string
-
-	// Start recursion. Initial path is empty.
-	// We treat Root as depth 0.
-	ms.root.collectPaths(0, targetDepth, []string{}, &results)
-
-	return results
-}
-
 // Write all values in `metrics` to the level specified by `selector` for time `ts`.
 // Look at `findLevelOrCreate` for how selectors work.
 func (m *MemoryStore) Write(selector []string, ts int64, metrics []Metric) error {
