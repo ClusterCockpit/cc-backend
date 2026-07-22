@@ -535,86 +535,11 @@ func Free(ms *MemoryStore, t time.Time) (int, error) {
 	case 0:
 		return ms.Free(nil, t.Unix())
 
-	// Else formulate selectors, exclude those from the map
-	// and free the rest of the selectors
+	// Else free every cluster/node except the used ones, pruning node Levels
+	// that become empty in the same locked traversal.
 	default:
-		selectors := GetSelectors(ms, excludeSelectors)
-		return FreeSelected(ms, selectors, t)
+		return ms.root.freeExcludingUsed(t.Unix(), excludeSelectors)
 	}
-}
-
-// FreeSelected frees buffers for specific selectors while preserving others.
-//
-// This function is used when we want to retain some specific nodes beyond the retention time.
-// It iterates through the provided selectors and frees their associated buffers.
-//
-// Parameters:
-//   - ms: The MemoryStore instance
-//   - selectors: List of selector paths to free (e.g., [["cluster1", "node1"], ["cluster2", "node2"]])
-//   - t: Time threshold for freeing buffers
-//
-// Returns the total number of buffers freed and any error encountered.
-func FreeSelected(ms *MemoryStore, selectors [][]string, t time.Time) (int, error) {
-	freed := 0
-
-	for _, selector := range selectors {
-
-		freedBuffers, err := ms.Free(selector, t.Unix())
-		if err != nil {
-			cclog.Errorf("error while freeing selected buffers: %#v", err)
-		}
-		freed += freedBuffers
-
-	}
-
-	return freed, nil
-}
-
-// GetSelectors returns all selectors at depth 2 (cluster/node level) that are NOT in the exclusion map.
-//
-// This function generates a list of selectors whose buffers should be freed by excluding
-// selectors that correspond to nodes currently in use by running jobs.
-//
-// Parameters:
-//   - ms: The MemoryStore instance
-//   - excludeSelectors: Map of cluster names to node hostnames that should NOT be freed
-//
-// Returns a list of selectors ([]string paths) that can be safely freed.
-//
-// Example:
-//
-//	If the tree has paths ["emmy", "node001"] and ["emmy", "node002"],
-//	and excludeSelectors contains {"emmy": ["node001"]},
-//	then only [["emmy", "node002"]] is returned.
-func GetSelectors(ms *MemoryStore, excludeSelectors map[string][]string) [][]string {
-	allSelectors := ms.GetPaths(2)
-
-	filteredSelectors := make([][]string, 0, len(allSelectors))
-
-	for _, path := range allSelectors {
-		if len(path) < 2 {
-			continue
-		}
-
-		key := path[0]   // The "Key" (Level 1)
-		value := path[1] // The "Value" (Level 2)
-
-		exclude := false
-
-		// Check if the key exists in our exclusion map
-		if excludedValues, exists := excludeSelectors[key]; exists {
-			// The key exists, now check if the specific value is in the exclusion list
-			if slices.Contains(excludedValues, value) {
-				exclude = true
-			}
-		}
-
-		if !exclude {
-			filteredSelectors = append(filteredSelectors, path)
-		}
-	}
-
-	return filteredSelectors
 }
 
 // isNodeUsed reports whether cluster/host appears in the used-nodes map

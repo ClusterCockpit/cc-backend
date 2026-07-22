@@ -7,7 +7,9 @@ package metricstore
 
 import (
 	"slices"
+	"sync"
 	"testing"
+	"time"
 
 	"github.com/ClusterCockpit/cc-lib/v2/schema"
 )
@@ -95,4 +97,60 @@ func TestFreeExcludingUsedPrunesSubLevelNode(t *testing.T) {
 	if hasNode(ms, "fritz", "deep") {
 		t.Error("node must be pruned once all descendant buffers are freed")
 	}
+}
+
+func TestFreeViaProviderPrunesDeadNodes(t *testing.T) {
+	ms := newTestStore()
+	const freq int64 = 60
+	thr := time.Unix(100000, 0)
+
+	writeNode(ms, "fritz", "dead", nil, freq, 1000, 2000)  // stale, not used -> pruned
+	writeNode(ms, "fritz", "busy", nil, freq, 1000, 2000)  // stale, but used -> kept
+	writeNode(ms, "fritz", "live", nil, freq, 100000, 100600) // fresh -> kept
+
+	ms.SetNodeProvider(&fakeNodeProvider{nodes: map[string][]string{"fritz": {"busy"}}})
+
+	if _, err := Free(ms, thr); err != nil {
+		t.Fatalf("Free: %v", err)
+	}
+	if hasNode(ms, "fritz", "dead") {
+		t.Error("stale non-used node must be pruned")
+	}
+	if !hasNode(ms, "fritz", "busy") {
+		t.Error("used node must survive")
+	}
+	if !hasNode(ms, "fritz", "live") {
+		t.Error("fresh node must survive")
+	}
+}
+
+func TestFreeExcludingUsedConcurrentReadNoRace(t *testing.T) {
+	ms := newTestStore()
+	const freq, thr = int64(60), int64(100000)
+	for _, n := range []string{"a", "b", "c", "d"} {
+		writeNode(ms, "fritz", n, nil, freq, 1000, 2000)
+	}
+
+	var wg sync.WaitGroup
+	stop := make(chan struct{})
+	for i := 0; i < 4; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			for {
+				select {
+				case <-stop:
+					return
+				default:
+					_ = ms.ListChildren([]string{"fritz"})
+				}
+			}
+		}()
+	}
+
+	if _, err := ms.root.freeExcludingUsed(thr, nil); err != nil {
+		t.Fatalf("freeExcludingUsed: %v", err)
+	}
+	close(stop)
+	wg.Wait()
 }
