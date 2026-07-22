@@ -41,6 +41,7 @@
 package metricstore
 
 import (
+	"slices"
 	"sync"
 	"time"
 	"unsafe"
@@ -230,6 +231,76 @@ func (l *Level) freeAndCheckEmpty(t int64) (int, bool, error) {
 		}
 	}
 
+	return n, empty, nil
+}
+
+// freeExcludingUsed frees buffers older than t across the whole tree except for
+// nodes listed in used (cluster name -> sorted hostnames), and deletes node
+// Levels that become empty. The receiver must be the root level. Returns the
+// total number of buffers freed.
+//
+// This is the exclusion-aware counterpart of freeAndCheckEmpty used by the
+// retention path when a NodeProvider reports nodes in use by running jobs:
+// used nodes are never freed, so never empty, so never pruned. Holding the root
+// write lock for the full pass matches the existing root free (ms.Free(nil, t)).
+func (l *Level) freeExcludingUsed(t int64, used map[string][]string) (int, error) {
+	l.lock.Lock()
+	defer l.lock.Unlock()
+
+	total := 0
+	for cluster, clusterLvl := range l.children {
+		if clusterLvl == nil {
+			continue
+		}
+		n, empty, err := clusterLvl.freeNodesExcludingUsed(t, used[cluster])
+		total += n
+		if err != nil {
+			return total, err
+		}
+		if empty {
+			delete(l.children, cluster)
+		}
+	}
+	return total, nil
+}
+
+// freeNodesExcludingUsed operates on a cluster level. For each node child whose
+// name is not in usedHosts (sorted, per NodeProvider contract), it frees buffers
+// older than t and deletes the node when it becomes empty. Returns the number of
+// buffers freed and whether the cluster level itself is now empty.
+func (l *Level) freeNodesExcludingUsed(t int64, usedHosts []string) (int, bool, error) {
+	l.lock.Lock()
+	defer l.lock.Unlock()
+
+	n := 0
+	for node, nodeLvl := range l.children {
+		if nodeLvl == nil {
+			continue
+		}
+		if _, found := slices.BinarySearch(usedHosts, node); found {
+			continue // used node: preserve entirely
+		}
+		m, empty, err := nodeLvl.freeAndCheckEmpty(t)
+		n += m
+		if err != nil {
+			return n, false, err
+		}
+		if empty {
+			delete(l.children, node)
+		}
+	}
+
+	// Cluster is empty only if it has no children and no buffers of its own
+	// (inner levels may hold aggregated metrics).
+	empty := len(l.children) == 0
+	if empty {
+		for _, b := range l.metrics {
+			if b != nil {
+				empty = false
+				break
+			}
+		}
+	}
 	return n, empty, nil
 }
 
