@@ -28,6 +28,7 @@ import (
 	"runtime"
 	"runtime/debug"
 	"slices"
+	"strings"
 	"sync"
 	"time"
 
@@ -631,7 +632,7 @@ func (m *MemoryStore) Read(selector util.Selector, metric string, from, to, reso
 	n, data := 0, make([]schema.Float, (to-from)/minfo.Frequency+1)
 	var dataFrom, dataTo int64
 
-	err := m.root.findBuffers(selector, minfo.offset, func(b *buffer) error {
+	err := m.root.findBuffers(selector, minfo.offset, func(b *buffer, path []string) error {
 		cdata, cfrom, cto, err := b.read(from, to, data, false)
 		if err != nil {
 			return err
@@ -640,24 +641,27 @@ func (m *MemoryStore) Read(selector util.Selector, metric string, from, to, reso
 		if n == 0 {
 			dataFrom, dataTo = cfrom, cto
 		} else if cfrom != dataFrom || cto != dataTo {
+			node := strings.Join(path, "/")
 			missingfront, missingback := int((dataFrom-cfrom)/minfo.Frequency), int((dataTo-cto)/minfo.Frequency)
 			switch {
 			case missingfront != 0:
-				cclog.Warnf("%s", fmt.Errorf("%w: metric=%s buf#%d freq=%d ref[%d,%d] this[%d,%d] missingfront=%d pts",
-					ErrDataDoesNotAlignMissingFront, metric, n, minfo.Frequency, dataFrom, dataTo, cfrom, cto, missingfront))
+				cclog.Warnf("%s", fmt.Errorf("%w: metric=%s node=%s buf#%d freq=%d expected[%d,%d] actual[%d,%d] missingfront=%d pts",
+					ErrDataDoesNotAlignMissingFront, metric, node, n, minfo.Frequency, dataFrom, dataTo, cfrom, cto, missingfront))
 			case missingback != 0:
-				cclog.Warnf("%s", fmt.Errorf("%w: metric=%s buf#%d freq=%d ref[%d,%d] this[%d,%d] missingback=%d pts",
-					ErrDataDoesNotAlignMissingBack, metric, n, minfo.Frequency, dataFrom, dataTo, cfrom, cto, missingback))
+				cclog.Warnf("%s", fmt.Errorf("%w: metric=%s node=%s buf#%d freq=%d expected[%d,%d] actual[%d,%d] missingback=%d pts",
+					ErrDataDoesNotAlignMissingBack, metric, node, n, minfo.Frequency, dataFrom, dataTo, cfrom, cto, missingback))
 			default:
-				cclog.Warnf("%s", fmt.Errorf("%w: metric=%s buf#%d ref[%d,%d] this[%d,%d]",
-					ErrDataDoesNotAlignDataLenMismatch, metric, n, dataFrom, dataTo, cfrom, cto))
+				cclog.Warnf("%s", fmt.Errorf("%w: metric=%s node=%s buf#%d expected[%d,%d] actual[%d,%d]",
+					ErrDataDoesNotAlignDataLenMismatch, metric, node, n, dataFrom, dataTo, cfrom, cto))
 			}
 		}
+
+		fmt.Printf("Gather data - cto: %d, cfrom: %d, dto: %d, dfrom: %d\n", cto, cfrom, dataTo, dataFrom)
 
 		data = cdata
 		n += 1
 		return nil
-	})
+	}, nil)
 
 	if err != nil {
 		return nil, 0, 0, 0, err

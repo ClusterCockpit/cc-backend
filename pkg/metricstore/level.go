@@ -381,7 +381,10 @@ func (l *Level) findLevel(selector []string) *Level {
 // Parameters:
 //   - selector: Pattern to match (consumed recursively)
 //   - offset:   Metric index in metrics slice (from MetricConfig.offset)
-//   - f:        Callback invoked on each matching buffer
+//   - f:        Callback invoked on each matching buffer; path holds the matched
+//               level keys (e.g. ["cluster","node001","cpu0"]) so callers can
+//               identify which node/component the buffer belongs to
+//   - path:     Accumulated level keys from the root; pass nil at the top level
 //
 // Returns:
 //   - error: First error returned by callback, or nil if all succeeded
@@ -389,19 +392,19 @@ func (l *Level) findLevel(selector []string) *Level {
 // Example:
 //
 //	// Find all cpu0 buffers across all hosts:
-//	findBuffers([]Selector{{Any: true}, {String: "cpu0"}}, metricOffset, callback)
-func (l *Level) findBuffers(selector util.Selector, offset int, f func(b *buffer) error) error {
+//	findBuffers([]Selector{{Any: true}, {String: "cpu0"}}, metricOffset, callback, nil)
+func (l *Level) findBuffers(selector util.Selector, offset int, f func(b *buffer, path []string) error, path []string) error {
 	l.lock.RLock()
 	defer l.lock.RUnlock()
 
 	if len(selector) == 0 {
 		b := l.metrics[offset]
 		if b != nil {
-			return f(b)
+			return f(b, path)
 		}
 
-		for _, lvl := range l.children {
-			err := lvl.findBuffers(nil, offset, f)
+		for key, lvl := range l.children {
+			err := lvl.findBuffers(nil, offset, f, appendPath(path, key))
 			if err != nil {
 				return err
 			}
@@ -413,7 +416,7 @@ func (l *Level) findBuffers(selector util.Selector, offset int, f func(b *buffer
 	if len(sel.String) != 0 && l.children != nil {
 		lvl, ok := l.children[sel.String]
 		if ok {
-			err := lvl.findBuffers(selector[1:], offset, f)
+			err := lvl.findBuffers(selector[1:], offset, f, appendPath(path, sel.String))
 			if err != nil {
 				return err
 			}
@@ -425,7 +428,7 @@ func (l *Level) findBuffers(selector util.Selector, offset int, f func(b *buffer
 		for _, key := range sel.Group {
 			lvl, ok := l.children[key]
 			if ok {
-				err := lvl.findBuffers(selector[1:], offset, f)
+				err := lvl.findBuffers(selector[1:], offset, f, appendPath(path, key))
 				if err != nil {
 					return err
 				}
@@ -435,8 +438,8 @@ func (l *Level) findBuffers(selector util.Selector, offset int, f func(b *buffer
 	}
 
 	if sel.Any && l.children != nil {
-		for _, lvl := range l.children {
-			if err := lvl.findBuffers(selector[1:], offset, f); err != nil {
+		for key, lvl := range l.children {
+			if err := lvl.findBuffers(selector[1:], offset, f, appendPath(path, key)); err != nil {
 				return err
 			}
 		}
@@ -444,4 +447,14 @@ func (l *Level) findBuffers(selector util.Selector, offset int, f func(b *buffer
 	}
 
 	return nil
+}
+
+// appendPath returns a new slice holding path followed by key. It copies rather
+// than appending in place so sibling recursions never share/overwrite backing
+// storage while the tree is walked concurrently.
+func appendPath(path []string, key string) []string {
+	np := make([]string, len(path)+1)
+	copy(np, path)
+	np[len(path)] = key
+	return np
 }

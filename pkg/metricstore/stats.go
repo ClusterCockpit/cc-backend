@@ -9,6 +9,7 @@ import (
 	"errors"
 	"fmt"
 	"math"
+	"strings"
 
 	"github.com/ClusterCockpit/cc-lib/v2/schema"
 	"github.com/ClusterCockpit/cc-lib/v2/util"
@@ -134,7 +135,7 @@ func (m *MemoryStore) Stats(selector util.Selector, metric string, from, to int6
 
 	n, samples := 0, 0
 	avg, min, max := schema.Float(0), math.MaxFloat32, -math.MaxFloat32
-	err := m.root.findBuffers(selector, minfo.offset, func(b *buffer) error {
+	err := m.root.findBuffers(selector, minfo.offset, func(b *buffer, path []string) error {
 		stats, cfrom, cto, err := b.stats(from, to)
 		if err != nil {
 			return err
@@ -143,11 +144,11 @@ func (m *MemoryStore) Stats(selector util.Selector, metric string, from, to int6
 		if n == 0 {
 			from, to = cfrom, cto
 		} else if from != cfrom {
-			return fmt.Errorf("%w: metric=%s buf#%d want[%d,%d] got[%d,%d]",
-				ErrDataDoesNotAlignMissingFront, metric, n, from, to, cfrom, cto)
+			return fmt.Errorf("%w: metric=%s node=%s buf#%d expected[%d,%d] actual[%d,%d]",
+				ErrDataDoesNotAlignMissingFront, metric, strings.Join(path, "/"), n, from, to, cfrom, cto)
 		} else if to != cto {
-			return fmt.Errorf("%w: metric=%s buf#%d want[%d,%d] got[%d,%d]",
-				ErrDataDoesNotAlignMissingBack, metric, n, from, to, cfrom, cto)
+			return fmt.Errorf("%w: metric=%s node=%s buf#%d expected[%d,%d] actual[%d,%d]",
+				ErrDataDoesNotAlignMissingBack, metric, strings.Join(path, "/"), n, from, to, cfrom, cto)
 		}
 
 		samples += stats.Samples
@@ -156,7 +157,7 @@ func (m *MemoryStore) Stats(selector util.Selector, metric string, from, to int6
 		max = math.Max(max, float64(stats.Max))
 		n += 1
 		return nil
-	})
+	}, nil)
 	if err != nil {
 		return nil, 0, 0, err
 	}
