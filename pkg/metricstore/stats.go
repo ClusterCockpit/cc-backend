@@ -144,10 +144,10 @@ func (m *MemoryStore) Stats(selector util.Selector, metric string, from, to int6
 		if n == 0 {
 			from, to = cfrom, cto
 		} else if from != cfrom {
-			return fmt.Errorf("%w: metric=%s node=%s buf#%d expected[%d,%d] actual[%d,%d]",
+			return fmt.Errorf("stats: %w: metric=%s node=%s buf#%d expected[%d,%d] actual[%d,%d]",
 				ErrDataDoesNotAlignMissingFront, metric, strings.Join(path, "/"), n, from, to, cfrom, cto)
 		} else if to != cto {
-			return fmt.Errorf("%w: metric=%s node=%s buf#%d expected[%d,%d] actual[%d,%d]",
+			return fmt.Errorf("stats: %w: metric=%s node=%s buf#%d expected[%d,%d] actual[%d,%d]",
 				ErrDataDoesNotAlignMissingBack, metric, strings.Join(path, "/"), n, from, to, cfrom, cto)
 		}
 

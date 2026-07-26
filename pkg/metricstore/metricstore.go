@@ -625,12 +625,9 @@ func (m *MemoryStore) Read(selector util.Selector, metric string, from, to, reso
 
 	// data spans the full requested window; every scope's read() writes into the
 	// same index-aligned slice (NaN where it has no value), so aggregation never
-	// needs trimming. dataFrom/dataTo track the real (non-NaN) extent of the first
-	// scope seen; later scopes that report a different extent are misaligned. We
-	// no longer abort on misalignment — the full NaN-padded window is still
-	// returned for display — but we log it so the condition stays visible.
+	// needs trimming. We check each buffer's extent against the original request
+	// and warn if it doesn't cover the full range.
 	n, data := 0, make([]schema.Float, (to-from)/minfo.Frequency+1)
-	var dataFrom, dataTo int64
 
 	err := m.root.findBuffers(selector, minfo.offset, func(b *buffer, path []string) error {
 		cdata, cfrom, cto, err := b.read(from, to, data, false)
@@ -638,25 +635,23 @@ func (m *MemoryStore) Read(selector util.Selector, metric string, from, to, reso
 			return err
 		}
 
-		if n == 0 {
-			dataFrom, dataTo = cfrom, cto
-		} else if cfrom != dataFrom || cto != dataTo {
+		// Check if buffer covers full requested range
+		missingfront := int((cfrom - from) / minfo.Frequency)
+		missingback := int((to - cto) / minfo.Frequency)
+		if missingfront > 0 || missingback > 0 {
 			node := strings.Join(path, "/")
-			missingfront, missingback := int((dataFrom-cfrom)/minfo.Frequency), int((dataTo-cto)/minfo.Frequency)
 			switch {
-			case missingfront != 0:
-				cclog.Warnf("%s", fmt.Errorf("%w: metric=%s node=%s buf#%d freq=%d expected[%d,%d] actual[%d,%d] missingfront=%d pts",
-					ErrDataDoesNotAlignMissingFront, metric, node, n, minfo.Frequency, dataFrom, dataTo, cfrom, cto, missingfront))
-			case missingback != 0:
-				cclog.Warnf("%s", fmt.Errorf("%w: metric=%s node=%s buf#%d freq=%d expected[%d,%d] actual[%d,%d] missingback=%d pts",
-					ErrDataDoesNotAlignMissingBack, metric, node, n, minfo.Frequency, dataFrom, dataTo, cfrom, cto, missingback))
-			default:
-				cclog.Warnf("%s", fmt.Errorf("%w: metric=%s node=%s buf#%d expected[%d,%d] actual[%d,%d]",
-					ErrDataDoesNotAlignDataLenMismatch, metric, node, n, dataFrom, dataTo, cfrom, cto))
+			case missingfront > 0 && missingback > 0:
+				cclog.Warnf("%v: metric=%s node=%s requested[%d,%d] actual[%d,%d] missing_front=%d pts missing_back=%d pts",
+					ErrDataDoesNotAlignMissingFront, metric, node, from, to, cfrom, cto, missingfront, missingback)
+			case missingfront > 0:
+				cclog.Warnf("%v: metric=%s node=%s requested[%d,%d] actual[%d,%d] missing_front=%d pts",
+					ErrDataDoesNotAlignMissingFront, metric, node, from, to, cfrom, cto, missingfront)
+			case missingback > 0:
+				cclog.Warnf("%v: metric=%s node=%s requested[%d,%d] actual[%d,%d] missing_back=%d pts",
+					ErrDataDoesNotAlignMissingBack, metric, node, from, to, cfrom, cto, missingback)
 			}
 		}
-
-		fmt.Printf("Gather data - cto: %d, cfrom: %d, dto: %d, dfrom: %d\n", cto, cfrom, dataTo, dataFrom)
 
 		data = cdata
 		n += 1
