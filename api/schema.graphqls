@@ -143,6 +143,7 @@ type MetricConfig {
   alert: Float!
   lowerIsBetter: Boolean
   subClusters: [SubClusterConfig!]!
+  tooltip: String
 }
 
 type Tag {
@@ -300,6 +301,7 @@ type GlobalMetricListItem {
   unit: Unit!
   scope: MetricScope!
   footprint: String
+  tooltip: String
   availability: [ClusterSupport!]!
 }
 

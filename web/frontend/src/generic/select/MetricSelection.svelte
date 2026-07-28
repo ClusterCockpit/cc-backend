@@ -22,6 +22,8 @@
     ModalFooter,
     Button,
     ListGroup,
+    Icon,
+    Tooltip
   } from "@sveltestrap/sveltestrap";
   import { gql, getContextClient, mutationStore } from "@urql/svelte";
 
@@ -33,6 +35,8 @@
     presetMetrics = [],
     cluster = null,
     subCluster = null,
+    maxClusters = null,
+    maxSubClusters = null,
     footprintSelect = false,
     configName,
     globalMetrics,
@@ -86,19 +90,46 @@
     return availableMetrics;
   }
 
+  function printAvailabilityCount(metric, cluster) {
+    const avail = globalMetrics.find((gm) => gm.name === metric)?.availability
+    if (avail) {
+      if (!cluster) {
+        return `${avail.length} / ${maxClusters} Cluster`
+      } else {
+        const subAvail = avail.find((av) => av.cluster === cluster)?.subClusters
+        if (subAvail) {
+          return `${subAvail.length} / ${maxSubClusters} SubCluster`
+        } else {
+          return `0 / ${maxSubClusters} SubCluster`
+        }
+      }
+    }
+    return `0 / ${maxClusters} Cluster`
+  }
+
   function printAvailability(metric, cluster) {
     const avail = globalMetrics.find((gm) => gm.name === metric)?.availability
     if (avail) {
       if (!cluster) {
-        return avail.map((av) => av.cluster).join(', ')
+        console.log(metric, avail.map((av) => av.cluster))
+        return avail.map((av) => av.cluster)
       } else {
         const subAvail = avail.find((av) => av.cluster === cluster)?.subClusters
         if (subAvail) {
-          return subAvail.join(', ')
+          console.log(metric, subAvail)
+          return subAvail
         } else {
-          return `Not available for ${cluster}`
+          return [`Not available for ${cluster}`]
         }
       }
+    }
+    return [`Not available for ${cluster}`]
+  }
+
+  function printTooltip(metric) {
+    const toolt = globalMetrics.find((gm) => gm.name === metric)?.tooltip
+    if (toolt) {
+      return toolt
     }
     return ""
   }
@@ -172,7 +203,7 @@
 </script>
 
 <Modal {isOpen} toggle={() => (isOpen = !isOpen)}>
-  <ModalHeader>Configure columns (Metric availability shown)</ModalHeader>
+  <ModalHeader>Configure columns</ModalHeader>
   <ModalBody>
     <ListGroup>
       {#if footprintSelect}
@@ -213,9 +244,34 @@
             />
           {/if}
           {metric}
-          <span style="float: right; text-align: justify;">
-            {printAvailability(metric, cluster)}
-          </span>
+          {#if maxClusters !== null || maxSubClusters !== null}
+            <span style="float: right;" class="ms-1">
+              <Button id={`${metric}-avail-info`} outline color="secondary" size="sm" class="ml-2">
+                <b>{ printAvailabilityCount(metric, cluster) }</b>
+              </Button>
+              <Tooltip target={`${metric}-avail-info`} placement="right">
+                <b>Availability</b>
+                <ul style="text-align: left; padding-left: 1.0rem; margin-bottom: 0.25rem;">
+                  {#each printAvailability(metric, cluster) as avail}
+                    <li>{avail}</li>
+                  {/each}
+                </ul>
+              </Tooltip>
+            </span>
+          {/if}
+          {#if printTooltip(metric) !== ""}
+            <span style="float: right;">
+              <Button id={`${metric}-kind-info`} outline color="secondary" size="sm" class="ml-2">
+                <Icon name="info-square" />
+              </Button>
+              <Tooltip target={`${metric}-kind-info`} placement="right">
+                <b>Information</b>
+                <p style="text-align: left; margin-bottom: 0.25rem;">
+                  { printTooltip(metric) }
+                </p>
+              </Tooltip>
+            </span>
+          {/if}
         </li>
       {/each}
     </ListGroup>

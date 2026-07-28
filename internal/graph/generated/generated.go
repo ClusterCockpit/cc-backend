@@ -32,7 +32,9 @@ type Config = graphql.Config[ResolverRoot, DirectiveRoot, ComplexityRoot]
 
 type ResolverRoot interface {
 	Cluster() ClusterResolver
+	GlobalMetricListItem() GlobalMetricListItemResolver
 	Job() JobResolver
+	MetricConfig() MetricConfigResolver
 	MetricValue() MetricValueResolver
 	Mutation() MutationResolver
 	Node() NodeResolver
@@ -100,6 +102,7 @@ type ComplexityRoot struct {
 		Footprint    func(childComplexity int) int
 		Name         func(childComplexity int) int
 		Scope        func(childComplexity int) int
+		Tooltip      func(childComplexity int) int
 		Unit         func(childComplexity int) int
 	}
 
@@ -219,6 +222,7 @@ type ComplexityRoot struct {
 		Scope         func(childComplexity int) int
 		SubClusters   func(childComplexity int) int
 		Timestep      func(childComplexity int) int
+		Tooltip       func(childComplexity int) int
 		Unit          func(childComplexity int) int
 	}
 
@@ -441,6 +445,9 @@ type ComplexityRoot struct {
 type ClusterResolver interface {
 	Partitions(ctx context.Context, obj *schema.Cluster) ([]string, error)
 }
+type GlobalMetricListItemResolver interface {
+	Tooltip(ctx context.Context, obj *schema.GlobalMetricListItem) (*string, error)
+}
 type JobResolver interface {
 	StartTime(ctx context.Context, obj *schema.Job) (*time.Time, error)
 
@@ -451,6 +458,9 @@ type JobResolver interface {
 	EnergyFootprint(ctx context.Context, obj *schema.Job) ([]*model.EnergyFootprintValue, error)
 	MetaData(ctx context.Context, obj *schema.Job) (any, error)
 	UserData(ctx context.Context, obj *schema.Job) (*model.User, error)
+}
+type MetricConfigResolver interface {
+	Tooltip(ctx context.Context, obj *schema.MetricConfig) (*string, error)
 }
 type MetricValueResolver interface {
 	Name(ctx context.Context, obj *schema.MetricValue) (*string, error)
@@ -690,6 +700,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.GlobalMetricListItem.Scope(childComplexity), true
+	case "GlobalMetricListItem.tooltip":
+		if e.ComplexityRoot.GlobalMetricListItem.Tooltip == nil {
+			break
+		}
+
+		return e.ComplexityRoot.GlobalMetricListItem.Tooltip(childComplexity), true
 	case "GlobalMetricListItem.unit":
 		if e.ComplexityRoot.GlobalMetricListItem.Unit == nil {
 			break
@@ -1217,6 +1233,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.MetricConfig.Timestep(childComplexity), true
+	case "MetricConfig.tooltip":
+		if e.ComplexityRoot.MetricConfig.Tooltip == nil {
+			break
+		}
+
+		return e.ComplexityRoot.MetricConfig.Tooltip(childComplexity), true
 	case "MetricConfig.unit":
 		if e.ComplexityRoot.MetricConfig.Unit == nil {
 			break
@@ -2418,6 +2440,7 @@ type MetricConfig {
   alert: Float!
   lowerIsBetter: Boolean
   subClusters: [SubClusterConfig!]!
+  tooltip: String
 }
 
 type Tag {
@@ -2575,6 +2598,7 @@ type GlobalMetricListItem {
   unit: Unit!
   scope: MetricScope!
   footprint: String
+  tooltip: String
   availability: [ClusterSupport!]!
 }
 
@@ -2957,6 +2981,8 @@ func (ec *executionContext) childFields_GlobalMetricListItem(ctx context.Context
 		return ec.fieldContext_GlobalMetricListItem_scope(ctx, field)
 	case "footprint":
 		return ec.fieldContext_GlobalMetricListItem_footprint(ctx, field)
+	case "tooltip":
+		return ec.fieldContext_GlobalMetricListItem_tooltip(ctx, field)
 	case "availability":
 		return ec.fieldContext_GlobalMetricListItem_availability(ctx, field)
 	}
@@ -3187,6 +3213,8 @@ func (ec *executionContext) childFields_MetricConfig(ctx context.Context, field 
 		return ec.fieldContext_MetricConfig_lowerIsBetter(ctx, field)
 	case "subClusters":
 		return ec.fieldContext_MetricConfig_subClusters(ctx, field)
+	case "tooltip":
+		return ec.fieldContext_MetricConfig_tooltip(ctx, field)
 	}
 	return nil, fmt.Errorf("no field named %q was found under type MetricConfig", field.Name)
 }
@@ -5157,6 +5185,29 @@ func (ec *executionContext) _GlobalMetricListItem_footprint(ctx context.Context,
 }
 func (ec *executionContext) fieldContext_GlobalMetricListItem_footprint(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	return graphql.NewScalarFieldContext("GlobalMetricListItem", field, false, false, errors.New("field of type String does not have child fields"))
+}
+
+func (ec *executionContext) _GlobalMetricListItem_tooltip(ctx context.Context, field graphql.CollectedField, obj *schema.GlobalMetricListItem) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_GlobalMetricListItem_tooltip(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return ec.Resolvers.GlobalMetricListItem().Tooltip(ctx, obj)
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v *string) graphql.Marshaler {
+			return ec.marshalOString2ᚖstring(ctx, selections, v)
+		},
+		true,
+		false,
+	)
+}
+func (ec *executionContext) fieldContext_GlobalMetricListItem_tooltip(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("GlobalMetricListItem", field, true, true, errors.New("field of type String does not have child fields"))
 }
 
 func (ec *executionContext) _GlobalMetricListItem_availability(ctx context.Context, field graphql.CollectedField, obj *schema.GlobalMetricListItem) (ret graphql.Marshaler) {
@@ -7347,6 +7398,29 @@ func (ec *executionContext) fieldContext_MetricConfig_subClusters(_ context.Cont
 		},
 	}
 	return fc, nil
+}
+
+func (ec *executionContext) _MetricConfig_tooltip(ctx context.Context, field graphql.CollectedField, obj *schema.MetricConfig) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_MetricConfig_tooltip(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return ec.Resolvers.MetricConfig().Tooltip(ctx, obj)
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v *string) graphql.Marshaler {
+			return ec.marshalOString2ᚖstring(ctx, selections, v)
+		},
+		true,
+		false,
+	)
+}
+func (ec *executionContext) fieldContext_MetricConfig_tooltip(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("MetricConfig", field, true, true, errors.New("field of type String does not have child fields"))
 }
 
 func (ec *executionContext) _MetricFootprints_metric(ctx context.Context, field graphql.CollectedField, obj *model.MetricFootprints) (ret graphql.Marshaler) {
@@ -13269,24 +13343,57 @@ func (ec *executionContext) _GlobalMetricListItem(ctx context.Context, sel ast.S
 		case "name":
 			out.Values[i] = ec._GlobalMetricListItem_name(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
-				out.Invalids++
+				atomic.AddUint32(&out.Invalids, 1)
 			}
 		case "unit":
 			out.Values[i] = ec._GlobalMetricListItem_unit(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
-				out.Invalids++
+				atomic.AddUint32(&out.Invalids, 1)
 			}
 		case "scope":
 			out.Values[i] = ec._GlobalMetricListItem_scope(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
-				out.Invalids++
+				atomic.AddUint32(&out.Invalids, 1)
 			}
 		case "footprint":
 			out.Values[i] = ec._GlobalMetricListItem_footprint(ctx, field, obj)
+		case "tooltip":
+			field := field
+
+			innerFunc := func(ctx context.Context, _ *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._GlobalMetricListItem_tooltip(ctx, field, obj)
+				return res
+			}
+
+			if field.Deferrable != nil {
+				dfs, ok := deferred[field.Deferrable.Label]
+				di := 0
+				if ok {
+					dfs.AddField(field)
+					di = len(dfs.Values) - 1
+				} else {
+					dfs = graphql.NewFieldSet([]graphql.CollectedField{field})
+					deferred[field.Deferrable.Label] = dfs
+				}
+				dfs.Concurrently(di, func(ctx context.Context) graphql.Marshaler {
+					return innerFunc(ctx, dfs)
+				})
+
+				// don't run the out.Concurrently() call below
+				out.Values[i] = graphql.Null
+				continue
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
 		case "availability":
 			out.Values[i] = ec._GlobalMetricListItem_availability(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
-				out.Invalids++
+				atomic.AddUint32(&out.Invalids, 1)
 			}
 		default:
 			panic("unknown field " + strconv.Quote(field.Name))
@@ -14209,52 +14316,85 @@ func (ec *executionContext) _MetricConfig(ctx context.Context, sel ast.Selection
 		case "name":
 			out.Values[i] = ec._MetricConfig_name(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
-				out.Invalids++
+				atomic.AddUint32(&out.Invalids, 1)
 			}
 		case "unit":
 			out.Values[i] = ec._MetricConfig_unit(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
-				out.Invalids++
+				atomic.AddUint32(&out.Invalids, 1)
 			}
 		case "scope":
 			out.Values[i] = ec._MetricConfig_scope(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
-				out.Invalids++
+				atomic.AddUint32(&out.Invalids, 1)
 			}
 		case "aggregation":
 			out.Values[i] = ec._MetricConfig_aggregation(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
-				out.Invalids++
+				atomic.AddUint32(&out.Invalids, 1)
 			}
 		case "timestep":
 			out.Values[i] = ec._MetricConfig_timestep(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
-				out.Invalids++
+				atomic.AddUint32(&out.Invalids, 1)
 			}
 		case "peak":
 			out.Values[i] = ec._MetricConfig_peak(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
-				out.Invalids++
+				atomic.AddUint32(&out.Invalids, 1)
 			}
 		case "normal":
 			out.Values[i] = ec._MetricConfig_normal(ctx, field, obj)
 		case "caution":
 			out.Values[i] = ec._MetricConfig_caution(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
-				out.Invalids++
+				atomic.AddUint32(&out.Invalids, 1)
 			}
 		case "alert":
 			out.Values[i] = ec._MetricConfig_alert(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
-				out.Invalids++
+				atomic.AddUint32(&out.Invalids, 1)
 			}
 		case "lowerIsBetter":
 			out.Values[i] = ec._MetricConfig_lowerIsBetter(ctx, field, obj)
 		case "subClusters":
 			out.Values[i] = ec._MetricConfig_subClusters(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
-				out.Invalids++
+				atomic.AddUint32(&out.Invalids, 1)
 			}
+		case "tooltip":
+			field := field
+
+			innerFunc := func(ctx context.Context, _ *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._MetricConfig_tooltip(ctx, field, obj)
+				return res
+			}
+
+			if field.Deferrable != nil {
+				dfs, ok := deferred[field.Deferrable.Label]
+				di := 0
+				if ok {
+					dfs.AddField(field)
+					di = len(dfs.Values) - 1
+				} else {
+					dfs = graphql.NewFieldSet([]graphql.CollectedField{field})
+					deferred[field.Deferrable.Label] = dfs
+				}
+				dfs.Concurrently(di, func(ctx context.Context) graphql.Marshaler {
+					return innerFunc(ctx, dfs)
+				})
+
+				// don't run the out.Concurrently() call below
+				out.Values[i] = graphql.Null
+				continue
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
 		default:
 			panic("unknown field " + strconv.Quote(field.Name))
 		}

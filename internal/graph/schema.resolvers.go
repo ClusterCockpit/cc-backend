@@ -32,6 +32,11 @@ func (r *clusterResolver) Partitions(ctx context.Context, obj *schema.Cluster) (
 	return r.Repo.Partitions(obj.Name)
 }
 
+// Tooltip is the resolver for the tooltip field.
+func (r *globalMetricListItemResolver) Tooltip(ctx context.Context, obj *schema.GlobalMetricListItem) (*string, error) {
+	return &obj.Tooltip, nil
+}
+
 // StartTime is the resolver for the startTime field.
 func (r *jobResolver) StartTime(ctx context.Context, obj *schema.Job) (*time.Time, error) {
 	timestamp := time.Unix(obj.StartTime, 0)
@@ -125,6 +130,11 @@ func (r *jobResolver) MetaData(ctx context.Context, obj *schema.Job) (any, error
 // UserData is the resolver for the userData field.
 func (r *jobResolver) UserData(ctx context.Context, obj *schema.Job) (*model.User, error) {
 	return repository.GetUserRepository().FetchUserInCtx(ctx, obj.User)
+}
+
+// Tooltip is the resolver for the tooltip field.
+func (r *metricConfigResolver) Tooltip(ctx context.Context, obj *schema.MetricConfig) (*string, error) {
+	return &obj.Tooltip, nil
 }
 
 // Name is the resolver for the name field.
@@ -1054,8 +1064,16 @@ func (r *subClusterResolver) NumberOfNodes(ctx context.Context, obj *schema.SubC
 // Cluster returns generated.ClusterResolver implementation.
 func (r *Resolver) Cluster() generated.ClusterResolver { return &clusterResolver{r} }
 
+// GlobalMetricListItem returns generated.GlobalMetricListItemResolver implementation.
+func (r *Resolver) GlobalMetricListItem() generated.GlobalMetricListItemResolver {
+	return &globalMetricListItemResolver{r}
+}
+
 // Job returns generated.JobResolver implementation.
 func (r *Resolver) Job() generated.JobResolver { return &jobResolver{r} }
+
+// MetricConfig returns generated.MetricConfigResolver implementation.
+func (r *Resolver) MetricConfig() generated.MetricConfigResolver { return &metricConfigResolver{r} }
 
 // MetricValue returns generated.MetricValueResolver implementation.
 func (r *Resolver) MetricValue() generated.MetricValueResolver { return &metricValueResolver{r} }
@@ -1073,7 +1091,9 @@ func (r *Resolver) Query() generated.QueryResolver { return &queryResolver{r} }
 func (r *Resolver) SubCluster() generated.SubClusterResolver { return &subClusterResolver{r} }
 
 type clusterResolver struct{ *Resolver }
+type globalMetricListItemResolver struct{ *Resolver }
 type jobResolver struct{ *Resolver }
+type metricConfigResolver struct{ *Resolver }
 type metricValueResolver struct{ *Resolver }
 type mutationResolver struct{ *Resolver }
 type nodeResolver struct{ *Resolver }
