@@ -69,20 +69,20 @@ func (ja *JWTSessionAuthenticator) Login(
 			// Init() already refuses to register without a key, so this should
 			// never trigger, but guard explicitly rather than trust the chain.
 			if len(ja.loginTokenKey) == 0 {
-				return nil, errors.New("HS login key not configured")
+				return nil, errors.New("JWT Session: HS login key not configured")
 			}
 			return ja.loginTokenKey, nil
 		}
-		return nil, fmt.Errorf("unkown signing method for login token: %s (known: HS256, HS512, EdDSA)", t.Method.Alg())
+		return nil, fmt.Errorf("JWT Session: unkown signing method for login token: %s (known: HS256, HS512, EdDSA)", t.Method.Alg())
 	})
 	if err != nil {
-		cclog.Warn("Error while parsing jwt token")
+		cclog.Warnf("JWT Session: error while parsing token: %s", err.Error())
 		return nil, err
 	}
 
 	if !token.Valid {
-		cclog.Warn("jwt token claims are not valid")
-		return nil, errors.New("jwt token claims are not valid")
+		cclog.Warn("JWT Session: token claims are not valid")
+		return nil, errors.New("JWT Session: token claims are not valid")
 	}
 
 	claims := token.Claims.(jwt.MapClaims)
