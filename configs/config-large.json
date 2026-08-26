@@ -1,0 +1,80 @@
+{
+  "main": {
+    "addr": "0.0.0.0:8088",
+    "short-running-jobs-duration": 300,
+    "emission-constant": 317,
+    "resampling": {
+      "minimum-points": 600,
+      "trigger": 30,
+      "resolutions": [600, 300, 120, 60]
+    },
+    "api-subjects": {
+      "subject-job-event": "cc.job.event",
+      "subject-node-state": "cc.node.state"
+    }
+  },
+  "nats": {
+    "address": "nats://0.0.0.0:4222",
+    "username": "root",
+    "password": "root"
+  },
+  "auth": {
+    "jwts": {
+      "max-age": "2000h",
+      "public-key": "kzfYrYy+TzpanWZHJ5qSdMj5uKUWgq74BWhQG6copP0=",
+      "private-key": "dtPC/6dWJFKZK7KZ78CvWuynylOmjBFyMsUWArwmodOTN9itjL5POlqdZkcnmpJ0yPm4pRaCrvgFaFAbpyik/Q=="
+    },
+    "oidc": {
+      "provider": "http://localhost:8080/realms/clustercockpit",
+      "client-id": "cc-backend",
+      "client-secret": "cc-backend-dev-secret",
+      "sync-user-on-login": true,
+      "update-user-on-login": true,
+      "role-mapping": {
+        "cc-admin": "admin"
+      }
+    },
+    "ldap": {
+      "url": "ldap://127.0.0.1:389",
+      "user-base": "ou=users,dc=example,dc=com",
+      "search-dn": "cn=admin,dc=example,dc=com",
+      "user-bind": "uid={username},ou=users,dc=example,dc=com",
+      "user-filter": "(objectclass=posixAccount)",
+      "username-attr": "cn",
+      "uid-attr": "uid",
+      "sync-password": "mashup",
+      "sync-interval": "2h",
+      "sync-user-on-login": true,
+      "update-user-on-login": true,
+      "role-filters": {
+        "admin": "(memberOf=cn=cc-admin,ou=groups,dc=example,dc=com)",
+        "support": "(memberOf=cn=cc-support,ou=groups,dc=example,dc=com)"
+      }
+    }
+  },
+  "cron": {
+    "commit-job-worker": "1m",
+    "duration-worker": "5m",
+    "footprint-worker": "10m"
+  },
+  "archive": {
+    "kind": "file",
+    "path": "./var/job-archive"
+  },
+  "metric-store-external": [
+    {
+      "scope": "fritz",
+      "url": "http://0.0.0.0:8084",
+      "token": "eyJ0eXAiOiJKV1QiLCJhbGciOiJFZERTQSJ9.eyJ1c2VyIjoiYWRtaW4iLCJyb2xlcyI6WyJST0xFX0FETUlOIiwiUk9MRV9BTkFMWVNUIiwiUk9MRV9VU0VSIl19.d-3_3FZTsadPjDEdsWrrQ7nS0edMAR4zjl-eK7rJU3HziNBfI9PDHDIpJVHTNN5E5SlLGLFXctWyKAkwhXL-Dw"
+    },
+    {
+      "scope": "alex",
+      "url": "http://0.0.0.0:8084",
+      "token": "eyJ0eXAiOiJKV1QiLCJhbGciOiJFZERTQSJ9.eyJ1c2VyIjoiYWRtaW4iLCJyb2xlcyI6WyJST0xFX0FETUlOIiwiUk9MRV9BTkFMWVNUIiwiUk9MRV9VU0VSIl19.d-3_3FZTsadPjDEdsWrrQ7nS0edMAR4zjl-eK7rJU3HziNBfI9PDHDIpJVHTNN5E5SlLGLFXctWyKAkwhXL-Dw"
+    }
+  ],
+  "metric-store": {
+    "retention-in-memory": "24h",
+    "memory-cap": 100
+  }
+}
