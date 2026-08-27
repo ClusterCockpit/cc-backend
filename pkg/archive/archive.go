@@ -31,7 +31,7 @@
 //	  }
 //	}
 //
-// For S3 backend (endpoint, region, and usePathStyle are optional):
+// For S3 backend (endpoint, region, and use-path-style are optional):
 //
 //	{
 //	  "archive": {
@@ -39,9 +39,9 @@
 //	    "endpoint": "http://192.168.178.10",
 //	    "bucket": "my-job-archive",
 //	    "region": "us-east-1",
-//	    "usePathStyle": true,
-//	    "accessKey": "...",
-//	    "secretKey": "..."
+//	    "use-path-style": true,
+//	    "access-key": "...",
+//	    "secret-key": "..."
 //	  }
 //	}
 //
@@ -50,7 +50,7 @@
 //	{
 //	  "archive": {
 //	    "kind": "sqlite",
-//	    "dbPath": "/var/lib/archive.db"
+//	    "db-path": "/var/lib/archive.db"
 //	  }
 //	}
 //

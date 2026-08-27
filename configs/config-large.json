@@ -3,13 +3,29 @@
     "addr": "0.0.0.0:8088",
     "short-running-jobs-duration": 300,
     "emission-constant": 317,
+    "enable-job-taggers": true,
+    "db-config": {
+      "cache-size-mb": 16384,
+      "soft-heap-limit-mb": 131072,
+      "max-open-connections": 8,
+      "max-idle-connections": 8,
+      "max-idle-time-minutes": 30
+    },
+    "nodestate-retention": {
+      "policy": "move",
+      "age": 168,
+      "target-kind": "file",
+      "target-path": "./var/nodestate-archive"
+    },
     "resampling": {
       "default-policy": "medium",
       "default-algo": "average"
     },
     "api-subjects": {
       "subject-job-event": "cc.job.event",
-      "subject-node-state": "cc.node.state"
+      "subject-node-state": "cc.node.state",
+      "job-concurrency": 8,
+      "node-concurrency": 2
     }
   },
   "nats": {
@@ -58,7 +74,16 @@
   },
   "archive": {
     "kind": "file",
-    "path": "./var/job-archive"
+    "path": "./var/job-archive",
+    "compression": 7,
+    "retention": {
+      "policy": "move",
+      "format": "parquet",
+      "age": 365,
+      "include-db": true,
+      "target-kind": "file",
+      "target-path": "./var/job-archive-retention"
+    }
   },
   "metric-store-external": [
     {
@@ -74,6 +99,16 @@
   ],
   "metric-store": {
     "retention-in-memory": "24h",
-    "memory-cap": 100
+    "memory-cap": 100,
+    "num-workers": 10,
+    "checkpoints": {
+      "file-format": "wal",
+      "directory": "./var/checkpoints"
+    },
+    "checkpoint-interval": "12h",
+    "cleanup": {
+      "mode": "archive",
+      "directory": "./var/metric-archive"
+    }
   }
 }

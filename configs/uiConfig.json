@@ -1,13 +1,16 @@
 {
   "job-list": {
     "use-paging": false,
-    "show-footprint":false
+    "show-footprint": false
   },
   "job-view": {
     "show-polar-plot": true,
     "show-footprint": true,
     "show-roofline": true,
     "show-stat-table": true
+  },
+  "node-list": {
+    "use-paging": true
   },
   "metric-config": {
     "job-list-metrics": ["mem_bw", "flops_dp"],
@@ -25,21 +28,21 @@
       }
     ]
   },
-  "node-list": {
-    "use-paging": true
-  },
   "plot-configuration": {
     "plots-per-row": 3,
     "color-background": true,
     "line-width": 3,
+    "smoothing-window": 0,
+    "resample-policy": "medium",
+    "resample-algo": "average",
     "color-scheme": [
-	"#00bfff",
-	"#0000ff",
-	"#ff00ff",
-	"#ff0000",
-	"#ff8000",
-	"#ffff00",
-	"#80ff00"
+      "#00bfff",
+      "#0000ff",
+      "#ff00ff",
+      "#ff0000",
+      "#ff8000",
+      "#ffff00",
+      "#80ff00"
     ]
   }
 }

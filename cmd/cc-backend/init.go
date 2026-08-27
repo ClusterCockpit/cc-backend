@@ -47,6 +47,14 @@ const configString = `
       "public-key": "kzfYrYy+TzpanWZHJ5qSdMj5uKUWgq74BWhQG6copP0=",
       "private-key": "dtPC/6dWJFKZK7KZ78CvWuynylOmjBFyMsUWArwmodOTN9itjL5POlqdZkcnmpJ0yPm4pRaCrvgFaFAbpyik/Q=="
     }
+  },
+  "metric-store": {
+    "retention-in-memory": "48h",
+    "memory-cap": 8,
+    "checkpoints": {
+      "file-format": "wal",
+      "directory": "./var/checkpoints"
+    }
   }
 }
 `
