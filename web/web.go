@@ -74,6 +74,7 @@ type PlotConfiguration struct {
 	ColorScheme     []string `json:"color-scheme"`
 	ResampleAlgo    string   `json:"resample-algo"`
 	ResamplePolicy  string   `json:"resample-policy"`
+	SmoothingWindow int      `json:"smoothing-window"`
 }
 
 const (
@@ -126,6 +127,7 @@ var UIDefaults = WebConfig{
 		PlotsPerRow:     3,
 		LineWidth:       3,
 		ColorScheme:     []string{"#00bfff", "#0000ff", "#ff00ff", "#ff0000", "#ff8000", "#ffff00", "#80ff00"},
+		SmoothingWindow: 3,
 	},
 }
 
@@ -174,6 +176,7 @@ func Init(rawConfig json.RawMessage) error {
 	UIDefaultsMap["plotConfiguration_colorScheme"] = UIDefaults.PlotConfiguration.ColorScheme
 	UIDefaultsMap["plotConfiguration_resampleAlgo"] = UIDefaults.PlotConfiguration.ResampleAlgo
 	UIDefaultsMap["plotConfiguration_resamplePolicy"] = UIDefaults.PlotConfiguration.ResamplePolicy
+	UIDefaultsMap["plotConfiguration_smoothingWindow"] = UIDefaults.PlotConfiguration.SmoothingWindow
 
 	for _, c := range UIDefaults.MetricConfig.Clusters {
 		if c.JobListMetrics != nil {

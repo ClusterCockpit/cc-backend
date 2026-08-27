@@ -311,4 +311,55 @@
       </form>
     </Card>
   </Col>
+
+  <!-- SMOOTHING WINDOW -->
+  <Col>
+    <Card class="h-100">
+      <form
+        id="smoothing-window-form"
+        method="post"
+        action="/frontend/configuration/"
+        class="card-body"
+        onsubmit={(e) => updateSetting(e, {
+          selector: "#smoothing-window-form",
+          target: "sw",
+        })}
+      >
+        <CardTitle
+          style="margin-bottom: 1em; display: flex; align-items: center;"
+        >
+          <div>Smoothing Window</div>
+          {#if displayMessage && message.target == "sw"}
+            <div style="margin-left: auto; font-size: 0.9em;">
+              <code style="color: {message.color};" out:fade>
+                Update: {message.msg}
+              </code>
+            </div>
+          {/if}
+        </CardTitle>
+        <input type="hidden" name="key" value="plotConfiguration_smoothingWindow" />
+        <div class="mb-3">
+          <label for="value" class="form-label">Smoothing Window</label>
+          <input
+            type="number"
+            class="form-control"
+            id="swvalue"
+            name="value"
+            aria-describedby="smoothingWindowHelp"
+            value={config?.plotConfiguration_smoothingWindow}
+            min="0"
+          />
+          <div id="smoothingWindowHelp" class="form-text">
+            Width of the moving average applied to plotted lines, in data
+            points. 0 disables it, the default is 3. It is applied after
+            downsampling and is display-only: the reported min/avg/max
+            statistics and the job footprint are unaffected. Combined with the
+            Average algorithm it is a second, milder smoothing pass on top of
+            the interval means.
+          </div>
+        </div>
+        <Button color="primary" type="submit">Submit</Button>
+      </form>
+    </Card>
+  </Col>
 </Row>

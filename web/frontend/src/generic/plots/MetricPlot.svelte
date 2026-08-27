@@ -17,6 +17,7 @@
   - `numhwthreads Number?`: Number of job HWThreads [Default: 0]
   - `numaccs Number?`: Number of job Accelerators [Default: 0]
   - `zoomState Object?`: The last zoom state to preserve on user zoom [Default: null]
+  - `smoothingWindow Number?`: Display smoothing window in data points; overrides the user setting. 0 or 1 disables [Default: null]
   - `thersholdState Object?`: The last threshold state to preserve on user zoom [Default: null]
   - `extendedLegendData Object?`: Additional information to be rendered in an extended legend [Default: null]
   - `onZoom Func`: Callback function to handle zoom-in event
@@ -25,6 +26,7 @@
 <script>
   import uPlot from "uplot";
   import { formatNumber, formatDurationTime } from "../units.js";
+  import { movingAverage } from "./smoothing.js";
   import { getContext, onMount, onDestroy } from "svelte";
   import { Card, CardBody, CardHeader } from "@sveltestrap/sveltestrap";
 
@@ -43,6 +45,7 @@
     forNode = false,
     zoomState = null,
     thresholdState = null,
+    smoothingWindow = null,
     extendedLegendData = null,
     plotSync = null,
     enableFlip = false,
@@ -74,6 +77,11 @@
   const metricConfig = $derived(getContext("getMetricConfig")(cluster, subCluster, metric));
   const usesMeanStatsSeries = $derived((statisticsSeries?.mean && statisticsSeries.mean.length != 0));
   const nativeTimestep = $derived(metricConfig?.timestep || timestep);
+  // Display-only smoothing, applied after backend downsampling. Does not affect
+  // the reported statistics or the job footprint.
+  const smoothing = $derived(
+    Number(smoothingWindow ?? clusterCockpitConfig?.plotConfiguration_smoothingWindow ?? 0)
+  );
   const resampleTargetPoints = $derived(resampleConfig?.targetPoints ? Number(resampleConfig.targetPoints) : null);
   // Zoom in far enough that fewer than a quarter of the target point count is
   // visible, and a finer resolution is requested from the backend.
@@ -137,18 +145,20 @@
       };
     };
     // Y
+    // Smooth every series of a stats plot: smoothing only some of them would
+    // break the min <= mid <= max invariant the plot bands rely on.
     if (useStatsSeries) {
-      pendingData.push(statisticsSeries.min);
-      pendingData.push(statisticsSeries.max);
+      pendingData.push(movingAverage(statisticsSeries.min, smoothing));
+      pendingData.push(movingAverage(statisticsSeries.max, smoothing));
       if (usesMeanStatsSeries) {
-        pendingData.push(statisticsSeries.mean);
+        pendingData.push(movingAverage(statisticsSeries.mean, smoothing));
       } else {
-        pendingData.push(statisticsSeries.median);
+        pendingData.push(movingAverage(statisticsSeries.median, smoothing));
       }
 
     } else {
       for (let i = 0; i < series.length; i++) {
-        pendingData.push(series[i].data);
+        pendingData.push(movingAverage(series[i].data, smoothing));
       };
     };
     return pendingData;

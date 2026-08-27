@@ -177,6 +177,11 @@ const configSchema = `{
           "description": "Initial thickness of rendered plotlines. Applies to metric plot, job compare plot and roofline.",
           "type": "integer"
         },
+        "smoothing-window": {
+          "description": "Initial display smoothing window in data points, applied after downsampling. 0 disables smoothing. Display-only: reported statistics and footprints are unaffected.",
+          "type": "integer",
+          "minimum": 0
+        },
         "color-scheme": {
           "description": "Initial colorScheme to be used for metric plots.",
           "type": "array",
