@@ -171,24 +171,41 @@ func Init(mainConfig json.RawMessage) {
 		cclog.Abortf("Config Init: Could not decode config file '%s'.\nError: %s\n", mainConfig, err.Error())
 	}
 
-	if Keys.EnableResampling != nil {
-		policy := Keys.EnableResampling.DefaultPolicy
-		if policy == "" {
-			policy = "medium"
-		}
-		resampler.SetMinimumRequiredPoints(targetPointsForPolicy(policy))
-	}
+	initResampler()
 }
 
-func targetPointsForPolicy(policy string) int {
+// initResampler aligns the resampler's MinimumRequiredPoints threshold with the
+// configured policy's target point count. The resampler must be allowed to act
+// exactly when a series is longer than that target; a different threshold here
+// silently drops resample requests for a band of job durations.
+func initResampler() {
+	if Keys.EnableResampling == nil {
+		return
+	}
+
+	policy := Keys.EnableResampling.DefaultPolicy
+	if policy == "" {
+		policy = DefaultResamplePolicy
+	}
+	resampler.SetMinimumRequiredPoints(TargetPointsForPolicy(policy))
+}
+
+// DefaultResamplePolicy is used when no resample policy is configured.
+const DefaultResamplePolicy = "medium"
+
+// TargetPointsForPolicy returns the target number of data points for a resample
+// policy. This is the single source of truth: it feeds both the requested
+// resolution (via metricdispatch.ComputeResolution) and the resampler's
+// MinimumRequiredPoints threshold. Unknown or empty policies return 0.
+func TargetPointsForPolicy(policy string) int {
 	switch policy {
 	case "low":
-		return 300
+		return 200
 	case "medium":
-		return 600
+		return 500
 	case "high":
 		return 1000
 	default:
-		return 600
+		return 0
 	}
 }

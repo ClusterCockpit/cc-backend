@@ -10,6 +10,7 @@ import (
 
 	ccconf "github.com/ClusterCockpit/cc-lib/v2/ccConfig"
 	cclog "github.com/ClusterCockpit/cc-lib/v2/ccLogger"
+	"github.com/ClusterCockpit/cc-lib/v2/resampler"
 )
 
 func TestInit(t *testing.T) {
@@ -37,5 +38,48 @@ func TestInitMinimal(t *testing.T) {
 
 	if Keys.Addr != "127.0.0.1:8080" {
 		t.Errorf("wrong addr\ngot: %s \nwant: 127.0.0.1:8080", Keys.Addr)
+	}
+}
+
+func TestTargetPointsForPolicy(t *testing.T) {
+	tests := []struct {
+		policy string
+		want   int
+	}{
+		{"low", 200},
+		{"medium", 500},
+		{"high", 1000},
+		{"unknown", 0},
+		{"", 0},
+	}
+
+	for _, tt := range tests {
+		if got := TargetPointsForPolicy(tt.policy); got != tt.want {
+			t.Errorf("TargetPointsForPolicy(%q) = %d, want %d", tt.policy, got, tt.want)
+		}
+	}
+}
+
+// The resampler must be allowed to act exactly when a series exceeds the target
+// point count. A mismatch here silently drops resample requests for a band of
+// job durations.
+func TestInitSyncsResamplerThreshold(t *testing.T) {
+	for _, policy := range []string{"low", "medium", "high"} {
+		Keys.EnableResampling = &ResampleConfig{DefaultPolicy: policy}
+		initResampler()
+
+		want := TargetPointsForPolicy(policy)
+		if resampler.MinimumRequiredPoints != want {
+			t.Errorf("policy %q: MinimumRequiredPoints = %d, want %d",
+				policy, resampler.MinimumRequiredPoints, want)
+		}
+	}
+
+	// Empty policy falls back to the documented default.
+	Keys.EnableResampling = &ResampleConfig{}
+	initResampler()
+	if want := TargetPointsForPolicy(DefaultResamplePolicy); resampler.MinimumRequiredPoints != want {
+		t.Errorf("empty policy: MinimumRequiredPoints = %d, want %d",
+			resampler.MinimumRequiredPoints, want)
 	}
 }

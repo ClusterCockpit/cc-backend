@@ -4,7 +4,11 @@
 // license that can be found in the LICENSE file.
 package metricdispatch
 
-import "math"
+import (
+	"math"
+
+	"github.com/ClusterCockpit/cc-backend/internal/config"
+)
 
 type ResamplePolicy string
 
@@ -14,18 +18,12 @@ const (
 	ResamplePolicyHigh   ResamplePolicy = "high"
 )
 
-// TargetPointsForPolicy returns the target number of data points for a given policy.
+// TargetPointsForPolicy returns the target number of data points for a given
+// policy. The table lives in the config package so that the requested
+// resolution and the resampler's MinimumRequiredPoints threshold can never
+// diverge.
 func TargetPointsForPolicy(policy ResamplePolicy) int {
-	switch policy {
-	case ResamplePolicyLow:
-		return 200
-	case ResamplePolicyMedium:
-		return 500
-	case ResamplePolicyHigh:
-		return 1000
-	default:
-		return 0
-	}
+	return config.TargetPointsForPolicy(string(policy))
 }
 
 // ComputeResolution computes the resampling resolution in seconds for a given
