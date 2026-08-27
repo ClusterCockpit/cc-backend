@@ -73,10 +73,11 @@
   const subClusterTopology = $derived(getContext("getHardwareTopology")(cluster, subCluster));
   const metricConfig = $derived(getContext("getMetricConfig")(cluster, subCluster, metric));
   const usesMeanStatsSeries = $derived((statisticsSeries?.mean && statisticsSeries.mean.length != 0));
-  const resampleTrigger = $derived(resampleConfig?.trigger ? Number(resampleConfig.trigger) : (resampleConfig?.targetPoints ? Math.floor(resampleConfig.targetPoints / 4) : null));
-  const resampleResolutions = $derived(resampleConfig?.resolutions ? [...resampleConfig.resolutions] : null);
-  const resampleMinimum = $derived(resampleConfig?.resolutions ? Math.min(...resampleConfig.resolutions) : null);
+  const nativeTimestep = $derived(metricConfig?.timestep || timestep);
   const resampleTargetPoints = $derived(resampleConfig?.targetPoints ? Number(resampleConfig.targetPoints) : null);
+  // Zoom in far enough that fewer than a quarter of the target point count is
+  // visible, and a finer resolution is requested from the backend.
+  const resampleTrigger = $derived(resampleTargetPoints ? Math.floor(resampleTargetPoints / 4) : null);
   const useStatsSeries = $derived(!!statisticsSeries); // Display Stats Series By Default if Exists
   const thresholds = $derived(findJobAggregationThresholds(
     subClusterTopology,
@@ -515,21 +516,11 @@
           (u, key) => { // If ZoomResample is Configured && Not System/Node View
             if (resampleConfig && !forNode && key === 'x') {
               const numX = (u.series[0].idxs[1] - u.series[0].idxs[0])
-              if (numX <= resampleTrigger && timestep !== resampleMinimum) {
-                let newRes;
-                if (resampleTargetPoints && !resampleResolutions) {
-                  // Policy-based: compute resolution dynamically from visible window
-                  const visibleDuration = (u.scales.x.max - u.scales.x.min);
-                  const nativeTimestep = metricConfig?.timestep || timestep;
-                  newRes = Math.ceil(visibleDuration / resampleTargetPoints / nativeTimestep) * nativeTimestep;
-                  if (newRes < nativeTimestep) newRes = nativeTimestep;
-                } else if (resampleResolutions) {
-                  // Array-based: find closest configured resolution
-                  const target = (numX * timestep) / resampleTrigger;
-                  newRes = resampleResolutions.reduce(function(prev, curr) {
-                    return (Math.abs(curr - target) < Math.abs(prev - target) ? curr : prev);
-                  });
-                }
+              if (resampleTargetPoints && numX <= resampleTrigger) {
+                // Compute the resolution for the visible window
+                const visibleDuration = (u.scales.x.max - u.scales.x.min);
+                let newRes = Math.ceil(visibleDuration / resampleTargetPoints / nativeTimestep) * nativeTimestep;
+                if (newRes < nativeTimestep) newRes = nativeTimestep;
                 // Prevents non-required dispatches
                 if (newRes && timestep !== newRes) {
                   onZoom({

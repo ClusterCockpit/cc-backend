@@ -294,7 +294,7 @@ type Page struct {
 	FilterPresets map[string]any         // For pages with the Filter component, this can be used to set initial filters.
 	Infos         map[string]any         // For generic use (e.g. username for /monitoring/user/<id>, job id for /monitoring/job/<id>)
 	Config        map[string]any         // UI settings for the currently logged in user (e.g. line width, ...)
-	Resampling    *config.ResampleConfig // If not nil, defines resampling trigger and resolutions
+	Resampling    *config.ResampleConfig // If not nil, defines the target point count for zoom resampling
 	Redirect      string                 // The originally requested URL, for intermediate login handling
 	FooterLinks   FooterLinks            // Resolved legal links for the site footer
 }

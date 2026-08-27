@@ -41,6 +41,25 @@ func TestInitMinimal(t *testing.T) {
 	}
 }
 
+// config-large.json carried the removed resampling keys (minimum-points,
+// trigger, resolutions), which DisallowUnknownFields rejects.
+func TestInitLarge(t *testing.T) {
+	fp := "../../configs/config-large.json"
+	ccconf.Init(fp)
+	if cfg := ccconf.GetPackageConfig("main"); cfg != nil {
+		Init(cfg)
+	} else {
+		cclog.Abort("Main configuration must be present")
+	}
+
+	if Keys.EnableResampling == nil {
+		t.Fatal("resampling config missing")
+	}
+	if Keys.EnableResampling.DefaultAlgo != "average" {
+		t.Errorf("wrong default algo\ngot: %s \nwant: average", Keys.EnableResampling.DefaultAlgo)
+	}
+}
+
 func TestTargetPointsForPolicy(t *testing.T) {
 	tests := []struct {
 		policy string

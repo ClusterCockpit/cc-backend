@@ -4,9 +4,8 @@
     "short-running-jobs-duration": 300,
     "emission-constant": 317,
     "resampling": {
-      "minimum-points": 600,
-      "trigger": 30,
-      "resolutions": [600, 300, 120, 60]
+      "default-policy": "medium",
+      "default-algo": "average"
     },
     "api-subjects": {
       "subject-job-event": "cc.job.event",
