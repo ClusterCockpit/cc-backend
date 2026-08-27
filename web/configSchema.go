@@ -182,6 +182,16 @@ const configSchema = `{
           "type": "integer",
           "minimum": 0
         },
+        "resample-policy": {
+          "description": "Initial resample policy for new users, controlling how many data points metric plots request. Empty string falls back to main.resampling.default-policy.",
+          "type": "string",
+          "enum": ["", "low", "medium", "high"]
+        },
+        "resample-algo": {
+          "description": "Initial resample algorithm for new users. Empty string falls back to main.resampling.default-algo.",
+          "type": "string",
+          "enum": ["", "lttb", "average", "simple"]
+        },
         "color-scheme": {
           "description": "Initial colorScheme to be used for metric plots.",
           "type": "array",
