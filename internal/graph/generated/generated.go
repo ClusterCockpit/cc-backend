@@ -100,6 +100,7 @@ type ComplexityRoot struct {
 		Footprint    func(childComplexity int) int
 		Name         func(childComplexity int) int
 		Scope        func(childComplexity int) int
+		Tooltip      func(childComplexity int) int
 		Unit         func(childComplexity int) int
 	}
 
@@ -219,6 +220,7 @@ type ComplexityRoot struct {
 		Scope         func(childComplexity int) int
 		SubClusters   func(childComplexity int) int
 		Timestep      func(childComplexity int) int
+		Tooltip       func(childComplexity int) int
 		Unit          func(childComplexity int) int
 	}
 
@@ -698,6 +700,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.GlobalMetricListItem.Scope(childComplexity), true
+	case "GlobalMetricListItem.tooltip":
+		if e.ComplexityRoot.GlobalMetricListItem.Tooltip == nil {
+			break
+		}
+
+		return e.ComplexityRoot.GlobalMetricListItem.Tooltip(childComplexity), true
 	case "GlobalMetricListItem.unit":
 		if e.ComplexityRoot.GlobalMetricListItem.Unit == nil {
 			break
@@ -1225,6 +1233,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.MetricConfig.Timestep(childComplexity), true
+	case "MetricConfig.tooltip":
+		if e.ComplexityRoot.MetricConfig.Tooltip == nil {
+			break
+		}
+
+		return e.ComplexityRoot.MetricConfig.Tooltip(childComplexity), true
 	case "MetricConfig.unit":
 		if e.ComplexityRoot.MetricConfig.Unit == nil {
 			break
@@ -2426,6 +2440,7 @@ type MetricConfig {
   alert: Float!
   lowerIsBetter: Boolean
   subClusters: [SubClusterConfig!]!
+  tooltip: String
 }
 
 type Tag {
@@ -2589,6 +2604,7 @@ type GlobalMetricListItem {
   unit: Unit!
   scope: MetricScope!
   footprint: String
+  tooltip: String
   availability: [ClusterSupport!]!
 }
 
@@ -2973,6 +2989,8 @@ func (ec *executionContext) childFields_GlobalMetricListItem(ctx context.Context
 		return ec.fieldContext_GlobalMetricListItem_scope(ctx, field)
 	case "footprint":
 		return ec.fieldContext_GlobalMetricListItem_footprint(ctx, field)
+	case "tooltip":
+		return ec.fieldContext_GlobalMetricListItem_tooltip(ctx, field)
 	case "availability":
 		return ec.fieldContext_GlobalMetricListItem_availability(ctx, field)
 	}
@@ -3203,6 +3221,8 @@ func (ec *executionContext) childFields_MetricConfig(ctx context.Context, field 
 		return ec.fieldContext_MetricConfig_lowerIsBetter(ctx, field)
 	case "subClusters":
 		return ec.fieldContext_MetricConfig_subClusters(ctx, field)
+	case "tooltip":
+		return ec.fieldContext_MetricConfig_tooltip(ctx, field)
 	}
 	return nil, fmt.Errorf("no field named %q was found under type MetricConfig", field.Name)
 }
@@ -5184,6 +5204,29 @@ func (ec *executionContext) _GlobalMetricListItem_footprint(ctx context.Context,
 	)
 }
 func (ec *executionContext) fieldContext_GlobalMetricListItem_footprint(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("GlobalMetricListItem", field, false, false, errors.New("field of type String does not have child fields"))
+}
+
+func (ec *executionContext) _GlobalMetricListItem_tooltip(ctx context.Context, field graphql.CollectedField, obj *schema.GlobalMetricListItem) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_GlobalMetricListItem_tooltip(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.Tooltip, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v string) graphql.Marshaler {
+			return ec.marshalOString2string(ctx, selections, v)
+		},
+		true,
+		false,
+	)
+}
+func (ec *executionContext) fieldContext_GlobalMetricListItem_tooltip(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	return graphql.NewScalarFieldContext("GlobalMetricListItem", field, false, false, errors.New("field of type String does not have child fields"))
 }
 
@@ -7375,6 +7418,29 @@ func (ec *executionContext) fieldContext_MetricConfig_subClusters(_ context.Cont
 		},
 	}
 	return fc, nil
+}
+
+func (ec *executionContext) _MetricConfig_tooltip(ctx context.Context, field graphql.CollectedField, obj *schema.MetricConfig) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_MetricConfig_tooltip(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.Tooltip, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v string) graphql.Marshaler {
+			return ec.marshalOString2string(ctx, selections, v)
+		},
+		true,
+		false,
+	)
+}
+func (ec *executionContext) fieldContext_MetricConfig_tooltip(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("MetricConfig", field, false, false, errors.New("field of type String does not have child fields"))
 }
 
 func (ec *executionContext) _MetricFootprints_metric(ctx context.Context, field graphql.CollectedField, obj *model.MetricFootprints) (ret graphql.Marshaler) {
@@ -13311,6 +13377,11 @@ func (ec *executionContext) _GlobalMetricListItem(ctx context.Context, sel ast.S
 			if out.Values[i] == graphql.RequiredNull {
 				out.Invalids++
 			}
+		case "tooltip":
+			out.Values[i] = ec._GlobalMetricListItem_tooltip(ctx, field, obj)
+			if out.Values[i] == graphql.RequiredNull {
+				out.Invalids++
+			}
 		case "availability":
 			out.Values[i] = ec._GlobalMetricListItem_availability(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
@@ -14338,6 +14409,11 @@ func (ec *executionContext) _MetricConfig(ctx context.Context, sel ast.Selection
 		case "subClusters":
 			out.Values[i] = ec._MetricConfig_subClusters(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "tooltip":
+			out.Values[i] = ec._MetricConfig_tooltip(ctx, field, obj)
+			if out.Values[i] == graphql.RequiredNull {
 				out.Invalids++
 			}
 		default:

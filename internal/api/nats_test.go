@@ -531,8 +531,8 @@ func TestNatsHandleStopJob(t *testing.T) {
 		},
 	}
 
-	testData := schema.JobData{
-		"load_one": map[schema.MetricScope]*schema.JobMetric{
+	testData := schema.JobData{Metrics: map[string]schema.ScopedMetrics{
+		"load_one": {
 			schema.MetricScopeNode: {
 				Unit:     schema.Unit{Base: "load"},
 				Timestep: 60,
@@ -545,7 +545,7 @@ func TestNatsHandleStopJob(t *testing.T) {
 				},
 			},
 		},
-	}
+	}}
 
 	metricstore.TestLoadDataCallback = func(job *schema.Job, metrics []string, scopes []schema.MetricScope, ctx context.Context, resolution int) (schema.JobData, error) {
 		return testData, nil

@@ -117,7 +117,7 @@ func LoadData(job *schema.Job,
 
 			jd, err = ms.LoadData(job, metrics, scopes, ctx, resolution)
 			if err != nil {
-				if len(jd) != 0 {
+				if len(jd.Metrics) != 0 {
 					cclog.Warnf("partial error loading metrics from store for job %d (user: %s, project: %s, cluster: %s-%s): %s",
 						job.JobID, job.User, job.Project, job.Cluster, job.SubCluster, err.Error())
 				} else {
@@ -144,7 +144,7 @@ func LoadData(job *schema.Job,
 			if rfErr != nil {
 				return rfErr, 0, 0
 			}
-			for _, v := range jd {
+			for _, v := range jd.Metrics {
 				for _, v_ := range v {
 					timestep := int64(0)
 					for i := 0; i < len(v_.Series); i += 1 {
@@ -160,17 +160,20 @@ func LoadData(job *schema.Job,
 			// Filter job data to only include requested metrics and scopes, avoiding unnecessary data transfer.
 			if metrics != nil || scopes != nil {
 				if metrics == nil {
-					metrics = make([]string, 0, len(jd))
-					for k := range jd {
+					metrics = make([]string, 0, len(jd.Metrics))
+					for k := range jd.Metrics {
 						metrics = append(metrics, k)
 					}
 				}
 
-				res := schema.JobData{}
+				res := schema.JobData{
+					Metrics: make(map[string]schema.ScopedMetrics, len(metrics)),
+					Groups:  jd.Groups,
+				}
 				for _, metric := range metrics {
-					if perscope, ok := jd[metric]; ok {
+					if perscope, ok := jd.Metrics[metric]; ok {
 						if len(perscope) > 1 {
-							subset := make(map[schema.MetricScope]*schema.JobMetric)
+							subset := make(schema.ScopedMetrics)
 							for _, scope := range scopes {
 								if jm, ok := perscope[scope]; ok {
 									subset[scope] = jm
@@ -182,7 +185,7 @@ func LoadData(job *schema.Job,
 							}
 						}
 
-						res[metric] = perscope
+						res.Metrics[metric] = perscope
 					}
 				}
 				jd = res
@@ -199,7 +202,7 @@ func LoadData(job *schema.Job,
 		// instead of overwhelming the UI with individual node lines. Note that newly calculated
 		// statistics use min/median/max, while archived statistics may use min/mean/max.
 		const maxSeriesSize int = 8
-		for _, scopes := range jd {
+		for _, scopes := range jd.Metrics {
 			for _, jm := range scopes {
 				if jm.StatisticsSeries != nil || len(jm.Series) < maxSeriesSize {
 					continue
@@ -229,7 +232,7 @@ func LoadData(job *schema.Job,
 
 	if err, ok := data.(error); ok {
 		cclog.Errorf("error in cached dataset for job %d: %s", job.JobID, err.Error())
-		return nil, err
+		return schema.JobData{}, err
 	}
 
 	return data.(schema.JobData), nil
@@ -296,14 +299,14 @@ func LoadScopedJobStats(
 	if err != nil {
 		cclog.Errorf("failed to access metricDataRepo for cluster %s-%s: %s",
 			job.Cluster, job.SubCluster, err.Error())
-		return nil, err
+		return schema.ScopedJobStats{}, err
 	}
 
 	scopedStats, err := ms.LoadScopedStats(job, metrics, scopes, ctx)
 	if err != nil {
 		cclog.Warnf("failed to load scoped statistics from metric store for job %d (user: %s, project: %s, cluster: %s-%s): %s",
 			job.JobID, job.User, job.Project, job.Cluster, job.SubCluster, err.Error())
-		return nil, err
+		return schema.ScopedJobStats{}, err
 	}
 
 	// Round Resulting Stat Values
@@ -451,7 +454,7 @@ func LoadNodeListData(
 	// Statistics are calculated as min/median/max.
 	const maxSeriesSize int = 8
 	for _, jd := range data {
-		for _, scopes := range jd {
+		for _, scopes := range jd.Metrics {
 			for _, jm := range scopes {
 				if jm.StatisticsSeries != nil || len(jm.Series) < maxSeriesSize {
 					continue
@@ -472,14 +475,32 @@ func LoadNodeListData(
 // archived data (e.g., during resampling). This ensures the cached archive data remains
 // immutable while allowing per-request transformations.
 func deepCopy(source schema.JobData) schema.JobData {
-	result := make(schema.JobData, len(source))
+	result := schema.JobData{Metrics: copyScopedMetrics(source.Metrics)}
+
+	for _, group := range source.Groups {
+		copied := schema.MetricGroup{Key: group.Key}
+		for _, inst := range group.Instances {
+			copied.Instances = append(copied.Instances, schema.MetricGroupInstance{
+				Name:    inst.Name,
+				Type:    inst.Type,
+				Metrics: copyScopedMetrics(inst.Metrics),
+			})
+		}
+		result.Groups = append(result.Groups, copied)
+	}
+
+	return result
+}
+
+func copyScopedMetrics(source map[string]schema.ScopedMetrics) map[string]schema.ScopedMetrics {
+	result := make(map[string]schema.ScopedMetrics, len(source))
 
 	for metricName, scopeMap := range source {
-		result[metricName] = make(map[schema.MetricScope]*schema.JobMetric, len(scopeMap))
-
+		scopes := make(schema.ScopedMetrics, len(scopeMap))
 		for scope, jobMetric := range scopeMap {
-			result[metricName][scope] = copyJobMetric(jobMetric)
+			scopes[scope] = copyJobMetric(jobMetric)
 		}
+		result[metricName] = scopes
 	}
 
 	return result

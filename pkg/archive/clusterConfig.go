@@ -63,8 +63,11 @@ func initClusterConfig() error {
 
 			if _, ok := metricLookup[mc.Name]; !ok {
 				metricLookup[mc.Name] = schema.GlobalMetricListItem{
-					Name: mc.Name, Scope: mc.Scope, Unit: mc.Unit, Footprint: mc.Footprint,
+					Name: mc.Name, Scope: mc.Scope, Unit: mc.Unit, Footprint: mc.Footprint, Tooltip: mc.Tooltip,
 				}
+			} else if item := metricLookup[mc.Name]; item.Tooltip == "" && mc.Tooltip != "" {
+				item.Tooltip = mc.Tooltip
+				metricLookup[mc.Name] = item
 			}
 
 			availability := schema.ClusterSupport{Cluster: cluster.Name}
@@ -139,8 +142,10 @@ func initClusterConfig() error {
 				userItem, ok := userMetricLookup[mc.Name]
 				if !ok {
 					userItem = schema.GlobalMetricListItem{
-						Name: mc.Name, Scope: mc.Scope, Unit: mc.Unit, Footprint: mc.Footprint,
+						Name: mc.Name, Scope: mc.Scope, Unit: mc.Unit, Footprint: mc.Footprint, Tooltip: mc.Tooltip,
 					}
+				} else if userItem.Tooltip == "" && mc.Tooltip != "" {
+					userItem.Tooltip = mc.Tooltip
 				}
 				userItem.Availability = append(userItem.Availability, userAvailability)
 				userMetricLookup[mc.Name] = userItem

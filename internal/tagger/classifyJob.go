@@ -107,7 +107,7 @@ type JobClassTagger struct {
 	// repo provides access to job database operations
 	repo JobRepository
 	// getStatistics retrieves job statistics for analysis
-	getStatistics func(job *schema.Job) (map[string]schema.JobStatistics, error)
+	getStatistics func(job *schema.Job) (schema.JobStatisticsSet, error)
 	// getMetricConfig retrieves metric configuration (limits) for a cluster
 	getMetricConfig func(cluster, subCluster string) map[string]*schema.Metric
 }
@@ -361,7 +361,7 @@ func (t *JobClassTagger) Match(job *schema.Job) {
 		// add metrics to env
 		skipRule := false
 		for _, m := range ri.metrics {
-			stats, ok := jobStats[m]
+			stats, ok := jobStats.Metrics[m]
 			if !ok {
 				cclog.Debugf("job classification: missing metric '%s' for rule %s on job %d", m, tag, job.JobID)
 				skipRule = true

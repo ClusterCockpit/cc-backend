@@ -65,9 +65,9 @@ func ArchiveJob(job *schema.Job, ctx context.Context) (*schema.Job, error) {
 		return nil, err
 	}
 
-	job.Statistics = make(map[string]schema.JobStatistics)
+	job.Statistics = schema.JobStatisticsSet{Metrics: make(map[string]schema.JobStatistics, len(jobData.Metrics))}
 
-	for metric, data := range jobData {
+	for metric, data := range jobData.Metrics {
 		avg, min, max := 0.0, math.MaxFloat32, -math.MaxFloat32
 		nodeData, ok := data["node"]
 		if !ok {
@@ -82,7 +82,7 @@ func ArchiveJob(job *schema.Job, ctx context.Context) (*schema.Job, error) {
 		}
 
 		// Round AVG Result to 2 Digits
-		job.Statistics[metric] = schema.JobStatistics{
+		job.Statistics.Metrics[metric] = schema.JobStatistics{
 			Unit: schema.Unit{
 				Prefix: archive.GetMetricConfig(job.Cluster, metric).Unit.Prefix,
 				Base:   archive.GetMetricConfig(job.Cluster, metric).Unit.Base,

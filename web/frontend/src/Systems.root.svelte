@@ -63,8 +63,9 @@
   let pendingHostnameFilter = $state("");
   let isMetricsSelectionOpen = $state(false);
 
-  /* Derived Init Return */
+  /* Derived Init Returns */
   const thisInit = $derived($initq?.data ? true : false);
+  const maxSubClusters = $derived($initq?.data?.clusters?.find((c) => c.name == cluster)?.subClusters?.length || 0);
 
   /* Derived States */
   const ccconfig = $derived(thisInit ? getContext("cc-config") : null);
@@ -268,6 +269,7 @@
     {cluster}
     {subCluster}
     {globalMetrics}
+    maxSubClusters={subCluster? null: maxSubClusters}
     configName="nodeList_selectedMetrics"
     applyMetrics={(newMetrics) => 
       selectedMetrics = [...newMetrics]

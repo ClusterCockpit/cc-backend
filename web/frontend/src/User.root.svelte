@@ -90,6 +90,8 @@
   const shortDuration = $derived(ccconfig?.jobList_hideShortRunningJobs);
   let selectedCluster = $derived(filterPresets?.cluster ? filterPresets.cluster : null);
   let selectedSubCluster = $derived(filterPresets?.partition ? filterPresets.partition : null);
+  const maxClusters = $derived($initq?.data?.clusters?.length || 0);
+  const maxSubClusters = $derived($initq?.data?.clusters?.find((c) => c.name == selectedCluster)?.subClusters?.length || 0);
   let metrics = $derived.by(() => {
     if (thisInit && ccconfig) {
       if (selectedCluster) {
@@ -531,6 +533,8 @@
     presetMetrics={metrics}
     cluster={selectedCluster}
     subCluster={selectedSubCluster}
+    {maxClusters}
+    {maxSubClusters}
     configName="metricConfig_jobListMetrics"
     footprintSelect
     {globalMetrics}

@@ -528,7 +528,7 @@ func (r *queryResolver) JobMetrics(ctx context.Context, id string, metrics []str
 	}
 
 	res := []*model.JobMetricWithName{}
-	for name, md := range data {
+	for name, md := range data.Metrics {
 		for scope, metric := range md {
 			res = append(res, &model.JobMetricWithName{
 				Name:   name,
@@ -581,7 +581,7 @@ func (r *queryResolver) ScopedJobStats(ctx context.Context, id string, metrics [
 	}
 
 	res := make([]*model.NamedStatsWithScope, 0)
-	for name, scoped := range data {
+	for name, scoped := range data.Metrics {
 		for scope, stats := range scoped {
 
 			mdlStats := make([]*model.ScopedStats, 0)
@@ -939,7 +939,7 @@ func (r *queryResolver) NodeMetricsList(ctx context.Context, cluster string, sub
 			cclog.Warnf("error in nodeMetrics resolver: %s", err)
 		}
 
-		for metric, scopedMetrics := range data[hostname] {
+		for metric, scopedMetrics := range data[hostname].Metrics {
 			for scope, scopedMetric := range scopedMetrics {
 				host.Metrics = append(host.Metrics, &model.JobMetricWithName{
 					Name:   metric,

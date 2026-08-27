@@ -299,7 +299,7 @@ func LoadAveragesFromArchive(
 	}
 
 	for i, m := range metrics {
-		if stat, ok := metaFile.Statistics[m]; ok {
+		if stat, ok := metaFile.Statistics.Metrics[m]; ok {
 			data[i] = append(data[i], schema.Float(stat.Avg))
 		} else {
 			data[i] = append(data[i], schema.NaN)
@@ -323,7 +323,7 @@ func LoadStatsFromArchive(
 	}
 
 	for _, m := range metrics {
-		stat, ok := metaFile.Statistics[m]
+		stat, ok := metaFile.Statistics.Metrics[m]
 		if !ok {
 			data[m] = schema.MetricStatistics{Min: 0.0, Avg: 0.0, Max: 0.0}
 			continue
@@ -349,19 +349,19 @@ func LoadScopedStatsFromArchive(
 	data, err := ar.LoadJobStats(job)
 	if err != nil {
 		cclog.Errorf("Error while loading job stats from archiveBackend: %s", err.Error())
-		return nil, err
+		return schema.ScopedJobStats{}, err
 	}
 
 	return data, nil
 }
 
-// GetStatistics returns all metric statistics for a job.
-// Returns a map of metric names to their job-level statistics.
-func GetStatistics(job *schema.Job) (map[string]schema.JobStatistics, error) {
+// GetStatistics returns all metric statistics for a job, including the
+// array-valued statistics groups (e.g. filesystems).
+func GetStatistics(job *schema.Job) (schema.JobStatisticsSet, error) {
 	metaFile, err := ar.LoadJobMeta(job)
 	if err != nil {
 		cclog.Errorf("Error while loading job metadata from archiveBackend: %s", err.Error())
-		return nil, err
+		return schema.JobStatisticsSet{}, err
 	}
 
 	return metaFile.Statistics, nil

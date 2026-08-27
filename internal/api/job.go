@@ -412,7 +412,7 @@ func (api *RestAPI) getJobByID(rw http.ResponseWriter, r *http.Request) {
 	}
 
 	res := []*JobMetricWithName{}
-	for name, md := range data {
+	for name, md := range data.Metrics {
 		for scope, metric := range md {
 			res = append(res, &JobMetricWithName{
 				Name:   name,
