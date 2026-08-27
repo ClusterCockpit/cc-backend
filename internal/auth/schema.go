@@ -5,8 +5,13 @@
 
 package auth
 
+// configSchema describes the "auth" section of config.json. Every subsection is
+// optional: Init() logs and continues when "jwts", "oidc" or "ldap" is absent,
+// so only the fields within a configured subsection are required.
 var configSchema = `
-	{
+{
+  "type": "object",
+  "properties": {
     "jwts": {
       "description": "For JWT token authentication.",
       "type": "object",
@@ -55,6 +60,7 @@ var configSchema = `
       "required": ["max-age"]
     },
     "oidc": {
+      "description": "For OpenID Connect authentication.",
       "type": "object",
       "properties": {
         "provider": {
@@ -148,6 +154,6 @@ var configSchema = `
         }
       },
       "required": ["url", "user-base", "search-dn", "user-bind", "user-filter"]
-    },
-  "required": ["jwts"]
-	}`
+    }
+  }
+}`
