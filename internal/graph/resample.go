@@ -63,12 +63,12 @@ func resolveResampleAlgo(ctx context.Context, resampleAlgo *model.ResampleAlgo) 
 
 	user := repository.GetUserFromContext(ctx)
 	if user == nil {
-		return ""
+		return config.ResampleAlgo()
 	}
 
 	conf, err := repository.GetUserCfgRepo().GetUIConfig(user)
 	if err != nil {
-		return ""
+		return config.ResampleAlgo()
 	}
 
 	algoVal, ok := conf["plotConfiguration_resampleAlgo"]
@@ -78,12 +78,8 @@ func resolveResampleAlgo(ctx context.Context, resampleAlgo *model.ResampleAlgo) 
 		}
 	}
 
-	// Fall back to global default algo
-	if config.Keys.EnableResampling != nil && config.Keys.EnableResampling.DefaultAlgo != "" {
-		return config.Keys.EnableResampling.DefaultAlgo
-	}
-
-	return ""
+	// Fall back to the global default algo
+	return config.ResampleAlgo()
 }
 
 // resolveResolutionFromDefaultPolicy computes a resolution using the global

@@ -25,7 +25,7 @@ const configString = `
     "short-running-jobs-duration": 300,
     "resampling": {
       "default-policy": "medium",
-      "default-algo": "lttb"
+      "default-algo": "average"
     },
     "api-allowed-ips": [
       "*"

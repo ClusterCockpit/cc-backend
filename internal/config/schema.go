@@ -98,7 +98,7 @@ var configSchema = `
           "enum": ["low", "medium", "high"]
         },
         "default-algo": {
-          "description": "Default resample algorithm when no user preference is set.",
+          "description": "Default resample algorithm when no user preference is set. Default and recommended: 'average' (RRDTool-style interval averaging).",
           "type": "string",
           "enum": ["lttb", "average", "simple"]
         }

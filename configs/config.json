@@ -15,7 +15,7 @@
     },
     "resampling": {
       "default-policy": "medium",
-      "default-algo": "lttb"
+      "default-algo": "average"
     },
     "footer-links": {
       "imprint": "/imprint",

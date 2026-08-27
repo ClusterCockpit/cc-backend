@@ -301,7 +301,10 @@
             </div>
           {/each}
           <div id="resampleAlgoHelp" class="form-text">
-            Algorithm used when downsampling time-series data. LTTB preserves visual shape, Average smooths data, Simple picks every Nth point.
+            Algorithm used when downsampling time-series data. Average (the
+            default) makes every plotted point the true mean of its interval,
+            LTTB preserves visual shape by keeping extremes, Simple picks every
+            Nth point.
           </div>
         </div>
         <Button color="primary" type="submit">Submit</Button>
