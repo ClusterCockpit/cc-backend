@@ -21,7 +21,8 @@ import (
 // is added to internal/repository/migrations/sqlite3/.
 //
 // Version history:
-//   - Version 13: Service table (fleet service registration/heartbeat)
+//   - Version 13: Service table (fleet service registration/heartbeat), incl.
+//     scope column (cluster vs cluster-independent infra services)
 //   - Version 12: Sessions table (server-side sessions via alexedwards/scs)
 //   - Version 11: Optimize job table indexes (reduce from ~78 to 48, add covering/partial indexes)
 //   - Version 10: Node table

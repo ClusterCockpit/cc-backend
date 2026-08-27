@@ -21,6 +21,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"time"
 
 	"github.com/ClusterCockpit/cc-backend/internal/repository"
@@ -36,7 +37,7 @@ var ErrUnknownInstance = errors.New("fleet: unknown or deregistered instance id"
 type Service struct {
 	Cluster        string
 	Hostname       string
-	ServiceType    string
+	ServiceType    ServiceType
 	InstanceID     string
 	State          string
 	RegisteredAt   time.Time
@@ -50,7 +51,7 @@ type Service struct {
 type RegistrationRequest struct {
 	Cluster     string
 	Hostname    string
-	ServiceType string
+	ServiceType ServiceType
 	MetaData    map[string]string
 }
 
@@ -85,8 +86,11 @@ func NewRegistry(staleAfter time.Duration) *Registry {
 // instance_id plus the config_revision it currently has on record (0 for a
 // never-before-seen service, so the caller knows to pull its initial config).
 func (r *Registry) Register(req RegistrationRequest) (*Registration, error) {
-	if req.Cluster == "" || req.Hostname == "" || req.ServiceType == "" {
-		return nil, errors.New("fleet: cluster, hostname and service_type are required")
+	if req.Cluster == "" || req.Hostname == "" {
+		return nil, errors.New("fleet: cluster and hostname are required")
+	}
+	if !req.ServiceType.Valid() {
+		return nil, fmt.Errorf("fleet: unknown service_type %q", req.ServiceType)
 	}
 
 	instanceID, err := generateInstanceID()
@@ -102,8 +106,9 @@ func (r *Registry) Register(req RegistrationRequest) (*Registration, error) {
 	svc := &repository.ServiceDB{
 		Cluster:      req.Cluster,
 		Hostname:     req.Hostname,
-		ServiceType:  req.ServiceType,
+		ServiceType:  string(req.ServiceType),
 		InstanceID:   instanceID,
+		Scope:        ScopeCluster,
 		RegisteredAt: time.Now().Unix(),
 		MetaData:     metaJSON,
 	}
@@ -239,7 +244,7 @@ func toService(row *repository.ServiceDB) (*Service, error) {
 	svc := &Service{
 		Cluster:        row.Cluster,
 		Hostname:       row.Hostname,
-		ServiceType:    row.ServiceType,
+		ServiceType:    ServiceType(row.ServiceType),
 		InstanceID:     row.InstanceID,
 		State:          row.State,
 		RegisteredAt:   time.Unix(row.RegisteredAt, 0),

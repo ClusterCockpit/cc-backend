@@ -52,11 +52,15 @@ type ServiceDB struct {
 	LastHeartbeat  sql.NullInt64  `db:"last_heartbeat"`
 	ConfigRevision int64          `db:"config_revision"`
 	MetaData       sql.NullString `db:"meta_data"`
+	// Scope is 'cluster' for per-node agents (the default) or 'infra' for
+	// cluster-independent monitoring infrastructure services. Infra rows carry
+	// an empty cluster.
+	Scope string `db:"scope"`
 }
 
 const namedServiceInsert string = `
-INSERT INTO service (cluster, hostname, service_type, instance_id, state, registered_at, config_revision, meta_data)
-	VALUES (:cluster, :hostname, :service_type, :instance_id, 'pending', :registered_at, 0, :meta_data);`
+INSERT INTO service (cluster, hostname, service_type, instance_id, scope, state, registered_at, config_revision, meta_data)
+	VALUES (:cluster, :hostname, :service_type, :instance_id, :scope, 'pending', :registered_at, 0, :meta_data);`
 
 // RegisterService upserts a service by (cluster, hostname, service_type): a
 // service registering for the first time is inserted with config_revision 0;
@@ -75,6 +79,7 @@ func (r *FleetRepository) RegisterService(svc *ServiceDB) (int64, error) {
 	case nil:
 		if _, uerr := sq.Update("service").
 			Set("instance_id", svc.InstanceID).
+			Set("scope", svc.Scope).
 			Set("state", "pending").
 			Set("registered_at", svc.RegisteredAt).
 			Set("meta_data", svc.MetaData).
@@ -156,13 +161,13 @@ func (r *FleetRepository) SetConfigRevision(instanceID string, revision int64) e
 
 var serviceColumns = []string{
 	"id", "cluster", "hostname", "service_type", "instance_id",
-	"state", "registered_at", "last_heartbeat", "config_revision", "meta_data",
+	"state", "registered_at", "last_heartbeat", "config_revision", "meta_data", "scope",
 }
 
 func scanService(row interface{ Scan(...any) error }) (*ServiceDB, error) {
 	svc := &ServiceDB{}
 	if err := row.Scan(&svc.ID, &svc.Cluster, &svc.Hostname, &svc.ServiceType, &svc.InstanceID,
-		&svc.State, &svc.RegisteredAt, &svc.LastHeartbeat, &svc.ConfigRevision, &svc.MetaData); err != nil {
+		&svc.State, &svc.RegisteredAt, &svc.LastHeartbeat, &svc.ConfigRevision, &svc.MetaData, &svc.Scope); err != nil {
 		return nil, err
 	}
 	return svc, nil
@@ -204,6 +209,59 @@ func (r *FleetRepository) ListByCluster(cluster string) ([]*ServiceDB, error) {
 		svc, err := scanService(rows)
 		if err != nil {
 			cclog.Warn("Error while scanning rows (ListByCluster)")
+			return nil, err
+		}
+		services = append(services, svc)
+	}
+	return services, rows.Err()
+}
+
+// ListActive returns all services currently in the 'active' state, ordered by
+// cluster then hostname. It is the roster source for the fleet discovery
+// publisher: only live services are advertised to peers.
+func (r *FleetRepository) ListActive() ([]*ServiceDB, error) {
+	rows, err := sq.Select(serviceColumns...).From("service").
+		Where("state = ?", "active").
+		OrderBy("cluster ASC", "hostname ASC").
+		RunWith(r.DB).Query()
+	if err != nil {
+		cclog.Errorf("Error while listing active services: %v", err)
+		return nil, err
+	}
+	defer rows.Close()
+
+	services := make([]*ServiceDB, 0)
+	for rows.Next() {
+		svc, err := scanService(rows)
+		if err != nil {
+			cclog.Warn("Error while scanning rows (ListActive)")
+			return nil, err
+		}
+		services = append(services, svc)
+	}
+	return services, rows.Err()
+}
+
+// ListByScope returns all services with the given scope ('cluster' or
+// 'infra'), ordered by hostname/service_type. Used to enumerate
+// cluster-independent monitoring infrastructure services, which carry an empty
+// cluster and therefore are not discoverable via ListByCluster.
+func (r *FleetRepository) ListByScope(scope string) ([]*ServiceDB, error) {
+	rows, err := sq.Select(serviceColumns...).From("service").
+		Where("scope = ?", scope).
+		OrderBy("hostname ASC", "service_type ASC").
+		RunWith(r.DB).Query()
+	if err != nil {
+		cclog.Errorf("Error while listing services for scope '%s': %v", scope, err)
+		return nil, err
+	}
+	defer rows.Close()
+
+	services := make([]*ServiceDB, 0)
+	for rows.Next() {
+		svc, err := scanService(rows)
+		if err != nil {
+			cclog.Warn("Error while scanning rows (ListByScope)")
 			return nil, err
 		}
 		services = append(services, svc)

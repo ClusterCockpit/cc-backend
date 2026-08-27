@@ -4,6 +4,8 @@ CREATE TABLE "service" (
     hostname VARCHAR(255) NOT NULL,
     service_type VARCHAR(255) NOT NULL,
     instance_id VARCHAR(64) NOT NULL,
+    scope VARCHAR(32) NOT NULL DEFAULT 'cluster'
+        CHECK (scope IN ('cluster', 'infra')),
     state VARCHAR(32) NOT NULL DEFAULT 'pending'
         CHECK (state IN ('pending', 'active', 'stale', 'deregistered')),
     registered_at INTEGER NOT NULL,
@@ -15,6 +17,7 @@ CREATE TABLE "service" (
 );
 
 CREATE INDEX IF NOT EXISTS services_cluster ON service (cluster);
+CREATE INDEX IF NOT EXISTS services_scope ON service (scope);
 CREATE INDEX IF NOT EXISTS services_state_heartbeat ON service (state, last_heartbeat);
 
 PRAGMA optimize;
