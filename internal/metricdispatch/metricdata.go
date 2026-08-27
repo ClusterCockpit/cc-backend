@@ -24,7 +24,8 @@ type MetricDataRepository interface {
 		metrics []string,
 		scopes []schema.MetricScope,
 		ctx context.Context,
-		resolution int) (schema.JobData, error)
+		resolution int,
+		resampleAlgo string) (schema.JobData, error)
 
 	// Return a map of metrics to a map of nodes to the metric statistics of the job. node scope only.
 	LoadStats(job *schema.Job,

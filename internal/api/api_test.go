@@ -212,7 +212,7 @@ func TestRestApi(t *testing.T) {
 		},
 	}}
 
-	metricstore.TestLoadDataCallback = func(job *schema.Job, metrics []string, scopes []schema.MetricScope, ctx context.Context, resolution int) (schema.JobData, error) {
+	metricstore.TestLoadDataCallback = func(job *schema.Job, metrics []string, scopes []schema.MetricScope, ctx context.Context, resolution int, resampleAlgo string) (schema.JobData, error) {
 		return testData, nil
 	}
 
@@ -513,7 +513,7 @@ func TestStopJobWithReusedJobId(t *testing.T) {
 		},
 	}}
 
-	metricstore.TestLoadDataCallback = func(job *schema.Job, metrics []string, scopes []schema.MetricScope, ctx context.Context, resolution int) (schema.JobData, error) {
+	metricstore.TestLoadDataCallback = func(job *schema.Job, metrics []string, scopes []schema.MetricScope, ctx context.Context, resolution int, resampleAlgo string) (schema.JobData, error) {
 		return testData, nil
 	}
 

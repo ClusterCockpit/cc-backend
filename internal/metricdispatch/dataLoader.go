@@ -23,13 +23,14 @@
 //   - Running jobs: 2 minutes (data changes frequently)
 //   - Completed jobs: 5 hours (data is static)
 //
-// The cache key is based on job ID, state, requested metrics, scopes, and resolution.
+// The cache key is based on job ID, state, requested metrics, scopes, resolution,
+// and resample algorithm.
 //
 // # Usage
 //
 // The primary entry point is LoadData, which automatically handles both running and archived jobs:
 //
-//	jobData, err := metricdispatch.LoadData(job, metrics, scopes, ctx, resolution)
+//	jobData, err := metricdispatch.LoadData(job, metrics, scopes, ctx, resolution, resampleAlgo)
 //	if err != nil {
 //	    // Handle error
 //	}
@@ -115,7 +116,7 @@ func LoadData(job *schema.Job,
 				}
 			}
 
-			jd, err = ms.LoadData(job, metrics, scopes, ctx, resolution)
+			jd, err = ms.LoadData(job, metrics, scopes, ctx, resolution, resampleAlgo)
 			if err != nil {
 				if len(jd.Metrics) != 0 {
 					cclog.Warnf("partial error loading metrics from store for job %d (user: %s, project: %s, cluster: %s-%s): %s",

@@ -50,7 +50,7 @@ func (ccms *InternalMetricStore) HealthCheck(cluster string,
 
 // TestLoadDataCallback allows tests to override LoadData behavior for testing purposes.
 // When set to a non-nil function, LoadData will call this function instead of the default implementation.
-var TestLoadDataCallback func(job *schema.Job, metrics []string, scopes []schema.MetricScope, ctx context.Context, resolution int) (schema.JobData, error)
+var TestLoadDataCallback func(job *schema.Job, metrics []string, scopes []schema.MetricScope, ctx context.Context, resolution int, resampleAlgo string) (schema.JobData, error)
 
 // LoadData loads metric data for a specific job with automatic scope transformation.
 //
@@ -81,9 +81,10 @@ func (ccms *InternalMetricStore) LoadData(
 	scopes []schema.MetricScope,
 	ctx context.Context,
 	resolution int,
+	resampleAlgo string,
 ) (schema.JobData, error) {
 	if TestLoadDataCallback != nil {
-		return TestLoadDataCallback(job, metrics, scopes, ctx, resolution)
+		return TestLoadDataCallback(job, metrics, scopes, ctx, resolution, resampleAlgo)
 	}
 
 	queries, assignedScope, err := buildQueries(job, metrics, scopes, int64(resolution))
@@ -99,12 +100,13 @@ func (ccms *InternalMetricStore) LoadData(
 	}
 
 	req := APIQueryRequest{
-		Cluster:   job.Cluster,
-		From:      job.StartTime,
-		To:        job.StartTime + int64(job.Duration),
-		Queries:   queries,
-		WithStats: true,
-		WithData:  true,
+		Cluster:      job.Cluster,
+		From:         job.StartTime,
+		To:           job.StartTime + int64(job.Duration),
+		Queries:      queries,
+		WithStats:    true,
+		WithData:     true,
+		ResampleAlgo: resampleAlgo,
 	}
 
 	resBody, err := FetchData(req)

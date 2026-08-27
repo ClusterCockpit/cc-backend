@@ -81,13 +81,14 @@ type CCMetricStore struct {
 // APIQueryRequest represents a request to the cc-metric-store query API.
 // It supports both explicit queries and "for-all-nodes" bulk queries.
 type APIQueryRequest struct {
-	Cluster     string     `json:"cluster"`       // Target cluster name
-	Queries     []APIQuery `json:"queries"`       // Explicit list of metric queries
-	ForAllNodes []string   `json:"for-all-nodes"` // Metrics to query for all nodes
-	From        int64      `json:"from"`          // Start time (Unix timestamp)
-	To          int64      `json:"to"`            // End time (Unix timestamp)
-	WithStats   bool       `json:"with-stats"`    // Include min/avg/max statistics
-	WithData    bool       `json:"with-data"`     // Include time series data points
+	Cluster      string     `json:"cluster"`                 // Target cluster name
+	Queries      []APIQuery `json:"queries"`                 // Explicit list of metric queries
+	ForAllNodes  []string   `json:"for-all-nodes"`           // Metrics to query for all nodes
+	From         int64      `json:"from"`                    // Start time (Unix timestamp)
+	To           int64      `json:"to"`                      // End time (Unix timestamp)
+	WithStats    bool       `json:"with-stats"`              // Include min/avg/max statistics
+	WithData     bool       `json:"with-data"`               // Include time series data points
+	ResampleAlgo string     `json:"resample-algo,omitempty"` // Downsampling algorithm ("lttb", "average", "simple"); empty = server default
 }
 
 // APIQuery specifies a single metric query with optional scope filtering.
@@ -231,6 +232,7 @@ func (ccms *CCMetricStore) LoadData(
 	scopes []schema.MetricScope,
 	ctx context.Context,
 	resolution int,
+	resampleAlgo string,
 ) (schema.JobData, error) {
 	queries, assignedScope, err := ccms.buildQueries(job, metrics, scopes, resolution)
 	if err != nil {
@@ -245,12 +247,13 @@ func (ccms *CCMetricStore) LoadData(
 	}
 
 	req := APIQueryRequest{
-		Cluster:   job.Cluster,
-		From:      job.StartTime,
-		To:        job.StartTime + int64(job.Duration),
-		Queries:   queries,
-		WithStats: true,
-		WithData:  true,
+		Cluster:      job.Cluster,
+		From:         job.StartTime,
+		To:           job.StartTime + int64(job.Duration),
+		Queries:      queries,
+		WithStats:    true,
+		WithData:     true,
+		ResampleAlgo: resampleAlgo,
 	}
 
 	resBody, err := ccms.doRequest(ctx, &req)
@@ -632,12 +635,13 @@ func (ccms *CCMetricStore) LoadNodeListData(
 	}
 
 	req := APIQueryRequest{
-		Cluster:   cluster,
-		Queries:   queries,
-		From:      from.Unix(),
-		To:        to.Unix(),
-		WithStats: true,
-		WithData:  true,
+		Cluster:      cluster,
+		Queries:      queries,
+		From:         from.Unix(),
+		To:           to.Unix(),
+		WithStats:    true,
+		WithData:     true,
+		ResampleAlgo: resampleAlgo,
 	}
 
 	resBody, err := ccms.doRequest(ctx, &req)

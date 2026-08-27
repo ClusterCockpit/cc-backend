@@ -193,6 +193,21 @@ func initResampler() {
 // DefaultResamplePolicy is used when no resample policy is configured.
 const DefaultResamplePolicy = "medium"
 
+// DefaultResampleAlgo is used when neither the user nor the config selects a
+// resample algorithm. "average" performs RRDTool-style interval averaging,
+// which keeps each plotted point a true mean of its interval.
+const DefaultResampleAlgo = "average"
+
+// ResampleAlgo returns the configured default resample algorithm, falling back
+// to DefaultResampleAlgo. Note that an empty string would select LTTB in
+// cc-lib's resampler, so callers must not pass "" when they mean "the default".
+func ResampleAlgo() string {
+	if Keys.EnableResampling != nil && Keys.EnableResampling.DefaultAlgo != "" {
+		return Keys.EnableResampling.DefaultAlgo
+	}
+	return DefaultResampleAlgo
+}
+
 // TargetPointsForPolicy returns the target number of data points for a resample
 // policy. This is the single source of truth: it feeds both the requested
 // resolution (via metricdispatch.ComputeResolution) and the resampler's
