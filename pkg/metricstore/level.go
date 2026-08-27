@@ -382,8 +382,8 @@ func (l *Level) findLevel(selector []string) *Level {
 //   - selector: Pattern to match (consumed recursively)
 //   - offset:   Metric index in metrics slice (from MetricConfig.offset)
 //   - f:        Callback invoked on each matching buffer; path holds the matched
-//               level keys (e.g. ["cluster","node001","cpu0"]) so callers can
-//               identify which node/component the buffer belongs to
+//     level keys (e.g. ["cluster","node001","cpu0"]) so callers can
+//     identify which node/component the buffer belongs to
 //   - path:     Accumulated level keys from the root; pass nil at the top level
 //
 // Returns:

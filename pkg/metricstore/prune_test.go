@@ -104,8 +104,8 @@ func TestFreeViaProviderPrunesDeadNodes(t *testing.T) {
 	const freq int64 = 60
 	thr := time.Unix(100000, 0)
 
-	writeNode(ms, "fritz", "dead", nil, freq, 1000, 2000)  // stale, not used -> pruned
-	writeNode(ms, "fritz", "busy", nil, freq, 1000, 2000)  // stale, but used -> kept
+	writeNode(ms, "fritz", "dead", nil, freq, 1000, 2000)     // stale, not used -> pruned
+	writeNode(ms, "fritz", "busy", nil, freq, 1000, 2000)     // stale, but used -> kept
 	writeNode(ms, "fritz", "live", nil, freq, 100000, 100600) // fresh -> kept
 
 	ms.SetNodeProvider(&fakeNodeProvider{nodes: map[string][]string{"fritz": {"busy"}}})
