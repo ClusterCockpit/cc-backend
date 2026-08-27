@@ -298,6 +298,18 @@ func (r *UserRepository) UpdateUser(dbUser *schema.User, user *schema.User) erro
 	return nil
 }
 
+// UpdateRoles overwrites a user's role list with the provided roles.
+// Used by the LDAP sync to reconcile elevated roles; callers are responsible for
+// computing the full role set (the value replaces the existing one verbatim).
+func (r *UserRepository) UpdateRoles(username string, roles []string) error {
+	rolesJSON, _ := json.Marshal(roles)
+	if _, err := sq.Update("hpc_user").Set("roles", rolesJSON).Where("hpc_user.username = ?", username).RunWith(r.DB).Exec(); err != nil {
+		cclog.Errorf("error while updating roles of user '%s'", username)
+		return err
+	}
+	return nil
+}
+
 func (r *UserRepository) DelUser(username string) error {
 	_, err := r.DB.Exec(`DELETE FROM hpc_user WHERE hpc_user.username = ?`, username)
 	if err != nil {
