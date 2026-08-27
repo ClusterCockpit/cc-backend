@@ -6,9 +6,20 @@ This release replaces the browser session implementation and requires a database
 migration to version 12. Run `./cc-backend -migrate-db` after upgrading; the new
 `sessions` table is created automatically (a fresh `-init-db` also creates it).
 Existing login sessions are invalidated by the upgrade, so users have to log in
-again once. See the behavior changes below regarding the session cookie `Secure`
-flag and the removal of the `SESSION_KEY` environment variable.
-For release specific notes visit the [ClusterCockpit Documentation](https://clusterockpit.org/docs/release/).
+again once.
+
+**Two configuration changes are mandatory before starting 1.6.0:**
+
+- The `.env` file is gone. Move every secret into the `auth` section of
+  `config.json` (or export the corresponding environment variable).
+- The `main.resampling` section no longer accepts `trigger`, `resolutions` and
+  `minimum-points`. cc-backend rejects unknown keys inside `main` and aborts on
+  startup if they are still present. Replace them with `default-policy` and
+  `default-algo`.
+
+See the behavior changes below for the details, as well as for the session
+cookie `Secure` flag and the removal of the `SESSION_KEY` environment variable.
+For release specific notes visit the [ClusterCockpit Documentation](https://clustercockpit.org/docs/release/).
 
 ## Changes in 1.6.0
 
@@ -28,14 +39,117 @@ For release specific notes visit the [ClusterCockpit Documentation](https://clus
   terminate TLS at a reverse proxy and want the `Secure` flag should serve
   cc-backend over HTTPS directly for now.
 - **`SESSION_KEY` removed**: The `SESSION_KEY` environment variable is no longer
-  used and should be removed from your `.env`. Server-side sessions use random
+  used and can be dropped from your environment. Server-side sessions use random
   tokens, so no cookie-signing secret is required. It is ignored if left in place.
+- **`.env` support removed (breaking)**: The `godotenv` bootstrap, the `.env`
+  file and `configs/env-template.txt` are gone. Secrets (JWT public/private key,
+  LDAP sync password, OIDC client id/secret, cross-login keys) now live in
+  `config.json` under `auth` next to the option that uses them. Each secret can
+  still be supplied through its existing environment variable
+  (`JWT_PUBLIC_KEY`, `JWT_PRIVATE_KEY`, `LDAP_ADMIN_PASSWORD`, `OID_CLIENT_ID`,
+  `OID_CLIENT_SECRET`, `CROSS_LOGIN_JWT_PUBLIC_KEY`, `CROSS_LOGIN_JWT_HS512_KEY`),
+  which takes precedence over the config value. `-init` now writes the demo JWT
+  keys into `config.json`.
+- **Resampling configuration replaced by policies (breaking)**: The explicit
+  `trigger`, `resolutions` and `minimum-points` keys under `main.resampling` are
+  removed; `main` rejects unknown keys, so a config still carrying them aborts
+  startup. Configure `default-policy` (`low` ≈ 200, `medium` ≈ 500, `high` ≈ 1000
+  target points) and `default-algo` instead. Both are also exposed as per-user
+  settings, and the policy is now the single source for the requested resolution
+  and for the resampler's minimum-points threshold.
+- **Default downsampling algorithm is now `average`**: Previously an unset
+  algorithm fell through to cc-lib's LTTB. Average consolidation makes every
+  plotted point the true arithmetic mean of its interval; LTTB deliberately keeps
+  extremes and cannot be read as interval means. Set
+  `main.resampling.default-algo` to `lttb` to restore the old behavior.
+- **OIDC roles require an explicit mapping (breaking for role-based setups)**:
+  The hardcoded translation of token roles (which only recognised the literal
+  names `user`/`admin`/`manager`/`support` and silently dropped `api`) is
+  replaced by `auth.oidc.role-mapping`. The mapping is the sole source of roles:
+  unmapped token roles are ignored and users without a mapped role get the base
+  `user` role. Deployments whose IdP emits literal CC role names must now map
+  them explicitly (e.g. `"admin": "admin"`). Mapping targets are validated at
+  startup.
+- **LDAP can assign elevated roles**: The new optional `auth.ldap.role-filters`
+  map (role → LDAP filter) grants `admin`/`support`/`api`/`manager` to accounts
+  matching a filter. LDAP is authoritative for the roles listed there — sync and
+  login both add *and remove* them to match group membership — while roles not
+  listed are preserved (a managed `manager` with assigned projects is never
+  stripped). Without `role-filters` the behavior is unchanged.
+- **Unrecognized top-level config sections are reported**: cc-backend now logs a
+  warning for unknown top-level keys in `config.json`, which most often means a
+  setting was nested at the wrong level (e.g. `resampling` next to `main`
+  instead of inside it) and was silently ignored before.
+- **The `auth` section is validated again**: Its JSON schema was missing the
+  enclosing `type`/`properties` wrapper, so it accepted every input and no auth
+  option was ever checked. With the schema fixed, an incomplete auth section now
+  aborts startup — `jwts` requires `max-age`, `oidc` requires `provider`, and
+  `ldap` requires `url`, `user-base`, `search-dn`, `user-bind` and `user-filter`.
+  Each of the three subsections stays optional on its own.
+- **`archive.retention` target keys**: The retention target is configured with
+  `target-kind` and `target-path` (or the `target-*` S3 keys). The `location` key
+  used by the old example configuration was never read by the code, so a `move`
+  or `copy` policy configured that way ran against an empty target path.
+
+### New features
+
+- **Configurable footer links**: `main.footer-links` lets the Imprint and
+  Privacy Policy footer entries point at internal pages (default) or external
+  URLs. External `http(s)` targets open in a new tab; empty or unset values fall
+  back to the built-in `/imprint` and `/privacy` routes, and the existing
+  `./var/*.tmpl` override mechanism keeps working.
+- **Display smoothing for metric plots**: A centered, NaN-aware moving average
+  can be applied in the plot layer, after whatever downsampling the backend
+  performed. It preserves series length and index alignment, skips NaN/null
+  samples, keeps all-NaN windows as gaps, and shrinks the window at the series
+  edges. The window is a per-user setting in data points with a site default in
+  `ui.plot-configuration.smoothing-window` (0 disables it). It is display-only:
+  reported statistics and job footprints are unaffected.
+- **Metric tooltips**: `metricConfig` entries in `cluster.json` accept an
+  optional `tooltip` that is rendered in the metric selection dialog.
+- **Metric store statistics from cached aggregates**: Buffers maintain running
+  sum/min/max/count while data is written and compute them eagerly on checkpoint
+  load, so a full-buffer statistics request is served from the cached aggregate
+  instead of rescanning the samples.
+- **Checkpoint retention aware of running jobs**: The metric store receives a
+  `NodeProvider` (the job repository) at `Init`. Checkpoint cleanup now skips
+  nodes that still have running jobs, the full checkpoint history is loaded for
+  those nodes at startup, and this also applies to the `-cleanup-checkpoints`
+  CLI path.
+
+### Bug fixes
+
+- **Metric plots and the policy-based resample config**: `MetricPlot` still read
+  the removed `trigger`/`resolutions` values, so the array-based resolution
+  branch was unreachable and the zoom guard always fired. The zoom trigger is now
+  derived from the policy's target point count.
+- **Resample algorithm for running jobs**: The selected algorithm was not
+  forwarded to the metric store when loading data for running jobs.
+- **Partially covered buffers**: Requests that reach beyond the stored data now
+  get NaN padding at the start/end instead of misaligned series
+  (`dataNotAligned`).
+- **Data race in the statistics read path**: Reading buffer statistics no longer
+  mutates the buffer, and the fast path is guarded against empty buffers.
+- **Empty node levels leaked**: The retention free path now prunes node levels
+  that no longer hold any data, and no longer force-frees buffers that are
+  retained for running jobs.
+- **Plot render options in the wrong place**: `PlotRenderOptions` is only shown
+  in the user settings again.
+- **Invisible navbar**: Fixed a stuck animation that hid the navbar with certain
+  browser settings.
+- **Subcluster dropdown**: The subcluster selection is size-limited and scrolls
+  instead of overflowing.
+- **OIDC login session handling**: Fixed session handling on the OIDC login
+  route.
 
 ### Dependencies
 
 - **Added** `github.com/alexedwards/scs/v2` and
   `github.com/alexedwards/scs/sqlite3store`.
-- **Removed** `github.com/gorilla/sessions` (and `github.com/gorilla/securecookie`).
+- **Removed** `github.com/gorilla/sessions` (and `github.com/gorilla/securecookie`),
+  and `github.com/joho/godotenv` together with the `.env` support.
+- **Upgraded** `cc-lib` (GraphQL code regenerated) and refreshed the remaining Go
+  module dependencies.
 
 ## Changes in 1.5.4
 
@@ -286,7 +400,11 @@ This is also the default.
 
 - **cc-lib upgraded**: Updated to latest cc-lib version.
 
-## Known issues
+## Known issues (as of 1.5.2)
+
+These were the open issues at the time of the 1.5.2 release and are kept here for
+that release's record; they are not necessarily still open. Note that the
+`ui-config` section referenced below is now called `ui`.
 
 - The new dynamic memory management is not bullet proof yet across restarts.
   Buffers that are kept outside the retention period may be lost across a
