@@ -46,7 +46,7 @@
     {
       "name": "flops_any",
       "unit": {
-        "base": "Flops/s",
+        "base": "F/s",
         "prefix": "G"
       },
       "scope": "hwthread",

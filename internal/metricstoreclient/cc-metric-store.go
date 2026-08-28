@@ -81,13 +81,14 @@ type CCMetricStore struct {
 // APIQueryRequest represents a request to the cc-metric-store query API.
 // It supports both explicit queries and "for-all-nodes" bulk queries.
 type APIQueryRequest struct {
-	Cluster     string     `json:"cluster"`       // Target cluster name
-	Queries     []APIQuery `json:"queries"`       // Explicit list of metric queries
-	ForAllNodes []string   `json:"for-all-nodes"` // Metrics to query for all nodes
-	From        int64      `json:"from"`          // Start time (Unix timestamp)
-	To          int64      `json:"to"`            // End time (Unix timestamp)
-	WithStats   bool       `json:"with-stats"`    // Include min/avg/max statistics
-	WithData    bool       `json:"with-data"`     // Include time series data points
+	Cluster      string     `json:"cluster"`                 // Target cluster name
+	Queries      []APIQuery `json:"queries"`                 // Explicit list of metric queries
+	ForAllNodes  []string   `json:"for-all-nodes"`           // Metrics to query for all nodes
+	From         int64      `json:"from"`                    // Start time (Unix timestamp)
+	To           int64      `json:"to"`                      // End time (Unix timestamp)
+	WithStats    bool       `json:"with-stats"`              // Include min/avg/max statistics
+	WithData     bool       `json:"with-data"`               // Include time series data points
+	ResampleAlgo string     `json:"resample-algo,omitempty"` // Downsampling algorithm ("lttb", "average", "simple"); empty = server default
 }
 
 // APIQuery specifies a single metric query with optional scope filtering.
@@ -231,11 +232,12 @@ func (ccms *CCMetricStore) LoadData(
 	scopes []schema.MetricScope,
 	ctx context.Context,
 	resolution int,
+	resampleAlgo string,
 ) (schema.JobData, error) {
 	queries, assignedScope, err := ccms.buildQueries(job, metrics, scopes, resolution)
 	if err != nil {
 		cclog.Errorf("Error while building queries for jobId %d, Metrics %v, Scopes %v: %s", job.JobID, metrics, scopes, err.Error())
-		return nil, err
+		return schema.JobData{}, err
 	}
 
 	// Verify assignment is correct - log any inconsistencies for debugging
@@ -245,22 +247,23 @@ func (ccms *CCMetricStore) LoadData(
 	}
 
 	req := APIQueryRequest{
-		Cluster:   job.Cluster,
-		From:      job.StartTime,
-		To:        job.StartTime + int64(job.Duration),
-		Queries:   queries,
-		WithStats: true,
-		WithData:  true,
+		Cluster:      job.Cluster,
+		From:         job.StartTime,
+		To:           job.StartTime + int64(job.Duration),
+		Queries:      queries,
+		WithStats:    true,
+		WithData:     true,
+		ResampleAlgo: resampleAlgo,
 	}
 
 	resBody, err := ccms.doRequest(ctx, &req)
 	if err != nil {
 		cclog.Errorf("Error while performing request for job %d: %s", job.JobID, err.Error())
-		return nil, err
+		return schema.JobData{}, err
 	}
 
 	var errors []string
-	jobData := make(schema.JobData)
+	jobData := schema.JobData{Metrics: make(map[string]schema.ScopedMetrics)}
 
 	// Add safety check for potential index out of range errors
 	if len(resBody.Results) != len(req.Queries) || len(assignedScope) != len(req.Queries) {
@@ -285,8 +288,8 @@ func (ccms *CCMetricStore) LoadData(
 			continue
 		}
 
-		if _, ok := jobData[metric]; !ok {
-			jobData[metric] = make(map[schema.MetricScope]*schema.JobMetric)
+		if _, ok := jobData.Metrics[metric]; !ok {
+			jobData.Metrics[metric] = make(schema.ScopedMetrics)
 		}
 
 		res := mc.Timestep
@@ -294,14 +297,14 @@ func (ccms *CCMetricStore) LoadData(
 			res = row[0].Resolution
 		}
 
-		jobMetric, ok := jobData[metric][scope]
+		jobMetric, ok := jobData.Metrics[metric][scope]
 		if !ok {
 			jobMetric = &schema.JobMetric{
 				Unit:     mc.Unit,
 				Timestep: res,
 				Series:   make([]schema.Series, 0),
 			}
-			jobData[metric][scope] = jobMetric
+			jobData.Metrics[metric][scope] = jobMetric
 		}
 
 		for ndx, res := range row {
@@ -329,9 +332,9 @@ func (ccms *CCMetricStore) LoadData(
 
 		// So that one can later check len(jobData):
 		if len(jobMetric.Series) == 0 {
-			delete(jobData[metric], scope)
-			if len(jobData[metric]) == 0 {
-				delete(jobData, metric)
+			delete(jobData.Metrics[metric], scope)
+			if len(jobData.Metrics[metric]) == 0 {
+				delete(jobData.Metrics, metric)
 			}
 		}
 	}
@@ -426,7 +429,7 @@ func (ccms *CCMetricStore) LoadScopedStats(
 	queries, assignedScope, err := ccms.buildQueries(job, metrics, scopes, 0)
 	if err != nil {
 		cclog.Errorf("Error while building queries for jobId %d, Metrics %v, Scopes %v: %s", job.JobID, metrics, scopes, err.Error())
-		return nil, err
+		return schema.ScopedJobStats{}, err
 	}
 
 	req := APIQueryRequest{
@@ -441,23 +444,23 @@ func (ccms *CCMetricStore) LoadScopedStats(
 	resBody, err := ccms.doRequest(ctx, &req)
 	if err != nil {
 		cclog.Errorf("Error while performing request for job %d: %s", job.JobID, err.Error())
-		return nil, err
+		return schema.ScopedJobStats{}, err
 	}
 
 	var errors []string
-	scopedJobStats := make(schema.ScopedJobStats)
+	scopedJobStats := schema.ScopedJobStats{Metrics: make(map[string]schema.ScopedMetricStats)}
 
 	for i, row := range resBody.Results {
 		query := req.Queries[i]
 		metric := query.Metric
 		scope := assignedScope[i]
 
-		if _, ok := scopedJobStats[metric]; !ok {
-			scopedJobStats[metric] = make(map[schema.MetricScope][]*schema.ScopedStats)
+		if _, ok := scopedJobStats.Metrics[metric]; !ok {
+			scopedJobStats.Metrics[metric] = make(schema.ScopedMetricStats)
 		}
 
-		if _, ok := scopedJobStats[metric][scope]; !ok {
-			scopedJobStats[metric][scope] = make([]*schema.ScopedStats, 0)
+		if _, ok := scopedJobStats.Metrics[metric][scope]; !ok {
+			scopedJobStats.Metrics[metric][scope] = make([]*schema.ScopedStats, 0)
 		}
 
 		for ndx, res := range row {
@@ -471,7 +474,7 @@ func (ccms *CCMetricStore) LoadScopedStats(
 
 			ms.SanitizeStats(&res.Avg, &res.Min, &res.Max)
 
-			scopedJobStats[metric][scope] = append(scopedJobStats[metric][scope], &schema.ScopedStats{
+			scopedJobStats.Metrics[metric][scope] = append(scopedJobStats.Metrics[metric][scope], &schema.ScopedStats{
 				Hostname: query.Hostname,
 				ID:       id,
 				Data: &schema.MetricStatistics{
@@ -483,10 +486,10 @@ func (ccms *CCMetricStore) LoadScopedStats(
 		}
 
 		// So that one can later check len(scopedJobStats[metric][scope]): Remove from map if empty
-		if len(scopedJobStats[metric][scope]) == 0 {
-			delete(scopedJobStats[metric], scope)
-			if len(scopedJobStats[metric]) == 0 {
-				delete(scopedJobStats, metric)
+		if len(scopedJobStats.Metrics[metric][scope]) == 0 {
+			delete(scopedJobStats.Metrics[metric], scope)
+			if len(scopedJobStats.Metrics[metric]) == 0 {
+				delete(scopedJobStats.Metrics, metric)
 			}
 		}
 	}
@@ -617,6 +620,7 @@ func (ccms *CCMetricStore) LoadNodeListData(
 	resolution int,
 	from, to time.Time,
 	ctx context.Context,
+	resampleAlgo string,
 ) (map[string]schema.JobData, error) {
 	queries, assignedScope, err := ccms.buildNodeQueries(cluster, subCluster, nodes, metrics, scopes, resolution)
 	if err != nil {
@@ -631,12 +635,13 @@ func (ccms *CCMetricStore) LoadNodeListData(
 	}
 
 	req := APIQueryRequest{
-		Cluster:   cluster,
-		Queries:   queries,
-		From:      from.Unix(),
-		To:        to.Unix(),
-		WithStats: true,
-		WithData:  true,
+		Cluster:      cluster,
+		Queries:      queries,
+		From:         from.Unix(),
+		To:           to.Unix(),
+		WithStats:    true,
+		WithData:     true,
+		ResampleAlgo: resampleAlgo,
 	}
 
 	resBody, err := ccms.doRequest(ctx, &req)
@@ -690,14 +695,14 @@ func (ccms *CCMetricStore) LoadNodeListData(
 		// Init Nested Map Data Structures If Not Found
 		hostData, ok := data[query.Hostname]
 		if !ok {
-			hostData = make(schema.JobData)
+			hostData = schema.JobData{Metrics: make(map[string]schema.ScopedMetrics)}
 			data[query.Hostname] = hostData
 		}
 
-		metricData, ok := hostData[metric]
+		metricData, ok := hostData.Metrics[metric]
 		if !ok {
-			metricData = make(map[schema.MetricScope]*schema.JobMetric)
-			data[query.Hostname][metric] = metricData
+			metricData = make(schema.ScopedMetrics)
+			hostData.Metrics[metric] = metricData
 		}
 
 		scopeData, ok := metricData[scope]
@@ -707,7 +712,7 @@ func (ccms *CCMetricStore) LoadNodeListData(
 				Timestep: res,
 				Series:   make([]schema.Series, 0),
 			}
-			data[query.Hostname][metric][scope] = scopeData
+			metricData[scope] = scopeData
 		}
 
 		for ndx, res := range row {

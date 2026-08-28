@@ -143,6 +143,7 @@ type MetricConfig {
   alert: Float!
   lowerIsBetter: Boolean
   subClusters: [SubClusterConfig!]!
+  tooltip: String
 }
 
 type Tag {
@@ -250,6 +251,12 @@ type TimeWeights {
   coreHours: [NullableFloat!]!
 }
 
+enum ResampleAlgo {
+  LTTB
+  AVERAGE
+  SIMPLE
+}
+
 enum Aggregate {
   USER
   PROJECT
@@ -300,6 +307,7 @@ type GlobalMetricListItem {
   unit: Unit!
   scope: MetricScope!
   footprint: String
+  tooltip: String
   availability: [ClusterSupport!]!
 }
 
@@ -340,6 +348,7 @@ type Query {
     metrics: [String!]
     scopes: [MetricScope!]
     resolution: Int
+    resampleAlgo: ResampleAlgo
   ): [JobMetricWithName!]!
 
   jobStats(id: ID!, metrics: [String!]): [NamedStats!]!
@@ -399,6 +408,7 @@ type Query {
     to: Time!
     page: PageRequest
     resolution: Int
+    resampleAlgo: ResampleAlgo
   ): NodesResultList!
 
   clusterMetrics(

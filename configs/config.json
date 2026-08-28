@@ -14,9 +14,8 @@
       "target-path": "./var/nodestate-archive"
     },
     "resampling": {
-      "minimum-points": 600,
-      "trigger": 180,
-      "resolutions": [240, 60]
+      "default-policy": "medium",
+      "default-algo": "average"
     },
     "footer-links": {
       "imprint": "/imprint",
@@ -24,7 +23,9 @@
     },
     "api-subjects": {
       "subject-job-event": "cc.job.event",
-      "subject-node-state": "cc.node.state"
+      "subject-node-state": "cc.node.state",
+      "job-concurrency": 8,
+      "node-concurrency": 2
     }
   },
   "nats": {
@@ -52,8 +53,12 @@
     "secret-key": "xx",
     "retention": {
       "policy": "move",
+      "format": "parquet",
       "age": 365,
-      "location": "./var/archive"
+      "include-db": true,
+      "target-kind": "file",
+      "target-path": "./var/job-archive-retention",
+      "max-file-size-mb": 512
     }
   },
   "metric-store-external": [
@@ -80,8 +85,11 @@
   ],
   "metric-store": {
     "checkpoints": {
-      "directory": "./var/checkpoints"
+      "file-format": "wal",
+      "directory": "./var/checkpoints",
+      "max-wal-size": 268435456
     },
+    "checkpoint-interval": "12h",
     "memory-cap": 100,
     "retention-in-memory": "24h",
     "cleanup": {
@@ -99,5 +107,5 @@
       }
     ]
   },
-  "ui-file": "ui-config.json"
+  "ui-file": "uiConfig.json"
 }

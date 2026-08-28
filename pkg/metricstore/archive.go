@@ -94,16 +94,32 @@ var ErrNoNewArchiveData error = errors.New("all data already archived")
 
 // CleanupCheckpoints deletes or archives all checkpoint files older than `from`.
 // When archiving, consolidates all hosts per cluster into a single Parquet file.
+//
+// Hosts currently in use by running jobs (per the MemoryStore's NodeProvider)
+// are skipped entirely; their files are handled by a later cycle once the job
+// has ended. If the provider query fails, the whole cycle is aborted: deleting
+// without knowing which nodes are in use risks data loss. Without a provider,
+// everything older than `from` is cleaned (old behavior).
 func CleanupCheckpoints(checkpointsDir, cleanupDir string, from int64, deleteInstead bool) (int, error) {
-	if deleteInstead {
-		return deleteCheckpoints(checkpointsDir, from)
+	var usedNodes map[string][]string
+	if ms := GetMemoryStore(); ms != nil && ms.nodeProvider != nil {
+		un, err := ms.nodeProvider.GetUsedNodes(from)
+		if err != nil {
+			return 0, fmt.Errorf("aborting cleanup, could not determine nodes in use: %w", err)
+		}
+		usedNodes = un
 	}
 
-	return archiveCheckpoints(checkpointsDir, cleanupDir, from)
+	if deleteInstead {
+		return deleteCheckpoints(checkpointsDir, from, usedNodes)
+	}
+
+	return archiveCheckpoints(checkpointsDir, cleanupDir, from, usedNodes)
 }
 
 // deleteCheckpoints removes checkpoint files older than `from` across all clusters/hosts.
-func deleteCheckpoints(checkpointsDir string, from int64) (int, error) {
+// Hosts present in usedNodes are skipped.
+func deleteCheckpoints(checkpointsDir string, from int64, usedNodes map[string][]string) (int, error) {
 	entries1, err := os.ReadDir(checkpointsDir)
 	if err != nil {
 		return 0, err
@@ -157,6 +173,10 @@ func deleteCheckpoints(checkpointsDir string, from int64) (int, error) {
 		}
 
 		for _, de2 := range entries2 {
+			if isNodeUsed(usedNodes, de1.Name(), de2.Name()) {
+				cclog.Debugf("[METRICSTORE]> skipping delete for %s/%s: node in use by running job", de1.Name(), de2.Name())
+				continue
+			}
 			work <- workItem{
 				dir:     filepath.Join(checkpointsDir, de1.Name(), de2.Name()),
 				cluster: de1.Name(),
@@ -182,7 +202,7 @@ func deleteCheckpoints(checkpointsDir string, from int64) (int, error) {
 // Workers load checkpoint files from disk and send CheckpointFile trees on a
 // back-pressured channel. The main thread streams each tree directly to Parquet
 // rows without materializing all rows in memory.
-func archiveCheckpoints(checkpointsDir, cleanupDir string, from int64) (int, error) {
+func archiveCheckpoints(checkpointsDir, cleanupDir string, from int64, usedNodes map[string][]string) (int, error) {
 	cclog.Info("[METRICSTORE]> start archiving checkpoints to parquet")
 	startTime := time.Now()
 
@@ -250,6 +270,10 @@ func archiveCheckpoints(checkpointsDir, cleanupDir string, from int64) (int, err
 		go func() {
 			for _, hostEntry := range hostEntries {
 				if !hostEntry.IsDir() {
+					continue
+				}
+				if isNodeUsed(usedNodes, cluster, hostEntry.Name()) {
+					cclog.Debugf("[METRICSTORE]> skipping archive for %s/%s: node in use by running job", cluster, hostEntry.Name())
 					continue
 				}
 				dir := filepath.Join(checkpointsDir, cluster, hostEntry.Name())

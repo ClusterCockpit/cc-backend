@@ -5,8 +5,13 @@
 
 package auth
 
+// configSchema describes the "auth" section of config.json. Every subsection is
+// optional: Init() logs and continues when "jwts", "oidc" or "ldap" is absent,
+// so only the fields within a configured subsection are required.
 var configSchema = `
-	{
+{
+  "type": "object",
+  "properties": {
     "jwts": {
       "description": "For JWT token authentication.",
       "type": "object",
@@ -55,6 +60,7 @@ var configSchema = `
       "required": ["max-age"]
     },
     "oidc": {
+      "description": "For OpenID Connect authentication.",
       "type": "object",
       "properties": {
         "provider": {
@@ -76,6 +82,13 @@ var configSchema = `
         "client-secret": {
           "description": "OAuth2 client secret for the OIDC provider. Overridden by the OID_CLIENT_SECRET environment variable when set.",
           "type": "string"
+        },
+        "role-mapping": {
+          "description": "Maps an OIDC role/group claim value (from realm_access/resource_access) to a CC role. Valid target roles: admin, support, api, manager, user. This is the sole source of roles: only mapped roles are honored, unmapped token roles are ignored (literal CC role names must be mapped explicitly). Users without any mapped role receive the base 'user' role.",
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          }
         }
       },
       "required": ["provider"]
@@ -131,9 +144,16 @@ var configSchema = `
         "sync-password": {
           "description": "Password for the LDAP admin account used for syncing. Overridden by the LDAP_ADMIN_PASSWORD environment variable when set.",
           "type": "string"
+        },
+        "role-filters": {
+          "description": "Maps an elevated role to an LDAP filter; accounts matching the filter are granted that role. LDAP is authoritative for every role listed here (roles are added and removed to match group membership), while roles not listed are preserved. Applied during sync and at login. Valid keys: admin, support, api, manager.",
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          }
         }
       },
       "required": ["url", "user-base", "search-dn", "user-bind", "user-filter"]
-    },
-  "required": ["jwts"]
-	}`
+    }
+  }
+}`

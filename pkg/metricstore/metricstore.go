@@ -28,6 +28,7 @@ import (
 	"runtime"
 	"runtime/debug"
 	"slices"
+	"strings"
 	"sync"
 	"time"
 
@@ -42,7 +43,6 @@ import (
 type GlobalState struct {
 	mu                sync.RWMutex
 	lastRetentionTime int64
-	selectorsExcluded bool
 }
 
 var (
@@ -115,6 +115,9 @@ type MemoryStore struct {
 // Parameters:
 //   - rawConfig: JSON configuration for the metric store (see MetricStoreConfig); may be nil to use defaults
 //   - metrics: Map of metric names to their configurations (frequency and aggregation strategy)
+//   - provider: NodeProvider consulted during the checkpoint restore (and later by
+//     Free/CleanupCheckpoints) to preserve data for nodes with running jobs; may be
+//     nil, in which case all provider-aware paths fall back to their plain behavior
 //   - wg: WaitGroup that will be incremented for each background goroutine started
 //
 // The function will call cclog.Fatal on critical errors during initialization.
@@ -122,7 +125,7 @@ type MemoryStore struct {
 //
 // Note: Signal handling must be implemented by the caller. Call Shutdown() when
 // receiving termination signals to ensure checkpoint data is persisted.
-func Init(rawConfig json.RawMessage, metrics map[string]MetricConfig, wg *sync.WaitGroup) {
+func Init(rawConfig json.RawMessage, metrics map[string]MetricConfig, provider NodeProvider, wg *sync.WaitGroup) {
 	startupTime := time.Now()
 
 	if rawConfig != nil {
@@ -144,6 +147,9 @@ func Init(rawConfig json.RawMessage, metrics map[string]MetricConfig, wg *sync.W
 	InitMetrics(metrics)
 
 	ms := GetMemoryStore()
+	if provider != nil {
+		ms.SetNodeProvider(provider)
+	}
 
 	d, err := time.ParseDuration(Keys.RetentionInMemory)
 	if err != nil {
@@ -251,9 +257,12 @@ func (ms *MemoryStore) GetMetricFrequency(metricName string) (int64, error) {
 }
 
 // SetNodeProvider sets the NodeProvider implementation for the MemoryStore.
-// This must be called during initialization to provide job state information
-// for selective buffer retention during Free operations.
-// If not set, the Free function will fall back to freeing all buffers.
+// The provider supplies the set of nodes in use by running jobs, which is
+// consulted by Free (selective buffer retention), FromCheckpoint (full-history
+// loading for used hosts), and CleanupCheckpoints (skipping used hosts).
+// Server startup passes the provider to Init() directly; this setter serves
+// callers that do not run Init (tests, the -cleanup-checkpoints CLI path).
+// If not set, all provider-aware paths fall back to their plain behavior.
 func (ms *MemoryStore) SetNodeProvider(provider NodeProvider) {
 	ms.nodeProvider = provider
 }
@@ -431,29 +440,7 @@ func MemoryUsageTracker(wg *sync.WaitGroup, ctx context.Context) {
 				metricDataGB := ms.SizeInGB()
 				cclog.Infof("[METRICSTORE]> memory usage: %.2f GB actual (%.2f GB metric data)", actualMemoryGB, metricDataGB)
 
-				freedExcluded := 0
 				freedEmergency := 0
-				var err error
-
-				state.mu.RLock()
-				lastRetention := state.lastRetentionTime
-				selectorsExcluded := state.selectorsExcluded
-				state.mu.RUnlock()
-
-				if lastRetention != 0 && selectorsExcluded {
-					freedExcluded, err = ms.Free(nil, lastRetention)
-					if err != nil {
-						cclog.Errorf("[METRICSTORE]> error while force-freeing the excluded buffers: %s", err)
-					}
-
-					if freedExcluded > 0 {
-						debug.FreeOSMemory()
-						cclog.Infof("[METRICSTORE]> done: %d excluded buffers force-freed", freedExcluded)
-					}
-				}
-
-				runtime.ReadMemStats(&mem)
-				actualMemoryGB = float64(mem.Alloc) / 1e9
 
 				if actualMemoryGB > float64(Keys.MemoryCap) {
 					cclog.Warnf("[METRICSTORE]> memory usage %.2f GB exceeds cap %d GB, starting emergency buffer freeing", actualMemoryGB, Keys.MemoryCap)
@@ -547,101 +534,26 @@ func Free(ms *MemoryStore, t time.Time) (int, error) {
 	// If the length of the map returned by GetUsedNodes() is 0,
 	// then use default Free method with nil selector
 	case 0:
-		state.selectorsExcluded = false
 		return ms.Free(nil, t.Unix())
 
-	// Else formulate selectors, exclude those from the map
-	// and free the rest of the selectors
+	// Else free every cluster/node except the used ones, pruning node Levels
+	// that become empty in the same locked traversal.
 	default:
-		state.selectorsExcluded = true
-		selectors := GetSelectors(ms, excludeSelectors)
-		return FreeSelected(ms, selectors, t)
+		return ms.root.freeExcludingUsed(t.Unix(), excludeSelectors)
 	}
 }
 
-// FreeSelected frees buffers for specific selectors while preserving others.
-//
-// This function is used when we want to retain some specific nodes beyond the retention time.
-// It iterates through the provided selectors and frees their associated buffers.
-//
-// Parameters:
-//   - ms: The MemoryStore instance
-//   - selectors: List of selector paths to free (e.g., [["cluster1", "node1"], ["cluster2", "node2"]])
-//   - t: Time threshold for freeing buffers
-//
-// Returns the total number of buffers freed and any error encountered.
-func FreeSelected(ms *MemoryStore, selectors [][]string, t time.Time) (int, error) {
-	freed := 0
-
-	for _, selector := range selectors {
-
-		freedBuffers, err := ms.Free(selector, t.Unix())
-		if err != nil {
-			cclog.Errorf("error while freeing selected buffers: %#v", err)
-		}
-		freed += freedBuffers
-
+// isNodeUsed reports whether cluster/host appears in the used-nodes map
+// returned by NodeProvider.GetUsedNodes. Host lists are sorted per the
+// interface contract, so lookup is a binary search. A nil map means no
+// node is in use.
+func isNodeUsed(used map[string][]string, cluster, host string) bool {
+	hosts, ok := used[cluster]
+	if !ok {
+		return false
 	}
-
-	return freed, nil
-}
-
-// GetSelectors returns all selectors at depth 2 (cluster/node level) that are NOT in the exclusion map.
-//
-// This function generates a list of selectors whose buffers should be freed by excluding
-// selectors that correspond to nodes currently in use by running jobs.
-//
-// Parameters:
-//   - ms: The MemoryStore instance
-//   - excludeSelectors: Map of cluster names to node hostnames that should NOT be freed
-//
-// Returns a list of selectors ([]string paths) that can be safely freed.
-//
-// Example:
-//
-//	If the tree has paths ["emmy", "node001"] and ["emmy", "node002"],
-//	and excludeSelectors contains {"emmy": ["node001"]},
-//	then only [["emmy", "node002"]] is returned.
-func GetSelectors(ms *MemoryStore, excludeSelectors map[string][]string) [][]string {
-	allSelectors := ms.GetPaths(2)
-
-	filteredSelectors := make([][]string, 0, len(allSelectors))
-
-	for _, path := range allSelectors {
-		if len(path) < 2 {
-			continue
-		}
-
-		key := path[0]   // The "Key" (Level 1)
-		value := path[1] // The "Value" (Level 2)
-
-		exclude := false
-
-		// Check if the key exists in our exclusion map
-		if excludedValues, exists := excludeSelectors[key]; exists {
-			// The key exists, now check if the specific value is in the exclusion list
-			if slices.Contains(excludedValues, value) {
-				exclude = true
-			}
-		}
-
-		if !exclude {
-			filteredSelectors = append(filteredSelectors, path)
-		}
-	}
-
-	return filteredSelectors
-}
-
-// GetPaths returns a list of lists (paths) to the specified depth.
-func (ms *MemoryStore) GetPaths(targetDepth int) [][]string {
-	var results [][]string
-
-	// Start recursion. Initial path is empty.
-	// We treat Root as depth 0.
-	ms.root.collectPaths(0, targetDepth, []string{}, &results)
-
-	return results
+	_, found := slices.BinarySearch(hosts, host)
+	return found
 }
 
 // Write all values in `metrics` to the level specified by `selector` for time `ts`.
@@ -701,7 +613,7 @@ func (m *MemoryStore) WriteToLevel(l *Level, selector []string, ts int64, metric
 // If the level does not hold the metric itself, the data will be aggregated recursively from the children.
 // The second and third return value are the actual from/to for the data. Those can be different from
 // the range asked for if no data was available.
-func (m *MemoryStore) Read(selector util.Selector, metric string, from, to, resolution int64) ([]schema.Float, int64, int64, int64, error) {
+func (m *MemoryStore) Read(selector util.Selector, metric string, from, to, resolution int64, resampleAlgo string) ([]schema.Float, int64, int64, int64, error) {
 	if from > to {
 		return nil, 0, 0, 0, errors.New("[METRICSTORE]> invalid time range")
 	}
@@ -711,38 +623,40 @@ func (m *MemoryStore) Read(selector util.Selector, metric string, from, to, reso
 		return nil, 0, 0, 0, errors.New("[METRICSTORE]> unknown metric: " + metric)
 	}
 
+	// data spans the full requested window; every scope's read() writes into the
+	// same index-aligned slice (NaN where it has no value), so aggregation never
+	// needs trimming. We check each buffer's extent against the original request
+	// and warn if it doesn't cover the full range.
 	n, data := 0, make([]schema.Float, (to-from)/minfo.Frequency+1)
 
-	err := m.root.findBuffers(selector, minfo.offset, func(b *buffer) error {
-		cdata, cfrom, cto, err := b.read(from, to, data)
+	err := m.root.findBuffers(selector, minfo.offset, func(b *buffer, path []string) error {
+		cdata, cfrom, cto, err := b.read(from, to, data, false)
 		if err != nil {
 			return err
 		}
 
-		if n == 0 {
-			from, to = cfrom, cto
-		} else if from != cfrom || to != cto || len(data) != len(cdata) {
-			missingfront, missingback := int((from-cfrom)/minfo.Frequency), int((to-cto)/minfo.Frequency)
-			if missingfront != 0 {
-				return ErrDataDoesNotAlignMissingFront
+		// Check if buffer covers full requested range
+		missingfront := int((cfrom - from) / minfo.Frequency)
+		missingback := int((to - cto) / minfo.Frequency)
+		if missingfront > 0 || missingback > 0 {
+			node := strings.Join(path, "/")
+			switch {
+			case missingfront > 0 && missingback > 0:
+				cclog.Warnf("%v: metric=%s node=%s requested[%d,%d] actual[%d,%d] missing_front=%d pts missing_back=%d pts",
+					ErrDataDoesNotAlignMissingFront, metric, node, from, to, cfrom, cto, missingfront, missingback)
+			case missingfront > 0:
+				cclog.Warnf("%v: metric=%s node=%s requested[%d,%d] actual[%d,%d] missing_front=%d pts",
+					ErrDataDoesNotAlignMissingFront, metric, node, from, to, cfrom, cto, missingfront)
+			case missingback > 0:
+				cclog.Warnf("%v: metric=%s node=%s requested[%d,%d] actual[%d,%d] missing_back=%d pts",
+					ErrDataDoesNotAlignMissingBack, metric, node, from, to, cfrom, cto, missingback)
 			}
-
-			newlen := len(cdata) - missingback
-			if newlen < 1 {
-				return ErrDataDoesNotAlignMissingBack
-			}
-			cdata = cdata[0:newlen]
-			if len(cdata) != len(data) {
-				return ErrDataDoesNotAlignDataLenMismatch
-			}
-
-			from, to = cfrom, cto
 		}
 
 		data = cdata
 		n += 1
 		return nil
-	})
+	}, nil)
 
 	if err != nil {
 		return nil, 0, 0, 0, err
@@ -759,7 +673,11 @@ func (m *MemoryStore) Read(selector util.Selector, metric string, from, to, reso
 		}
 	}
 
-	data, resolution, err = resampler.LargestTriangleThreeBucket(data, minfo.Frequency, resolution)
+	resampleFn, rfErr := resampler.GetResampler(resampleAlgo)
+	if rfErr != nil {
+		return nil, 0, 0, 0, rfErr
+	}
+	data, resolution, err = resampleFn(data, minfo.Frequency, resolution)
 	if err != nil {
 		return nil, 0, 0, 0, err
 	}

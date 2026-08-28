@@ -72,6 +72,9 @@ type PlotConfiguration struct {
 	PlotsPerRow     int      `json:"plots-per-row"`
 	LineWidth       int      `json:"line-width"`
 	ColorScheme     []string `json:"color-scheme"`
+	ResampleAlgo    string   `json:"resample-algo"`
+	ResamplePolicy  string   `json:"resample-policy"`
+	SmoothingWindow int      `json:"smoothing-window"`
 }
 
 const (
@@ -124,6 +127,7 @@ var UIDefaults = WebConfig{
 		PlotsPerRow:     3,
 		LineWidth:       3,
 		ColorScheme:     []string{"#00bfff", "#0000ff", "#ff00ff", "#ff0000", "#ff8000", "#ffff00", "#80ff00"},
+		SmoothingWindow: 3,
 	},
 }
 
@@ -170,6 +174,9 @@ func Init(rawConfig json.RawMessage) error {
 	UIDefaultsMap["plotConfiguration_plotsPerRow"] = UIDefaults.PlotConfiguration.PlotsPerRow
 	UIDefaultsMap["plotConfiguration_lineWidth"] = UIDefaults.PlotConfiguration.LineWidth
 	UIDefaultsMap["plotConfiguration_colorScheme"] = UIDefaults.PlotConfiguration.ColorScheme
+	UIDefaultsMap["plotConfiguration_resampleAlgo"] = UIDefaults.PlotConfiguration.ResampleAlgo
+	UIDefaultsMap["plotConfiguration_resamplePolicy"] = UIDefaults.PlotConfiguration.ResamplePolicy
+	UIDefaultsMap["plotConfiguration_smoothingWindow"] = UIDefaults.PlotConfiguration.SmoothingWindow
 
 	for _, c := range UIDefaults.MetricConfig.Clusters {
 		if c.JobListMetrics != nil {
@@ -290,7 +297,7 @@ type Page struct {
 	FilterPresets map[string]any         // For pages with the Filter component, this can be used to set initial filters.
 	Infos         map[string]any         // For generic use (e.g. username for /monitoring/user/<id>, job id for /monitoring/job/<id>)
 	Config        map[string]any         // UI settings for the currently logged in user (e.g. line width, ...)
-	Resampling    *config.ResampleConfig // If not nil, defines resampling trigger and resolutions
+	Resampling    *config.ResampleConfig // If not nil, defines the target point count for zoom resampling
 	Redirect      string                 // The originally requested URL, for intermediate login handling
 	FooterLinks   FooterLinks            // Resolved legal links for the site footer
 }

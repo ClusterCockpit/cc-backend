@@ -330,7 +330,7 @@ func (s3a *S3Archive) LoadJobData(job *schema.Job) (schema.JobData, error) {
 		})
 		if err != nil {
 			cclog.Errorf("S3Archive LoadJobData() > GetObject error: %v", err)
-			return nil, err
+			return schema.JobData{}, err
 		}
 		defer result.Body.Close()
 
@@ -349,7 +349,7 @@ func (s3a *S3Archive) LoadJobData(job *schema.Job) (schema.JobData, error) {
 	r, err := gzip.NewReader(result.Body)
 	if err != nil {
 		cclog.Errorf("S3Archive LoadJobData() > gzip error: %v", err)
-		return nil, err
+		return schema.JobData{}, err
 	}
 	defer r.Close()
 
@@ -381,14 +381,14 @@ func (s3a *S3Archive) LoadJobStats(job *schema.Job) (schema.ScopedJobStats, erro
 		})
 		if err != nil {
 			cclog.Errorf("S3Archive LoadJobStats() > GetObject error: %v", err)
-			return nil, err
+			return schema.ScopedJobStats{}, err
 		}
 		defer result.Body.Close()
 
 		if config.Keys.Validate {
 			b, _ := io.ReadAll(result.Body)
 			if err := schema.Validate(schema.Data, bytes.NewReader(b)); err != nil {
-				return nil, fmt.Errorf("validate job data: %v", err)
+				return schema.ScopedJobStats{}, fmt.Errorf("validate job data: %v", err)
 			}
 			return DecodeJobStats(bytes.NewReader(b), key)
 		}
@@ -400,14 +400,14 @@ func (s3a *S3Archive) LoadJobStats(job *schema.Job) (schema.ScopedJobStats, erro
 	r, err := gzip.NewReader(result.Body)
 	if err != nil {
 		cclog.Errorf("S3Archive LoadJobStats() > gzip error: %v", err)
-		return nil, err
+		return schema.ScopedJobStats{}, err
 	}
 	defer r.Close()
 
 	if config.Keys.Validate {
 		b, _ := io.ReadAll(r)
 		if err := schema.Validate(schema.Data, bytes.NewReader(b)); err != nil {
-			return nil, fmt.Errorf("validate job data: %v", err)
+			return schema.ScopedJobStats{}, fmt.Errorf("validate job data: %v", err)
 		}
 		return DecodeJobStats(bytes.NewReader(b), keyGz)
 	}

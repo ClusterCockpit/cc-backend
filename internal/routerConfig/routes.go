@@ -15,6 +15,7 @@ import (
 
 	"github.com/ClusterCockpit/cc-backend/internal/config"
 	"github.com/ClusterCockpit/cc-backend/internal/graph/model"
+	"github.com/ClusterCockpit/cc-backend/internal/metricdispatch"
 	"github.com/ClusterCockpit/cc-backend/internal/repository"
 	"github.com/ClusterCockpit/cc-backend/web"
 	cclog "github.com/ClusterCockpit/cc-lib/v2/ccLogger"
@@ -496,13 +497,15 @@ func SetupRoutes(router chi.Router, buildInfo web.Build) {
 			// Get Roles
 			availableRoles, _ := schema.GetValidRolesMap(user)
 
+			resampling := resamplingForUser(conf)
+
 			page := web.Page{
 				Title:      title,
 				User:       *user,
 				Roles:      availableRoles,
 				Build:      buildInfo,
 				Config:     conf,
-				Resampling: config.Keys.EnableResampling,
+				Resampling: resampling,
 				Infos:      infos,
 			}
 
@@ -587,5 +590,38 @@ func HandleSearchBar(rw http.ResponseWriter, r *http.Request, buildInfo web.Buil
 		}
 	} else {
 		web.RenderTemplate(rw, "message.tmpl", &web.Page{Title: "Warning", MsgType: "alert-warning", Message: "Empty search", User: *user, Roles: availableRoles, Build: buildInfo})
+	}
+}
+
+// resamplingForUser returns a ResampleConfig that incorporates the user's
+// resample policy preference. If the user has a policy set, it creates a
+// policy-derived config with targetPoints and trigger. Otherwise falls back
+// to the global config.
+func resamplingForUser(conf map[string]any) *config.ResampleConfig {
+	globalCfg := config.Keys.EnableResampling
+
+	policyStr := ""
+	if policyVal, ok := conf["plotConfiguration_resamplePolicy"]; ok {
+		if s, ok := policyVal.(string); ok {
+			policyStr = s
+		}
+	}
+
+	// Fall back to global default policy, then to "medium"
+	if policyStr == "" && globalCfg != nil {
+		policyStr = globalCfg.DefaultPolicy
+	}
+	if policyStr == "" {
+		policyStr = "medium"
+	}
+
+	policy := metricdispatch.ResamplePolicy(policyStr)
+	targetPoints := metricdispatch.TargetPointsForPolicy(policy)
+	if targetPoints == 0 {
+		return globalCfg
+	}
+
+	return &config.ResampleConfig{
+		TargetPoints: targetPoints,
 	}
 }

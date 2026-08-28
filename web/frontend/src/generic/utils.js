@@ -81,6 +81,7 @@ export function init(extraInitQuery = "") {
             name
             scope
             footprint
+            tooltip
             unit { base, prefix }
             availability { cluster, subClusters }
         }

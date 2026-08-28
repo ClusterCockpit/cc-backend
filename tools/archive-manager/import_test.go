@@ -231,9 +231,9 @@ func TestImportDataIntegrity(t *testing.T) {
 		}
 
 		// Verify metric data exists
-		if len(srcData) != len(dstData) {
+		if len(srcData.Metrics) != len(dstData.Metrics) {
 			t.Errorf("Metric count mismatch for job %d: expected %d, got %d",
-				srcJob.Meta.JobID, len(srcData), len(dstData))
+				srcJob.Meta.JobID, len(srcData.Metrics), len(dstData.Metrics))
 		}
 
 		verifiedJobs++

@@ -80,7 +80,6 @@ func (api *RestAPI) getUsers(rw http.ResponseWriter, r *http.Request) {
 // @security    ApiKeyAuth
 // @router      /api/user/{id} [post]
 func (api *RestAPI) updateUserByRequest(rw http.ResponseWriter, r *http.Request) {
-
 	if user := repository.GetUserFromContext(r.Context()); !user.HasRole(schema.RoleAdmin) {
 		handleError(fmt.Errorf("only admins are allowed to update a user"), http.StatusForbidden, rw)
 		return

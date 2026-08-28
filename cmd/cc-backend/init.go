@@ -24,12 +24,8 @@ const configString = `
     "addr": "127.0.0.1:8080",
     "short-running-jobs-duration": 300,
     "resampling": {
-      "minimum-points": 600,
-      "trigger": 300,
-      "resolutions": [
-        240,
-        60
-      ]
+      "default-policy": "medium",
+      "default-algo": "average"
     },
     "api-allowed-ips": [
       "*"
@@ -50,6 +46,14 @@ const configString = `
       "max-age": "2000h",
       "public-key": "kzfYrYy+TzpanWZHJ5qSdMj5uKUWgq74BWhQG6copP0=",
       "private-key": "dtPC/6dWJFKZK7KZ78CvWuynylOmjBFyMsUWArwmodOTN9itjL5POlqdZkcnmpJ0yPm4pRaCrvgFaFAbpyik/Q=="
+    }
+  },
+  "metric-store": {
+    "retention-in-memory": "48h",
+    "memory-cap": 8,
+    "checkpoints": {
+      "file-format": "wal",
+      "directory": "./var/checkpoints"
     }
   }
 }

@@ -24,7 +24,8 @@ type MetricDataRepository interface {
 		metrics []string,
 		scopes []schema.MetricScope,
 		ctx context.Context,
-		resolution int) (schema.JobData, error)
+		resolution int,
+		resampleAlgo string) (schema.JobData, error)
 
 	// Return a map of metrics to a map of nodes to the metric statistics of the job. node scope only.
 	LoadStats(job *schema.Job,
@@ -51,7 +52,8 @@ type MetricDataRepository interface {
 		scopes []schema.MetricScope,
 		resolution int,
 		from, to time.Time,
-		ctx context.Context) (map[string]schema.JobData, error)
+		ctx context.Context,
+		resampleAlgo string) (map[string]schema.JobData, error)
 
 	// HealthCheck evaluates the monitoring state for a set of nodes against expected metrics.
 	HealthCheck(cluster string,

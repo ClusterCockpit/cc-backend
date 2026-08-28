@@ -91,6 +91,19 @@ func initGops() error {
 func initConfiguration() error {
 	ccconf.Init(flagConfigFile)
 
+	// Warn about unrecognized top-level config sections. A common mistake is
+	// nesting a setting at the wrong level (e.g. placing "resampling" next to
+	// "main" instead of inside it), which is otherwise silently ignored.
+	knownSections := map[string]bool{
+		"main": true, "auth": true, "nats": true, "archive": true,
+		"metric-store": true, "metric-store-external": true, "cron": true, "ui": true,
+	}
+	for _, k := range ccconf.GetKeys() {
+		if !knownSections[k] {
+			cclog.Warnf("ignoring unrecognized top-level config section %q (check nesting in config file)", k)
+		}
+	}
+
 	cfg := ccconf.GetPackageConfig("main")
 	if cfg == nil {
 		return fmt.Errorf("main configuration must be present")
@@ -354,13 +367,11 @@ func runServer(ctx context.Context) error {
 	haveMetricstore := false
 	mscfg := ccconf.GetPackageConfig("metric-store")
 	if mscfg != nil {
-		metrics := metricstore.BuildMetricList()
-		metricstore.Init(mscfg, metrics, &wg)
+		// The repository is injected as NodeProvider (breaking the import
+		// cycle) so the checkpoint load inside Init can fetch the full
+		// history for nodes with running jobs.
+		metricstore.Init(mscfg, metricstore.BuildMetricList(), repository.GetJobRepository(), &wg)
 
-		// Inject repository as NodeProvider to break import cycle
-		ms := metricstore.GetMemoryStore()
-		jobRepo := repository.GetJobRepository()
-		ms.SetNodeProvider(jobRepo)
 		metricstore.MetricStoreHandle = &metricstore.InternalMetricStore{}
 		haveMetricstore = true
 	} else {
@@ -572,6 +583,11 @@ func run() error {
 		if !deleteMode {
 			cleanupDir = metricstore.Keys.Cleanup.RootDir
 		}
+
+		// Wire the job repository as NodeProvider so cleanup skips hosts
+		// with running jobs (same injection as runServer).
+		metricstore.InitMetrics(metricstore.BuildMetricList())
+		metricstore.GetMemoryStore().SetNodeProvider(repository.GetJobRepository())
 
 		cclog.Infof("Cleaning up checkpoints older than %s...", from.Format(time.RFC3339))
 		n, err := metricstore.CleanupCheckpoints(

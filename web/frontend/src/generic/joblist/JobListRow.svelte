@@ -84,7 +84,6 @@
   let thresholdStates = $state({});
 
   /* Derived */
-  const resampleDefault = $derived(resampleConfig ? Math.max(...resampleConfig.resolutions) : 0);
   const jobId = $derived(job.id);
   const scopes = $derived.by(() => {
     if (job.numNodes == 1) {
@@ -95,7 +94,9 @@
     };
   });
 
-  let selectedResolution = $derived(resampleDefault);
+  // null lets the backend resolve the resolution from the configured resample
+  // policy; zoom interactions override it with an explicit value.
+  let selectedResolution = $state(null);
   let isSelected = $derived(previousSelect);
   let metricsQuery = $derived(queryStore({
       client: client,

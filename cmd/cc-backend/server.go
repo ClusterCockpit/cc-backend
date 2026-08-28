@@ -189,7 +189,14 @@ func (s *Server) init() error {
 
 	if auth.Keys.OpenIDConfig != nil {
 		openIDConnect := auth.NewOIDC(authHandle)
-		openIDConnect.RegisterEndpoints(s.router)
+		// The OIDC callback mutates the session (SaveSession renews the token and
+		// writes the session data), so these routes have to run inside
+		// scs.LoadAndSave just like /login and /logout. Without it the session
+		// is missing from the request context and scs panics.
+		s.router.Group(func(r chi.Router) {
+			r.Use(sessionManager.LoadAndSave)
+			openIDConnect.RegisterEndpoints(r)
+		})
 		info["hasOpenIDConnect"] = true
 	}
 

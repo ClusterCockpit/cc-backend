@@ -30,10 +30,12 @@ based on a GraphQL API. The web frontend is also served by the backend using
 [Bootstrap Icons](https://icons.getbootstrap.com/).
 
 The backend uses [SQLite 3](https://sqlite.org/) as the relational SQL database.
-While there are metric data backends for the InfluxDB and Prometheus time series
-databases, the only tested and supported setup is to use cc-metric-store as the
-metric data backend. Documentation on how to integrate ClusterCockpit with other
-time series databases will be added in the future.
+Time-series metric data is kept separately: cc-backend ships with a built-in
+in-memory metric store (configured via the `metric-store` section) that persists
+its buffers with a write-ahead log and periodic binary checkpoints. Alternatively
+(or in addition, routed per cluster) it can query one or more external
+[cc-metric-store](https://github.com/ClusterCockpit/cc-metric-store) instances via
+the `metric-store-external` section. At least one of the two must be configured.
 
 For real-time integration with HPC systems, the backend can subscribe to
 [NATS](https://nats.io/) subjects to receive job start/stop events and node
@@ -42,8 +44,9 @@ state updates, providing an alternative to REST API polling.
 Completed batch jobs are stored in a file-based job archive according to
 [this specification](https://github.com/ClusterCockpit/cc-specifications/tree/main/job-archive).
 The backend supports authentication via local accounts, an external LDAP
-directory, and JWT tokens. Authorization for APIs is implemented with
-[JWT](https://jwt.io/) tokens created with public/private key encryption.
+directory, an OpenID Connect provider, and JWT tokens. Authorization for APIs is
+implemented with [JWT](https://jwt.io/) tokens created with public/private key
+encryption.
 
 You find a detailed documentation on the [ClusterCockpit
 Webpage](https://clustercockpit.org).
@@ -77,12 +80,15 @@ Execute the following steps:
 
 ```shell
 ./cc-backend -init
-vim config.json (Add a second cluster entry and name the clusters alex and fritz)
 wget https://hpc-mover.rrze.uni-erlangen.de/HPC-Data/0x7b58aefb/eig7ahyo6fo2bais0ephuf2aitohv1ai/job-archive-demo.tar
 tar xf job-archive-demo.tar
 ./cc-backend -init-db -add-user demo:admin:demo -loglevel info
 ./cc-backend -server -dev -loglevel info
 ```
+
+The clusters are read from the job archive (one directory with a `cluster.json`
+per cluster), so no cluster list has to be maintained in `config.json`. The demo
+archive contains the clusters `alex` and `fritz`.
 
 You can access the web interface at [http://localhost:8080](http://localhost:8080).
 Credentials for login are `demo:demo`.
@@ -130,6 +136,8 @@ cd ./cc-backend/
 make
 
 cp configs/config.json .
+# config.json references the UI defaults via "ui-file", so copy that too:
+cp configs/uiConfig.json .
 # EDIT config.json BEFORE YOU DEPLOY: change the secrets under "auth.jwts"
 # ("public-key"/"private-key"). Each secret can also be supplied via an
 # environment variable (e.g. JWT_PUBLIC_KEY), which takes precedence over the
@@ -171,6 +179,42 @@ HTTPS itself (i.e. `https-cert-file` and `https-key-file` are configured in
 For production deployments, serve cc-backend over HTTPS so the session cookie is
 marked `Secure`. If you terminate TLS at a reverse proxy, prefer letting
 cc-backend serve HTTPS directly for now so the flag is applied.
+
+## Configuration
+
+cc-backend reads a single JSON configuration file (`./config.json` by default,
+override with `-config`). Every top-level key is one configuration section:
+
+| Section                 | Required | Description                                                                                                       |
+| ----------------------- | -------- | ----------------------------------------------------------------------------------------------------------------- |
+| `main`                  | yes      | Server address, TLS, database path and tuning, resampling defaults, footer links, job taggers, retention of node states, NATS API subjects. |
+| `auth`                  | no       | Local, LDAP, OIDC and JWT authentication including all secrets.                                                    |
+| `nats`                  | no       | Connection to the NATS broker (address, credentials). Required for the NATS API and for NATS metric ingestion.     |
+| `archive`               | no       | Job archive backend (`file`, `s3` or `sqlite`), plus archive retention and compression. Defaults to `./var/job-archive`. |
+| `metric-store`          | no*      | Built-in in-memory metric store: retention, memory cap, checkpointing, cleanup and NATS subscriptions.             |
+| `metric-store-external` | no*      | List of external cc-metric-store endpoints with a `scope` (cluster name or `*`) used to route queries.             |
+| `cron`                  | no       | Intervals of the background workers (commit-job, duration, footprint).                                             |
+| `ui`                    | no       | Defaults for the web frontend shown to new users (job list, job view, metric selections, plot options).            |
+
+\* At least one of `metric-store` and `metric-store-external` must be present,
+otherwise the server refuses to start.
+
+Any section can be moved into its own file by appending `-file` to the key and
+giving a path instead of an object, e.g. `"ui-file": "uiConfig.json"` loads the
+`ui` section from `uiConfig.json`. Unknown top-level keys are ignored with a
+warning. Unknown keys *inside* a section are always rejected by the parser: for
+`main` and `metric-store` this aborts startup, for the other sections it is
+logged as an error and the section is applied only up to the offending key — so
+watch the log after a configuration change.
+
+Annotated examples are in [`configs/`](https://github.com/ClusterCockpit/cc-backend/tree/main/configs):
+`config.json` (full featured, S3 archive, external metric stores),
+`config-large.json` (large installation with LDAP/OIDC and DB tuning),
+`config-demo.json` (minimal) and `uiConfig.json`.
+
+Cluster topology and metric definitions are **not** part of `config.json`. They
+are read from the `cluster.json` file inside each cluster's job archive
+directory; `configs/cluster.json` is a documented example.
 
 ## Database Configuration
 
@@ -272,8 +316,9 @@ The effective configuration is logged at startup for verification.
 - [`cmd/cc-backend`](https://github.com/ClusterCockpit/cc-backend/tree/main/cmd/cc-backend)
   contains the main application entry point and CLI implementation.
 - [`configs/`](https://github.com/ClusterCockpit/cc-backend/tree/main/configs)
-  contains documentation about configuration and command line options and required
-  environment variables. Sample configuration files are provided.
+  contains sample configuration files (`config.json`, `config-demo.json`,
+  `config-large.json`, `uiConfig.json`, `cluster.json`), example REST API
+  payloads, and the example rule sets for the job taggers.
 - [`init/`](https://github.com/ClusterCockpit/cc-backend/tree/main/init)
   contains an example of setting up systemd for production use.
 - [`internal/`](https://github.com/ClusterCockpit/cc-backend/tree/main/internal)
@@ -318,11 +363,15 @@ The effective configuration is logged at startup for verification.
   - [`convert-pem-pubkey`](https://github.com/ClusterCockpit/cc-backend/tree/main/tools/convert-pem-pubkey)
     Tool to convert external pubkey for use in `cc-backend`.
   - [`gen-keypair`](https://github.com/ClusterCockpit/cc-backend/tree/main/tools/gen-keypair)
-    contains a small application to generate a compatible JWT keypair. You find
-    documentation on how to use it
-    [here](https://github.com/ClusterCockpit/cc-backend/blob/main/docs/JWT-Handling.md).
-  - [`web/`](https://github.com/ClusterCockpit/cc-backend/tree/main/web)
-    Server-side templates and frontend-related files:
+    contains a small application to generate a compatible Ed25519 JWT keypair for
+    the `auth.jwts` configuration.
+  - [`binaryCheckpointReader`](https://github.com/ClusterCockpit/cc-backend/tree/main/tools/binaryCheckpointReader)
+    Dumps the contents of a metric store binary checkpoint file for inspection.
+  - `dataGenerator.sh` and `grepCCLog.pl`
+    Helper scripts to generate metric line protocol test data and to filter
+    cc-backend log output.
+- [`web/`](https://github.com/ClusterCockpit/cc-backend/tree/main/web)
+  Server-side templates and frontend-related files:
   - [`frontend`](https://github.com/ClusterCockpit/cc-backend/tree/main/web/frontend)
     Svelte components and static assets for the frontend UI
   - [`templates`](https://github.com/ClusterCockpit/cc-backend/tree/main/web/templates)

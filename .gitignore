@@ -30,3 +30,9 @@ dist/
 .idea
 tools/archive-migration/archive-migration
 tools/archive-manager/archive-manager
+
+docs
+
+
+.claude
+.superpowers
