@@ -44,6 +44,11 @@ func (ft *FileTarget) WriteFile(name string, data []byte) error {
 }
 
 // S3TargetConfig holds the configuration for an S3 parquet target.
+//
+// It carries no JSON tags and is never unmarshalled: every caller builds it
+// programmatically from its own configuration section. Credentials must
+// therefore already be resolved by the caller, which is also what keeps one
+// credential set from leaking into another's target.
 type S3TargetConfig struct {
 	Endpoint     string
 	Bucket       string
@@ -69,12 +74,25 @@ func NewS3Target(cfg S3TargetConfig) (*S3Target, error) {
 		region = "us-east-1"
 	}
 
-	awsCfg, err := awsconfig.LoadDefaultConfig(context.Background(),
-		awsconfig.WithRegion(region),
-		awsconfig.WithCredentialsProvider(
-			credentials.NewStaticCredentialsProvider(cfg.AccessKey, cfg.SecretKey, ""),
-		),
-	)
+	// Fall back to the AWS default credential chain when no static credentials
+	// are configured, matching the job archive's S3 backend. Installing an
+	// empty static provider would otherwise make AWS_ACCESS_KEY_ID, the shared
+	// credentials file and IRSA/IMDS unreachable for parquet targets.
+	var awsCfg aws.Config
+	var err error
+
+	if cfg.AccessKey != "" && cfg.SecretKey != "" {
+		awsCfg, err = awsconfig.LoadDefaultConfig(context.Background(),
+			awsconfig.WithRegion(region),
+			awsconfig.WithCredentialsProvider(
+				credentials.NewStaticCredentialsProvider(cfg.AccessKey, cfg.SecretKey, ""),
+			),
+		)
+	} else {
+		awsCfg, err = awsconfig.LoadDefaultConfig(context.Background(),
+			awsconfig.WithRegion(region),
+		)
+	}
 	if err != nil {
 		return nil, fmt.Errorf("S3 target: load AWS config: %w", err)
 	}
