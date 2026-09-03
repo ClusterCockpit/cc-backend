@@ -148,7 +148,8 @@ func (ja *JWTAuthenticator) AuthViaJWT(
 // ProvideJWT generates a new JWT that can be used for authentication
 func (ja *JWTAuthenticator) ProvideJWT(user *schema.User) (string, error) {
 	if ja.privateKey == nil {
-		return "", errors.New("JWT private key not configured ('private-key' in config or 'JWT_PRIVATE_KEY' env)")
+		return "", fmt.Errorf("JWT private key not configured ('private-key' in config, %s, or its %s variant)",
+			config.EnvJWTPrivateKey, util.EnvFileSuffix)
 	}
 
 	now := time.Now()

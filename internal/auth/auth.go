@@ -274,7 +274,10 @@ func Init(authCfg *json.RawMessage) {
 		if Keys.JwtConfig != nil {
 			authInstance.JwtAuth = &JWTAuthenticator{}
 			if err := authInstance.JwtAuth.Init(); err != nil {
-				cclog.Fatal("Error while initializing authentication -> jwtAuth init failed")
+				// The reason matters here: a mistyped secret file path is the
+				// most likely cause and is not guessable from the generic
+				// message this used to print.
+				cclog.Fatalf("Error while initializing authentication -> jwtAuth init failed: %s", err.Error())
 			}
 
 			jwtSessionAuth := &JWTSessionAuthenticator{}
