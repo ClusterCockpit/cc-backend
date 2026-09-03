@@ -9,12 +9,15 @@ import (
 	"crypto/ed25519"
 	"encoding/base64"
 	"errors"
+	"fmt"
 	"net/http"
 	"strings"
 	"time"
 
+	"github.com/ClusterCockpit/cc-backend/internal/config"
 	cclog "github.com/ClusterCockpit/cc-lib/v2/ccLogger"
 	"github.com/ClusterCockpit/cc-lib/v2/schema"
+	"github.com/ClusterCockpit/cc-lib/v2/util"
 	"github.com/golang-jwt/jwt/v5"
 )
 
@@ -63,10 +66,17 @@ type JWTAuthenticator struct {
 }
 
 func (ja *JWTAuthenticator) Init() error {
-	pubKey := secretFromEnv("JWT_PUBLIC_KEY", Keys.JwtConfig.PublicKey)
-	privKey := secretFromEnv("JWT_PRIVATE_KEY", Keys.JwtConfig.PrivateKey)
+	pubKey, err := util.SecretFromEnv(config.EnvJWTPublicKey, Keys.JwtConfig.PublicKey)
+	if err != nil {
+		return fmt.Errorf("resolving %s: %w", config.EnvJWTPublicKey, err)
+	}
+	privKey, err := util.SecretFromEnv(config.EnvJWTPrivateKey, Keys.JwtConfig.PrivateKey)
+	if err != nil {
+		return fmt.Errorf("resolving %s: %w", config.EnvJWTPrivateKey, err)
+	}
 	if pubKey == "" || privKey == "" {
-		cclog.Warn("JWT public/private key not configured ('public-key'/'private-key' in config or 'JWT_PUBLIC_KEY'/'JWT_PRIVATE_KEY' env): token based authentication will not work")
+		cclog.Warnf("JWT public/private key not configured ('public-key'/'private-key' in config, %s/%s, or their %s variants): token based authentication will not work",
+			config.EnvJWTPublicKey, config.EnvJWTPrivateKey, util.EnvFileSuffix)
 	} else {
 		bytes, err := base64.StdEncoding.DecodeString(pubKey)
 		if err != nil {

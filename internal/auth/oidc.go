@@ -16,9 +16,11 @@ import (
 	"strings"
 	"time"
 
+	"github.com/ClusterCockpit/cc-backend/internal/config"
 	"github.com/ClusterCockpit/cc-backend/internal/repository"
 	cclog "github.com/ClusterCockpit/cc-lib/v2/ccLogger"
 	"github.com/ClusterCockpit/cc-lib/v2/schema"
+	"github.com/ClusterCockpit/cc-lib/v2/util"
 	"github.com/coreos/go-oidc/v3/oidc"
 	"github.com/go-chi/chi/v5"
 	"golang.org/x/oauth2"
@@ -84,13 +86,21 @@ func NewOIDC(a *Authentication) *OIDC {
 	if err != nil {
 		cclog.Fatal(err)
 	}
-	clientID := secretFromEnv("OID_CLIENT_ID", Keys.OpenIDConfig.ClientID)
-	if clientID == "" {
-		cclog.Warn("OIDC client ID not configured ('client-id' in config or 'OID_CLIENT_ID' env): Open ID connect auth will not work")
+	clientID, err := util.SecretFromEnv(config.EnvOIDClientID, Keys.OpenIDConfig.ClientID)
+	if err != nil {
+		cclog.Warnf("cannot resolve %s: %s", config.EnvOIDClientID, err.Error())
 	}
-	clientSecret := secretFromEnv("OID_CLIENT_SECRET", Keys.OpenIDConfig.ClientSecret)
+	if clientID == "" {
+		cclog.Warnf("OIDC client ID not configured ('client-id' in config, %s, or its %s variant): Open ID connect auth will not work",
+			config.EnvOIDClientID, util.EnvFileSuffix)
+	}
+	clientSecret, err := util.SecretFromEnv(config.EnvOIDClientSecret, Keys.OpenIDConfig.ClientSecret)
+	if err != nil {
+		cclog.Warnf("cannot resolve %s: %s", config.EnvOIDClientSecret, err.Error())
+	}
 	if clientSecret == "" {
-		cclog.Warn("OIDC client secret not configured ('client-secret' in config or 'OID_CLIENT_SECRET' env): Open ID connect auth will not work")
+		cclog.Warnf("OIDC client secret not configured ('client-secret' in config, %s, or its %s variant): Open ID connect auth will not work",
+			config.EnvOIDClientSecret, util.EnvFileSuffix)
 	}
 
 	client := &oauth2.Config{

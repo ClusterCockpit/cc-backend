@@ -229,11 +229,17 @@ func checkDefaultSecurityKeys() {
 	// Default JWT public key from init.go
 	defaultJWTPublic := "kzfYrYy+TzpanWZHJ5qSdMj5uKUWgq74BWhQG6copP0="
 
-	// Resolve the public key the same way the authenticators do: environment
-	// variable takes precedence over the value configured in config.json.
-	pubKey := os.Getenv("JWT_PUBLIC_KEY")
-	if pubKey == "" && auth.Keys.JwtConfig != nil {
-		pubKey = auth.Keys.JwtConfig.PublicKey
+	// Resolve the public key the same way the authenticators do. The nil check
+	// happens before the call, because this runs on a path where auth.Init may
+	// have been given no configuration at all.
+	configured := ""
+	if auth.Keys.JwtConfig != nil {
+		configured = auth.Keys.JwtConfig.PublicKey
+	}
+	pubKey, err := util.SecretFromEnv(config.EnvJWTPublicKey, configured)
+	if err != nil {
+		cclog.Warnf("cannot resolve %s: %s", config.EnvJWTPublicKey, err.Error())
+		return
 	}
 
 	if pubKey == defaultJWTPublic {
