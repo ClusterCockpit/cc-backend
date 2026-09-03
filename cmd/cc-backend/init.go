@@ -64,8 +64,10 @@ func initEnv() {
 		cclog.Exit("Directory ./var already exists. Cautiously exiting application initialization.")
 	}
 
-	if err := os.WriteFile("config.json", []byte(configString), 0o666); err != nil {
-		cclog.Abortf("Could not write default ./config.json with permissions '0o666'. Application initialization failed, exited.\nError: %s\n", err.Error())
+	// 0600: config.json carries the JWT keys and may carry S3 and NATS
+	// credentials, so it must not be world readable.
+	if err := os.WriteFile("config.json", []byte(configString), 0o600); err != nil {
+		cclog.Abortf("Could not write default ./config.json with permissions '0o600'. Application initialization failed, exited.\nError: %s\n", err.Error())
 	}
 
 	if err := os.Mkdir("var", 0o777); err != nil {
