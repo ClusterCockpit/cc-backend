@@ -139,9 +139,9 @@ cp configs/config.json .
 # config.json references the UI defaults via "ui-file", so copy that too:
 cp configs/uiConfig.json .
 # EDIT config.json BEFORE YOU DEPLOY: change the secrets under "auth.jwts"
-# ("public-key"/"private-key"). Each secret can also be supplied via an
-# environment variable (e.g. JWT_PUBLIC_KEY), which takes precedence over the
-# value in config.json.
+# ("public-key"/"private-key"). Every secret can instead come from $VAR or from
+# the file named by $VAR_FILE, both of which take precedence over config.json;
+# see the "Secrets" section below for the full list.
 vim config.json
 
 #Optional: Link an existing job archive:
@@ -167,11 +167,82 @@ opaque random token is kept in the session cookie. No cookie-signing secret is
 required, so the former `SESSION_KEY` environment variable is no longer used.
 
 Secrets (JWT keys, LDAP sync password, OIDC client id/secret, cross-login keys)
-are configured directly in `config.json` under the `auth` section. Each secret
-may also be supplied via its environment variable (e.g. `JWT_PUBLIC_KEY`,
-`JWT_PRIVATE_KEY`, `LDAP_ADMIN_PASSWORD`, `OID_CLIENT_ID`, `OID_CLIENT_SECRET`,
-`CROSS_LOGIN_JWT_PUBLIC_KEY`, `CROSS_LOGIN_JWT_HS512_KEY`); the environment
-variable takes precedence when set. The previous `.env` file is no longer used.
+are configured directly in `config.json` under the `auth` section. The previous
+`.env` file is no longer used. Every secret may instead be supplied from the
+environment; see [Secrets](#secrets) below for the full list.
+
+### Secrets
+
+Every secret cc-backend reads has three possible sources, in this order of
+precedence:
+
+1. the environment variable `$VAR`, if set and non-empty
+2. the contents of the file named by `$VAR_FILE`
+3. the value in `config.json`
+
+The second source is what makes the standard secret-mounting mechanisms usable,
+so that no secret has to be written into `config.json` at all:
+
+```bash
+# systemd
+[Service]
+LoadCredential=jwt-key:/etc/cc-backend/jwt.key
+Environment=JWT_PRIVATE_KEY_FILE=%d/jwt-key
+
+# Docker / Kubernetes: mount the secret and name the path
+docker run -e JWT_PRIVATE_KEY_FILE=/run/secrets/jwt-key ...
+```
+
+A `$VAR_FILE` that cannot be read, or that holds only whitespace, is a fatal
+misconfiguration rather than a silent fallback to `config.json`: an operator
+who names a file intends that file to win, so falling back could quietly start
+the server with a stale credential.
+
+| Environment variable | `config.json` key |
+|---|---|
+| `JWT_PUBLIC_KEY` | `auth.jwts.public-key` |
+| `JWT_PRIVATE_KEY` | `auth.jwts.private-key` |
+| `CROSS_LOGIN_JWT_PUBLIC_KEY` | `auth.jwts.cross-login-public-key` |
+| `CROSS_LOGIN_JWT_HS512_KEY` | `auth.jwts.cross-login-hs512-key` |
+| `LDAP_ADMIN_PASSWORD` | `auth.ldap.sync-password` |
+| `OID_CLIENT_ID` | `auth.oidc.client-id` |
+| `OID_CLIENT_SECRET` | `auth.oidc.client-secret` |
+| `ARCHIVE_S3_ACCESS_KEY` | `archive.access-key` |
+| `ARCHIVE_S3_SECRET_KEY` | `archive.secret-key` |
+| `RETENTION_S3_ACCESS_KEY` | `archive.retention.target-access-key` |
+| `RETENTION_S3_SECRET_KEY` | `archive.retention.target-secret-key` |
+| `NODESTATE_S3_ACCESS_KEY` | `main.nodestate-retention.target-access-key` |
+| `NODESTATE_S3_SECRET_KEY` | `main.nodestate-retention.target-secret-key` |
+| `METRICSTORE_TOKEN` | `metric-store-external[].token` |
+| `CC_NATS_USERNAME` | `nats.username` |
+| `CC_NATS_PASSWORD` | `nats.password` |
+
+The `archive-manager` tool takes its own credentials from
+`ARCHIVE_MANAGER_SRC_S3_ACCESS_KEY`, `ARCHIVE_MANAGER_SRC_S3_SECRET_KEY`,
+`ARCHIVE_MANAGER_DST_S3_ACCESS_KEY` and `ARCHIVE_MANAGER_DST_S3_SECRET_KEY`.
+
+Two details are worth knowing:
+
+- **The five S3 credential sets have separate names on purpose.** The job
+  archive, the two retention targets and archive-manager's source and
+  destination each read only their own variables, so exporting the job
+  archive's credentials cannot silently override a retention target's. Where no
+  key is configured at all, the AWS default credential chain
+  (`AWS_ACCESS_KEY_ID`, `~/.aws/credentials`, IRSA/IMDS) still applies.
+- **`metric-store-external` is an array**, one entry per scope, so a single
+  name cannot address one entry. `METRICSTORE_TOKEN_<SCOPE>` takes precedence
+  over the generic `METRICSTORE_TOKEN`, where `<SCOPE>` is the scope uppercased
+  with every character outside `A-Z0-9` replaced by an underscore — scope
+  `fritz-spr1tb` becomes `METRICSTORE_TOKEN_FRITZ_SPR1TB`.
+
+Names read by cc-backend itself are unprefixed; names read inside cc-lib carry
+a `CC_` prefix, because cc-lib is linked into several applications whose
+environments it must not claim names in.
+
+`config.json` still holds secrets for anyone not using the environment, so keep
+it `chmod 600` and owned by the service user, and keep `$VAR_FILE` targets
+`0400` or `0600`. Note that cc-backend reads those files before dropping
+privileges and does not check their mode.
 
 The session cookie's `Secure` flag is set automatically when cc-backend serves
 HTTPS itself (i.e. `https-cert-file` and `https-key-file` are configured in

@@ -158,18 +158,38 @@ applied automatically on startup. Version tracking in `version` table.
     - `node-concurrency`: Worker goroutines for node state events (default: 2)
   - `nats`: NATS client connection configuration (optional)
     - `address`: NATS server address (e.g., "nats://localhost:4222")
-    - `username`: Authentication username (optional)
-    - `password`: Authentication password (optional)
+    - `username`: Authentication username (optional; or `CC_NATS_USERNAME`)
+    - `password`: Authentication password (optional; or `CC_NATS_PASSWORD`)
     - `creds-file-path`: Path to NATS credentials file (optional)
-- **Secrets** (JWT keys, LDAP sync password, OIDC client id/secret, cross-login
-  keys): configured directly in `config.json` under the `auth` section where they
-  are used (e.g. `auth.jwts.public-key`, `auth.jwts.private-key`,
-  `auth.ldap.sync-password`, `auth.oidc.client-id`/`client-secret`).
-  - Each secret may also be supplied via its environment variable
-    (`JWT_PUBLIC_KEY`, `JWT_PRIVATE_KEY`, `LDAP_ADMIN_PASSWORD`, `OID_CLIENT_ID`,
-    `OID_CLIENT_SECRET`, `CROSS_LOGIN_JWT_PUBLIC_KEY`, `CROSS_LOGIN_JWT_HS512_KEY`).
-  - The environment variable takes precedence over the value in `config.json`.
-  - The former `.env`/godotenv mechanism has been removed.
+- **Secrets**: every secret has three sources, in this order of precedence:
+  `$VAR`, then the contents of the file named by `$VAR_FILE`, then the value in
+  `config.json`. An unreadable or whitespace-only `$VAR_FILE` is fatal, never a
+  silent fallback. The former `.env`/godotenv mechanism has been removed.
+  - Names are registered in `internal/config/secretenv.go` (`SecretEnvs`), and
+    guard tests there enforce that each one is both wired and documented. Add a
+    new secret there, never as a bare string literal at the call site.
+  - Resolution goes through `util.SecretFromEnv` (cc-lib) for a fixed name, or
+    `util.SecretFromConfig` for one instance of a repeated config section.
+  - Auth: `JWT_PUBLIC_KEY`, `JWT_PRIVATE_KEY`, `CROSS_LOGIN_JWT_PUBLIC_KEY`,
+    `CROSS_LOGIN_JWT_HS512_KEY`, `LDAP_ADMIN_PASSWORD`, `OID_CLIENT_ID`,
+    `OID_CLIENT_SECRET`.
+  - S3, one distinct set per consumer so none can override another:
+    `ARCHIVE_S3_ACCESS_KEY`/`ARCHIVE_S3_SECRET_KEY` (job archive),
+    `RETENTION_S3_ACCESS_KEY`/`RETENTION_S3_SECRET_KEY` (job retention target),
+    `NODESTATE_S3_ACCESS_KEY`/`NODESTATE_S3_SECRET_KEY` (nodestate retention
+    target), and `ARCHIVE_MANAGER_SRC_S3_ACCESS_KEY`,
+    `ARCHIVE_MANAGER_SRC_S3_SECRET_KEY`, `ARCHIVE_MANAGER_DST_S3_ACCESS_KEY`,
+    `ARCHIVE_MANAGER_DST_S3_SECRET_KEY` (archive-manager).
+    - Resolve at the owning config section, **never** inside `S3Archive.Init`
+      or `pqarchive.NewS3Target`: those are shared by all five sets, so a fixed
+      name there would cross credentials between them.
+    - With no key configured the AWS default credential chain still applies.
+  - `METRICSTORE_TOKEN` for `metric-store-external[].token`, with
+    `METRICSTORE_TOKEN_<SCOPE>` taking precedence (scope uppercased, every
+    character outside `A-Z0-9` replaced by `_`).
+  - Names cc-backend resolves are unprefixed; names cc-lib resolves carry a
+    `CC_` prefix and are referenced from their cc-lib package rather than
+    redefined.
 - **cluster.json**: Cluster topology and metric definitions (loaded from archive or config)
 
 ## Database
