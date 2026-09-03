@@ -215,7 +215,7 @@
             values: (u, vals) => vals.map((v) => formatNumber(v)),
           },
           {
-            label: "Performace [GFLOPS]",
+            label: "Performance [GFLOPS]",
             values: (u, vals) => vals.map((v) => formatNumber(v)),
           },
         ],
