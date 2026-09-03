@@ -124,7 +124,7 @@ func (ja *JWTCookieSessionAuthenticator) Login(
 
 	unverified, _, perr := parser.ParseUnverified(rawtoken, jwt.MapClaims{})
 	if perr != nil {
-		cclog.Warn("JWT cookie session: error while parsing token")
+		cclog.Warnf("JWT cookie session: error while parsing unverified token: %s", err.Error())
 		return nil, perr
 	}
 	issuer, _ := unverified.Claims.(jwt.MapClaims)["iss"].(string)
@@ -136,18 +136,18 @@ func (ja *JWTCookieSessionAuthenticator) Login(
 	case "":
 		key = ja.publicKey
 	default:
-		return nil, fmt.Errorf("untrusted JWT issuer: %q", issuer)
+		return nil, fmt.Errorf("JWT cookie session: untrusted issuer: %q", issuer)
 	}
 
 	token, err := parser.Parse(rawtoken, func(*jwt.Token) (any, error) { return key, nil })
 	if err != nil {
-		cclog.Warn("JWT cookie session: error while parsing token")
+		cclog.Warnf("JWT cookie session: error while parsing token: %s", err.Error())
 		return nil, err
 	}
 
 	if !token.Valid {
-		cclog.Warn("jwt token claims are not valid")
-		return nil, errors.New("jwt token claims are not valid")
+		cclog.Warn("JWT cookie session: token claims are not valid")
+		return nil, errors.New("JWT cookie session: token claims are not valid")
 	}
 
 	claims := token.Claims.(jwt.MapClaims)

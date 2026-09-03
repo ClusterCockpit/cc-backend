@@ -102,18 +102,18 @@ func (ja *JWTAuthenticator) AuthViaJWT(
 
 	token, err := jwt.Parse(rawtoken, func(t *jwt.Token) (any, error) {
 		if t.Method != jwt.SigningMethodEdDSA {
-			return nil, errors.New("only Ed25519/EdDSA supported")
+			return nil, errors.New("JWT Auth: only Ed25519/EdDSA supported")
 		}
 
 		return ja.publicKey, nil
 	})
 	if err != nil {
-		cclog.Warn("Error while parsing JWT token")
+		cclog.Warnf("JWT Auth: error while parsing token: %s", err.Error())
 		return nil, err
 	}
 	if !token.Valid {
-		cclog.Warn("jwt token claims are not valid")
-		return nil, errors.New("jwt token claims are not valid")
+		cclog.Warn("JWT Auth: token claims are not valid")
+		return nil, errors.New("JWT Auth: token claims are not valid")
 	}
 
 	// Token is valid, extract payload
