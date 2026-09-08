@@ -107,6 +107,16 @@ For release specific notes visit the [ClusterCockpit Documentation](https://clus
   reported statistics and job footprints are unaffected.
 - **Metric tooltips**: `metricConfig` entries in `cluster.json` accept an
   optional `tooltip` that is rendered in the metric selection dialog.
+- **Log viewer outside systemd**: The admin log view no longer requires
+  journald. When cc-backend does not run as a systemd unit — in a container,
+  under a supervisor or from a shell — it serves an in-process ring buffer that
+  captures the running process' log output instead. The backend is chosen by
+  `main.log-source`: `auto` (default) uses journald only when cc-backend runs as
+  a systemd unit and the in-process buffer otherwise, `journal` and `memory`
+  force one of them, and `disabled` turns the log view off, which also hides its
+  navbar entry. `main.log-buffer-size` (default 4096) sets how many records the
+  buffer keeps. The buffer only holds messages at or above the configured
+  `-loglevel`, so container deployments likely want `-loglevel info`.
 - **Metric store statistics from cached aggregates**: Buffers maintain running
   sum/min/max/count while data is written and compute them eagerly on checkpoint
   load, so a full-buffer statistics request is served from the cached aggregate

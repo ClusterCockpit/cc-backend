@@ -15,6 +15,7 @@ import (
 
 	"github.com/ClusterCockpit/cc-backend/internal/config"
 	"github.com/ClusterCockpit/cc-backend/internal/graph/model"
+	"github.com/ClusterCockpit/cc-backend/internal/logviewer"
 	"github.com/ClusterCockpit/cc-backend/internal/metricdispatch"
 	"github.com/ClusterCockpit/cc-backend/internal/repository"
 	"github.com/ClusterCockpit/cc-backend/web"
@@ -51,7 +52,7 @@ var routes []Route = []Route{
 	{"/monitoring/status/{cluster}", "monitoring/status.tmpl", "<ID> Dashboard - ClusterCockpit", false, setupClusterStatusRoute},
 	{"/monitoring/status/detail/{cluster}", "monitoring/status.tmpl", "Status of <ID> - ClusterCockpit", false, setupClusterDetailRoute},
 	{"/monitoring/dashboard/{cluster}", "monitoring/dashboard.tmpl", "<ID> Dashboard - ClusterCockpit", false, setupDashboardRoute},
-	{"/monitoring/logs", "monitoring/logs.tmpl", "Logs - ClusterCockpit", false, func(i InfoType, r *http.Request) InfoType { return i }},
+	{"/monitoring/logs", "monitoring/logs.tmpl", "Logs - ClusterCockpit", false, setupLogsRoute},
 }
 
 func setupHomeRoute(i InfoType, r *http.Request) InfoType {
@@ -94,6 +95,13 @@ func setupConfigRoute(i InfoType, r *http.Request) InfoType {
 		}
 	}
 
+	return i
+}
+
+// setupLogsRoute passes the resolved log backend to the page so it can explain
+// itself when the log view is disabled or backed by the in-process buffer.
+func setupLogsRoute(i InfoType, r *http.Request) InfoType {
+	i["logSource"] = string(logviewer.Active())
 	return i
 }
 

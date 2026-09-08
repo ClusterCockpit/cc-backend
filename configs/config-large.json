@@ -4,6 +4,8 @@
     "short-running-jobs-duration": 300,
     "emission-constant": 317,
     "enable-job-taggers": true,
+    "log-source": "auto",
+    "log-buffer-size": 4096,
     "db-config": {
       "cache-size-mb": 16384,
       "soft-heap-limit-mb": 131072,

@@ -100,6 +100,10 @@ The backend follows a layered architecture with clear separation of concerns:
   - In-memory metric storage with checkpointing
   - Query API for loading job metric data
 - **internal/archiver**: Job archiving to file-based archive
+- **internal/logviewer**: Log source for the admin log view
+  - Reads the systemd journal via `journalctl` when cc-backend runs as a systemd unit
+  - Otherwise captures cclog output in an in-process ring buffer (containers, supervisors, plain shell)
+  - Backend resolved once at startup, configurable via `main.log-source`
 - **internal/api/nats.go**: NATS-based API for job and node operations
   - Subscribes to NATS subjects for job events (start/stop)
   - Handles node state updates via NATS
@@ -151,6 +155,15 @@ applied automatically on startup. Version tracking in `version` table.
 ## Configuration
 
 - **config.json**: Main configuration (clusters, metric repositories, archive settings)
+  - `main.log-source`: Backend for the admin log view (optional, default `auto`)
+    - `auto`: journald when running as a systemd unit, in-process buffer otherwise
+    - `journal`: force `journalctl` against `main.systemd-unit`
+    - `memory`: force the in-process ring buffer
+    - `disabled`: turn the log view off and hide it from the navbar
+  - `main.systemd-unit`: Unit queried in journal mode (default `clustercockpit.service`)
+  - `main.log-buffer-size`: Records kept by the in-process buffer (default 4096).
+    It only holds messages at or above the `-loglevel` the process was started
+    with, so container deployments usually want `-loglevel info`.
   - `main.api-subjects`: NATS subject configuration (optional)
     - `subject-job-event`: Subject for job start/stop events (e.g., "cc.job.event")
     - `subject-node-state`: Subject for node state updates (e.g., "cc.node.state")

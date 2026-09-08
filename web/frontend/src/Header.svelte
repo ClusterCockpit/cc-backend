@@ -7,6 +7,7 @@
   - `clusterNames [String]`: List of cluster names
   - `subclusterMap map[String][]string`: Map of subclusters by cluster names
   - `roles [Number]`: Enum containing available roles
+  - `logsEnabled Bool?`: If false, the log view is disabled server side and hidden
 -->
 
 <script>
@@ -30,7 +31,8 @@
     authlevel,
     clusterNames,
     subclusterMap,
-    roles
+    roles,
+    logsEnabled = false
   } = $props();
 
   /* Const Init */
@@ -50,7 +52,7 @@
   projectsTitle.set(4, "Projects");
   projectsTitle.set(5, "Projects");
 
-  const views = [
+  const allViews = [
     {
       title: "My Jobs",
       // svelte-ignore state_referenced_locally
@@ -144,8 +146,16 @@
       perCluster: false,
       listOptions: false,
       menu: "Info",
+      feature: "logs",
     },
   ];
+
+  /* Views gated by an optional backend subsystem, in addition to the role check */
+  // svelte-ignore state_referenced_locally
+  const enabledFeatures = { logs: logsEnabled };
+  const views = allViews.filter(
+    (item) => !item.feature || enabledFeatures[item.feature],
+  );
 
   /* State Init */
   let isOpen = $state(false);

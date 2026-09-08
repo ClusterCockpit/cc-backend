@@ -72,8 +72,15 @@ type ProgramConfig struct {
 	// If exists, will enable dynamic zoom in frontend metric plots using the configured values
 	EnableResampling *ResampleConfig `json:"resampling"`
 
-	// Systemd unit name for log viewer (default: "clustercockpit")
+	// Systemd unit name for log viewer (default: "clustercockpit.service")
 	SystemdUnit string `json:"systemd-unit"`
+
+	// Log viewer backend: "auto" (journal when running as a systemd unit,
+	// otherwise the in-process buffer), "journal", "memory" or "disabled".
+	LogSource string `json:"log-source"`
+
+	// Number of log records retained by the in-process log buffer.
+	LogBufferSize int `json:"log-buffer-size"`
 
 	// Node state retention configuration
 	NodeStateRetention *NodeStateRetention `json:"nodestate-retention"`
@@ -157,6 +164,8 @@ var Keys ProgramConfig = ProgramConfig{
 	SessionMaxAge:             "168h",
 	StopJobsExceedingWalltime: 0,
 	ShortRunningJobsDuration:  5 * 60,
+	LogSource:                 "auto",
+	LogBufferSize:             4096,
 	FooterLinks: FooterLinksConfig{
 		Imprint: "/imprint",
 		Privacy: "/privacy",
