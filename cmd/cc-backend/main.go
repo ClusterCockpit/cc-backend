@@ -25,6 +25,7 @@ import (
 	"github.com/ClusterCockpit/cc-backend/internal/auth"
 	"github.com/ClusterCockpit/cc-backend/internal/config"
 	"github.com/ClusterCockpit/cc-backend/internal/importer"
+	"github.com/ClusterCockpit/cc-backend/internal/logviewer"
 	"github.com/ClusterCockpit/cc-backend/internal/metricdispatch"
 	"github.com/ClusterCockpit/cc-backend/internal/repository"
 	"github.com/ClusterCockpit/cc-backend/internal/tagger"
@@ -504,8 +505,15 @@ func run() error {
 		return nil
 	}
 
-	// Initialize logger
+	// Initialize logger. Do not re-initialize cclog or redirect its output
+	// after this point: logviewer.InstallSink below replaces the loggers'
+	// writers and both cclog.Init and cclog.SetOutputFile would drop the sink.
 	cclog.Init(flagLogLevel, flagLogDateTime)
+
+	// Capture log output into the in-memory buffer from the very first line.
+	// The configuration read further down decides whether that buffer is
+	// actually used; logviewer.Init releases it otherwise.
+	logviewer.InstallSink(logviewer.DefaultBufferSize)
 
 	// Handle init flag
 	if flagInit {
@@ -531,6 +539,13 @@ func run() error {
 	if err := initConfiguration(); err != nil {
 		return err
 	}
+
+	// Resolve the log view backend now that the configuration is known.
+	logviewer.Init(logviewer.Options{
+		Mode:        logviewer.Mode(config.Keys.LogSource),
+		SystemdUnit: config.Keys.SystemdUnit,
+		BufferSize:  config.Keys.LogBufferSize,
+	})
 
 	// Handle database migration (migrate, revert, force)
 	if err := handleDatabaseCommands(); err != nil {

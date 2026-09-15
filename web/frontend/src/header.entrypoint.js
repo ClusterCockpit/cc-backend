@@ -12,6 +12,7 @@ if (headerDomTarget != null) {
             clusterNames: hClusterNames, 
             subclusterMap: hSubclusterMap,
             roles: hRoles,
+            logsEnabled: hLogsEnabled,
         },
     });
 }

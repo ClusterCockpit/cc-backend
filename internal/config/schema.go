@@ -85,8 +85,19 @@ var configSchema = `
       "type": "string"
     },
     "systemd-unit": {
-      "description": "Systemd unit name for log viewer (default: 'clustercockpit').",
+      "description": "Systemd unit name queried by the log viewer in journal mode (default: 'clustercockpit.service').",
       "type": "string"
+    },
+    "log-source": {
+      "description": "Log viewer backend: 'auto' uses the systemd journal when cc-backend runs as a systemd unit and the in-process buffer otherwise, 'journal' forces journalctl, 'memory' forces the in-process buffer, 'disabled' turns the log view off.",
+      "type": "string",
+      "enum": ["auto", "journal", "memory", "disabled"]
+    },
+    "log-buffer-size": {
+      "description": "Number of log records retained by the in-process log buffer used by the 'memory' log source.",
+      "type": "integer",
+      "minimum": 100,
+      "maximum": 100000
     },
     "resampling": {
       "description": "Enable dynamic zoom in frontend metric plots.",

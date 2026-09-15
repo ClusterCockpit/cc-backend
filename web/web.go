@@ -15,6 +15,7 @@ import (
 	"strings"
 
 	"github.com/ClusterCockpit/cc-backend/internal/config"
+	"github.com/ClusterCockpit/cc-backend/internal/logviewer"
 	"github.com/ClusterCockpit/cc-backend/pkg/archive"
 	cclog "github.com/ClusterCockpit/cc-lib/v2/ccLogger"
 	"github.com/ClusterCockpit/cc-lib/v2/schema"
@@ -298,6 +299,7 @@ type Page struct {
 	Infos         map[string]any         // For generic use (e.g. username for /monitoring/user/<id>, job id for /monitoring/job/<id>)
 	Config        map[string]any         // UI settings for the currently logged in user (e.g. line width, ...)
 	Resampling    *config.ResampleConfig // If not nil, defines the target point count for zoom resampling
+	LogsEnabled   bool                   // If false, the log view is disabled and hidden from the navbar
 	Redirect      string                 // The originally requested URL, for intermediate login handling
 	FooterLinks   FooterLinks            // Resolved legal links for the site footer
 }
@@ -322,6 +324,8 @@ func RenderTemplate(rw http.ResponseWriter, file string, page *Page) {
 			}
 		}
 	}
+
+	page.LogsEnabled = logviewer.Enabled()
 
 	page.FooterLinks = FooterLinks{
 		Imprint: resolveFooterLink(config.Keys.FooterLinks.Imprint, defaultImprintLink),

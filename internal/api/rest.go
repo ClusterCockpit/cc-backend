@@ -22,6 +22,7 @@ import (
 
 	"github.com/ClusterCockpit/cc-backend/internal/auth"
 	"github.com/ClusterCockpit/cc-backend/internal/config"
+	"github.com/ClusterCockpit/cc-backend/internal/logviewer"
 	"github.com/ClusterCockpit/cc-backend/internal/repository"
 	"github.com/ClusterCockpit/cc-backend/internal/tagger"
 	cclog "github.com/ClusterCockpit/cc-lib/v2/ccLogger"
@@ -57,6 +58,9 @@ type RestAPI struct {
 	JobRepository   *repository.JobRepository
 	Authentication  *auth.Authentication
 	MachineStateDir string
+	// LogsEnabled reports whether a log source was resolved at startup. It is
+	// false when the log view is disabled by configuration.
+	LogsEnabled bool
 	// RepositoryMutex protects job creation operations from race conditions
 	// when checking for duplicate jobs during startJob API calls.
 	// It prevents concurrent job starts with the same jobId/cluster/startTime
@@ -70,6 +74,7 @@ func New() *RestAPI {
 		JobRepository:   repository.GetJobRepository(),
 		MachineStateDir: config.Keys.MachineStateDir,
 		Authentication:  auth.GetAuthInstance(),
+		LogsEnabled:     logviewer.Enabled(),
 	}
 }
 
@@ -164,7 +169,7 @@ func (api *RestAPI) MountConfigAPIRoutes(r chi.Router) {
 // MountFrontendAPIRoutes registers frontend-specific API endpoints.
 // These routes support JWT generation and user configuration updates with session authentication.
 func (api *RestAPI) MountFrontendAPIRoutes(r chi.Router) {
-	r.Get("/logs/", api.getJournalLog)
+	r.Get("/logs/", api.getLog)
 	// Settings Frontend Uses SessionAuth
 	if api.Authentication != nil {
 		r.Get("/jwt/", api.getJWT)
