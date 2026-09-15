@@ -14,9 +14,11 @@ import (
 	"strings"
 	"time"
 
+	"github.com/ClusterCockpit/cc-backend/internal/config"
 	"github.com/ClusterCockpit/cc-backend/internal/repository"
 	cclog "github.com/ClusterCockpit/cc-lib/v2/ccLogger"
 	"github.com/ClusterCockpit/cc-lib/v2/schema"
+	"github.com/ClusterCockpit/cc-lib/v2/util"
 	"github.com/go-ldap/ldap/v3"
 )
 
@@ -62,9 +64,14 @@ type LdapAuthenticator struct {
 var _ Authenticator = (*LdapAuthenticator)(nil)
 
 func (la *LdapAuthenticator) Init() error {
-	la.syncPassword = secretFromEnv("LDAP_ADMIN_PASSWORD", Keys.LdapConfig.SyncPassword)
+	syncPassword, err := util.SecretFromEnv(config.EnvLdapAdminPassword, Keys.LdapConfig.SyncPassword)
+	if err != nil {
+		return fmt.Errorf("resolving %s: %w", config.EnvLdapAdminPassword, err)
+	}
+	la.syncPassword = syncPassword
 	if la.syncPassword == "" {
-		cclog.Warn("LDAP admin password not configured ('sync-password' in config or 'LDAP_ADMIN_PASSWORD' env): ldap sync will not work")
+		cclog.Warnf("LDAP admin password not configured ('sync-password' in config, %s, or its %s variant): ldap sync will not work",
+			config.EnvLdapAdminPassword, util.EnvFileSuffix)
 	}
 
 	if Keys.LdapConfig.UserAttr != "" {

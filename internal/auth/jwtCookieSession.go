@@ -12,8 +12,10 @@ import (
 	"fmt"
 	"net/http"
 
+	"github.com/ClusterCockpit/cc-backend/internal/config"
 	cclog "github.com/ClusterCockpit/cc-lib/v2/ccLogger"
 	"github.com/ClusterCockpit/cc-lib/v2/schema"
+	"github.com/ClusterCockpit/cc-lib/v2/util"
 	"github.com/golang-jwt/jwt/v5"
 )
 
@@ -26,10 +28,17 @@ type JWTCookieSessionAuthenticator struct {
 var _ Authenticator = (*JWTCookieSessionAuthenticator)(nil)
 
 func (ja *JWTCookieSessionAuthenticator) Init() error {
-	pubKey := secretFromEnv("JWT_PUBLIC_KEY", Keys.JwtConfig.PublicKey)
-	privKey := secretFromEnv("JWT_PRIVATE_KEY", Keys.JwtConfig.PrivateKey)
+	pubKey, err := util.SecretFromEnv(config.EnvJWTPublicKey, Keys.JwtConfig.PublicKey)
+	if err != nil {
+		return fmt.Errorf("resolving %s: %w", config.EnvJWTPublicKey, err)
+	}
+	privKey, err := util.SecretFromEnv(config.EnvJWTPrivateKey, Keys.JwtConfig.PrivateKey)
+	if err != nil {
+		return fmt.Errorf("resolving %s: %w", config.EnvJWTPrivateKey, err)
+	}
 	if pubKey == "" || privKey == "" {
-		cclog.Warn("JWT public/private key not configured ('public-key'/'private-key' in config or 'JWT_PUBLIC_KEY'/'JWT_PRIVATE_KEY' env): token based authentication will not work")
+		cclog.Warnf("JWT public/private key not configured ('public-key'/'private-key' in config, %s/%s, or their %s variants): token based authentication will not work",
+			config.EnvJWTPublicKey, config.EnvJWTPrivateKey, util.EnvFileSuffix)
 		return errors.New("JWT public/private key not configured: token based authentication will not work")
 	} else {
 		bytes, err := base64.StdEncoding.DecodeString(pubKey)
@@ -47,7 +56,10 @@ func (ja *JWTCookieSessionAuthenticator) Init() error {
 	}
 
 	// Look for external public keys
-	pubKeyCrossLogin := secretFromEnv("CROSS_LOGIN_JWT_PUBLIC_KEY", Keys.JwtConfig.CrossLoginPublicKey)
+	pubKeyCrossLogin, err := util.SecretFromEnv(config.EnvCrossLoginJWTPublicKey, Keys.JwtConfig.CrossLoginPublicKey)
+	if err != nil {
+		return fmt.Errorf("resolving %s: %w", config.EnvCrossLoginJWTPublicKey, err)
+	}
 	if pubKeyCrossLogin != "" {
 		bytes, err := base64.StdEncoding.DecodeString(pubKeyCrossLogin)
 		if err != nil {
@@ -57,7 +69,8 @@ func (ja *JWTCookieSessionAuthenticator) Init() error {
 		ja.publicKeyCrossLogin = ed25519.PublicKey(bytes)
 	} else {
 		ja.publicKeyCrossLogin = nil
-		cclog.Debug("cross login JWT public key not configured ('cross-login-public-key' in config or 'CROSS_LOGIN_JWT_PUBLIC_KEY' env): cross login token based authentication will not work")
+		cclog.Debugf("cross login JWT public key not configured ('cross-login-public-key' in config, %s, or its %s variant): cross login token based authentication will not work",
+			config.EnvCrossLoginJWTPublicKey, util.EnvFileSuffix)
 		return errors.New("cross login JWT public key not configured: cross login token based authentication will not work")
 	}
 

@@ -27,11 +27,11 @@ var configSchema = `
           "type": "string"
         },
         "access-key": {
-          "description": "S3 access key ID",
+          "description": "S3 access key ID. Overridden by the ARCHIVE_S3_ACCESS_KEY environment variable when set, or by the contents of the file named by ARCHIVE_S3_ACCESS_KEY_FILE. When neither is set and no key is configured, the AWS default credential chain is used.",
           "type": "string"
         },
         "secret-key": {
-          "description": "S3 secret access key",
+          "description": "S3 secret access key. Overridden by the ARCHIVE_S3_SECRET_KEY environment variable when set, or by the contents of the file named by ARCHIVE_S3_SECRET_KEY_FILE.",
           "type": "string"
         },
         "bucket": {
@@ -95,11 +95,11 @@ var configSchema = `
               "type": "string"
             },
             "target-access-key": {
-              "description": "S3 access key for target",
+              "description": "S3 access key for target. Overridden by the RETENTION_S3_ACCESS_KEY environment variable when set, or by the contents of the file named by RETENTION_S3_ACCESS_KEY_FILE.",
               "type": "string"
             },
             "target-secret-key": {
-              "description": "S3 secret key for target",
+              "description": "S3 secret key for target. Overridden by the RETENTION_S3_SECRET_KEY environment variable when set, or by the contents of the file named by RETENTION_S3_SECRET_KEY_FILE.",
               "type": "string"
             },
             "target-region": {

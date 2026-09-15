@@ -26,6 +26,7 @@ import (
 	pqarchive "github.com/ClusterCockpit/cc-backend/pkg/archive/parquet"
 	ccconf "github.com/ClusterCockpit/cc-lib/v2/ccConfig"
 	cclog "github.com/ClusterCockpit/cc-lib/v2/ccLogger"
+	"github.com/ClusterCockpit/cc-lib/v2/util"
 )
 
 func parseDate(in string) int64 {
@@ -373,7 +374,7 @@ func importArchive(srcBackend, dstBackend archive.ArchiveBackend, srcConfig stri
 	return finalImported, finalFailed, nil
 }
 
-// parseSourceConfig parses the common kind/path/s3 fields from a config JSON string.
+// sourceConfig holds the common kind/path/s3 fields of a config JSON string.
 type sourceConfig struct {
 	Kind         string `json:"kind"`
 	Path         string `json:"path"`
@@ -383,6 +384,88 @@ type sourceConfig struct {
 	SecretKey    string `json:"secretKey"`
 	Region       string `json:"region"`
 	UsePathStyle bool   `json:"usePathStyle"`
+}
+
+// UnmarshalJSON accepts both the camelCase spelling this tool has always used
+// and the kebab-case spelling the archive backends use, so that one config
+// document works in --import mode (which goes through the archive backend) and
+// in --convert mode (which is parsed here). Kebab-case is the documented form;
+// camelCase remains accepted so existing invocations keep working.
+func (c *sourceConfig) UnmarshalJSON(data []byte) error {
+	type plain sourceConfig
+	aux := struct {
+		plain
+		KebabAccessKey    string `json:"access-key"`
+		KebabSecretKey    string `json:"secret-key"`
+		KebabUsePathStyle *bool  `json:"use-path-style"`
+	}{}
+
+	if err := json.Unmarshal(data, &aux); err != nil {
+		return err
+	}
+
+	*c = sourceConfig(aux.plain)
+	if c.AccessKey == "" {
+		c.AccessKey = aux.KebabAccessKey
+	}
+	if c.SecretKey == "" {
+		c.SecretKey = aux.KebabSecretKey
+	}
+	if !c.UsePathStyle && aux.KebabUsePathStyle != nil {
+		c.UsePathStyle = *aux.KebabUsePathStyle
+	}
+
+	return nil
+}
+
+// resolveSourceCredentials applies the environment overrides named by
+// accessEnv and secretEnv, each of which also honours a "_FILE" variant. The
+// source and destination archives are given different names, so one side's
+// credentials can never be used for the other.
+func resolveSourceCredentials(cfg *sourceConfig, accessEnv, secretEnv string) error {
+	if cfg.Kind != "s3" {
+		return nil
+	}
+
+	var err error
+	if cfg.AccessKey, err = util.SecretFromEnv(accessEnv, cfg.AccessKey); err != nil {
+		return fmt.Errorf("resolving %s: %w", accessEnv, err)
+	}
+	if cfg.SecretKey, err = util.SecretFromEnv(secretEnv, cfg.SecretKey); err != nil {
+		return fmt.Errorf("resolving %s: %w", secretEnv, err)
+	}
+
+	return nil
+}
+
+// initBackend initializes an archive backend from a raw config string. For S3
+// it resolves credentials under the names belonging to this side of the
+// transfer and hands them to the typed constructor, so the credentials are
+// never marshalled back into JSON.
+func initBackend(raw, accessEnv, secretEnv string) (archive.ArchiveBackend, error) {
+	var cfg sourceConfig
+	if err := json.Unmarshal([]byte(raw), &cfg); err != nil {
+		return nil, fmt.Errorf("parse config: %w", err)
+	}
+
+	if cfg.Kind != "s3" {
+		return archive.InitBackend(json.RawMessage(raw))
+	}
+
+	if err := resolveSourceCredentials(&cfg, accessEnv, secretEnv); err != nil {
+		return nil, err
+	}
+
+	backend, _, err := archive.NewS3Backend(archive.S3ArchiveConfig{
+		Endpoint:     cfg.Endpoint,
+		Bucket:       cfg.Bucket,
+		AccessKey:    cfg.AccessKey,
+		SecretKey:    cfg.SecretKey,
+		Region:       cfg.Region,
+		UsePathStyle: cfg.UsePathStyle,
+	})
+
+	return backend, err
 }
 
 // createParquetTarget creates a ParquetTarget from a parsed config.
@@ -604,14 +687,16 @@ func main() {
 		cclog.Info("Import mode: initializing source and destination backends...")
 
 		// Initialize source backend
-		srcBackend, err := archive.InitBackend(json.RawMessage(flagSrcConfig))
+		srcBackend, err := initBackend(flagSrcConfig,
+			config.EnvArchiveMgrSrcAccessKey, config.EnvArchiveMgrSrcSecretKey)
 		if err != nil {
 			cclog.Fatalf("Failed to initialize source backend: %s", err.Error())
 		}
 		cclog.Info("Source backend initialized successfully")
 
 		// Initialize destination backend
-		dstBackend, err := archive.InitBackend(json.RawMessage(flagDstConfig))
+		dstBackend, err := initBackend(flagDstConfig,
+			config.EnvArchiveMgrDstAccessKey, config.EnvArchiveMgrDstSecretKey)
 		if err != nil {
 			cclog.Fatalf("Failed to initialize destination backend: %s", err.Error())
 		}
@@ -643,12 +728,21 @@ func main() {
 		if err := json.Unmarshal([]byte(flagDstConfig), &dstCfg); err != nil {
 			cclog.Fatalf("Failed to parse destination config: %s", err.Error())
 		}
+		if err := resolveSourceCredentials(&srcCfg,
+			config.EnvArchiveMgrSrcAccessKey, config.EnvArchiveMgrSrcSecretKey); err != nil {
+			cclog.Fatalf("Source config: %s", err.Error())
+		}
+		if err := resolveSourceCredentials(&dstCfg,
+			config.EnvArchiveMgrDstAccessKey, config.EnvArchiveMgrDstSecretKey); err != nil {
+			cclog.Fatalf("Destination config: %s", err.Error())
+		}
 
 		switch flagFormat {
 		case "parquet":
 			// JSON archive -> Parquet: source is an archive backend
 			cclog.Info("Convert mode: JSON -> Parquet")
-			srcBackend, err := archive.InitBackend(json.RawMessage(flagSrcConfig))
+			srcBackend, err := initBackend(flagSrcConfig,
+				config.EnvArchiveMgrSrcAccessKey, config.EnvArchiveMgrSrcSecretKey)
 			if err != nil {
 				cclog.Fatalf("Failed to initialize source backend: %s", err.Error())
 			}
@@ -658,7 +752,8 @@ func main() {
 		case "json":
 			// Parquet -> JSON archive: destination is an archive backend
 			cclog.Info("Convert mode: Parquet -> JSON")
-			dstBackend, err := archive.InitBackend(json.RawMessage(flagDstConfig))
+			dstBackend, err := initBackend(flagDstConfig,
+				config.EnvArchiveMgrDstAccessKey, config.EnvArchiveMgrDstSecretKey)
 			if err != nil {
 				cclog.Fatalf("Failed to initialize destination backend: %s", err.Error())
 			}

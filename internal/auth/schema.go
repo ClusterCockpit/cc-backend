@@ -41,15 +41,15 @@ var configSchema = `
           "type": "boolean"
         },
         "public-key": {
-          "description": "Base64 encoded Ed25519 public key used to validate JWTs. Overridden by the JWT_PUBLIC_KEY environment variable when set.",
+          "description": "Base64 encoded Ed25519 public key used to validate JWTs. Overridden by the JWT_PUBLIC_KEY environment variable when set, or by the contents of the file named by JWT_PUBLIC_KEY_FILE.",
           "type": "string"
         },
         "private-key": {
-          "description": "Base64 encoded Ed25519 private key used to sign JWTs. Overridden by the JWT_PRIVATE_KEY environment variable when set.",
+          "description": "Base64 encoded Ed25519 private key used to sign JWTs. Overridden by the JWT_PRIVATE_KEY environment variable when set, or by the contents of the file named by JWT_PRIVATE_KEY_FILE.",
           "type": "string"
         },
         "cross-login-public-key": {
-          "description": "Base64 encoded Ed25519 public key for accepting externally generated JWTs. Overridden by the CROSS_LOGIN_JWT_PUBLIC_KEY environment variable when set.",
+          "description": "Base64 encoded Ed25519 public key for accepting externally generated JWTs. Overridden by the CROSS_LOGIN_JWT_PUBLIC_KEY environment variable when set, or by the contents of the file named by CROSS_LOGIN_JWT_PUBLIC_KEY_FILE.",
           "type": "string"
         },
         "cross-login-hs512-key": {
@@ -76,11 +76,11 @@ var configSchema = `
           "type": "boolean"
         },
         "client-id": {
-          "description": "OAuth2 client ID for the OIDC provider. Overridden by the OID_CLIENT_ID environment variable when set.",
+          "description": "OAuth2 client ID for the OIDC provider. Overridden by the OID_CLIENT_ID environment variable when set, or by the contents of the file named by OID_CLIENT_ID_FILE.",
           "type": "string"
         },
         "client-secret": {
-          "description": "OAuth2 client secret for the OIDC provider. Overridden by the OID_CLIENT_SECRET environment variable when set.",
+          "description": "OAuth2 client secret for the OIDC provider. Overridden by the OID_CLIENT_SECRET environment variable when set, or by the contents of the file named by OID_CLIENT_SECRET_FILE.",
           "type": "string"
         },
         "role-mapping": {
@@ -142,7 +142,7 @@ var configSchema = `
           "type": "boolean"
         },
         "sync-password": {
-          "description": "Password for the LDAP admin account used for syncing. Overridden by the LDAP_ADMIN_PASSWORD environment variable when set.",
+          "description": "Password for the LDAP admin account used for syncing. Overridden by the LDAP_ADMIN_PASSWORD environment variable when set, or by the contents of the file named by LDAP_ADMIN_PASSWORD_FILE.",
           "type": "string"
         },
         "role-filters": {

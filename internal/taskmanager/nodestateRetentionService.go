@@ -6,12 +6,14 @@
 package taskmanager
 
 import (
+	"fmt"
 	"time"
 
 	"github.com/ClusterCockpit/cc-backend/internal/config"
 	"github.com/ClusterCockpit/cc-backend/internal/repository"
 	pqarchive "github.com/ClusterCockpit/cc-backend/pkg/archive/parquet"
 	cclog "github.com/ClusterCockpit/cc-lib/v2/ccLogger"
+	"github.com/ClusterCockpit/cc-lib/v2/util"
 	"github.com/go-co-op/gocron/v2"
 )
 
@@ -32,8 +34,38 @@ func RegisterNodeStateRetentionDeleteService(ageHours int) {
 			}))
 }
 
-func RegisterNodeStateRetentionMoveService(cfg *config.NodeStateRetention) {
+// resolveNodeStateCredentials applies the NODESTATE_S3_* environment overrides
+// so the target's credentials need not be stored in config.json.
+//
+// The caller passes a copy of the config: the resolved values must not be
+// written back into config.Keys, which other code reads and which any future
+// config-dump endpoint would expose.
+func resolveNodeStateCredentials(cfg *config.NodeStateRetention) error {
+	if cfg.TargetKind != "s3" {
+		return nil
+	}
+
+	var err error
+	if cfg.TargetAccessKey, err = util.SecretFromEnv(
+		config.EnvNodeStateS3AccessKey, cfg.TargetAccessKey); err != nil {
+		return fmt.Errorf("resolving %s: %w", config.EnvNodeStateS3AccessKey, err)
+	}
+	if cfg.TargetSecretKey, err = util.SecretFromEnv(
+		config.EnvNodeStateS3SecretKey, cfg.TargetSecretKey); err != nil {
+		return fmt.Errorf("resolving %s: %w", config.EnvNodeStateS3SecretKey, err)
+	}
+
+	return nil
+}
+
+func RegisterNodeStateRetentionMoveService(cfgPtr *config.NodeStateRetention) {
 	cclog.Info("Register node state retention move service")
+
+	cfg := *cfgPtr
+	if err := resolveNodeStateCredentials(&cfg); err != nil {
+		cclog.Errorf("NodeState move retention: %v; service not registered", err)
+		return
+	}
 
 	maxFileSizeMB := cfg.MaxFileSizeMB
 	if maxFileSizeMB <= 0 {

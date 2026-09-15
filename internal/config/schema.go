@@ -172,11 +172,11 @@ var configSchema = `
           "type": "string"
         },
         "target-access-key": {
-          "description": "S3 access key.",
+          "description": "S3 access key. Overridden by the NODESTATE_S3_ACCESS_KEY environment variable when set, or by the contents of the file named by NODESTATE_S3_ACCESS_KEY_FILE.",
           "type": "string"
         },
         "target-secret-key": {
-          "description": "S3 secret key.",
+          "description": "S3 secret key. Overridden by the NODESTATE_S3_SECRET_KEY environment variable when set, or by the contents of the file named by NODESTATE_S3_SECRET_KEY_FILE.",
           "type": "string"
         },
         "target-region": {

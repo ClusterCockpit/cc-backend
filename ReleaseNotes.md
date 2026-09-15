@@ -11,7 +11,8 @@ again once.
 **Two configuration changes are mandatory before starting 1.6.0:**
 
 - The `.env` file is gone. Move every secret into the `auth` section of
-  `config.json` (or export the corresponding environment variable).
+  `config.json`, or export the corresponding environment variable, or point
+  `$VAR_FILE` at a file holding it.
 - The `main.resampling` section no longer accepts `trigger`, `resolutions` and
   `minimum-points`. cc-backend rejects unknown keys inside `main` and aborts on
   startup if they are still present. Replace them with `default-policy` and
@@ -50,6 +51,39 @@ For release specific notes visit the [ClusterCockpit Documentation](https://clus
   `OID_CLIENT_SECRET`, `CROSS_LOGIN_JWT_PUBLIC_KEY`, `CROSS_LOGIN_JWT_HS512_KEY`),
   which takes precedence over the config value. `-init` now writes the demo JWT
   keys into `config.json`.
+- **Secrets can come from files, and every secret is now overridable**: Each
+  secret has three sources, in this order of precedence: `$VAR`, the contents of
+  the file named by `$VAR_FILE`, then `config.json`. The file source makes
+  systemd `LoadCredential` and Docker/Kubernetes secret mounts usable, so no
+  secret has to be written into `config.json` at all. A `$VAR_FILE` that cannot
+  be read, or that holds only whitespace, is a fatal misconfiguration rather
+  than a silent fallback to the config value.
+  - Newly overridable: `ARCHIVE_S3_ACCESS_KEY`/`ARCHIVE_S3_SECRET_KEY` (job
+    archive), `RETENTION_S3_ACCESS_KEY`/`RETENTION_S3_SECRET_KEY` and
+    `NODESTATE_S3_ACCESS_KEY`/`NODESTATE_S3_SECRET_KEY` (retention targets),
+    `METRICSTORE_TOKEN` (with `METRICSTORE_TOKEN_<SCOPE>` taking precedence),
+    `CC_NATS_USERNAME`/`CC_NATS_PASSWORD`, and
+    `ARCHIVE_MANAGER_{SRC,DST}_S3_{ACCESS,SECRET}_KEY` for the
+    `archive-manager` tool. The five S3 credential sets read separate names on
+    purpose, so exporting one cannot silently override another.
+  - Requires cc-lib v2.14.0. Names cc-backend reads are unprefixed; names
+    cc-lib reads carry a `CC_` prefix.
+- **`metric-store-external[].token` is no longer required**: the token may now
+  be supplied entirely from the environment, so the config schema accepts an
+  entry without it. A store that ends up with no token from any source logs a
+  warning and issues unauthenticated requests, where it previously aborted
+  startup — check that warning if you rely on the old behavior.
+- **`-init` writes `config.json` with mode `0600`** instead of `0666`, since
+  that file holds the JWT keys and may hold S3 and NATS credentials. Existing
+  files are not changed; tighten them yourself.
+- **Plaintext NATS credentials removed from the example configs**:
+  `configs/config.json` and `configs/config-large.json` no longer ship a working
+  `root`/`root` `nats.username`/`password` pair. Set `CC_NATS_USERNAME` and
+  `CC_NATS_PASSWORD`, or use `nats.creds-file-path`.
+- **`archive-manager` accepts both S3 key spellings**: `access-key`/`secret-key`
+  and `accessKey`/`secretKey` now work in every mode. Previously `--import` read
+  the kebab-case names while `--convert` read the camelCase ones. Kebab-case is
+  the documented form.
 - **Resampling configuration replaced by policies (breaking)**: The explicit
   `trigger`, `resolutions` and `minimum-points` keys under `main.resampling` are
   removed; `main` rejects unknown keys, so a config still carrying them aborts

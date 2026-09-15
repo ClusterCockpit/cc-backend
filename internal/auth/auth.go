@@ -17,7 +17,6 @@ import (
 	"net"
 	"net/http"
 	"net/url"
-	"os"
 	"sync"
 	"time"
 
@@ -115,18 +114,6 @@ type AuthConfig struct {
 
 // Keys holds the global authentication configuration
 var Keys AuthConfig
-
-// secretFromEnv resolves a secret from the environment or config. The
-// environment variable takes precedence when set and non-empty; otherwise the
-// value configured in config.json is used. This lets deployments inject secrets
-// via the environment (or a secret manager) while keeping config.json
-// self-contained for simple setups.
-func secretFromEnv(envVar, configValue string) string {
-	if v := os.Getenv(envVar); v != "" {
-		return v
-	}
-	return configValue
-}
 
 // Authentication manages all authentication methods and session handling
 type Authentication struct {
@@ -287,7 +274,10 @@ func Init(authCfg *json.RawMessage) {
 		if Keys.JwtConfig != nil {
 			authInstance.JwtAuth = &JWTAuthenticator{}
 			if err := authInstance.JwtAuth.Init(); err != nil {
-				cclog.Fatal("Error while initializing authentication -> jwtAuth init failed")
+				// The reason matters here: a mistyped secret file path is the
+				// most likely cause and is not guessable from the generic
+				// message this used to print.
+				cclog.Fatalf("Error while initializing authentication -> jwtAuth init failed: %s", err.Error())
 			}
 
 			jwtSessionAuth := &JWTSessionAuthenticator{}

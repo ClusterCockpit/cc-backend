@@ -210,19 +210,38 @@ func Init(rawConfig json.RawMessage) error {
 			return
 		}
 
+		var version uint64
+
 		switch cfg.Kind {
 		case "file":
 			ar = &FsArchive{}
-		case "s3":
-			ar = &S3Archive{}
+			version, err = ar.Init(rawConfig)
 		case "sqlite":
 			ar = &SqliteArchive{}
+			version, err = ar.Init(rawConfig)
+		case "s3":
+			// The job archive is the one S3 credential set that
+			// ARCHIVE_S3_ACCESS_KEY and ARCHIVE_S3_SECRET_KEY name, so it is
+			// resolved here rather than inside the backend, which is shared
+			// with the retention targets and archive-manager.
+			var s3cfg S3ArchiveConfig
+			if err = json.Unmarshal(rawConfig, &s3cfg); err != nil {
+				cclog.Warn("Error while unmarshaling raw config json")
+				return
+			}
+			if err = resolveS3Credentials(&s3cfg,
+				config.EnvArchiveS3AccessKey, config.EnvArchiveS3SecretKey); err != nil {
+				cclog.Errorf("Error while initializing archiveBackend: %s", err.Error())
+				return
+			}
+			ar, version, err = NewS3Backend(s3cfg)
 		default:
+			// Returning here matters: ar would otherwise stay nil and the
+			// Init call below would panic instead of reporting the bad kind.
 			err = fmt.Errorf("ARCHIVE/ARCHIVE > unkown archive backend '%s''", cfg.Kind)
+			return
 		}
 
-		var version uint64
-		version, err = ar.Init(rawConfig)
 		if err != nil {
 			cclog.Errorf("Error while initializing archiveBackend: %s", err.Error())
 			return
@@ -250,6 +269,11 @@ func GetHandle() ArchiveBackend {
 //
 // Returns the initialized backend instance or an error if initialization fails.
 // Does not validate the configuration against the schema.
+//
+// InitBackend performs no environment resolution for credentials. It serves
+// several distinct credential sets, so a fixed environment variable name here
+// would let one set override another's. S3 callers that resolve their own
+// credentials should use NewS3Backend instead of marshalling them into JSON.
 func InitBackend(rawConfig json.RawMessage) (ArchiveBackend, error) {
 	var cfg struct {
 		Kind string `json:"kind"`
