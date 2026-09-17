@@ -57,7 +57,7 @@ func makeTestJob(jobID int64) (*schema.Job, *schema.JobData) {
 		},
 	}
 
-	data := schema.JobData{
+	data := schema.JobData{Metrics: map[string]schema.ScopedMetrics{
 		"cpu_load": {
 			schema.MetricScopeNode: &schema.JobMetric{
 				Unit:     schema.Unit{Base: ""},
@@ -70,7 +70,7 @@ func makeTestJob(jobID int64) (*schema.Job, *schema.JobData) {
 				},
 			},
 		},
-	}
+	}}
 
 	return meta, &data
 }
@@ -132,7 +132,7 @@ func TestJobToParquetRowConversion(t *testing.T) {
 	if err := json.Unmarshal(decompressed, &jobData); err != nil {
 		t.Fatalf("unmarshal metric data: %v", err)
 	}
-	if _, ok := jobData["cpu_load"]; !ok {
+	if _, ok := jobData.Metrics["cpu_load"]; !ok {
 		t.Error("metric data missing cpu_load key")
 	}
 }

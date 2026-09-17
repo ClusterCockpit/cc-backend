@@ -290,7 +290,7 @@ func SanityChecks(job *schema.Job) error {
 //
 // TODO: Either implement the metric normalization or remove this dead code.
 func checkJobData(d *schema.JobData) error {
-	for _, scopes := range *d {
+	for _, scopes := range d.Metrics {
 		// var newUnit schema.Unit
 		// TODO Add node scope if missing
 		for _, metric := range scopes {

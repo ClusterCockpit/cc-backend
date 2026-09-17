@@ -403,7 +403,7 @@ func (r *JobRepository) JobsStats(
 //
 // Returns the requested statistic value or 0.0 if not found.
 func LoadJobStat(job *schema.Job, metric string, statType string) float64 {
-	if stats, ok := job.Statistics[metric]; ok {
+	if stats, ok := job.Statistics.Metrics[metric]; ok {
 		switch statType {
 		case "avg":
 			return stats.Avg

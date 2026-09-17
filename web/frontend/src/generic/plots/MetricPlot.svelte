@@ -17,6 +17,7 @@
   - `numhwthreads Number?`: Number of job HWThreads [Default: 0]
   - `numaccs Number?`: Number of job Accelerators [Default: 0]
   - `zoomState Object?`: The last zoom state to preserve on user zoom [Default: null]
+  - `smoothingWindow Number?`: Display smoothing window in data points; overrides the user setting. 0 or 1 disables [Default: null]
   - `thersholdState Object?`: The last threshold state to preserve on user zoom [Default: null]
   - `extendedLegendData Object?`: Additional information to be rendered in an extended legend [Default: null]
   - `onZoom Func`: Callback function to handle zoom-in event
@@ -25,6 +26,7 @@
 <script>
   import uPlot from "uplot";
   import { formatNumber, formatDurationTime } from "../units.js";
+  import { movingAverage } from "./smoothing.js";
   import { getContext, onMount, onDestroy } from "svelte";
   import { Card, CardBody, CardHeader } from "@sveltestrap/sveltestrap";
 
@@ -43,6 +45,7 @@
     forNode = false,
     zoomState = null,
     thresholdState = null,
+    smoothingWindow = null,
     extendedLegendData = null,
     plotSync = null,
     enableFlip = false,
@@ -73,9 +76,16 @@
   const subClusterTopology = $derived(getContext("getHardwareTopology")(cluster, subCluster));
   const metricConfig = $derived(getContext("getMetricConfig")(cluster, subCluster, metric));
   const usesMeanStatsSeries = $derived((statisticsSeries?.mean && statisticsSeries.mean.length != 0));
-  const resampleTrigger = $derived(resampleConfig?.trigger ? Number(resampleConfig.trigger) : null);
-  const resampleResolutions = $derived(resampleConfig?.resolutions ? [...resampleConfig.resolutions] : null);
-  const resampleMinimum = $derived(resampleConfig?.resolutions ? Math.min(...resampleConfig.resolutions) : null);
+  const nativeTimestep = $derived(metricConfig?.timestep || timestep);
+  // Display-only smoothing, applied after backend downsampling. Does not affect
+  // the reported statistics or the job footprint.
+  const smoothing = $derived(
+    Number(smoothingWindow ?? clusterCockpitConfig?.plotConfiguration_smoothingWindow ?? 0)
+  );
+  const resampleTargetPoints = $derived(resampleConfig?.targetPoints ? Number(resampleConfig.targetPoints) : null);
+  // Zoom in far enough that fewer than a quarter of the target point count is
+  // visible, and a finer resolution is requested from the backend.
+  const resampleTrigger = $derived(resampleTargetPoints ? Math.floor(resampleTargetPoints / 4) : null);
   const useStatsSeries = $derived(!!statisticsSeries); // Display Stats Series By Default if Exists
   const thresholds = $derived(findJobAggregationThresholds(
     subClusterTopology,
@@ -135,18 +145,20 @@
       };
     };
     // Y
+    // Smooth every series of a stats plot: smoothing only some of them would
+    // break the min <= mid <= max invariant the plot bands rely on.
     if (useStatsSeries) {
-      pendingData.push(statisticsSeries.min);
-      pendingData.push(statisticsSeries.max);
+      pendingData.push(movingAverage(statisticsSeries.min, smoothing));
+      pendingData.push(movingAverage(statisticsSeries.max, smoothing));
       if (usesMeanStatsSeries) {
-        pendingData.push(statisticsSeries.mean);
+        pendingData.push(movingAverage(statisticsSeries.mean, smoothing));
       } else {
-        pendingData.push(statisticsSeries.median);
+        pendingData.push(movingAverage(statisticsSeries.median, smoothing));
       }
 
     } else {
       for (let i = 0; i < series.length; i++) {
-        pendingData.push(series[i].data);
+        pendingData.push(movingAverage(series[i].data, smoothing));
       };
     };
     return pendingData;
@@ -514,25 +526,20 @@
           (u, key) => { // If ZoomResample is Configured && Not System/Node View
             if (resampleConfig && !forNode && key === 'x') {
               const numX = (u.series[0].idxs[1] - u.series[0].idxs[0])
-              if (numX <= resampleTrigger && timestep !== resampleMinimum) {
-                /* Get closest zoom level; prevents multiple iterative zoom requests for big zoom-steps (e.g. 600 -> 300 -> 120 -> 60) */
-                // Which resolution to theoretically request to achieve 30 or more visible data points:
-                const target = (numX * timestep) / resampleTrigger
-                // Which configured resolution actually matches the closest to theoretical target:
-                const closest = resampleResolutions.reduce(function(prev, curr) {
-                  return (Math.abs(curr - target) < Math.abs(prev - target) ? curr : prev);
-                });
+              if (resampleTargetPoints && numX <= resampleTrigger) {
+                // Compute the resolution for the visible window
+                const visibleDuration = (u.scales.x.max - u.scales.x.min);
+                let newRes = Math.ceil(visibleDuration / resampleTargetPoints / nativeTimestep) * nativeTimestep;
+                if (newRes < nativeTimestep) newRes = nativeTimestep;
                 // Prevents non-required dispatches
-                if (timestep !== closest) {
-                  // console.log('Dispatch: Zoom with Res from / to', timestep, closest)
+                if (newRes && timestep !== newRes) {
                   onZoom({
-                    newRes: closest,
+                    newRes: newRes,
                     lastZoomState: u?.scales,
                     lastThreshold: thresholds?.normal
                   });
                 }
               } else {
-                // console.log('Dispatch: Zoom Update States')
                 onZoom({
                   lastZoomState: u?.scales,
                   lastThreshold: thresholds?.normal

@@ -7,7 +7,9 @@ package metricstore
 
 import (
 	"errors"
+	"fmt"
 	"math"
+	"strings"
 
 	"github.com/ClusterCockpit/cc-lib/v2/schema"
 	"github.com/ClusterCockpit/cc-lib/v2/util"
@@ -20,6 +22,33 @@ type Stats struct {
 	Max     schema.Float
 }
 
+// recomputeStats rebuilds the buffer's running statistics from a single full
+// scan of its data and marks them valid. Used after an overwrite invalidated
+// the incremental aggregate, and at checkpoint load time.
+func (b *buffer) recomputeStats() {
+	sum, samples := 0.0, 0
+	min, max := math.MaxFloat32, -math.MaxFloat32
+	for _, v := range b.data {
+		xf := float64(v)
+		if math.IsNaN(xf) {
+			continue
+		}
+		samples++
+		sum += xf
+		if xf < min {
+			min = xf
+		}
+		if xf > max {
+			max = xf
+		}
+	}
+	b.statSum = sum
+	b.statSamples = samples
+	b.statMin = min
+	b.statMax = max
+	b.statsValid = true
+}
+
 func (b *buffer) stats(from, to int64) (Stats, int64, int64, error) {
 	if from < b.start {
 		if b.prev != nil {
@@ -27,9 +56,6 @@ func (b *buffer) stats(from, to int64) (Stats, int64, int64, error) {
 		}
 		from = b.start
 	}
-
-	// TODO: Check if b.closed and if so and the full buffer is queried,
-	// use b.statistics instead of iterating over the buffer.
 
 	samples := 0
 	sum, min, max := 0.0, math.MaxFloat32, -math.MaxFloat32
@@ -45,6 +71,28 @@ func (b *buffer) stats(from, to int64) (Stats, int64, int64, error) {
 			idx = int((t - b.start) / b.frequency)
 		}
 
+		// Fast path: standing at this buffer's first data point (idx 0) with the
+		// whole buffer inside [from, to). Fold in the cached aggregate and jump
+		// past the buffer's real data instead of scanning each point. Any slots
+		// between len(data) and cap are handled as gaps by the normal loop after
+		// t advances, so the returned `to` matches the scan semantics.
+		if len(b.data) > 0 && b.statsValid && idx <= 0 && t <= b.firstWrite() && b.end() <= to {
+			if b.statSamples > 0 {
+				sum += b.statSum
+				samples += b.statSamples
+				if b.statMin < min {
+					min = b.statMin
+				}
+				if b.statMax > max {
+					max = b.statMax
+				}
+			}
+			// Position t at the buffer's last real data point; the loop's
+			// t += frequency then advances into the trailing gap / next buffer.
+			t = b.end() - b.frequency
+			continue
+		}
+
 		if t < b.start || idx >= len(b.data) {
 			continue
 		}
@@ -54,10 +102,14 @@ func (b *buffer) stats(from, to int64) (Stats, int64, int64, error) {
 			continue
 		}
 
-		samples += 1
+		samples++
 		sum += xf
-		min = math.Min(min, xf)
-		max = math.Max(max, xf)
+		if xf < min {
+			min = xf
+		}
+		if xf > max {
+			max = xf
+		}
 	}
 
 	return Stats{
@@ -83,7 +135,7 @@ func (m *MemoryStore) Stats(selector util.Selector, metric string, from, to int6
 
 	n, samples := 0, 0
 	avg, min, max := schema.Float(0), math.MaxFloat32, -math.MaxFloat32
-	err := m.root.findBuffers(selector, minfo.offset, func(b *buffer) error {
+	err := m.root.findBuffers(selector, minfo.offset, func(b *buffer, path []string) error {
 		stats, cfrom, cto, err := b.stats(from, to)
 		if err != nil {
 			return err
@@ -92,9 +144,11 @@ func (m *MemoryStore) Stats(selector util.Selector, metric string, from, to int6
 		if n == 0 {
 			from, to = cfrom, cto
 		} else if from != cfrom {
-			return ErrDataDoesNotAlignMissingFront
+			return fmt.Errorf("stats: %w: metric=%s node=%s buf#%d expected[%d,%d] actual[%d,%d]",
+				ErrDataDoesNotAlignMissingFront, metric, strings.Join(path, "/"), n, from, to, cfrom, cto)
 		} else if to != cto {
-			return ErrDataDoesNotAlignMissingBack
+			return fmt.Errorf("stats: %w: metric=%s node=%s buf#%d expected[%d,%d] actual[%d,%d]",
+				ErrDataDoesNotAlignMissingBack, metric, strings.Join(path, "/"), n, from, to, cfrom, cto)
 		}
 
 		samples += stats.Samples
@@ -103,7 +157,7 @@ func (m *MemoryStore) Stats(selector util.Selector, metric string, from, to int6
 		max = math.Max(max, float64(stats.Max))
 		n += 1
 		return nil
-	})
+	}, nil)
 	if err != nil {
 		return nil, 0, 0, err
 	}

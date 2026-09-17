@@ -93,7 +93,7 @@ func loadJobData(filename string, isCompressed bool) (schema.JobData, error) {
 	f, err := os.Open(filename)
 	if err != nil {
 		cclog.Errorf("fsBackend LoadJobData()- %v", err)
-		return nil, err
+		return schema.JobData{}, err
 	}
 	defer f.Close()
 
@@ -101,7 +101,7 @@ func loadJobData(filename string, isCompressed bool) (schema.JobData, error) {
 		r, err := gzip.NewReader(f)
 		if err != nil {
 			cclog.Errorf(" %v", err)
-			return nil, err
+			return schema.JobData{}, err
 		}
 		defer r.Close()
 
@@ -126,7 +126,7 @@ func loadJobStats(filename string, isCompressed bool) (schema.ScopedJobStats, er
 	f, err := os.Open(filename)
 	if err != nil {
 		cclog.Errorf("fsBackend LoadJobStats()- %v", err)
-		return nil, err
+		return schema.ScopedJobStats{}, err
 	}
 	defer f.Close()
 
@@ -134,13 +134,13 @@ func loadJobStats(filename string, isCompressed bool) (schema.ScopedJobStats, er
 		r, err := gzip.NewReader(f)
 		if err != nil {
 			cclog.Errorf(" %v", err)
-			return nil, err
+			return schema.ScopedJobStats{}, err
 		}
 		defer r.Close()
 
 		if config.Keys.Validate {
 			if err := schema.Validate(schema.Data, r); err != nil {
-				return nil, fmt.Errorf("validate job data: %v", err)
+				return schema.ScopedJobStats{}, fmt.Errorf("validate job data: %v", err)
 			}
 		}
 
@@ -148,7 +148,7 @@ func loadJobStats(filename string, isCompressed bool) (schema.ScopedJobStats, er
 	} else {
 		if config.Keys.Validate {
 			if err := schema.Validate(schema.Data, bufio.NewReader(f)); err != nil {
-				return nil, fmt.Errorf("validate job data: %v", err)
+				return schema.ScopedJobStats{}, fmt.Errorf("validate job data: %v", err)
 			}
 		}
 		return DecodeJobStats(bufio.NewReader(f), filename)

@@ -25,6 +25,7 @@ import (
 	"github.com/ClusterCockpit/cc-backend/internal/auth"
 	"github.com/ClusterCockpit/cc-backend/internal/config"
 	"github.com/ClusterCockpit/cc-backend/internal/importer"
+	"github.com/ClusterCockpit/cc-backend/internal/logviewer"
 	"github.com/ClusterCockpit/cc-backend/internal/metricdispatch"
 	"github.com/ClusterCockpit/cc-backend/internal/repository"
 	"github.com/ClusterCockpit/cc-backend/internal/tagger"
@@ -90,6 +91,19 @@ func initGops() error {
 
 func initConfiguration() error {
 	ccconf.Init(flagConfigFile)
+
+	// Warn about unrecognized top-level config sections. A common mistake is
+	// nesting a setting at the wrong level (e.g. placing "resampling" next to
+	// "main" instead of inside it), which is otherwise silently ignored.
+	knownSections := map[string]bool{
+		"main": true, "auth": true, "nats": true, "archive": true,
+		"metric-store": true, "metric-store-external": true, "cron": true, "ui": true,
+	}
+	for _, k := range ccconf.GetKeys() {
+		if !knownSections[k] {
+			cclog.Warnf("ignoring unrecognized top-level config section %q (check nesting in config file)", k)
+		}
+	}
 
 	cfg := ccconf.GetPackageConfig("main")
 	if cfg == nil {
@@ -216,11 +230,17 @@ func checkDefaultSecurityKeys() {
 	// Default JWT public key from init.go
 	defaultJWTPublic := "kzfYrYy+TzpanWZHJ5qSdMj5uKUWgq74BWhQG6copP0="
 
-	// Resolve the public key the same way the authenticators do: environment
-	// variable takes precedence over the value configured in config.json.
-	pubKey := os.Getenv("JWT_PUBLIC_KEY")
-	if pubKey == "" && auth.Keys.JwtConfig != nil {
-		pubKey = auth.Keys.JwtConfig.PublicKey
+	// Resolve the public key the same way the authenticators do. The nil check
+	// happens before the call, because this runs on a path where auth.Init may
+	// have been given no configuration at all.
+	configured := ""
+	if auth.Keys.JwtConfig != nil {
+		configured = auth.Keys.JwtConfig.PublicKey
+	}
+	pubKey, err := util.SecretFromEnv(config.EnvJWTPublicKey, configured)
+	if err != nil {
+		cclog.Warnf("cannot resolve %s: %s", config.EnvJWTPublicKey, err.Error())
+		return
 	}
 
 	if pubKey == defaultJWTPublic {
@@ -354,13 +374,11 @@ func runServer(ctx context.Context) error {
 	haveMetricstore := false
 	mscfg := ccconf.GetPackageConfig("metric-store")
 	if mscfg != nil {
-		metrics := metricstore.BuildMetricList()
-		metricstore.Init(mscfg, metrics, &wg)
+		// The repository is injected as NodeProvider (breaking the import
+		// cycle) so the checkpoint load inside Init can fetch the full
+		// history for nodes with running jobs.
+		metricstore.Init(mscfg, metricstore.BuildMetricList(), repository.GetJobRepository(), &wg)
 
-		// Inject repository as NodeProvider to break import cycle
-		ms := metricstore.GetMemoryStore()
-		jobRepo := repository.GetJobRepository()
-		ms.SetNodeProvider(jobRepo)
 		metricstore.MetricStoreHandle = &metricstore.InternalMetricStore{}
 		haveMetricstore = true
 	} else {
@@ -487,8 +505,15 @@ func run() error {
 		return nil
 	}
 
-	// Initialize logger
+	// Initialize logger. Do not re-initialize cclog or redirect its output
+	// after this point: logviewer.InstallSink below replaces the loggers'
+	// writers and both cclog.Init and cclog.SetOutputFile would drop the sink.
 	cclog.Init(flagLogLevel, flagLogDateTime)
+
+	// Capture log output into the in-memory buffer from the very first line.
+	// The configuration read further down decides whether that buffer is
+	// actually used; logviewer.Init releases it otherwise.
+	logviewer.InstallSink(logviewer.DefaultBufferSize)
 
 	// Handle init flag
 	if flagInit {
@@ -514,6 +539,13 @@ func run() error {
 	if err := initConfiguration(); err != nil {
 		return err
 	}
+
+	// Resolve the log view backend now that the configuration is known.
+	logviewer.Init(logviewer.Options{
+		Mode:        logviewer.Mode(config.Keys.LogSource),
+		SystemdUnit: config.Keys.SystemdUnit,
+		BufferSize:  config.Keys.LogBufferSize,
+	})
 
 	// Handle database migration (migrate, revert, force)
 	if err := handleDatabaseCommands(); err != nil {
@@ -572,6 +604,11 @@ func run() error {
 		if !deleteMode {
 			cleanupDir = metricstore.Keys.Cleanup.RootDir
 		}
+
+		// Wire the job repository as NodeProvider so cleanup skips hosts
+		// with running jobs (same injection as runServer).
+		metricstore.InitMetrics(metricstore.BuildMetricList())
+		metricstore.GetMemoryStore().SetNodeProvider(repository.GetJobRepository())
 
 		cclog.Infof("Cleaning up checkpoints older than %s...", from.Format(time.RFC3339))
 		n, err := metricstore.CleanupCheckpoints(

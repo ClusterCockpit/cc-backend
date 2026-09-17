@@ -44,7 +44,6 @@
   const client = getContextClient();
   const statsPattern = /(.*)-stat$/;
   const resampleConfig = getContext("resampling") || null;
-  const resampleDefault = resampleConfig ? Math.max(...resampleConfig.resolutions) : 0;
   const subQuery = gql`
     query ($dbid: ID!, $selectedMetrics: [String!]!, $selectedScopes: [MetricScope!]!, $selectedResolution: Int) {
       singleUpdate: jobMetrics(id: $dbid, metrics: $selectedMetrics, scopes: $selectedScopes, resolution: $selectedResolution) {
@@ -78,7 +77,9 @@
   `;
 
   /* State Init */
-  let selectedResolution = $state(resampleDefault);
+  // null lets the backend resolve the resolution from the configured resample
+  // policy; zoom interactions override it with an explicit value.
+  let selectedResolution = $state(null);
   let selectedHost = $state(null);
   let zoomState = $state(null);
   let thresholdState = $state(null);

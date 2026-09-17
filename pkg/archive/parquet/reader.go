@@ -123,12 +123,23 @@ func NewS3ParquetSource(cfg S3TargetConfig) (*S3ParquetSource, error) {
 		region = "us-east-1"
 	}
 
-	awsCfg, err := awsconfig.LoadDefaultConfig(context.Background(),
-		awsconfig.WithRegion(region),
-		awsconfig.WithCredentialsProvider(
-			credentials.NewStaticCredentialsProvider(cfg.AccessKey, cfg.SecretKey, ""),
-		),
-	)
+	// Fall back to the AWS default credential chain when no static credentials
+	// are configured; see NewS3Target for why.
+	var awsCfg aws.Config
+	var err error
+
+	if cfg.AccessKey != "" && cfg.SecretKey != "" {
+		awsCfg, err = awsconfig.LoadDefaultConfig(context.Background(),
+			awsconfig.WithRegion(region),
+			awsconfig.WithCredentialsProvider(
+				credentials.NewStaticCredentialsProvider(cfg.AccessKey, cfg.SecretKey, ""),
+			),
+		)
+	} else {
+		awsCfg, err = awsconfig.LoadDefaultConfig(context.Background(),
+			awsconfig.WithRegion(region),
+		)
+	}
 	if err != nil {
 		return nil, fmt.Errorf("S3 source: load AWS config: %w", err)
 	}

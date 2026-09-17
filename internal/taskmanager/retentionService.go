@@ -14,12 +14,40 @@ import (
 	"strings"
 	"time"
 
+	"github.com/ClusterCockpit/cc-backend/internal/config"
 	"github.com/ClusterCockpit/cc-backend/pkg/archive"
 	pqarchive "github.com/ClusterCockpit/cc-backend/pkg/archive/parquet"
 	cclog "github.com/ClusterCockpit/cc-lib/v2/ccLogger"
 	"github.com/ClusterCockpit/cc-lib/v2/schema"
+	"github.com/ClusterCockpit/cc-lib/v2/util"
 	"github.com/go-co-op/gocron/v2"
 )
+
+// resolveRetentionCredentials applies the RETENTION_S3_* environment overrides
+// to a copy of the retention config, so the target's credentials need not be
+// stored in config.json.
+//
+// It is called at service registration time, not when a retention run fires:
+// an unreadable secret file then fails loudly at startup instead of silently at
+// three in the morning. The cost is that a rotated secret file needs a restart,
+// which is exactly how a config.json value behaves today.
+func resolveRetentionCredentials(cfg *Retention) error {
+	if cfg.TargetKind != "s3" {
+		return nil
+	}
+
+	var err error
+	if cfg.TargetAccessKey, err = util.SecretFromEnv(
+		config.EnvRetentionS3AccessKey, cfg.TargetAccessKey); err != nil {
+		return fmt.Errorf("resolving %s: %w", config.EnvRetentionS3AccessKey, err)
+	}
+	if cfg.TargetSecretKey, err = util.SecretFromEnv(
+		config.EnvRetentionS3SecretKey, cfg.TargetSecretKey); err != nil {
+		return fmt.Errorf("resolving %s: %w", config.EnvRetentionS3SecretKey, err)
+	}
+
+	return nil
+}
 
 // createParquetTarget creates a ParquetTarget (file or S3) from the retention config.
 func createParquetTarget(cfg Retention) (pqarchive.ParquetTarget, error) {
@@ -39,30 +67,31 @@ func createParquetTarget(cfg Retention) (pqarchive.ParquetTarget, error) {
 }
 
 // createTargetBackend creates a secondary archive backend (file or S3) for JSON copy/move.
+//
+// The S3 case takes the typed constructor rather than marshalling the config
+// back into JSON, so the target's credentials never get copied into a loose
+// buffer that could end up in an error message or a log line.
 func createTargetBackend(cfg Retention) (archive.ArchiveBackend, error) {
-	var raw json.RawMessage
-	var err error
-
-	switch cfg.TargetKind {
-	case "s3":
-		raw, err = json.Marshal(map[string]any{
-			"kind":           "s3",
-			"endpoint":       cfg.TargetEndpoint,
-			"bucket":         cfg.TargetBucket,
-			"access-key":     cfg.TargetAccessKey,
-			"secret-key":     cfg.TargetSecretKey,
-			"region":         cfg.TargetRegion,
-			"use-path-style": cfg.TargetUsePathStyle,
+	if cfg.TargetKind == "s3" {
+		backend, _, err := archive.NewS3Backend(archive.S3ArchiveConfig{
+			Endpoint:     cfg.TargetEndpoint,
+			Bucket:       cfg.TargetBucket,
+			AccessKey:    cfg.TargetAccessKey,
+			SecretKey:    cfg.TargetSecretKey,
+			Region:       cfg.TargetRegion,
+			UsePathStyle: cfg.TargetUsePathStyle,
 		})
-	default:
-		raw, err = json.Marshal(map[string]string{
-			"kind": "file",
-			"path": cfg.TargetPath,
-		})
+		return backend, err
 	}
+
+	raw, err := json.Marshal(map[string]string{
+		"kind": "file",
+		"path": cfg.TargetPath,
+	})
 	if err != nil {
 		return nil, fmt.Errorf("marshal target config: %w", err)
 	}
+
 	return archive.InitBackend(raw)
 }
 
@@ -232,6 +261,13 @@ func RegisterRetentionDeleteService(cfg Retention) {
 func RegisterRetentionCopyService(cfg Retention) {
 	cclog.Infof("Register retention copy service (format=%s, target=%s)", cfg.Format, cfg.TargetKind)
 
+	// cfg is a value copy, so the resolved credentials stay local to this
+	// service and never reach the shared configuration.
+	if err := resolveRetentionCredentials(&cfg); err != nil {
+		cclog.Errorf("Retention copy: %v; service not registered", err)
+		return
+	}
+
 	maxFileSizeMB := cfg.MaxFileSizeMB
 	if maxFileSizeMB <= 0 {
 		maxFileSizeMB = 512
@@ -284,6 +320,13 @@ func RegisterRetentionCopyService(cfg Retention) {
 
 func RegisterRetentionMoveService(cfg Retention) {
 	cclog.Infof("Register retention move service (format=%s, target=%s)", cfg.Format, cfg.TargetKind)
+
+	// cfg is a value copy, so the resolved credentials stay local to this
+	// service and never reach the shared configuration.
+	if err := resolveRetentionCredentials(&cfg); err != nil {
+		cclog.Errorf("Retention move: %v; service not registered", err)
+		return
+	}
 
 	maxFileSizeMB := cfg.MaxFileSizeMB
 	if maxFileSizeMB <= 0 {

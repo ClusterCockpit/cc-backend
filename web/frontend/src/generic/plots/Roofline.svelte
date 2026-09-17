@@ -378,14 +378,14 @@
       return {
         "Intensity [FLOPS/Byte]": '-',
         "":'',
-        "Performace [GFLOPS]": '-'
+        "Performance [GFLOPS]": '-'
       };
     }
 
     return {
       "Intensity [FLOPS/Byte]": roundTwoDigits(u.data[seriesIdx][0][dataIdx]),
       "":'',
-      "Performace [GFLOPS]": roundTwoDigits(u.data[seriesIdx][1][dataIdx]),
+      "Performance [GFLOPS]": roundTwoDigits(u.data[seriesIdx][1][dataIdx]),
     };
   };
 
@@ -614,7 +614,7 @@
             values: (u, vals) => vals.map((v) => formatNumber(v)),
           },
           {
-            label: "Performace [GFLOPS]",
+            label: "Performance [GFLOPS]",
             values: (u, vals) => vals.map((v) => formatNumber(v)),
           },
         ],

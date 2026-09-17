@@ -85,7 +85,7 @@
     {
       "name": "flops_any",
       "unit": {
-        "base": "Flops/s",
+        "base": "F/s",
         "prefix": "G"
       },
       "scope": "hwthread",
@@ -118,7 +118,7 @@
     {
       "name": "flops_sp",
       "unit": {
-        "base": "Flops/s",
+        "base": "F/s",
         "prefix": "G"
       },
       "scope": "hwthread",
@@ -150,7 +150,7 @@
     {
       "name": "flops_dp",
       "unit": {
-        "base": "Flops/s",
+        "base": "F/s",
         "prefix": "G"
       },
       "scope": "hwthread",
@@ -327,7 +327,7 @@
     {
       "name": "ib_recv_pkts",
       "unit": {
-        "base": "packets/s"
+        "base": ""
       },
       "scope": "node",
       "aggregation": "sum",
@@ -340,7 +340,7 @@
     {
       "name": "ib_xmit_pkts",
       "unit": {
-        "base": "packets/s"
+        "base": ""
       },
       "scope": "node",
       "aggregation": "sum",

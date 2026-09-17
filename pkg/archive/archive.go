@@ -31,7 +31,7 @@
 //	  }
 //	}
 //
-// For S3 backend (endpoint, region, and usePathStyle are optional):
+// For S3 backend (endpoint, region, and use-path-style are optional):
 //
 //	{
 //	  "archive": {
@@ -39,9 +39,9 @@
 //	    "endpoint": "http://192.168.178.10",
 //	    "bucket": "my-job-archive",
 //	    "region": "us-east-1",
-//	    "usePathStyle": true,
-//	    "accessKey": "...",
-//	    "secretKey": "..."
+//	    "use-path-style": true,
+//	    "access-key": "...",
+//	    "secret-key": "..."
 //	  }
 //	}
 //
@@ -50,7 +50,7 @@
 //	{
 //	  "archive": {
 //	    "kind": "sqlite",
-//	    "dbPath": "/var/lib/archive.db"
+//	    "db-path": "/var/lib/archive.db"
 //	  }
 //	}
 //
@@ -210,19 +210,38 @@ func Init(rawConfig json.RawMessage) error {
 			return
 		}
 
+		var version uint64
+
 		switch cfg.Kind {
 		case "file":
 			ar = &FsArchive{}
-		case "s3":
-			ar = &S3Archive{}
+			version, err = ar.Init(rawConfig)
 		case "sqlite":
 			ar = &SqliteArchive{}
+			version, err = ar.Init(rawConfig)
+		case "s3":
+			// The job archive is the one S3 credential set that
+			// ARCHIVE_S3_ACCESS_KEY and ARCHIVE_S3_SECRET_KEY name, so it is
+			// resolved here rather than inside the backend, which is shared
+			// with the retention targets and archive-manager.
+			var s3cfg S3ArchiveConfig
+			if err = json.Unmarshal(rawConfig, &s3cfg); err != nil {
+				cclog.Warn("Error while unmarshaling raw config json")
+				return
+			}
+			if err = resolveS3Credentials(&s3cfg,
+				config.EnvArchiveS3AccessKey, config.EnvArchiveS3SecretKey); err != nil {
+				cclog.Errorf("Error while initializing archiveBackend: %s", err.Error())
+				return
+			}
+			ar, version, err = NewS3Backend(s3cfg)
 		default:
+			// Returning here matters: ar would otherwise stay nil and the
+			// Init call below would panic instead of reporting the bad kind.
 			err = fmt.Errorf("ARCHIVE/ARCHIVE > unkown archive backend '%s''", cfg.Kind)
+			return
 		}
 
-		var version uint64
-		version, err = ar.Init(rawConfig)
 		if err != nil {
 			cclog.Errorf("Error while initializing archiveBackend: %s", err.Error())
 			return
@@ -250,6 +269,11 @@ func GetHandle() ArchiveBackend {
 //
 // Returns the initialized backend instance or an error if initialization fails.
 // Does not validate the configuration against the schema.
+//
+// InitBackend performs no environment resolution for credentials. It serves
+// several distinct credential sets, so a fixed environment variable name here
+// would let one set override another's. S3 callers that resolve their own
+// credentials should use NewS3Backend instead of marshalling them into JSON.
 func InitBackend(rawConfig json.RawMessage) (ArchiveBackend, error) {
 	var cfg struct {
 		Kind string `json:"kind"`
@@ -299,7 +323,7 @@ func LoadAveragesFromArchive(
 	}
 
 	for i, m := range metrics {
-		if stat, ok := metaFile.Statistics[m]; ok {
+		if stat, ok := metaFile.Statistics.Metrics[m]; ok {
 			data[i] = append(data[i], schema.Float(stat.Avg))
 		} else {
 			data[i] = append(data[i], schema.NaN)
@@ -323,7 +347,7 @@ func LoadStatsFromArchive(
 	}
 
 	for _, m := range metrics {
-		stat, ok := metaFile.Statistics[m]
+		stat, ok := metaFile.Statistics.Metrics[m]
 		if !ok {
 			data[m] = schema.MetricStatistics{Min: 0.0, Avg: 0.0, Max: 0.0}
 			continue
@@ -349,19 +373,19 @@ func LoadScopedStatsFromArchive(
 	data, err := ar.LoadJobStats(job)
 	if err != nil {
 		cclog.Errorf("Error while loading job stats from archiveBackend: %s", err.Error())
-		return nil, err
+		return schema.ScopedJobStats{}, err
 	}
 
 	return data, nil
 }
 
-// GetStatistics returns all metric statistics for a job.
-// Returns a map of metric names to their job-level statistics.
-func GetStatistics(job *schema.Job) (map[string]schema.JobStatistics, error) {
+// GetStatistics returns all metric statistics for a job, including the
+// array-valued statistics groups (e.g. filesystems).
+func GetStatistics(job *schema.Job) (schema.JobStatisticsSet, error) {
 	metaFile, err := ar.LoadJobMeta(job)
 	if err != nil {
 		cclog.Errorf("Error while loading job metadata from archiveBackend: %s", err.Error())
-		return nil, err
+		return schema.JobStatisticsSet{}, err
 	}
 
 	return metaFile.Statistics, nil

@@ -12,8 +12,10 @@ import (
 	"net/http"
 	"strings"
 
+	"github.com/ClusterCockpit/cc-backend/internal/config"
 	cclog "github.com/ClusterCockpit/cc-lib/v2/ccLogger"
 	"github.com/ClusterCockpit/cc-lib/v2/schema"
+	"github.com/ClusterCockpit/cc-lib/v2/util"
 	"github.com/golang-jwt/jwt/v5"
 )
 
@@ -24,12 +26,16 @@ type JWTSessionAuthenticator struct {
 var _ Authenticator = (*JWTSessionAuthenticator)(nil)
 
 func (ja *JWTSessionAuthenticator) Init() error {
-	pubKey := secretFromEnv("CROSS_LOGIN_JWT_HS512_KEY", Keys.JwtConfig.CrossLoginHS512Key)
+	pubKey, err := util.SecretFromEnv(config.EnvCrossLoginJWTHS512Key, Keys.JwtConfig.CrossLoginHS512Key)
+	if err != nil {
+		return fmt.Errorf("resolving %s: %w", config.EnvCrossLoginJWTHS512Key, err)
+	}
 	if pubKey == "" {
 		// Without a configured key the HMAC verification below would run against
 		// an empty key, which lets anyone forge a valid token. Refuse to register
 		// the authenticator in that case so JWT session login is simply disabled.
-		return errors.New("cross login HS512 key not configured ('cross-login-hs512-key' in config or 'CROSS_LOGIN_JWT_HS512_KEY' env): JWT session login disabled")
+		return fmt.Errorf("cross login HS512 key not configured ('cross-login-hs512-key' in config, %s, or its %s variant): JWT session login disabled",
+			config.EnvCrossLoginJWTHS512Key, util.EnvFileSuffix)
 	}
 
 	bytes, err := base64.StdEncoding.DecodeString(pubKey)
@@ -69,20 +75,20 @@ func (ja *JWTSessionAuthenticator) Login(
 			// Init() already refuses to register without a key, so this should
 			// never trigger, but guard explicitly rather than trust the chain.
 			if len(ja.loginTokenKey) == 0 {
-				return nil, errors.New("HS login key not configured")
+				return nil, errors.New("JWT Session: HS login key not configured")
 			}
 			return ja.loginTokenKey, nil
 		}
-		return nil, fmt.Errorf("unkown signing method for login token: %s (known: HS256, HS512, EdDSA)", t.Method.Alg())
+		return nil, fmt.Errorf("JWT Session: unkown signing method for login token: %s (known: HS256, HS512, EdDSA)", t.Method.Alg())
 	})
 	if err != nil {
-		cclog.Warn("Error while parsing jwt token")
+		cclog.Warnf("JWT Session: error while parsing token: %s", err.Error())
 		return nil, err
 	}
 
 	if !token.Valid {
-		cclog.Warn("jwt token claims are not valid")
-		return nil, errors.New("jwt token claims are not valid")
+		cclog.Warn("JWT Session: token claims are not valid")
+		return nil, errors.New("JWT Session: token claims are not valid")
 	}
 
 	claims := token.Claims.(jwt.MapClaims)

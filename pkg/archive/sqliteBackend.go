@@ -252,7 +252,7 @@ func (sa *SqliteArchive) LoadJobData(job *schema.Job) (schema.JobData, error) {
 		job.JobID, job.Cluster, job.StartTime).Scan(&dataBlob, &compressed)
 	if err != nil {
 		cclog.Errorf("SqliteArchive LoadJobData() > query error: %v", err)
-		return nil, err
+		return schema.JobData{}, err
 	}
 	key := fmt.Sprintf("%s:%d:%d", job.Cluster, job.JobID, job.StartTime)
 
@@ -261,7 +261,7 @@ func (sa *SqliteArchive) LoadJobData(job *schema.Job) (schema.JobData, error) {
 		gzipReader, err := gzip.NewReader(reader)
 		if err != nil {
 			cclog.Errorf("SqliteArchive LoadJobData() > gzip error: %v", err)
-			return nil, err
+			return schema.JobData{}, err
 		}
 		defer gzipReader.Close()
 		reader = gzipReader
@@ -285,7 +285,7 @@ func (sa *SqliteArchive) LoadJobStats(job *schema.Job) (schema.ScopedJobStats, e
 		job.JobID, job.Cluster, job.StartTime).Scan(&dataBlob, &compressed)
 	if err != nil {
 		cclog.Errorf("SqliteArchive LoadJobStats() > query error: %v", err)
-		return nil, err
+		return schema.ScopedJobStats{}, err
 	}
 	key := fmt.Sprintf("%s:%d:%d", job.Cluster, job.JobID, job.StartTime)
 
@@ -294,7 +294,7 @@ func (sa *SqliteArchive) LoadJobStats(job *schema.Job) (schema.ScopedJobStats, e
 		gzipReader, err := gzip.NewReader(reader)
 		if err != nil {
 			cclog.Errorf("SqliteArchive LoadJobStats() > gzip error: %v", err)
-			return nil, err
+			return schema.ScopedJobStats{}, err
 		}
 		defer gzipReader.Close()
 		reader = gzipReader
@@ -303,7 +303,7 @@ func (sa *SqliteArchive) LoadJobStats(job *schema.Job) (schema.ScopedJobStats, e
 	if config.Keys.Validate {
 		data, _ := io.ReadAll(reader)
 		if err := schema.Validate(schema.Data, bytes.NewReader(data)); err != nil {
-			return nil, fmt.Errorf("validate job data: %v", err)
+			return schema.ScopedJobStats{}, fmt.Errorf("validate job data: %v", err)
 		}
 		return DecodeJobStats(bytes.NewReader(data), key)
 	}

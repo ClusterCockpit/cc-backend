@@ -63,15 +63,14 @@
   let pendingHostnameFilter = $state("");
   let isMetricsSelectionOpen = $state(false);
 
-  /* Derived Init Return */
+  /* Derived Init Returns */
   const thisInit = $derived($initq?.data ? true : false);
+  const maxSubClusters = $derived($initq?.data?.clusters?.find((c) => c.name == cluster)?.subClusters?.length || 0);
 
   /* Derived States */
   const ccconfig = $derived(thisInit ? getContext("cc-config") : null);
   const globalMetrics = $derived(thisInit ? getContext("globalMetrics") : null);
   const resampleConfig = $derived(thisInit ? getContext("resampling") : null);
-  const resampleResolutions = $derived(resampleConfig ? [...resampleConfig.resolutions] : []);
-  const resampleDefault = $derived(resampleConfig ? Math.max(...resampleConfig.resolutions) : 0);
   const displayNodeOverview = $derived((displayType === 'OVERVIEW'));
 
   const systemMetrics = $derived(globalMetrics ? [...globalMetrics.filter((gm) => gm?.availability.find((av) => av.cluster == cluster))] : []);
@@ -85,7 +84,8 @@
     return {...pendingUnits};
   });
 
-  let selectedResolution = $derived(resampleDefault);
+  // null lets the backend resolve the resolution from the configured resample policy.
+  let selectedResolution = $state(null);
   let to = $derived(presetTo ? presetTo : new Date(Date.now()));
   let from = $derived(presetFrom ? presetFrom : new Date(nowDate.setHours(nowDate.getHours() - 4)));
 
@@ -159,7 +159,7 @@
 </script>
 
 <!-- ROW1: Tools-->
-<Row cols={{ xs: 2, lg: !displayNodeOverview ? (resampleConfig ? 6 : 5) : 5 }} class="mb-3">
+<Row cols={{ xs: 2, lg: 5 }} class="mb-3">
   {#if thisInit}
     <!-- List Metric Select Col-->
     {#if !displayNodeOverview}
@@ -176,21 +176,6 @@
           </Button>
         </InputGroup>
       </Col>
-      {#if resampleConfig}
-        <Col>
-          <InputGroup>
-            <InputGroupText><Icon name="plus-slash-minus" /></InputGroupText>
-            <InputGroupText>Resolution</InputGroupText>
-            <Input type="select" bind:value={selectedResolution}>
-              {#each resampleResolutions as res}
-                <option value={res}
-                  >{res} sec</option
-                >
-              {/each}
-            </Input>
-          </InputGroup>
-        </Col>
-      {/if}
     {/if}
     <!-- Node Col-->
     <Col class="mt-2 mt-lg-0">
@@ -284,6 +269,7 @@
     {cluster}
     {subCluster}
     {globalMetrics}
+    maxSubClusters={subCluster? null: maxSubClusters}
     configName="nodeList_selectedMetrics"
     applyMetrics={(newMetrics) => 
       selectedMetrics = [...newMetrics]

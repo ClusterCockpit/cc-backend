@@ -41,6 +41,7 @@
 package metricstore
 
 import (
+	"slices"
 	"sync"
 	"time"
 	"unsafe"
@@ -129,45 +130,6 @@ func (l *Level) findLevelOrCreate(selector []string, nMetrics int) *Level {
 	return child.findLevelOrCreate(selector[1:], nMetrics)
 }
 
-// collectPaths gathers all selector paths at the specified depth in the tree.
-//
-// Recursively traverses children, collecting paths when currentDepth+1 == targetDepth.
-// Each path is a selector that can be used with findLevel() or findBuffers().
-//
-// Explicitly copies slices to avoid shared underlying arrays between siblings, preventing
-// unintended mutations.
-//
-// Parameters:
-//   - currentDepth: Depth of current level (0 = root)
-//   - targetDepth:  Depth to collect paths from
-//   - currentPath:  Path accumulated so far
-//   - results:      Output slice (appended to)
-//
-// Example: collectPaths(0, 2, []string{}, &results) collects all 2-level paths
-// like []string{"emmy", "node001"}, []string{"emmy", "node002"}, etc.
-func (l *Level) collectPaths(currentDepth, targetDepth int, currentPath []string, results *[][]string) {
-	l.lock.RLock()
-	defer l.lock.RUnlock()
-
-	for key, child := range l.children {
-		if child == nil {
-			continue
-		}
-
-		// We explicitly make a new slice and copy data to avoid sharing underlying arrays between siblings
-		newPath := make([]string, len(currentPath))
-		copy(newPath, currentPath)
-		newPath = append(newPath, key)
-
-		// Check depth, and just return if depth reached
-		if currentDepth+1 == targetDepth {
-			*results = append(*results, newPath)
-		} else {
-			child.collectPaths(currentDepth+1, targetDepth, newPath, results)
-		}
-	}
-}
-
 // free removes buffers older than the retention threshold from the entire subtree.
 //
 // Recursively frees buffers in this level's metrics and all child levels. Buffers
@@ -230,6 +192,75 @@ func (l *Level) freeAndCheckEmpty(t int64) (int, bool, error) {
 		}
 	}
 
+	return n, empty, nil
+}
+
+// freeExcludingUsed frees buffers older than t across the whole tree except for
+// nodes listed in used (cluster name -> sorted hostnames), and deletes node
+// Levels that become empty. The receiver must be the root level. Returns the
+// total number of buffers freed.
+//
+// This is the exclusion-aware counterpart of freeAndCheckEmpty used by the
+// retention path when a NodeProvider reports nodes in use by running jobs:
+// used nodes are never freed, so never empty, so never pruned. Holding the root
+// write lock for the full pass matches the existing root free (ms.Free(nil, t)).
+//
+// Holding the root lock for the entire traversal is intentional: it serializes
+// this pass against findLevelOrCreate (which RLocks root first), preventing a
+// writer from grabbing a node pointer that this pass then deletes as empty,
+// which would silently lose data. Do not "optimize" this to per-cluster locking.
+func (l *Level) freeExcludingUsed(t int64, used map[string][]string) (int, error) {
+	l.lock.Lock()
+	defer l.lock.Unlock()
+
+	total := 0
+	for cluster, clusterLvl := range l.children {
+		n, empty, err := clusterLvl.freeNodesExcludingUsed(t, used[cluster])
+		total += n
+		if err != nil {
+			return total, err
+		}
+		if empty {
+			delete(l.children, cluster)
+		}
+	}
+	return total, nil
+}
+
+// freeNodesExcludingUsed operates on a cluster level. For each node child whose
+// name is not in usedHosts (sorted, per NodeProvider contract), it frees buffers
+// older than t and deletes the node when it becomes empty. Returns the number of
+// buffers freed and whether the cluster level itself is now empty.
+func (l *Level) freeNodesExcludingUsed(t int64, usedHosts []string) (int, bool, error) {
+	l.lock.Lock()
+	defer l.lock.Unlock()
+
+	n := 0
+	for node, nodeLvl := range l.children {
+		if _, found := slices.BinarySearch(usedHosts, node); found {
+			continue // used node: preserve entirely
+		}
+		m, empty, err := nodeLvl.freeAndCheckEmpty(t)
+		n += m
+		if err != nil {
+			return n, false, err
+		}
+		if empty {
+			delete(l.children, node)
+		}
+	}
+
+	// Cluster is empty only if it has no children and no buffers of its own
+	// (inner levels may hold aggregated metrics).
+	empty := len(l.children) == 0
+	if empty {
+		for _, b := range l.metrics {
+			if b != nil {
+				empty = false
+				break
+			}
+		}
+	}
 	return n, empty, nil
 }
 
@@ -350,7 +381,10 @@ func (l *Level) findLevel(selector []string) *Level {
 // Parameters:
 //   - selector: Pattern to match (consumed recursively)
 //   - offset:   Metric index in metrics slice (from MetricConfig.offset)
-//   - f:        Callback invoked on each matching buffer
+//   - f:        Callback invoked on each matching buffer; path holds the matched
+//     level keys (e.g. ["cluster","node001","cpu0"]) so callers can
+//     identify which node/component the buffer belongs to
+//   - path:     Accumulated level keys from the root; pass nil at the top level
 //
 // Returns:
 //   - error: First error returned by callback, or nil if all succeeded
@@ -358,19 +392,19 @@ func (l *Level) findLevel(selector []string) *Level {
 // Example:
 //
 //	// Find all cpu0 buffers across all hosts:
-//	findBuffers([]Selector{{Any: true}, {String: "cpu0"}}, metricOffset, callback)
-func (l *Level) findBuffers(selector util.Selector, offset int, f func(b *buffer) error) error {
+//	findBuffers([]Selector{{Any: true}, {String: "cpu0"}}, metricOffset, callback, nil)
+func (l *Level) findBuffers(selector util.Selector, offset int, f func(b *buffer, path []string) error, path []string) error {
 	l.lock.RLock()
 	defer l.lock.RUnlock()
 
 	if len(selector) == 0 {
 		b := l.metrics[offset]
 		if b != nil {
-			return f(b)
+			return f(b, path)
 		}
 
-		for _, lvl := range l.children {
-			err := lvl.findBuffers(nil, offset, f)
+		for key, lvl := range l.children {
+			err := lvl.findBuffers(nil, offset, f, appendPath(path, key))
 			if err != nil {
 				return err
 			}
@@ -382,7 +416,7 @@ func (l *Level) findBuffers(selector util.Selector, offset int, f func(b *buffer
 	if len(sel.String) != 0 && l.children != nil {
 		lvl, ok := l.children[sel.String]
 		if ok {
-			err := lvl.findBuffers(selector[1:], offset, f)
+			err := lvl.findBuffers(selector[1:], offset, f, appendPath(path, sel.String))
 			if err != nil {
 				return err
 			}
@@ -394,7 +428,7 @@ func (l *Level) findBuffers(selector util.Selector, offset int, f func(b *buffer
 		for _, key := range sel.Group {
 			lvl, ok := l.children[key]
 			if ok {
-				err := lvl.findBuffers(selector[1:], offset, f)
+				err := lvl.findBuffers(selector[1:], offset, f, appendPath(path, key))
 				if err != nil {
 					return err
 				}
@@ -404,8 +438,8 @@ func (l *Level) findBuffers(selector util.Selector, offset int, f func(b *buffer
 	}
 
 	if sel.Any && l.children != nil {
-		for _, lvl := range l.children {
-			if err := lvl.findBuffers(selector[1:], offset, f); err != nil {
+		for key, lvl := range l.children {
+			if err := lvl.findBuffers(selector[1:], offset, f, appendPath(path, key)); err != nil {
 				return err
 			}
 		}
@@ -413,4 +447,14 @@ func (l *Level) findBuffers(selector util.Selector, offset int, f func(b *buffer
 	}
 
 	return nil
+}
+
+// appendPath returns a new slice holding path followed by key. It copies rather
+// than appending in place so sibling recursions never share/overwrite backing
+// storage while the tree is walked concurrently.
+func appendPath(path []string, key string) []string {
+	np := make([]string, len(path)+1)
+	copy(np, path)
+	np[len(path)] = key
+	return np
 }

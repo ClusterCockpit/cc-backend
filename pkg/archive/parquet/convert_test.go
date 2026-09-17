@@ -32,9 +32,9 @@ func TestParquetRowToJob(t *testing.T) {
 			{Hostname: "node001", HWThreads: []int{0, 1, 2, 3}},
 			{Hostname: "node002", HWThreads: []int{4, 5, 6, 7}},
 		},
-		Statistics: map[string]schema.JobStatistics{
+		Statistics: schema.JobStatisticsSet{Metrics: map[string]schema.JobStatistics{
 			"cpu_load": {Avg: 50.0, Min: 10.0, Max: 90.0},
-		},
+		}},
 		Tags: []*schema.Tag{
 			{Type: "test", Name: "tag1"},
 		},
@@ -49,7 +49,7 @@ func TestParquetRowToJob(t *testing.T) {
 		},
 	}
 
-	data := &schema.JobData{
+	data := &schema.JobData{Metrics: map[string]schema.ScopedMetrics{
 		"cpu_load": {
 			schema.MetricScopeNode: &schema.JobMetric{
 				Unit:     schema.Unit{Base: ""},
@@ -62,7 +62,7 @@ func TestParquetRowToJob(t *testing.T) {
 				},
 			},
 		},
-	}
+	}}
 
 	// Convert to parquet row
 	row, err := JobToParquetRow(meta, data)
@@ -134,10 +134,10 @@ func TestParquetRowToJob(t *testing.T) {
 		t.Errorf("Resources[0].HWThreads len = %d, want 4", len(gotMeta.Resources[0].HWThreads))
 	}
 
-	if len(gotMeta.Statistics) != 1 {
-		t.Fatalf("Statistics len = %d, want 1", len(gotMeta.Statistics))
+	if len(gotMeta.Statistics.Metrics) != 1 {
+		t.Fatalf("Statistics len = %d, want 1", len(gotMeta.Statistics.Metrics))
 	}
-	if stat, ok := gotMeta.Statistics["cpu_load"]; !ok {
+	if stat, ok := gotMeta.Statistics.Metrics["cpu_load"]; !ok {
 		t.Error("Statistics missing cpu_load")
 	} else if stat.Avg != 50.0 {
 		t.Errorf("Statistics[cpu_load].Avg = %f, want 50.0", stat.Avg)
@@ -163,7 +163,7 @@ func TestParquetRowToJob(t *testing.T) {
 	if gotData == nil {
 		t.Fatal("JobData is nil")
 	}
-	cpuLoad, ok := (*gotData)["cpu_load"]
+	cpuLoad, ok := gotData.Metrics["cpu_load"]
 	if !ok {
 		t.Fatal("JobData missing cpu_load")
 	}
@@ -201,7 +201,7 @@ func TestParquetRowToJobNilOptionalFields(t *testing.T) {
 		},
 	}
 
-	data := &schema.JobData{
+	data := &schema.JobData{Metrics: map[string]schema.ScopedMetrics{
 		"cpu_load": {
 			schema.MetricScopeNode: &schema.JobMetric{
 				Timestep: 60,
@@ -210,7 +210,7 @@ func TestParquetRowToJobNilOptionalFields(t *testing.T) {
 				},
 			},
 		},
-	}
+	}}
 
 	row, err := JobToParquetRow(meta, data)
 	if err != nil {
@@ -228,8 +228,8 @@ func TestParquetRowToJobNilOptionalFields(t *testing.T) {
 	if gotMeta.Tags != nil {
 		t.Errorf("Tags should be nil, got %v", gotMeta.Tags)
 	}
-	if gotMeta.Statistics != nil {
-		t.Errorf("Statistics should be nil, got %v", gotMeta.Statistics)
+	if len(gotMeta.Statistics.Metrics) != 0 || len(gotMeta.Statistics.Groups) != 0 {
+		t.Errorf("Statistics should be empty, got %v", gotMeta.Statistics)
 	}
 	if gotMeta.MetaData != nil {
 		t.Errorf("MetaData should be nil, got %v", gotMeta.MetaData)
@@ -299,7 +299,7 @@ func TestRoundTripThroughParquetFile(t *testing.T) {
 	if gotData == nil {
 		t.Fatal("JobData is nil")
 	}
-	if _, ok := (*gotData)["cpu_load"]; !ok {
+	if _, ok := gotData.Metrics["cpu_load"]; !ok {
 		t.Error("JobData missing cpu_load")
 	}
 }

@@ -24,6 +24,6 @@ func Validate(schema string, instance json.RawMessage) {
 	}
 
 	if err = sch.Validate(v); err != nil {
-		cclog.Fatalf("%#v", err)
+		cclog.Fatalf("config validation failed: %s", err.Error())
 	}
 }

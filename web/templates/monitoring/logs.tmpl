@@ -8,6 +8,7 @@
 {{define "javascript"}}
     <script>
         const isAdmin = {{ .User.HasRole .Roles.admin }};
+        const logSource = {{ .Infos.logSource }};
     </script>
     <script src='/build/logs.js'></script>
 {{end}}

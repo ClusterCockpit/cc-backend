@@ -30,10 +30,12 @@ based on a GraphQL API. The web frontend is also served by the backend using
 [Bootstrap Icons](https://icons.getbootstrap.com/).
 
 The backend uses [SQLite 3](https://sqlite.org/) as the relational SQL database.
-While there are metric data backends for the InfluxDB and Prometheus time series
-databases, the only tested and supported setup is to use cc-metric-store as the
-metric data backend. Documentation on how to integrate ClusterCockpit with other
-time series databases will be added in the future.
+Time-series metric data is kept separately: cc-backend ships with a built-in
+in-memory metric store (configured via the `metric-store` section) that persists
+its buffers with a write-ahead log and periodic binary checkpoints. Alternatively
+(or in addition, routed per cluster) it can query one or more external
+[cc-metric-store](https://github.com/ClusterCockpit/cc-metric-store) instances via
+the `metric-store-external` section. At least one of the two must be configured.
 
 For real-time integration with HPC systems, the backend can subscribe to
 [NATS](https://nats.io/) subjects to receive job start/stop events and node
@@ -42,8 +44,9 @@ state updates, providing an alternative to REST API polling.
 Completed batch jobs are stored in a file-based job archive according to
 [this specification](https://github.com/ClusterCockpit/cc-specifications/tree/main/job-archive).
 The backend supports authentication via local accounts, an external LDAP
-directory, and JWT tokens. Authorization for APIs is implemented with
-[JWT](https://jwt.io/) tokens created with public/private key encryption.
+directory, an OpenID Connect provider, and JWT tokens. Authorization for APIs is
+implemented with [JWT](https://jwt.io/) tokens created with public/private key
+encryption.
 
 You find a detailed documentation on the [ClusterCockpit
 Webpage](https://clustercockpit.org).
@@ -77,12 +80,15 @@ Execute the following steps:
 
 ```shell
 ./cc-backend -init
-vim config.json (Add a second cluster entry and name the clusters alex and fritz)
 wget https://hpc-mover.rrze.uni-erlangen.de/HPC-Data/0x7b58aefb/eig7ahyo6fo2bais0ephuf2aitohv1ai/job-archive-demo.tar
 tar xf job-archive-demo.tar
 ./cc-backend -init-db -add-user demo:admin:demo -loglevel info
 ./cc-backend -server -dev -loglevel info
 ```
+
+The clusters are read from the job archive (one directory with a `cluster.json`
+per cluster), so no cluster list has to be maintained in `config.json`. The demo
+archive contains the clusters `alex` and `fritz`.
 
 You can access the web interface at [http://localhost:8080](http://localhost:8080).
 Credentials for login are `demo:demo`.
@@ -130,10 +136,12 @@ cd ./cc-backend/
 make
 
 cp configs/config.json .
+# config.json references the UI defaults via "ui-file", so copy that too:
+cp configs/uiConfig.json .
 # EDIT config.json BEFORE YOU DEPLOY: change the secrets under "auth.jwts"
-# ("public-key"/"private-key"). Each secret can also be supplied via an
-# environment variable (e.g. JWT_PUBLIC_KEY), which takes precedence over the
-# value in config.json.
+# ("public-key"/"private-key"). Every secret can instead come from $VAR or from
+# the file named by $VAR_FILE, both of which take precedence over config.json;
+# see the "Secrets" section below for the full list.
 vim config.json
 
 #Optional: Link an existing job archive:
@@ -159,11 +167,82 @@ opaque random token is kept in the session cookie. No cookie-signing secret is
 required, so the former `SESSION_KEY` environment variable is no longer used.
 
 Secrets (JWT keys, LDAP sync password, OIDC client id/secret, cross-login keys)
-are configured directly in `config.json` under the `auth` section. Each secret
-may also be supplied via its environment variable (e.g. `JWT_PUBLIC_KEY`,
-`JWT_PRIVATE_KEY`, `LDAP_ADMIN_PASSWORD`, `OID_CLIENT_ID`, `OID_CLIENT_SECRET`,
-`CROSS_LOGIN_JWT_PUBLIC_KEY`, `CROSS_LOGIN_JWT_HS512_KEY`); the environment
-variable takes precedence when set. The previous `.env` file is no longer used.
+are configured directly in `config.json` under the `auth` section. The previous
+`.env` file is no longer used. Every secret may instead be supplied from the
+environment; see [Secrets](#secrets) below for the full list.
+
+### Secrets
+
+Every secret cc-backend reads has three possible sources, in this order of
+precedence:
+
+1. the environment variable `$VAR`, if set and non-empty
+2. the contents of the file named by `$VAR_FILE`
+3. the value in `config.json`
+
+The second source is what makes the standard secret-mounting mechanisms usable,
+so that no secret has to be written into `config.json` at all:
+
+```bash
+# systemd
+[Service]
+LoadCredential=jwt-key:/etc/cc-backend/jwt.key
+Environment=JWT_PRIVATE_KEY_FILE=%d/jwt-key
+
+# Docker / Kubernetes: mount the secret and name the path
+docker run -e JWT_PRIVATE_KEY_FILE=/run/secrets/jwt-key ...
+```
+
+A `$VAR_FILE` that cannot be read, or that holds only whitespace, is a fatal
+misconfiguration rather than a silent fallback to `config.json`: an operator
+who names a file intends that file to win, so falling back could quietly start
+the server with a stale credential.
+
+| Environment variable | `config.json` key |
+|---|---|
+| `JWT_PUBLIC_KEY` | `auth.jwts.public-key` |
+| `JWT_PRIVATE_KEY` | `auth.jwts.private-key` |
+| `CROSS_LOGIN_JWT_PUBLIC_KEY` | `auth.jwts.cross-login-public-key` |
+| `CROSS_LOGIN_JWT_HS512_KEY` | `auth.jwts.cross-login-hs512-key` |
+| `LDAP_ADMIN_PASSWORD` | `auth.ldap.sync-password` |
+| `OID_CLIENT_ID` | `auth.oidc.client-id` |
+| `OID_CLIENT_SECRET` | `auth.oidc.client-secret` |
+| `ARCHIVE_S3_ACCESS_KEY` | `archive.access-key` |
+| `ARCHIVE_S3_SECRET_KEY` | `archive.secret-key` |
+| `RETENTION_S3_ACCESS_KEY` | `archive.retention.target-access-key` |
+| `RETENTION_S3_SECRET_KEY` | `archive.retention.target-secret-key` |
+| `NODESTATE_S3_ACCESS_KEY` | `main.nodestate-retention.target-access-key` |
+| `NODESTATE_S3_SECRET_KEY` | `main.nodestate-retention.target-secret-key` |
+| `METRICSTORE_TOKEN` | `metric-store-external[].token` |
+| `CC_NATS_USERNAME` | `nats.username` |
+| `CC_NATS_PASSWORD` | `nats.password` |
+
+The `archive-manager` tool takes its own credentials from
+`ARCHIVE_MANAGER_SRC_S3_ACCESS_KEY`, `ARCHIVE_MANAGER_SRC_S3_SECRET_KEY`,
+`ARCHIVE_MANAGER_DST_S3_ACCESS_KEY` and `ARCHIVE_MANAGER_DST_S3_SECRET_KEY`.
+
+Two details are worth knowing:
+
+- **The five S3 credential sets have separate names on purpose.** The job
+  archive, the two retention targets and archive-manager's source and
+  destination each read only their own variables, so exporting the job
+  archive's credentials cannot silently override a retention target's. Where no
+  key is configured at all, the AWS default credential chain
+  (`AWS_ACCESS_KEY_ID`, `~/.aws/credentials`, IRSA/IMDS) still applies.
+- **`metric-store-external` is an array**, one entry per scope, so a single
+  name cannot address one entry. `METRICSTORE_TOKEN_<SCOPE>` takes precedence
+  over the generic `METRICSTORE_TOKEN`, where `<SCOPE>` is the scope uppercased
+  with every character outside `A-Z0-9` replaced by an underscore — scope
+  `fritz-spr1tb` becomes `METRICSTORE_TOKEN_FRITZ_SPR1TB`.
+
+Names read by cc-backend itself are unprefixed; names read inside cc-lib carry
+a `CC_` prefix, because cc-lib is linked into several applications whose
+environments it must not claim names in.
+
+`config.json` still holds secrets for anyone not using the environment, so keep
+it `chmod 600` and owned by the service user, and keep `$VAR_FILE` targets
+`0400` or `0600`. Note that cc-backend reads those files before dropping
+privileges and does not check their mode.
 
 The session cookie's `Secure` flag is set automatically when cc-backend serves
 HTTPS itself (i.e. `https-cert-file` and `https-key-file` are configured in
@@ -171,6 +250,42 @@ HTTPS itself (i.e. `https-cert-file` and `https-key-file` are configured in
 For production deployments, serve cc-backend over HTTPS so the session cookie is
 marked `Secure`. If you terminate TLS at a reverse proxy, prefer letting
 cc-backend serve HTTPS directly for now so the flag is applied.
+
+## Configuration
+
+cc-backend reads a single JSON configuration file (`./config.json` by default,
+override with `-config`). Every top-level key is one configuration section:
+
+| Section                 | Required | Description                                                                                                       |
+| ----------------------- | -------- | ----------------------------------------------------------------------------------------------------------------- |
+| `main`                  | yes      | Server address, TLS, database path and tuning, resampling defaults, footer links, job taggers, retention of node states, NATS API subjects. |
+| `auth`                  | no       | Local, LDAP, OIDC and JWT authentication including all secrets.                                                    |
+| `nats`                  | no       | Connection to the NATS broker (address, credentials). Required for the NATS API and for NATS metric ingestion.     |
+| `archive`               | no       | Job archive backend (`file`, `s3` or `sqlite`), plus archive retention and compression. Defaults to `./var/job-archive`. |
+| `metric-store`          | no*      | Built-in in-memory metric store: retention, memory cap, checkpointing, cleanup and NATS subscriptions.             |
+| `metric-store-external` | no*      | List of external cc-metric-store endpoints with a `scope` (cluster name or `*`) used to route queries.             |
+| `cron`                  | no       | Intervals of the background workers (commit-job, duration, footprint).                                             |
+| `ui`                    | no       | Defaults for the web frontend shown to new users (job list, job view, metric selections, plot options).            |
+
+\* At least one of `metric-store` and `metric-store-external` must be present,
+otherwise the server refuses to start.
+
+Any section can be moved into its own file by appending `-file` to the key and
+giving a path instead of an object, e.g. `"ui-file": "uiConfig.json"` loads the
+`ui` section from `uiConfig.json`. Unknown top-level keys are ignored with a
+warning. Unknown keys *inside* a section are always rejected by the parser: for
+`main` and `metric-store` this aborts startup, for the other sections it is
+logged as an error and the section is applied only up to the offending key — so
+watch the log after a configuration change.
+
+Annotated examples are in [`configs/`](https://github.com/ClusterCockpit/cc-backend/tree/main/configs):
+`config.json` (full featured, S3 archive, external metric stores),
+`config-large.json` (large installation with LDAP/OIDC and DB tuning),
+`config-demo.json` (minimal) and `uiConfig.json`.
+
+Cluster topology and metric definitions are **not** part of `config.json`. They
+are read from the `cluster.json` file inside each cluster's job archive
+directory; `configs/cluster.json` is a documented example.
 
 ## Database Configuration
 
@@ -272,8 +387,9 @@ The effective configuration is logged at startup for verification.
 - [`cmd/cc-backend`](https://github.com/ClusterCockpit/cc-backend/tree/main/cmd/cc-backend)
   contains the main application entry point and CLI implementation.
 - [`configs/`](https://github.com/ClusterCockpit/cc-backend/tree/main/configs)
-  contains documentation about configuration and command line options and required
-  environment variables. Sample configuration files are provided.
+  contains sample configuration files (`config.json`, `config-demo.json`,
+  `config-large.json`, `uiConfig.json`, `cluster.json`), example REST API
+  payloads, and the example rule sets for the job taggers.
 - [`init/`](https://github.com/ClusterCockpit/cc-backend/tree/main/init)
   contains an example of setting up systemd for production use.
 - [`internal/`](https://github.com/ClusterCockpit/cc-backend/tree/main/internal)
@@ -318,11 +434,15 @@ The effective configuration is logged at startup for verification.
   - [`convert-pem-pubkey`](https://github.com/ClusterCockpit/cc-backend/tree/main/tools/convert-pem-pubkey)
     Tool to convert external pubkey for use in `cc-backend`.
   - [`gen-keypair`](https://github.com/ClusterCockpit/cc-backend/tree/main/tools/gen-keypair)
-    contains a small application to generate a compatible JWT keypair. You find
-    documentation on how to use it
-    [here](https://github.com/ClusterCockpit/cc-backend/blob/main/docs/JWT-Handling.md).
-  - [`web/`](https://github.com/ClusterCockpit/cc-backend/tree/main/web)
-    Server-side templates and frontend-related files:
+    contains a small application to generate a compatible Ed25519 JWT keypair for
+    the `auth.jwts` configuration.
+  - [`binaryCheckpointReader`](https://github.com/ClusterCockpit/cc-backend/tree/main/tools/binaryCheckpointReader)
+    Dumps the contents of a metric store binary checkpoint file for inspection.
+  - `dataGenerator.sh` and `grepCCLog.pl`
+    Helper scripts to generate metric line protocol test data and to filter
+    cc-backend log output.
+- [`web/`](https://github.com/ClusterCockpit/cc-backend/tree/main/web)
+  Server-side templates and frontend-related files:
   - [`frontend`](https://github.com/ClusterCockpit/cc-backend/tree/main/web/frontend)
     Svelte components and static assets for the frontend UI
   - [`templates`](https://github.com/ClusterCockpit/cc-backend/tree/main/web/templates)

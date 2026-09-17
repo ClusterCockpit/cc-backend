@@ -177,6 +177,21 @@ const configSchema = `{
           "description": "Initial thickness of rendered plotlines. Applies to metric plot, job compare plot and roofline.",
           "type": "integer"
         },
+        "smoothing-window": {
+          "description": "Initial display smoothing window in data points, applied after downsampling. 0 disables smoothing. Display-only: reported statistics and footprints are unaffected.",
+          "type": "integer",
+          "minimum": 0
+        },
+        "resample-policy": {
+          "description": "Initial resample policy for new users, controlling how many data points metric plots request. Empty string falls back to main.resampling.default-policy.",
+          "type": "string",
+          "enum": ["", "low", "medium", "high"]
+        },
+        "resample-algo": {
+          "description": "Initial resample algorithm for new users. Empty string falls back to main.resampling.default-algo.",
+          "type": "string",
+          "enum": ["", "lttb", "average", "simple"]
+        },
         "color-scheme": {
           "description": "Initial colorScheme to be used for metric plots.",
           "type": "array",

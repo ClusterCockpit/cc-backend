@@ -6,5 +6,6 @@ mount(Logs, {
     target: document.getElementById('svelte-app'),
     props: {
         isAdmin: isAdmin,
+        logSource: logSource,
     }
 })

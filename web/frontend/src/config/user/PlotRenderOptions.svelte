@@ -16,6 +16,7 @@
     Card,
     CardTitle,
   } from "@sveltestrap/sveltestrap";
+  import { getContext } from "svelte";
   import { fade } from "svelte/transition";
 
   /* Svelte 5 Props */
@@ -25,6 +26,8 @@
     displayMessage = $bindable(),
     updateSetting
   } = $props();
+
+  const resampleConfig = getContext("resampling");
 </script>
 
 <Row cols={3} class="p-2 g-2">
@@ -64,7 +67,7 @@
             id="lwvalue"
             name="value"
             aria-describedby="lineWidthHelp"
-            value={config.plotConfiguration_lineWidth}
+            value={config?.plotConfiguration_lineWidth}
             min="1"
           />
           <div id="lineWidthHelp" class="form-text">
@@ -111,7 +114,7 @@
             id="pprvalue"
             name="value"
             aria-describedby="plotsperrowHelp"
-            value={config.plotConfiguration_plotsPerRow}
+            value={config?.plotConfiguration_plotsPerRow}
             min="1"
           />
           <div id="plotsperrowHelp" class="form-text">
@@ -153,7 +156,7 @@
         <input type="hidden" name="key" value="plotConfiguration_colorBackground" />
         <div class="mb-3">
           <div>
-            {#if config.plotConfiguration_colorBackground}
+            {#if config?.plotConfiguration_colorBackground}
               <input type="radio" id="colb-true-checked" name="value" value="true" checked />
             {:else}
               <input type="radio" id="colb-true" name="value" value="true" />
@@ -161,7 +164,7 @@
             <label for="true">Yes</label>
           </div>
           <div>
-            {#if config.plotConfiguration_colorBackground}
+            {#if config?.plotConfiguration_colorBackground}
               <input type="radio" id="colb-false" name="value" value="false" />
             {:else}
               <input type="radio" id="colb-false-checked" name="value" value="false" checked />
@@ -213,6 +216,146 @@
               <input type="radio" id="cbm-false-checked" name="value" value="false" checked />
             {/if}
             <label for="false">No</label>
+          </div>
+        </div>
+        <Button color="primary" type="submit">Submit</Button>
+      </form>
+    </Card>
+  </Col>
+
+  <!-- RESAMPLE POLICY -->
+  <Col>
+    <Card class="h-100">
+      <form
+        id="resample-policy-form"
+        method="post"
+        action="/frontend/configuration/"
+        class="card-body"
+        onsubmit={(e) => updateSetting(e, {
+          selector: "#resample-policy-form",
+          target: "rsp",
+        })}
+      >
+        <CardTitle
+          style="margin-bottom: 1em; display: flex; align-items: center;"
+        >
+          <div>Resample Policy</div>
+          {#if displayMessage && message.target == "rsp"}
+            <div style="margin-left: auto; font-size: 0.9em;">
+              <code style="color: {message.color};" out:fade>
+                Update: {message.msg}
+              </code>
+            </div>
+          {/if}
+        </CardTitle>
+        <input type="hidden" name="key" value="plotConfiguration_resamplePolicy" />
+        <div class="mb-3">
+          {#each [["", "Default"], ["low", "Low"], ["medium", "Medium"], ["high", "High"]] as [val, label]}
+            <div>
+              <input type="radio" id="rsp-{val || 'default'}" name="value" value={JSON.stringify(val)}
+                checked={(!config?.plotConfiguration_resamplePolicy && val === "") || config?.plotConfiguration_resamplePolicy === val} />
+              <label for="rsp-{val || 'default'}">{label}</label>
+            </div>
+          {/each}
+          <div id="resamplePolicyHelp" class="form-text">
+            Controls how many data points are shown in metric plots. Low = fast overview (~200 points), Medium = balanced (~500), High = maximum detail (~1000).
+          </div>
+        </div>
+        <Button color="primary" type="submit">Submit</Button>
+      </form>
+    </Card>
+  </Col>
+
+  <!-- RESAMPLE ALGORITHM -->
+  <Col>
+    <Card class="h-100">
+      <form
+        id="resample-algo-form"
+        method="post"
+        action="/frontend/configuration/"
+        class="card-body"
+        onsubmit={(e) => updateSetting(e, {
+          selector: "#resample-algo-form",
+          target: "rsa",
+        })}
+      >
+        <CardTitle
+          style="margin-bottom: 1em; display: flex; align-items: center;"
+        >
+          <div>Resample Algorithm</div>
+          {#if displayMessage && message.target == "rsa"}
+            <div style="margin-left: auto; font-size: 0.9em;">
+              <code style="color: {message.color};" out:fade>
+                Update: {message.msg}
+              </code>
+            </div>
+          {/if}
+        </CardTitle>
+        <input type="hidden" name="key" value="plotConfiguration_resampleAlgo" />
+        <div class="mb-3">
+          {#each [["", "Default"], ["lttb", "LTTB"], ["average", "Average"], ["simple", "Simple"]] as [val, label]}
+            <div>
+              <input type="radio" id="rsa-{val || 'default'}" name="value" value={JSON.stringify(val)}
+                checked={(!config?.plotConfiguration_resampleAlgo && val === "") || config?.plotConfiguration_resampleAlgo === val} />
+              <label for="rsa-{val || 'default'}">{label}</label>
+            </div>
+          {/each}
+          <div id="resampleAlgoHelp" class="form-text">
+            Algorithm used when downsampling time-series data. Average (the
+            default) makes every plotted point the true mean of its interval,
+            LTTB preserves visual shape by keeping extremes, Simple picks every
+            Nth point.
+          </div>
+        </div>
+        <Button color="primary" type="submit">Submit</Button>
+      </form>
+    </Card>
+  </Col>
+
+  <!-- SMOOTHING WINDOW -->
+  <Col>
+    <Card class="h-100">
+      <form
+        id="smoothing-window-form"
+        method="post"
+        action="/frontend/configuration/"
+        class="card-body"
+        onsubmit={(e) => updateSetting(e, {
+          selector: "#smoothing-window-form",
+          target: "sw",
+        })}
+      >
+        <CardTitle
+          style="margin-bottom: 1em; display: flex; align-items: center;"
+        >
+          <div>Smoothing Window</div>
+          {#if displayMessage && message.target == "sw"}
+            <div style="margin-left: auto; font-size: 0.9em;">
+              <code style="color: {message.color};" out:fade>
+                Update: {message.msg}
+              </code>
+            </div>
+          {/if}
+        </CardTitle>
+        <input type="hidden" name="key" value="plotConfiguration_smoothingWindow" />
+        <div class="mb-3">
+          <label for="value" class="form-label">Smoothing Window</label>
+          <input
+            type="number"
+            class="form-control"
+            id="swvalue"
+            name="value"
+            aria-describedby="smoothingWindowHelp"
+            value={config?.plotConfiguration_smoothingWindow}
+            min="0"
+          />
+          <div id="smoothingWindowHelp" class="form-text">
+            Width of the moving average applied to plotted lines, in data
+            points. 0 disables it, the default is 3. It is applied after
+            downsampling and is display-only: the reported min/avg/max
+            statistics and the job footprint are unaffected. Combined with the
+            Average algorithm it is a second, milder smoothing pass on top of
+            the interval means.
           </div>
         </div>
         <Button color="primary" type="submit">Submit</Button>

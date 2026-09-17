@@ -41,7 +41,7 @@
               <DropdownToggle nav caret class="dropdown-item py-1 px-2">
                 {cn}
               </DropdownToggle>
-              <DropdownMenu>
+              <DropdownMenu style="max-height:75vh; overflow-y: auto;">
                 <DropdownItem class="py-1 px-2"
                   href={item.href + cn}
                 >

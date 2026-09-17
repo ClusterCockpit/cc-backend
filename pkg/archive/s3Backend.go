@@ -69,6 +69,51 @@ func getS3Directory(job *schema.Job) string {
 	return fmt.Sprintf("%s/%s/%s/%s/", job.Cluster, lvl1, lvl2, startTime)
 }
 
+// resolveS3Credentials applies the environment overrides named by accessEnv
+// and secretEnv, each of which also honours a "_FILE" variant naming a file
+// that holds the value. An empty environment variable name disables that
+// override, which is what callers that have already resolved their own
+// credentials pass.
+//
+// This is a separate step rather than part of Init because the same JSON shape
+// carries several distinct credential sets -- the job archive, the job and node
+// state retention targets, and archive-manager's source and destination -- so
+// only the caller knows which scope applies. Applying a fixed name inside Init
+// would let the job archive's credentials silently override a retention
+// target's own.
+func resolveS3Credentials(cfg *S3ArchiveConfig, accessEnv, secretEnv string) error {
+	var err error
+
+	if accessEnv != "" {
+		if cfg.AccessKey, err = util.SecretFromEnv(accessEnv, cfg.AccessKey); err != nil {
+			return fmt.Errorf("resolving %s: %w", accessEnv, err)
+		}
+	}
+
+	if secretEnv != "" {
+		if cfg.SecretKey, err = util.SecretFromEnv(secretEnv, cfg.SecretKey); err != nil {
+			return fmt.Errorf("resolving %s: %w", secretEnv, err)
+		}
+	}
+
+	return nil
+}
+
+// NewS3Backend builds an S3 backend from an already-resolved configuration, so
+// that a caller holding credentials never has to marshal them back into JSON
+// just to reach Init.
+func NewS3Backend(cfg S3ArchiveConfig) (ArchiveBackend, uint64, error) {
+	s3a := &S3Archive{}
+	version, err := s3a.initResolved(cfg)
+	if err != nil {
+		return nil, version, err
+	}
+
+	return s3a, version, nil
+}
+
+// Init satisfies ArchiveBackend. It performs no environment resolution; see
+// resolveS3Credentials for why that is the caller's job.
 func (s3a *S3Archive) Init(rawConfig json.RawMessage) (uint64, error) {
 	var cfg S3ArchiveConfig
 	if err := json.Unmarshal(rawConfig, &cfg); err != nil {
@@ -76,6 +121,12 @@ func (s3a *S3Archive) Init(rawConfig json.RawMessage) (uint64, error) {
 		return 0, err
 	}
 
+	return s3a.initResolved(cfg)
+}
+
+// initResolved initializes the backend from a configuration whose credentials
+// are already final.
+func (s3a *S3Archive) initResolved(cfg S3ArchiveConfig) (uint64, error) {
 	if cfg.Bucket == "" {
 		err := fmt.Errorf("S3Archive Init(): empty bucket name")
 		cclog.Errorf("S3Archive Init() > config error: %v", err)
@@ -330,7 +381,7 @@ func (s3a *S3Archive) LoadJobData(job *schema.Job) (schema.JobData, error) {
 		})
 		if err != nil {
 			cclog.Errorf("S3Archive LoadJobData() > GetObject error: %v", err)
-			return nil, err
+			return schema.JobData{}, err
 		}
 		defer result.Body.Close()
 
@@ -349,7 +400,7 @@ func (s3a *S3Archive) LoadJobData(job *schema.Job) (schema.JobData, error) {
 	r, err := gzip.NewReader(result.Body)
 	if err != nil {
 		cclog.Errorf("S3Archive LoadJobData() > gzip error: %v", err)
-		return nil, err
+		return schema.JobData{}, err
 	}
 	defer r.Close()
 
@@ -381,14 +432,14 @@ func (s3a *S3Archive) LoadJobStats(job *schema.Job) (schema.ScopedJobStats, erro
 		})
 		if err != nil {
 			cclog.Errorf("S3Archive LoadJobStats() > GetObject error: %v", err)
-			return nil, err
+			return schema.ScopedJobStats{}, err
 		}
 		defer result.Body.Close()
 
 		if config.Keys.Validate {
 			b, _ := io.ReadAll(result.Body)
 			if err := schema.Validate(schema.Data, bytes.NewReader(b)); err != nil {
-				return nil, fmt.Errorf("validate job data: %v", err)
+				return schema.ScopedJobStats{}, fmt.Errorf("validate job data: %v", err)
 			}
 			return DecodeJobStats(bytes.NewReader(b), key)
 		}
@@ -400,14 +451,14 @@ func (s3a *S3Archive) LoadJobStats(job *schema.Job) (schema.ScopedJobStats, erro
 	r, err := gzip.NewReader(result.Body)
 	if err != nil {
 		cclog.Errorf("S3Archive LoadJobStats() > gzip error: %v", err)
-		return nil, err
+		return schema.ScopedJobStats{}, err
 	}
 	defer r.Close()
 
 	if config.Keys.Validate {
 		b, _ := io.ReadAll(r)
 		if err := schema.Validate(schema.Data, bytes.NewReader(b)); err != nil {
-			return nil, fmt.Errorf("validate job data: %v", err)
+			return schema.ScopedJobStats{}, fmt.Errorf("validate job data: %v", err)
 		}
 		return DecodeJobStats(bytes.NewReader(b), keyGz)
 	}

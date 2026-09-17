@@ -12,11 +12,15 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"sort"
+	"strings"
 	"time"
 
+	"github.com/ClusterCockpit/cc-backend/internal/config"
 	"github.com/ClusterCockpit/cc-backend/internal/repository"
 	cclog "github.com/ClusterCockpit/cc-lib/v2/ccLogger"
 	"github.com/ClusterCockpit/cc-lib/v2/schema"
+	"github.com/ClusterCockpit/cc-lib/v2/util"
 	"github.com/coreos/go-oidc/v3/oidc"
 	"github.com/go-chi/chi/v5"
 	"golang.org/x/oauth2"
@@ -34,6 +38,12 @@ type OpenIDConfig struct {
 	// OAuth2 client secret for the OIDC provider.
 	// Overridden by the OID_CLIENT_SECRET environment variable when set.
 	ClientSecret string `json:"client-secret"`
+
+	// Maps an OIDC role/group claim value to a CC role (admin/support/api/manager/user).
+	// This is the sole source of roles: a token role grants a CC role only if it is
+	// listed here. Unmapped token roles are ignored (no identity fallback), so literal
+	// CC role names must be mapped explicitly. Users without any mapped role get "user".
+	RoleMapping map[string]string `json:"role-mapping"`
 }
 
 type OIDC struct {
@@ -41,6 +51,9 @@ type OIDC struct {
 	provider       *oidc.Provider
 	authentication *Authentication
 	clientID       string
+	// roleMapping is the validated subset of OpenIDConfig.RoleMapping
+	// (IdP role/group name -> CC role).
+	roleMapping map[string]string
 }
 
 func randString(nByte int) (string, error) {
@@ -73,13 +86,21 @@ func NewOIDC(a *Authentication) *OIDC {
 	if err != nil {
 		cclog.Fatal(err)
 	}
-	clientID := secretFromEnv("OID_CLIENT_ID", Keys.OpenIDConfig.ClientID)
-	if clientID == "" {
-		cclog.Warn("OIDC client ID not configured ('client-id' in config or 'OID_CLIENT_ID' env): Open ID connect auth will not work")
+	clientID, err := util.SecretFromEnv(config.EnvOIDClientID, Keys.OpenIDConfig.ClientID)
+	if err != nil {
+		cclog.Warnf("cannot resolve %s: %s", config.EnvOIDClientID, err.Error())
 	}
-	clientSecret := secretFromEnv("OID_CLIENT_SECRET", Keys.OpenIDConfig.ClientSecret)
+	if clientID == "" {
+		cclog.Warnf("OIDC client ID not configured ('client-id' in config, %s, or its %s variant): Open ID connect auth will not work",
+			config.EnvOIDClientID, util.EnvFileSuffix)
+	}
+	clientSecret, err := util.SecretFromEnv(config.EnvOIDClientSecret, Keys.OpenIDConfig.ClientSecret)
+	if err != nil {
+		cclog.Warnf("cannot resolve %s: %s", config.EnvOIDClientSecret, err.Error())
+	}
 	if clientSecret == "" {
-		cclog.Warn("OIDC client secret not configured ('client-secret' in config or 'OID_CLIENT_SECRET' env): Open ID connect auth will not work")
+		cclog.Warnf("OIDC client secret not configured ('client-secret' in config, %s, or its %s variant): Open ID connect auth will not work",
+			config.EnvOIDClientSecret, util.EnvFileSuffix)
 	}
 
 	client := &oauth2.Config{
@@ -89,9 +110,45 @@ func NewOIDC(a *Authentication) *OIDC {
 		Scopes:       []string{oidc.ScopeOpenID, "profile", "roles"},
 	}
 
-	oa := &OIDC{provider: provider, client: client, clientID: clientID, authentication: a}
+	// Validate the optional role mapping once at startup. Invalid targets are
+	// dropped with a warning rather than failing startup. IdP names (keys) are
+	// kept verbatim so they match the raw token claim values.
+	roleMapping := make(map[string]string)
+	for name, ccRole := range Keys.OpenIDConfig.RoleMapping {
+		role := strings.ToLower(ccRole)
+		if !schema.IsValidRole(role) || role == schema.GetRoleString(schema.RoleAnonymous) {
+			cclog.Warnf("OIDC: ignoring role-mapping '%s' -> '%s': invalid or non-assignable target role", name, ccRole)
+			continue
+		}
+		roleMapping[name] = role
+	}
+
+	oa := &OIDC{provider: provider, client: client, clientID: clientID, authentication: a, roleMapping: roleMapping}
 
 	return oa
+}
+
+// mapOIDCRoles translates raw OIDC role/group names into the CC role set using
+// only the configured mapping (IdP name -> CC role). Unmapped names are ignored.
+// Always returns at least [user]. The result is deduplicated and sorted.
+func mapOIDCRoles(oidcRoles []string, mapping map[string]string) []string {
+	roleSet := make(map[string]bool)
+	for _, r := range oidcRoles {
+		if cc, ok := mapping[r]; ok {
+			roleSet[cc] = true
+		}
+	}
+
+	if len(roleSet) == 0 {
+		return []string{schema.GetRoleString(schema.RoleUser)}
+	}
+
+	roles := make([]string, 0, len(roleSet))
+	for role := range roleSet {
+		roles = append(roles, role)
+	}
+	sort.Strings(roles)
+	return roles
 }
 
 func (oa *OIDC) RegisterEndpoints(r chi.Router) {
@@ -240,28 +297,7 @@ func (oa *OIDC) OAuth2Callback(rw http.ResponseWriter, r *http.Request) {
 		oidcRoles = append(oidcRoles, access.Roles...)
 	}
 
-	roleSet := make(map[string]bool)
-	for _, r := range oidcRoles {
-		switch r {
-		case "user":
-			roleSet[schema.GetRoleString(schema.RoleUser)] = true
-		case "admin":
-			roleSet[schema.GetRoleString(schema.RoleAdmin)] = true
-		case "manager":
-			roleSet[schema.GetRoleString(schema.RoleManager)] = true
-		case "support":
-			roleSet[schema.GetRoleString(schema.RoleSupport)] = true
-		}
-	}
-
-	var roles []string
-	for role := range roleSet {
-		roles = append(roles, role)
-	}
-
-	if len(roles) == 0 {
-		roles = append(roles, schema.GetRoleString(schema.RoleUser))
-	}
+	roles := mapOIDCRoles(oidcRoles, oa.roleMapping)
 
 	user := &schema.User{
 		Username:   username,

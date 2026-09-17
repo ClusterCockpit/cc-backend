@@ -1,8 +1,13 @@
 <!--
-  @component Systemd Journal Log Viewer (Admin only)
+  @component Log Viewer (Admin only)
+
+  Reads from the log source resolved by the backend at startup: the systemd
+  journal when cc-backend runs as a systemd unit, otherwise an in-process
+  buffer holding the log output of the running process.
 
   Properties:
   - `isAdmin Bool!`: Is currently logged in user admin authority
+  - `logSource String?`: Active backend, one of "journal", "memory" or "disabled"
 -->
 
 <script>
@@ -20,7 +25,7 @@
     Icon,
   } from "@sveltestrap/sveltestrap";
 
-  let { isAdmin } = $props();
+  let { isAdmin, logSource = "journal" } = $props();
 
   const timeRanges = [
     { label: "Last 15 minutes", value: "15 min ago" },
@@ -131,7 +136,7 @@
 
   // Fetch on mount
   $effect(() => {
-    fetchLogs();
+    if (logSource !== "disabled") fetchLogs();
   });
 </script>
 
@@ -139,6 +144,17 @@
   <Card>
     <CardBody>
       <p>Access denied. Admin privileges required.</p>
+    </CardBody>
+  </Card>
+{:else if logSource === "disabled"}
+  <Card>
+    <CardBody>
+      <p class="mb-0">
+        The log viewer is disabled in this deployment. Set
+        <code>main.log-source</code> in <code>config.json</code> to
+        <code>auto</code>, <code>journal</code> or <code>memory</code> to enable
+        it.
+      </p>
     </CardBody>
   </Card>
 {:else}
@@ -213,6 +229,17 @@
     <CardBody style="padding: 0;">
       {#if error}
         <div class="alert alert-danger m-3">{error}</div>
+      {/if}
+
+      {#if logSource === "memory"}
+        <div class="alert alert-info m-3 mb-0 py-2">
+          <Icon name="info-circle" />
+          cc-backend does not run as a systemd unit, so logs are read from an
+          in-process buffer: history starts when the process started, is limited
+          to <code>main.log-buffer-size</code> records, and only covers messages
+          at or above the configured log level. Search matches a literal
+          substring.
+        </div>
       {/if}
 
       <div style="max-height: 75vh; overflow-y: auto;">

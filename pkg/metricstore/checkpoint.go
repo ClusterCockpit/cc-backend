@@ -298,13 +298,12 @@ func (l *Level) toCheckpointFile(from, to int64, m *MemoryStore) (*CheckpointFil
 		}
 
 		data := make([]schema.Float, (to-from)/b.frequency+1)
-		data, start, end, err := b.read(from, to, data)
+
+		// trim=true: read() returns only the real data extent, sliced so that
+		// Data[0] aligns with Start (the checkpoint reload contract).
+		data, start, _, err := b.read(from, to, data, true)
 		if err != nil {
 			return nil, err
-		}
-
-		for i := int((end - start) / b.frequency); i < len(data); i++ {
-			data[i] = schema.NaN
 		}
 
 		retval.Metrics[metric] = &CheckpointMetrics{
@@ -397,9 +396,25 @@ func enqueueCheckpointHosts(dir string, work chan<- [2]string) error {
 
 // FromCheckpoint loads checkpoint files from disk into memory in parallel.
 //
-// Uses worker pool to load cluster/host combinations. Returns number of files
-// loaded and any errors.
+// Uses worker pool to load cluster/host combinations. Hosts that the
+// NodeProvider reports as in use by running jobs load ALL their checkpoint
+// files (a job that started before `from` needs its full history in memory);
+// all other hosts load only files satisfying the `from` cutoff. A nil
+// provider or a provider error falls back to cutoff-only loading with a
+// warning. Returns number of files loaded and any errors.
 func (m *MemoryStore) FromCheckpoint(dir string, from int64) (int, error) {
+	var usedNodes map[string][]string
+	if m.nodeProvider != nil {
+		un, err := m.nodeProvider.GetUsedNodes(from)
+		if err != nil {
+			cclog.Warnf("[METRICSTORE]> GetUsedNodes failed, loading checkpoints with retention cutoff only: %s", err.Error())
+		} else {
+			usedNodes = un
+		}
+	} else {
+		cclog.Warnf("[METRICSTORE]> no NodeProvider set, loading checkpoints with retention cutoff only")
+	}
+
 	var wg sync.WaitGroup
 	work := make(chan [2]string, Keys.NumWorkers*4)
 	n, errs := int32(0), int32(0)
@@ -409,8 +424,14 @@ func (m *MemoryStore) FromCheckpoint(dir string, from int64) (int, error) {
 		go func() {
 			defer wg.Done()
 			for host := range work {
+				// A host with a running job that started before the cutoff
+				// needs its full history in memory: load all its files.
+				loadFrom := from
+				if isNodeUsed(usedNodes, host[0], host[1]) {
+					loadFrom = 0
+				}
 				lvl := m.root.findLevelOrCreate(host[:], len(m.Metrics))
-				nn, err := lvl.fromCheckpoint(m, filepath.Join(dir, host[0], host[1]), from)
+				nn, err := lvl.fromCheckpoint(m, filepath.Join(dir, host[0], host[1]), loadFrom)
 				if err != nil {
 					cclog.Errorf("[METRICSTORE]> error while loading checkpoints for %s/%s: %s", host[0], host[1], err.Error())
 					atomic.AddInt32(&errs, 1)
@@ -479,6 +500,9 @@ func (l *Level) loadFile(cf *CheckpointFile, m *MemoryStore) error {
 			next:      nil,
 			archived:  true,
 		}
+		// Front-load the single scan so the first stat query hits the cache
+		// instead of lazily rescanning this checkpoint-loaded buffer.
+		b.recomputeStats()
 
 		minfo, ok := m.Metrics[name]
 		if !ok {

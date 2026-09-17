@@ -328,6 +328,63 @@ func (e Aggregate) MarshalJSON() ([]byte, error) {
 	return buf.Bytes(), nil
 }
 
+type ResampleAlgo string
+
+const (
+	ResampleAlgoLttb    ResampleAlgo = "LTTB"
+	ResampleAlgoAverage ResampleAlgo = "AVERAGE"
+	ResampleAlgoSimple  ResampleAlgo = "SIMPLE"
+)
+
+var AllResampleAlgo = []ResampleAlgo{
+	ResampleAlgoLttb,
+	ResampleAlgoAverage,
+	ResampleAlgoSimple,
+}
+
+func (e ResampleAlgo) IsValid() bool {
+	switch e {
+	case ResampleAlgoLttb, ResampleAlgoAverage, ResampleAlgoSimple:
+		return true
+	}
+	return false
+}
+
+func (e ResampleAlgo) String() string {
+	return string(e)
+}
+
+func (e *ResampleAlgo) UnmarshalGQL(v any) error {
+	str, ok := v.(string)
+	if !ok {
+		return fmt.Errorf("enums must be strings")
+	}
+
+	*e = ResampleAlgo(str)
+	if !e.IsValid() {
+		return fmt.Errorf("%s is not a valid ResampleAlgo", str)
+	}
+	return nil
+}
+
+func (e ResampleAlgo) MarshalGQL(w io.Writer) {
+	fmt.Fprint(w, strconv.Quote(e.String()))
+}
+
+func (e *ResampleAlgo) UnmarshalJSON(b []byte) error {
+	s, err := strconv.Unquote(string(b))
+	if err != nil {
+		return err
+	}
+	return e.UnmarshalGQL(s)
+}
+
+func (e ResampleAlgo) MarshalJSON() ([]byte, error) {
+	var buf bytes.Buffer
+	e.MarshalGQL(&buf)
+	return buf.Bytes(), nil
+}
+
 type SortByAggregate string
 
 const (

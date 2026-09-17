@@ -70,3 +70,13 @@ footer {
     margin: 0rem 0.8rem;
     white-space: nowrap;
 }
+
+/* Fix: prevent Sveltestrap collapseIn from leaving the navbar invisible
+   when prefers-reduced-motion causes transition-duration = 0ms and Svelte
+   skips calling tick(), leaving the node stuck in .collapsing (height:0). */
+@media (prefers-reduced-motion: reduce) {
+  .navbar-collapse.collapsing {
+    height: auto !important;
+    overflow: visible !important;
+  }
+}

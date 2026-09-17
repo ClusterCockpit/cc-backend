@@ -13,7 +13,7 @@ import (
 
 func TestDeepCopy(t *testing.T) {
 	nodeId := "0"
-	original := schema.JobData{
+	original := schema.JobData{Metrics: map[string]schema.ScopedMetrics{
 		"cpu_load": {
 			schema.MetricScopeNode: &schema.JobMetric{
 				Timestep: 60,
@@ -42,42 +42,42 @@ func TestDeepCopy(t *testing.T) {
 				},
 			},
 		},
-	}
+	}}
 
 	copied := deepCopy(original)
 
-	original["cpu_load"][schema.MetricScopeNode].Series[0].Data[0] = 999.0
-	original["cpu_load"][schema.MetricScopeNode].StatisticsSeries.Min[0] = 888.0
-	original["cpu_load"][schema.MetricScopeNode].StatisticsSeries.Percentiles[25][0] = 777.0
+	original.Metrics["cpu_load"][schema.MetricScopeNode].Series[0].Data[0] = 999.0
+	original.Metrics["cpu_load"][schema.MetricScopeNode].StatisticsSeries.Min[0] = 888.0
+	original.Metrics["cpu_load"][schema.MetricScopeNode].StatisticsSeries.Percentiles[25][0] = 777.0
 
-	if copied["cpu_load"][schema.MetricScopeNode].Series[0].Data[0] != 1.0 {
+	if copied.Metrics["cpu_load"][schema.MetricScopeNode].Series[0].Data[0] != 1.0 {
 		t.Errorf("Series data was not deeply copied: got %v, want 1.0",
-			copied["cpu_load"][schema.MetricScopeNode].Series[0].Data[0])
+			copied.Metrics["cpu_load"][schema.MetricScopeNode].Series[0].Data[0])
 	}
 
-	if copied["cpu_load"][schema.MetricScopeNode].StatisticsSeries.Min[0] != 1.0 {
+	if copied.Metrics["cpu_load"][schema.MetricScopeNode].StatisticsSeries.Min[0] != 1.0 {
 		t.Errorf("StatisticsSeries was not deeply copied: got %v, want 1.0",
-			copied["cpu_load"][schema.MetricScopeNode].StatisticsSeries.Min[0])
+			copied.Metrics["cpu_load"][schema.MetricScopeNode].StatisticsSeries.Min[0])
 	}
 
-	if copied["cpu_load"][schema.MetricScopeNode].StatisticsSeries.Percentiles[25][0] != 1.5 {
+	if copied.Metrics["cpu_load"][schema.MetricScopeNode].StatisticsSeries.Percentiles[25][0] != 1.5 {
 		t.Errorf("Percentiles was not deeply copied: got %v, want 1.5",
-			copied["cpu_load"][schema.MetricScopeNode].StatisticsSeries.Percentiles[25][0])
+			copied.Metrics["cpu_load"][schema.MetricScopeNode].StatisticsSeries.Percentiles[25][0])
 	}
 
-	if copied["cpu_load"][schema.MetricScopeNode].Timestep != 60 {
+	if copied.Metrics["cpu_load"][schema.MetricScopeNode].Timestep != 60 {
 		t.Errorf("Timestep not copied correctly: got %v, want 60",
-			copied["cpu_load"][schema.MetricScopeNode].Timestep)
+			copied.Metrics["cpu_load"][schema.MetricScopeNode].Timestep)
 	}
 
-	if copied["cpu_load"][schema.MetricScopeNode].Series[0].Hostname != "node001" {
+	if copied.Metrics["cpu_load"][schema.MetricScopeNode].Series[0].Hostname != "node001" {
 		t.Errorf("Hostname not copied correctly: got %v, want node001",
-			copied["cpu_load"][schema.MetricScopeNode].Series[0].Hostname)
+			copied.Metrics["cpu_load"][schema.MetricScopeNode].Series[0].Hostname)
 	}
 }
 
 func TestDeepCopyNilStatisticsSeries(t *testing.T) {
-	original := schema.JobData{
+	original := schema.JobData{Metrics: map[string]schema.ScopedMetrics{
 		"mem_used": {
 			schema.MetricScopeNode: &schema.JobMetric{
 				Timestep: 60,
@@ -90,18 +90,18 @@ func TestDeepCopyNilStatisticsSeries(t *testing.T) {
 				StatisticsSeries: nil,
 			},
 		},
-	}
+	}}
 
 	copied := deepCopy(original)
 
-	if copied["mem_used"][schema.MetricScopeNode].StatisticsSeries != nil {
+	if copied.Metrics["mem_used"][schema.MetricScopeNode].StatisticsSeries != nil {
 		t.Errorf("StatisticsSeries should be nil, got %v",
-			copied["mem_used"][schema.MetricScopeNode].StatisticsSeries)
+			copied.Metrics["mem_used"][schema.MetricScopeNode].StatisticsSeries)
 	}
 }
 
 func TestDeepCopyEmptyPercentiles(t *testing.T) {
-	original := schema.JobData{
+	original := schema.JobData{Metrics: map[string]schema.ScopedMetrics{
 		"cpu_load": {
 			schema.MetricScopeNode: &schema.JobMetric{
 				Timestep: 60,
@@ -115,11 +115,11 @@ func TestDeepCopyEmptyPercentiles(t *testing.T) {
 				},
 			},
 		},
-	}
+	}}
 
 	copied := deepCopy(original)
 
-	if copied["cpu_load"][schema.MetricScopeNode].StatisticsSeries.Percentiles != nil {
+	if copied.Metrics["cpu_load"][schema.MetricScopeNode].StatisticsSeries.Percentiles != nil {
 		t.Errorf("Percentiles should be nil when source is nil/empty")
 	}
 }

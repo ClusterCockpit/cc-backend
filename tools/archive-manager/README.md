@@ -87,7 +87,7 @@ Both conversion directions support S3:
 ```bash
 # JSON (S3) -> Parquet (local)
 ./archive-manager --convert --format parquet \
-  --src-config '{"kind":"s3","endpoint":"https://s3.example.com","bucket":"json-archive","accessKey":"...","secretKey":"..."}' \
+  --src-config '{"kind":"s3","endpoint":"https://s3.example.com","bucket":"json-archive","access-key":"...","secret-key":"..."}' \
   --dst-config '{"kind":"file","path":"./var/parquet-archive"}'
 
 # Parquet (local) -> JSON (S3)
@@ -95,6 +95,40 @@ Both conversion directions support S3:
   --src-config '{"kind":"file","path":"./var/parquet-archive"}' \
   --dst-config '{"kind":"s3","endpoint":"https://s3.example.com","bucket":"json-archive","access-key":"...","secret-key":"..."}'
 ```
+
+### S3 Credentials from the Environment
+
+The S3 access and secret keys need not appear on the command line, where they
+would land in the shell history and in `ps` output. The source and destination
+archives read separate variables, so one side's credentials are never used for
+the other:
+
+| Environment variable | Applies to |
+|---|---|
+| `ARCHIVE_MANAGER_SRC_S3_ACCESS_KEY` | `--src-config` |
+| `ARCHIVE_MANAGER_SRC_S3_SECRET_KEY` | `--src-config` |
+| `ARCHIVE_MANAGER_DST_S3_ACCESS_KEY` | `--dst-config` |
+| `ARCHIVE_MANAGER_DST_S3_SECRET_KEY` | `--dst-config` |
+
+Each also accepts a `_FILE` variant naming a file that holds the value, which
+is read in preference to the config value. A named file that cannot be read is
+an error rather than a silent fallback.
+
+```bash
+export ARCHIVE_MANAGER_DST_S3_ACCESS_KEY=AKIA...
+export ARCHIVE_MANAGER_DST_S3_SECRET_KEY_FILE=/run/secrets/s3-secret
+
+./archive-manager --import \
+  --src-config '{"kind":"file","path":"./var/job-archive"}' \
+  --dst-config '{"kind":"s3","endpoint":"https://s3.example.com","bucket":"archive"}'
+```
+
+With no key configured from any source, the AWS default credential chain
+(`AWS_ACCESS_KEY_ID`, `~/.aws/credentials`, IRSA/IMDS) applies.
+
+Both the kebab-case (`access-key`, `secret-key`, `use-path-style`) and the
+older camelCase (`accessKey`, `secretKey`, `usePathStyle`) spellings are
+accepted in every mode; kebab-case is the documented form.
 
 ## Command-Line Options
 

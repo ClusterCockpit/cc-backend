@@ -196,8 +196,8 @@ func cleanup() {
 func TestRestApi(t *testing.T) {
 	restapi := setup(t)
 	t.Cleanup(cleanup)
-	testData := schema.JobData{
-		"load_one": map[schema.MetricScope]*schema.JobMetric{
+	testData := schema.JobData{Metrics: map[string]schema.ScopedMetrics{
+		"load_one": {
 			schema.MetricScopeNode: {
 				Unit:     schema.Unit{Base: "load"},
 				Timestep: 60,
@@ -210,9 +210,9 @@ func TestRestApi(t *testing.T) {
 				},
 			},
 		},
-	}
+	}}
 
-	metricstore.TestLoadDataCallback = func(job *schema.Job, metrics []string, scopes []schema.MetricScope, ctx context.Context, resolution int) (schema.JobData, error) {
+	metricstore.TestLoadDataCallback = func(job *schema.Job, metrics []string, scopes []schema.MetricScope, ctx context.Context, resolution int, resampleAlgo string) (schema.JobData, error) {
 		return testData, nil
 	}
 
@@ -355,7 +355,7 @@ func TestRestApi(t *testing.T) {
 	}
 
 	t.Run("CheckArchive", func(t *testing.T) {
-		data, err := metricdispatch.LoadData(stoppedJob, []string{"load_one"}, []schema.MetricScope{schema.MetricScopeNode}, context.Background(), 60)
+		data, err := metricdispatch.LoadData(stoppedJob, []string{"load_one"}, []schema.MetricScope{schema.MetricScopeNode}, context.Background(), 60, "")
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -497,8 +497,8 @@ func TestStopJobWithReusedJobId(t *testing.T) {
 	restapi := setup(t)
 	t.Cleanup(cleanup)
 
-	testData := schema.JobData{
-		"load_one": map[schema.MetricScope]*schema.JobMetric{
+	testData := schema.JobData{Metrics: map[string]schema.ScopedMetrics{
+		"load_one": {
 			schema.MetricScopeNode: {
 				Unit:     schema.Unit{Base: "load"},
 				Timestep: 60,
@@ -511,9 +511,9 @@ func TestStopJobWithReusedJobId(t *testing.T) {
 				},
 			},
 		},
-	}
+	}}
 
-	metricstore.TestLoadDataCallback = func(job *schema.Job, metrics []string, scopes []schema.MetricScope, ctx context.Context, resolution int) (schema.JobData, error) {
+	metricstore.TestLoadDataCallback = func(job *schema.Job, metrics []string, scopes []schema.MetricScope, ctx context.Context, resolution int, resampleAlgo string) (schema.JobData, error) {
 		return testData, nil
 	}
 

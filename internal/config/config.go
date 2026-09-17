@@ -72,8 +72,15 @@ type ProgramConfig struct {
 	// If exists, will enable dynamic zoom in frontend metric plots using the configured values
 	EnableResampling *ResampleConfig `json:"resampling"`
 
-	// Systemd unit name for log viewer (default: "clustercockpit")
+	// Systemd unit name for log viewer (default: "clustercockpit.service")
 	SystemdUnit string `json:"systemd-unit"`
+
+	// Log viewer backend: "auto" (journal when running as a systemd unit,
+	// otherwise the in-process buffer), "journal", "memory" or "disabled".
+	LogSource string `json:"log-source"`
+
+	// Number of log records retained by the in-process log buffer.
+	LogBufferSize int `json:"log-buffer-size"`
 
 	// Node state retention configuration
 	NodeStateRetention *NodeStateRetention `json:"nodestate-retention"`
@@ -118,12 +125,12 @@ type NodeStateRetention struct {
 }
 
 type ResampleConfig struct {
-	// Minimum number of points to trigger resampling of data
-	MinimumPoints int `json:"minimum-points"`
-	// Array of resampling target resolutions, in seconds; Example: [600,300,60]
-	Resolutions []int `json:"resolutions"`
-	// Trigger next zoom level at less than this many visible datapoints
-	Trigger int `json:"trigger"`
+	// Default resample policy when no user preference is set ("low", "medium", "high")
+	DefaultPolicy string `json:"default-policy"`
+	// Default resample algorithm when no user preference is set ("lttb", "average", "simple")
+	DefaultAlgo string `json:"default-algo"`
+	// Policy-derived target point count (set dynamically from user preference, not from config.json)
+	TargetPoints int `json:"targetPoints,omitempty"`
 }
 
 type NATSConfig struct {
@@ -157,6 +164,8 @@ var Keys ProgramConfig = ProgramConfig{
 	SessionMaxAge:             "168h",
 	StopJobsExceedingWalltime: 0,
 	ShortRunningJobsDuration:  5 * 60,
+	LogSource:                 "auto",
+	LogBufferSize:             4096,
 	FooterLinks: FooterLinksConfig{
 		Imprint: "/imprint",
 		Privacy: "/privacy",
@@ -171,7 +180,56 @@ func Init(mainConfig json.RawMessage) {
 		cclog.Abortf("Config Init: Could not decode config file '%s'.\nError: %s\n", mainConfig, err.Error())
 	}
 
-	if Keys.EnableResampling != nil && Keys.EnableResampling.MinimumPoints > 0 {
-		resampler.SetMinimumRequiredPoints(Keys.EnableResampling.MinimumPoints)
+	initResampler()
+}
+
+// initResampler aligns the resampler's MinimumRequiredPoints threshold with the
+// configured policy's target point count. The resampler must be allowed to act
+// exactly when a series is longer than that target; a different threshold here
+// silently drops resample requests for a band of job durations.
+func initResampler() {
+	if Keys.EnableResampling == nil {
+		return
+	}
+
+	policy := Keys.EnableResampling.DefaultPolicy
+	if policy == "" {
+		policy = DefaultResamplePolicy
+	}
+	resampler.SetMinimumRequiredPoints(TargetPointsForPolicy(policy))
+}
+
+// DefaultResamplePolicy is used when no resample policy is configured.
+const DefaultResamplePolicy = "medium"
+
+// DefaultResampleAlgo is used when neither the user nor the config selects a
+// resample algorithm. "average" performs RRDTool-style interval averaging,
+// which keeps each plotted point a true mean of its interval.
+const DefaultResampleAlgo = "average"
+
+// ResampleAlgo returns the configured default resample algorithm, falling back
+// to DefaultResampleAlgo. Note that an empty string would select LTTB in
+// cc-lib's resampler, so callers must not pass "" when they mean "the default".
+func ResampleAlgo() string {
+	if Keys.EnableResampling != nil && Keys.EnableResampling.DefaultAlgo != "" {
+		return Keys.EnableResampling.DefaultAlgo
+	}
+	return DefaultResampleAlgo
+}
+
+// TargetPointsForPolicy returns the target number of data points for a resample
+// policy. This is the single source of truth: it feeds both the requested
+// resolution (via metricdispatch.ComputeResolution) and the resampler's
+// MinimumRequiredPoints threshold. Unknown or empty policies return 0.
+func TargetPointsForPolicy(policy string) int {
+	switch policy {
+	case "low":
+		return 200
+	case "medium":
+		return 500
+	case "high":
+		return 1000
+	default:
+		return 0
 	}
 }

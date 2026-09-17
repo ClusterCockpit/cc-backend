@@ -51,14 +51,15 @@ type APIMetricData struct {
 //
 // The request can be customized with flags to include/exclude statistics, raw data, and padding.
 type APIQueryRequest struct {
-	Cluster     string     `json:"cluster"`
-	Queries     []APIQuery `json:"queries"`
-	ForAllNodes []string   `json:"for-all-nodes"`
-	From        int64      `json:"from"`
-	To          int64      `json:"to"`
-	WithStats   bool       `json:"with-stats"`
-	WithData    bool       `json:"with-data"`
-	WithPadding bool       `json:"with-padding"`
+	Cluster      string     `json:"cluster"`
+	Queries      []APIQuery `json:"queries"`
+	ForAllNodes  []string   `json:"for-all-nodes"`
+	From         int64      `json:"from"`
+	To           int64      `json:"to"`
+	WithStats    bool       `json:"with-stats"`
+	WithData     bool       `json:"with-data"`
+	WithPadding  bool       `json:"with-padding"`
+	ResampleAlgo string     `json:"resample-algo,omitempty"`
 }
 
 // APIQueryResponse represents the response to an APIQueryRequest.
@@ -279,7 +280,7 @@ func FetchData(req APIQueryRequest) (*APIQueryResponse, error) {
 		for _, sel := range sels {
 			data := APIMetricData{}
 
-			data.Data, data.From, data.To, data.Resolution, err = ms.Read(sel, query.Metric, req.From, req.To, query.Resolution)
+			data.Data, data.From, data.To, data.Resolution, err = ms.Read(sel, query.Metric, req.From, req.To, query.Resolution, req.ResampleAlgo)
 			if err != nil {
 				// Skip Error If Just Missing Host or Metric, Continue
 				// Empty Return For Metric Handled Gracefully By Frontend

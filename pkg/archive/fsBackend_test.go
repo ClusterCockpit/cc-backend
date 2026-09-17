@@ -129,7 +129,7 @@ func TestLoadJobData(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	for _, scopes := range data {
+	for _, scopes := range data.Metrics {
 		// fmt.Printf("Metric name: %s\n", name)
 
 		if _, exists := scopes[schema.MetricScopeNode]; !exists {

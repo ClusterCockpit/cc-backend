@@ -85,30 +85,35 @@ var configSchema = `
       "type": "string"
     },
     "systemd-unit": {
-      "description": "Systemd unit name for log viewer (default: 'clustercockpit').",
+      "description": "Systemd unit name queried by the log viewer in journal mode (default: 'clustercockpit.service').",
       "type": "string"
+    },
+    "log-source": {
+      "description": "Log viewer backend: 'auto' uses the systemd journal when cc-backend runs as a systemd unit and the in-process buffer otherwise, 'journal' forces journalctl, 'memory' forces the in-process buffer, 'disabled' turns the log view off.",
+      "type": "string",
+      "enum": ["auto", "journal", "memory", "disabled"]
+    },
+    "log-buffer-size": {
+      "description": "Number of log records retained by the in-process log buffer used by the 'memory' log source.",
+      "type": "integer",
+      "minimum": 100,
+      "maximum": 100000
     },
     "resampling": {
       "description": "Enable dynamic zoom in frontend metric plots.",
       "type": "object",
       "properties": {
-        "minimum-points": {
-          "description": "Minimum points to trigger resampling of time-series data.",
-          "type": "integer"
+        "default-policy": {
+          "description": "Default resample policy when no user preference is set.",
+          "type": "string",
+          "enum": ["low", "medium", "high"]
         },
-        "trigger": {
-          "description": "Trigger next zoom level at less than this many visible datapoints.",
-          "type": "integer"
-        },
-        "resolutions": {
-          "description": "Array of resampling target resolutions, in seconds.",
-          "type": "array",
-          "items": {
-            "type": "integer"
-          }
+        "default-algo": {
+          "description": "Default resample algorithm when no user preference is set. Default and recommended: 'average' (RRDTool-style interval averaging).",
+          "type": "string",
+          "enum": ["lttb", "average", "simple"]
         }
-      },
-      "required": ["trigger", "resolutions"]
+      }
     },
     "api-subjects": {
       "description": "NATS subjects configuration for subscribing to job and node events.",
@@ -178,11 +183,11 @@ var configSchema = `
           "type": "string"
         },
         "target-access-key": {
-          "description": "S3 access key.",
+          "description": "S3 access key. Overridden by the NODESTATE_S3_ACCESS_KEY environment variable when set, or by the contents of the file named by NODESTATE_S3_ACCESS_KEY_FILE.",
           "type": "string"
         },
         "target-secret-key": {
-          "description": "S3 secret key.",
+          "description": "S3 secret key. Overridden by the NODESTATE_S3_SECRET_KEY environment variable when set, or by the contents of the file named by NODESTATE_S3_SECRET_KEY_FILE.",
           "type": "string"
         },
         "target-region": {

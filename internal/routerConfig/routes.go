@@ -15,6 +15,8 @@ import (
 
 	"github.com/ClusterCockpit/cc-backend/internal/config"
 	"github.com/ClusterCockpit/cc-backend/internal/graph/model"
+	"github.com/ClusterCockpit/cc-backend/internal/logviewer"
+	"github.com/ClusterCockpit/cc-backend/internal/metricdispatch"
 	"github.com/ClusterCockpit/cc-backend/internal/repository"
 	"github.com/ClusterCockpit/cc-backend/web"
 	cclog "github.com/ClusterCockpit/cc-lib/v2/ccLogger"
@@ -50,7 +52,7 @@ var routes []Route = []Route{
 	{"/monitoring/status/{cluster}", "monitoring/status.tmpl", "<ID> Dashboard - ClusterCockpit", false, setupClusterStatusRoute},
 	{"/monitoring/status/detail/{cluster}", "monitoring/status.tmpl", "Status of <ID> - ClusterCockpit", false, setupClusterDetailRoute},
 	{"/monitoring/dashboard/{cluster}", "monitoring/dashboard.tmpl", "<ID> Dashboard - ClusterCockpit", false, setupDashboardRoute},
-	{"/monitoring/logs", "monitoring/logs.tmpl", "Logs - ClusterCockpit", false, func(i InfoType, r *http.Request) InfoType { return i }},
+	{"/monitoring/logs", "monitoring/logs.tmpl", "Logs - ClusterCockpit", false, setupLogsRoute},
 }
 
 func setupHomeRoute(i InfoType, r *http.Request) InfoType {
@@ -93,6 +95,13 @@ func setupConfigRoute(i InfoType, r *http.Request) InfoType {
 		}
 	}
 
+	return i
+}
+
+// setupLogsRoute passes the resolved log backend to the page so it can explain
+// itself when the log view is disabled or backed by the in-process buffer.
+func setupLogsRoute(i InfoType, r *http.Request) InfoType {
+	i["logSource"] = string(logviewer.Active())
 	return i
 }
 
@@ -496,13 +505,15 @@ func SetupRoutes(router chi.Router, buildInfo web.Build) {
 			// Get Roles
 			availableRoles, _ := schema.GetValidRolesMap(user)
 
+			resampling := resamplingForUser(conf)
+
 			page := web.Page{
 				Title:      title,
 				User:       *user,
 				Roles:      availableRoles,
 				Build:      buildInfo,
 				Config:     conf,
-				Resampling: config.Keys.EnableResampling,
+				Resampling: resampling,
 				Infos:      infos,
 			}
 
@@ -587,5 +598,38 @@ func HandleSearchBar(rw http.ResponseWriter, r *http.Request, buildInfo web.Buil
 		}
 	} else {
 		web.RenderTemplate(rw, "message.tmpl", &web.Page{Title: "Warning", MsgType: "alert-warning", Message: "Empty search", User: *user, Roles: availableRoles, Build: buildInfo})
+	}
+}
+
+// resamplingForUser returns a ResampleConfig that incorporates the user's
+// resample policy preference. If the user has a policy set, it creates a
+// policy-derived config with targetPoints and trigger. Otherwise falls back
+// to the global config.
+func resamplingForUser(conf map[string]any) *config.ResampleConfig {
+	globalCfg := config.Keys.EnableResampling
+
+	policyStr := ""
+	if policyVal, ok := conf["plotConfiguration_resamplePolicy"]; ok {
+		if s, ok := policyVal.(string); ok {
+			policyStr = s
+		}
+	}
+
+	// Fall back to global default policy, then to "medium"
+	if policyStr == "" && globalCfg != nil {
+		policyStr = globalCfg.DefaultPolicy
+	}
+	if policyStr == "" {
+		policyStr = "medium"
+	}
+
+	policy := metricdispatch.ResamplePolicy(policyStr)
+	targetPoints := metricdispatch.TargetPointsForPolicy(policy)
+	if targetPoints == 0 {
+		return globalCfg
+	}
+
+	return &config.ResampleConfig{
+		TargetPoints: targetPoints,
 	}
 }
