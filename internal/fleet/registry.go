@@ -141,6 +141,27 @@ func (r *Registry) Heartbeat(instanceID string, at time.Time) error {
 	return nil
 }
 
+// HeartbeatBatch is the batched form of Heartbeat for the NATS consumer, which
+// coalesces the heartbeats it receives into one transaction. Like Heartbeat it
+// is scope-agnostic — cluster- and infra-scope instances are both refreshed by
+// instance_id — and it never creates or resurrects a row.
+//
+// It returns how many of the supplied instance IDs matched a live row; the
+// caller derives the number of unknown or deregistered IDs from the difference
+// to len(beats) rather than getting an error per bogus heartbeat.
+func (r *Registry) HeartbeatBatch(beats map[string]time.Time) (int64, error) {
+	if len(beats) == 0 {
+		return 0, nil
+	}
+
+	unix := make(map[string]int64, len(beats))
+	for instanceID, at := range beats {
+		unix[instanceID] = at.Unix()
+	}
+
+	return r.repo.HeartbeatBatch(unix)
+}
+
 // Deregister marks an instance as deregistered. Idempotent.
 func (r *Registry) Deregister(instanceID string) error {
 	return r.repo.Deregister(instanceID)

@@ -109,3 +109,89 @@ func TestFleetRepository(t *testing.T) {
 		}
 	})
 }
+
+func TestFleetHeartbeatBatch(t *testing.T) {
+	setup(t)
+	repo := GetFleetRepository()
+
+	// One row per state the batch has to distinguish.
+	rows := []*ServiceDB{
+		{Cluster: "fritz", Hostname: "n01", ServiceType: "agent", InstanceID: "iid-pending", Scope: "cluster", RegisteredAt: 1000},
+		{Cluster: "fritz", Hostname: "n02", ServiceType: "agent", InstanceID: "iid-stale", Scope: "cluster", RegisteredAt: 1000},
+		{Cluster: "fritz", Hostname: "n03", ServiceType: "agent", InstanceID: "iid-dead", Scope: "cluster", RegisteredAt: 1000},
+	}
+	for _, r := range rows {
+		if _, err := repo.RegisterService(r); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	// Age n02 into 'stale' and terminate n03.
+	if _, err := repo.Heartbeat("iid-stale", 1000); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := repo.MarkStale(2000); err != nil {
+		t.Fatal(err)
+	}
+	if err := repo.Deregister("iid-dead"); err != nil {
+		t.Fatal(err)
+	}
+
+	t.Run("empty batch is a no-op", func(t *testing.T) {
+		applied, err := repo.HeartbeatBatch(nil)
+		noErr(t, err)
+		if applied != 0 {
+			t.Fatalf("want 0 rows applied, got %d", applied)
+		}
+	})
+
+	t.Run("applies known rows and skips deregistered and unknown ones", func(t *testing.T) {
+		applied, err := repo.HeartbeatBatch(map[string]int64{
+			"iid-pending": 5000,
+			"iid-stale":   5000,
+			"iid-dead":    5000,
+			"iid-nobody":  5000,
+		})
+		noErr(t, err)
+		if applied != 2 {
+			t.Fatalf("want 2 rows applied (pending + stale), got %d", applied)
+		}
+
+		for _, id := range []string{"iid-pending", "iid-stale"} {
+			svc, err := repo.GetByInstanceID(id)
+			noErr(t, err)
+			if svc.State != "active" {
+				t.Errorf("%s: want state active, got %q", id, svc.State)
+			}
+			if !svc.LastHeartbeat.Valid || svc.LastHeartbeat.Int64 != 5000 {
+				t.Errorf("%s: want last_heartbeat 5000, got %+v", id, svc.LastHeartbeat)
+			}
+		}
+
+		dead, err := repo.GetByInstanceID("iid-dead")
+		noErr(t, err)
+		if dead.State != "deregistered" {
+			t.Errorf("a deregistered row must never be revived, got state %q", dead.State)
+		}
+		if dead.LastHeartbeat.Valid {
+			t.Errorf("a deregistered row must not get a heartbeat, got %+v", dead.LastHeartbeat)
+		}
+	})
+
+	t.Run("unknown instance ids never insert a row", func(t *testing.T) {
+		before, err := repo.ListByCluster("fritz")
+		noErr(t, err)
+
+		applied, err := repo.HeartbeatBatch(map[string]int64{"iid-ghost": 6000})
+		noErr(t, err)
+		if applied != 0 {
+			t.Fatalf("want 0 rows applied, got %d", applied)
+		}
+
+		after, err := repo.ListByCluster("fritz")
+		noErr(t, err)
+		if len(after) != len(before) {
+			t.Fatalf("row count changed: %d -> %d", len(before), len(after))
+		}
+	})
+}

@@ -6,9 +6,11 @@
 package fleet
 
 import (
+	"context"
 	"database/sql"
 	"encoding/json"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -206,4 +208,111 @@ func decodeRoster(t *testing.T, data []byte) []ProviderInfo {
 		t.Fatal(err)
 	}
 	return providers
+}
+
+// countingPub counts publish calls; safe for concurrent use by the publisher
+// goroutine and the test.
+type countingPub struct {
+	mu    sync.Mutex
+	calls int
+	bump  chan struct{}
+}
+
+func newCountingPub() *countingPub {
+	return &countingPub{bump: make(chan struct{}, 64)}
+}
+
+func (c *countingPub) publish(string, []byte) error {
+	c.mu.Lock()
+	c.calls++
+	c.mu.Unlock()
+	select {
+	case c.bump <- struct{}{}:
+	default:
+	}
+	return nil
+}
+
+func (c *countingPub) count() int {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	return c.calls
+}
+
+// waitForPublish blocks until at least one publish happened since the caller
+// drained bump, or the deadline expires.
+func (c *countingPub) waitForPublish(t *testing.T, d time.Duration) bool {
+	t.Helper()
+	select {
+	case <-c.bump:
+		return true
+	case <-time.After(d):
+		return false
+	}
+}
+
+func TestPublisherNotify(t *testing.T) {
+	setupDB(t)
+
+	reg := NewRegistry(time.Hour)
+	if _, err := reg.Register(RegistrationRequest{
+		Cluster: "fritz", Hostname: "f0101", ServiceType: ServiceTypeCollector,
+	}); err != nil {
+		t.Fatal(err)
+	}
+
+	cp := newCountingPub()
+	pub := NewFleetPublisher(cp.publish, "")
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	// A long tick interval isolates Notify: any publish beyond the initial one
+	// can only come from the notification path.
+	pub.Start(ctx, time.Hour)
+	defer pub.Shutdown()
+
+	// Drain the initial publish (Start publishes synchronously before the loop).
+	for cp.waitForPublish(t, 100*time.Millisecond) {
+	}
+	initial := cp.count()
+	if initial == 0 {
+		t.Fatal("Start must publish once immediately")
+	}
+
+	t.Run("rapid notifications collapse into one publish", func(t *testing.T) {
+		for range 20 {
+			pub.Notify()
+		}
+		// The initial publish counts towards the rate limit, so this batch is
+		// held for minRepublish and then emitted exactly once.
+		if !cp.waitForPublish(t, 4*minRepublish) {
+			t.Fatal("a debounced publish must eventually happen")
+		}
+		for cp.waitForPublish(t, minRepublish/2) {
+		}
+		afterOne := cp.count()
+
+		// One roster subject per (bucket, consumer) pair, so compare in units of
+		// the initial publish's message count.
+		if afterOne != 2*initial {
+			t.Fatalf("expected exactly one extra roster round (%d messages), got %d total", 2*initial, afterOne)
+		}
+	})
+
+	t.Run("notify after shutdown is a no-op", func(t *testing.T) {
+		pub.Shutdown()
+		before := cp.count()
+		for range 5 {
+			pub.Notify()
+		}
+		time.Sleep(2 * minRepublish)
+		if got := cp.count(); got != before {
+			t.Fatalf("publisher kept running after Shutdown: %d -> %d", before, got)
+		}
+	})
+
+	t.Run("notify on a nil publisher does not panic", func(t *testing.T) {
+		var nilPub *FleetPublisher
+		nilPub.Notify()
+	})
 }

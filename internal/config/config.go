@@ -24,6 +24,10 @@ type ProgramConfig struct {
 
 	APISubjects *NATSConfig `json:"api-subjects"`
 
+	// Fleet service discovery and configuration deployment. A nil block
+	// disables the whole subsystem: no routes, no goroutines, no subscription.
+	Fleet *FleetConfig `json:"fleet"`
+
 	// Drop root permissions once the config was read and the port was taken.
 	User  string `json:"user"`
 	Group string `json:"group"`
@@ -138,6 +142,94 @@ type NATSConfig struct {
 	SubjectNodeState string `json:"subject-node-state"`
 	JobConcurrency   int    `json:"job-concurrency"`
 	NodeConcurrency  int    `json:"node-concurrency"`
+}
+
+// Defaults for the fleet service, applied when the corresponding key is empty
+// or unparseable.
+const (
+	DefaultFleetStaleAfter           = 90 * time.Second
+	DefaultFleetSweepInterval        = 30 * time.Second
+	DefaultFleetConfigReloadInterval = 60 * time.Second
+	DefaultFleetDiscoveryInterval    = 60 * time.Second
+	DefaultFleetHeartbeatConcurrency = 2
+)
+
+// FleetConfig configures the fleet discovery and configuration deployment
+// service for auxiliary cc-* services. Durations are time.ParseDuration strings
+// ("90s", "1m30s"), matching session-max-age.
+type FleetConfig struct {
+	// Root of the hierarchical configuration tree served to registered services.
+	ConfigDir string `json:"config-dir"`
+
+	// Time without a heartbeat before a service is marked 'stale'.
+	StaleAfter string `json:"stale-after"`
+
+	// How often the stale sweep runs.
+	SweepInterval string `json:"sweep-interval"`
+
+	// How often the configuration tree is re-scanned from disk.
+	ConfigReloadInterval string `json:"config-reload-interval"`
+
+	// NATS subject carrying fleet heartbeats. Empty disables the consumer.
+	HeartbeatSubject string `json:"heartbeat-subject"`
+
+	// Worker goroutines decoding heartbeat messages.
+	HeartbeatConcurrency int `json:"heartbeat-concurrency"`
+
+	// NATS subject prefix the discovery rosters are published under.
+	DiscoverySubjectPrefix string `json:"discovery-subject-prefix"`
+
+	// How often the full set of discovery rosters is re-published.
+	DiscoveryInterval string `json:"discovery-interval"`
+}
+
+// fleetDuration parses a duration key, falling back to def for an empty or
+// malformed value. A single implementation keeps the semantics of all fleet
+// duration accessors identical.
+func fleetDuration(raw string, def time.Duration, key string) time.Duration {
+	if raw == "" {
+		return def
+	}
+
+	d, err := time.ParseDuration(raw)
+	if err != nil {
+		cclog.Warnf("Config: fleet.%s: cannot parse '%s', using %s: %s", key, raw, def, err.Error())
+		return def
+	}
+
+	return d
+}
+
+// StaleAfterDuration returns stale-after, or DefaultFleetStaleAfter.
+func (c *FleetConfig) StaleAfterDuration() time.Duration {
+	return fleetDuration(c.StaleAfter, DefaultFleetStaleAfter, "stale-after")
+}
+
+// SweepIntervalDuration returns sweep-interval, or DefaultFleetSweepInterval.
+func (c *FleetConfig) SweepIntervalDuration() time.Duration {
+	return fleetDuration(c.SweepInterval, DefaultFleetSweepInterval, "sweep-interval")
+}
+
+// ConfigReloadIntervalDuration returns config-reload-interval, or
+// DefaultFleetConfigReloadInterval.
+func (c *FleetConfig) ConfigReloadIntervalDuration() time.Duration {
+	return fleetDuration(c.ConfigReloadInterval, DefaultFleetConfigReloadInterval, "config-reload-interval")
+}
+
+// DiscoveryIntervalDuration returns discovery-interval, or
+// DefaultFleetDiscoveryInterval.
+func (c *FleetConfig) DiscoveryIntervalDuration() time.Duration {
+	return fleetDuration(c.DiscoveryInterval, DefaultFleetDiscoveryInterval, "discovery-interval")
+}
+
+// HeartbeatWorkers returns heartbeat-concurrency, or
+// DefaultFleetHeartbeatConcurrency when it is not set to a positive value.
+func (c *FleetConfig) HeartbeatWorkers() int {
+	if c.HeartbeatConcurrency > 0 {
+		return c.HeartbeatConcurrency
+	}
+
+	return DefaultFleetHeartbeatConcurrency
 }
 
 type IntRange struct {

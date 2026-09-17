@@ -7,6 +7,7 @@ package repository
 
 import (
 	"database/sql"
+	"fmt"
 	"sync"
 
 	cclog "github.com/ClusterCockpit/cc-lib/v2/ccLogger"
@@ -118,6 +119,59 @@ func (r *FleetRepository) Heartbeat(instanceID string, timestamp int64) (int64, 
 		return 0, err
 	}
 	return res.RowsAffected()
+}
+
+// HeartbeatBatch applies many heartbeats in a single transaction. Per row the
+// semantics are identical to Heartbeat: never inserts, never touches a
+// 'deregistered' row. It returns the number of rows actually updated, so a
+// caller can derive how many heartbeats referenced unknown or deregistered
+// instance ids without a second query.
+//
+// The NATS consumer coalesces heartbeats into this call because every single
+// Heartbeat is one write transaction (one fsync) on a single-writer SQLite
+// database, and a large fleet would otherwise contend with job ingest.
+func (r *FleetRepository) HeartbeatBatch(beats map[string]int64) (int64, error) {
+	if len(beats) == 0 {
+		return 0, nil
+	}
+
+	tx, err := r.DB.Beginx()
+	if err != nil {
+		cclog.Errorf("HeartbeatBatch: begin transaction: %v", err)
+		return 0, fmt.Errorf("HeartbeatBatch: begin transaction: %w", err)
+	}
+	defer tx.Rollback()
+
+	stmt, err := tx.Prepare(`UPDATE service SET last_heartbeat = ?, state = 'active'
+		WHERE instance_id = ? AND state <> 'deregistered'`)
+	if err != nil {
+		cclog.Errorf("HeartbeatBatch: prepare update: %v", err)
+		return 0, fmt.Errorf("HeartbeatBatch: prepare update: %w", err)
+	}
+	defer stmt.Close()
+
+	var applied int64
+	for instanceID, timestamp := range beats {
+		res, err := stmt.Exec(timestamp, instanceID)
+		if err != nil {
+			cclog.Errorf("HeartbeatBatch: update instance '%s': %v", instanceID, err)
+			return 0, fmt.Errorf("HeartbeatBatch: update instance: %w", err)
+		}
+
+		n, err := res.RowsAffected()
+		if err != nil {
+			cclog.Errorf("HeartbeatBatch: rows affected for instance '%s': %v", instanceID, err)
+			return 0, fmt.Errorf("HeartbeatBatch: rows affected: %w", err)
+		}
+		applied += n
+	}
+
+	if err := tx.Commit(); err != nil {
+		cclog.Errorf("HeartbeatBatch: commit: %v", err)
+		return 0, fmt.Errorf("HeartbeatBatch: commit: %w", err)
+	}
+
+	return applied, nil
 }
 
 // MarkStale flips 'active' services with last_heartbeat older than cutoff to

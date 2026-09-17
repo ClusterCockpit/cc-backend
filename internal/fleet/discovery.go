@@ -26,6 +26,11 @@ const infraBucket = "infra"
 // "<prefix>.<cluster-or-infra>.<own-service-type>".
 const DefaultDiscoveryPrefix = "cc.fleet.discovery"
 
+// minRepublish bounds how fast registration churn can drive publishes: after a
+// Notify-triggered publish, further notifications are held for this long and
+// then emitted once.
+const minRepublish = 2 * time.Second
+
 // ProviderInfo is one entry in a discovery roster: enough for a consumer to
 // locate a peer, and nothing more.
 //
@@ -65,6 +70,11 @@ type FleetPublisher struct {
 	publish func(subject string, data []byte) error
 	prefix  string
 
+	// dirty carries a coalesced "roster changed" signal from Notify. It has
+	// capacity 1 so Notify never blocks and repeated calls collapse into one
+	// pending publish.
+	dirty chan struct{}
+
 	stop     chan struct{}
 	stopOnce sync.Once
 }
@@ -80,6 +90,7 @@ func NewFleetPublisher(publish func(subject string, data []byte) error, prefix s
 		repo:    repository.GetFleetRepository(),
 		publish: publish,
 		prefix:  prefix,
+		dirty:   make(chan struct{}, 1),
 		stop:    make(chan struct{}),
 	}
 }
@@ -124,6 +135,27 @@ func (p *FleetPublisher) Start(ctx context.Context, interval time.Duration) {
 	go func() {
 		ticker := time.NewTicker(interval)
 		defer ticker.Stop()
+
+		// debounce fires minRepublish after a Notify that arrived while the
+		// rate limit was in effect. It is stopped whenever no publish is due.
+		debounce := time.NewTimer(minRepublish)
+		if !debounce.Stop() {
+			<-debounce.C
+		}
+		defer debounce.Stop()
+
+		// The initial publish above counts towards the rate limit.
+		last := time.Now()
+		pending := false
+
+		publish := func(reason string) {
+			last = time.Now()
+			pending = false
+			if err := p.PublishRosters(); err != nil {
+				cclog.Errorf("fleet: %s discovery publish failed: %v", reason, err)
+			}
+		}
+
 		for {
 			select {
 			case <-ctx.Done():
@@ -131,12 +163,37 @@ func (p *FleetPublisher) Start(ctx context.Context, interval time.Duration) {
 			case <-p.stop:
 				return
 			case <-ticker.C:
-				if err := p.PublishRosters(); err != nil {
-					cclog.Errorf("fleet: periodic discovery publish failed: %v", err)
+				publish("periodic")
+			case <-p.dirty:
+				if wait := minRepublish - time.Since(last); wait > 0 {
+					if !pending {
+						pending = true
+						debounce.Reset(wait)
+					}
+					continue
+				}
+				publish("on-change")
+			case <-debounce.C:
+				if pending {
+					publish("on-change")
 				}
 			}
 		}
 	}()
+}
+
+// Notify asks the publisher to emit rosters soon rather than waiting for the
+// next tick, so a service that just registered becomes discoverable in
+// milliseconds. Calls are coalesced and rate-limited to one publish per
+// minRepublish. Never blocks; safe on a nil receiver and after Shutdown.
+func (p *FleetPublisher) Notify() {
+	if p == nil {
+		return
+	}
+	select {
+	case p.dirty <- struct{}{}:
+	default: // a publish is already pending — it will cover this change too
+	}
 }
 
 // Shutdown stops the periodic publisher. Safe to call multiple times.

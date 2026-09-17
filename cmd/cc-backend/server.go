@@ -30,6 +30,7 @@ import (
 	"github.com/ClusterCockpit/cc-backend/internal/archiver"
 	"github.com/ClusterCockpit/cc-backend/internal/auth"
 	"github.com/ClusterCockpit/cc-backend/internal/config"
+	"github.com/ClusterCockpit/cc-backend/internal/fleet"
 	"github.com/ClusterCockpit/cc-backend/internal/graph"
 	"github.com/ClusterCockpit/cc-backend/internal/graph/generated"
 	"github.com/ClusterCockpit/cc-backend/internal/routerConfig"
@@ -63,6 +64,7 @@ type Server struct {
 	server        *http.Server
 	restAPIHandle *api.RestAPI
 	natsAPIHandle *api.NatsAPI
+	fleetNatsAPI  *api.FleetNatsAPI
 }
 
 func onFailureResponse(rw http.ResponseWriter, r *http.Request, err error) {
@@ -349,6 +351,13 @@ func (s *Server) init() error {
 		}
 	}
 
+	if fleet.Enabled() && config.Keys.Fleet.HeartbeatSubject != "" {
+		s.fleetNatsAPI = api.NewFleetNatsAPI()
+		if err := s.fleetNatsAPI.StartSubscriptions(); err != nil {
+			return fmt.Errorf("starting NATS fleet subscription: %w", err)
+		}
+	}
+
 	// 404 handler for pages and API routes
 	notFoundHandler := func(rw http.ResponseWriter, r *http.Request) {
 		if strings.HasPrefix(r.URL.Path, "/api/") || strings.HasPrefix(r.URL.Path, "/userapi/") ||
@@ -473,6 +482,11 @@ func (s *Server) Start(ctx context.Context) error {
 func (s *Server) Shutdown(ctx context.Context) {
 	shutdownStart := time.Now()
 
+	// Stop the fleet sweep, config reloader and discovery publisher while the
+	// NATS connection is still up, so the publisher cannot tick against a
+	// closed client. Handlers keep serving until the HTTP server drains below.
+	fleet.Shutdown()
+
 	natsStart := time.Now()
 	nc := nats.GetClient()
 	if nc != nil {
@@ -483,6 +497,7 @@ func (s *Server) Shutdown(ctx context.Context) {
 	if s.natsAPIHandle != nil {
 		s.natsAPIHandle.Shutdown()
 	}
+	s.fleetNatsAPI.Shutdown()
 	cclog.Infof("Shutdown: NATS closed (%v)", time.Since(natsStart))
 
 	httpStart := time.Now()
