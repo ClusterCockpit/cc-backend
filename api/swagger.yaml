@@ -31,25 +31,6 @@ definitions:
         example: Debug
         type: string
     type: object
-  api.UpdateUserAPIRequest:
-    properties:
-      add-project:
-        description: Project to add to user $ID managed array
-        example: abcd100
-        type: string
-      add-role:
-        description: Role to add to user $ID
-        example: user
-        type: string
-      remove-project:
-        description: Project to remove from user $ID managed array
-        example: abcd100
-        type: string
-      remove-role:
-        description: Role to remove from user $ID
-        example: user
-        type: string
-    type: object
   api.DefaultAPIResponse:
     properties:
       msg:
@@ -88,6 +69,55 @@ definitions:
         type: string
       status:
         description: Statustext of Errorcode
+        type: string
+    type: object
+  api.FleetInfraRegisterRequest:
+    properties:
+      hostname:
+        description: Host the service runs on
+        example: mgmt01
+        type: string
+      metaData:
+        additionalProperties:
+          type: string
+        description: Free-form registration metadata
+        type: object
+      serviceType:
+        description: Service type short code
+        example: ccb
+        type: string
+    type: object
+  api.FleetRegisterRequest:
+    properties:
+      cluster:
+        description: Cluster the service runs on
+        example: fritz
+        type: string
+      hostname:
+        description: Host the service runs on
+        example: f0101
+        type: string
+      metaData:
+        additionalProperties:
+          type: string
+        description: Free-form registration metadata
+        type: object
+      serviceType:
+        description: Service type short code
+        example: ccms
+        type: string
+    type: object
+  api.FleetRegisterResponse:
+    properties:
+      configRevision:
+        description: Config revision currently on record; 0 means no config was pulled
+          yet
+        example: 0
+        type: integer
+      instanceId:
+        description: Credential to present on every subsequent heartbeat and config
+          pull
+        example: 3f1c9a2b7d4e6f8a0b1c2d3e4f5a6b7c
         type: string
     type: object
   api.GetClustersAPIResponse:
@@ -192,6 +222,25 @@ definitions:
         items:
           $ref: '#/definitions/schema.NodePayload'
         type: array
+    type: object
+  api.UpdateUserAPIRequest:
+    properties:
+      add-project:
+        description: Project to add to user $ID managed array
+        example: abcd100
+        type: string
+      add-role:
+        description: Role to add to user $ID
+        example: user
+        type: string
+      remove-project:
+        description: Project to remove from user $ID managed array
+        example: abcd100
+        type: string
+      remove-role:
+        description: Role to remove from user $ID
+        example: user
+        type: string
     type: object
   schema.Accelerator:
     properties:
@@ -319,9 +368,7 @@ definitions:
         example: 1649723812
         type: integer
       statistics:
-        additionalProperties:
-          $ref: '#/definitions/schema.JobStatistics'
-        type: object
+        $ref: '#/definitions/schema.JobStatisticsSet'
       subCluster:
         example: main
         type: string
@@ -428,6 +475,17 @@ definitions:
       unit:
         $ref: '#/definitions/schema.Unit'
     type: object
+  schema.JobStatisticsSet:
+    properties:
+      groups:
+        items:
+          $ref: '#/definitions/schema.StatsGroup'
+        type: array
+      metrics:
+        additionalProperties:
+          $ref: '#/definitions/schema.JobStatistics'
+        type: object
+    type: object
   schema.MetricConfig:
     properties:
       aggregation:
@@ -472,6 +530,9 @@ definitions:
       timestep:
         description: Measurement interval in seconds
         type: integer
+      tooltip:
+        description: Tooltip text shown in frontend if defined
+        type: string
       unit:
         allOf:
         - $ref: '#/definitions/schema.Unit'
@@ -577,6 +638,22 @@ definitions:
         allOf:
         - $ref: '#/definitions/schema.MetricStatistics'
         description: Statistical summary (min/avg/max)
+    type: object
+  schema.StatsGroup:
+    properties:
+      instances:
+        items:
+          $ref: '#/definitions/schema.StatsGroupInstance'
+        type: array
+      key:
+        type: string
+    type: object
+  schema.StatsGroupInstance:
+    properties:
+      name:
+        type: string
+      type:
+        type: string
     type: object
   schema.StatsSeries:
     properties:
@@ -813,6 +890,225 @@ paths:
       summary: Lists all cluster configs
       tags:
       - Cluster query
+  /api/fleet/config/{instanceID}:
+    get:
+      description: |-
+        Returns the configuration layers that apply to this instance, merged from
+        broad to specific. The revision is a content hash served as an ETag, so a
+        client that sends If-None-Match gets 204 (no configuration authored) or 304
+        (unchanged) instead of the payload. 204 is not an error condition.
+      parameters:
+      - description: Instance ID issued at registration
+        in: path
+        name: instanceID
+        required: true
+        type: string
+      - description: Config revision the client already has
+        in: header
+        name: If-None-Match
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Merged configuration
+          schema:
+            additionalProperties: true
+            type: object
+        "204":
+          description: No configuration applies to this service
+        "304":
+          description: Configuration unchanged
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+        "404":
+          description: Unknown or deregistered instance
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+      security:
+      - ApiKeyAuth: []
+      summary: Pull the merged configuration of a fleet service
+      tags:
+      - Fleet
+  /api/fleet/deregister/{instanceID}:
+    delete:
+      description: |-
+        Marks the instance deregistered and drops it from the discovery rosters.
+        Idempotent; the identity can only be restored by registering again.
+      parameters:
+      - description: Instance ID issued at registration
+        in: path
+        name: instanceID
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "204":
+          description: Service deregistered
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+      security:
+      - ApiKeyAuth: []
+      summary: Deregister a fleet service
+      tags:
+      - Fleet
+  /api/fleet/heartbeat/{instanceID}:
+    post:
+      description: |-
+        Marks the instance active. Unknown or deregistered instance ids are never
+        recreated — the service has to register again to obtain a new instance id.
+        Deployments running NATS should use the heartbeat subject instead.
+      parameters:
+      - description: Instance ID issued at registration
+        in: path
+        name: instanceID
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "204":
+          description: Heartbeat recorded
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+        "404":
+          description: Unknown or deregistered instance
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+      security:
+      - ApiKeyAuth: []
+      summary: Refresh liveness of a registered fleet service
+      tags:
+      - Fleet
+  /api/fleet/register/cluster/:
+    post:
+      consumes:
+      - application/json
+      description: |-
+        Registers an auxiliary cc-* service that belongs to one cluster and
+        returns the instance id it must present on every heartbeat and config pull.
+        Re-registering the same cluster/hostname/serviceType issues a new instance id
+        and invalidates the previous one.
+      parameters:
+      - description: Registration
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/api.FleetRegisterRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Issued registration
+          schema:
+            $ref: '#/definitions/api.FleetRegisterResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+      security:
+      - ApiKeyAuth: []
+      summary: Register a cluster-scope fleet service
+      tags:
+      - Fleet
+  /api/fleet/register/infra/:
+    post:
+      consumes:
+      - application/json
+      description: |-
+        Registers an auxiliary cc-* service that is not tied to a single cluster
+        (monitoring infrastructure) and returns its instance id.
+      parameters:
+      - description: Registration
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/api.FleetInfraRegisterRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Issued registration
+          schema:
+            $ref: '#/definitions/api.FleetRegisterResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+      security:
+      - ApiKeyAuth: []
+      summary: Register a cluster-independent fleet service
+      tags:
+      - Fleet
   /api/jobs/:
     get:
       description: |-
@@ -1468,13 +1764,9 @@ paths:
       - application/json
       responses:
         "200":
-          description: OK
+          description: Success message
           schema:
-            $ref: '#/definitions/api.DefaultAPIResponse'
-        "400":
-          description: Bad Request
-          schema:
-            $ref: '#/definitions/api.ErrorResponse'
+            type: string
         "403":
           description: Forbidden
           schema:
