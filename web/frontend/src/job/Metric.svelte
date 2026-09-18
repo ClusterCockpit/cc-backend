@@ -20,10 +20,16 @@
     getContextClient 
   } from "@urql/svelte";
   import {
+    Button,
+    Icon,
     InputGroup,
     InputGroupText,
     Spinner,
     Card,
+    Modal,
+    ModalBody,
+    ModalHeader,
+    ModalFooter
   } from "@sveltestrap/sveltestrap";
   import { 
     minScope,
@@ -83,6 +89,9 @@
   let selectedHost = $state(null);
   let zoomState = $state(null);
   let thresholdState = $state(null);
+  let modalOpen = $state(false);
+  let modalZoom = $state(null);
+  let modalThreshold = $state(null);
 
   /* Derived */
   let requestedScopes = $derived(presetScopes);
@@ -127,13 +136,15 @@
   });
 
   /* Functions */
-  function handleZoom(detail) {
+  function handleZoom(detail, isModal = false) {
     // Buffer last zoom state to allow seamless zoom on rerender
     // console.log('Update zoomState with:', {...detail.lastZoomState})
-    zoomState = detail?.lastZoomState ? {...detail.lastZoomState} : null;
+    if (isModal) modalZoom = detail?.lastZoomState ? {...detail.lastZoomState} : null;
+    else zoomState = detail?.lastZoomState ? {...detail.lastZoomState} : null;
     // Handle to correctly reset on summed metric scope change
     // console.log('Update thresholdState with:', detail.lastThreshold)
-    thresholdState = detail?.lastThreshold ? detail.lastThreshold : null;
+    if (isModal) modalThreshold = detail?.lastThreshold ? detail.lastThreshold : null;
+    else thresholdState = detail?.lastThreshold ? detail.lastThreshold : null;
     // Triggers GQL
     if (detail?.newRes) { 
       // console.log('Update selectedResolution with:', detail.newRes)
@@ -143,6 +154,13 @@
 </script>
 
 <InputGroup class="mt-2">
+  <Button
+    color="secondary"
+    title="Enlarge Plot"
+    onclick={() => (modalOpen = !modalOpen)}
+  >
+     <Icon size="sm" name="box-arrow-up-right" />
+  </Button>
   <InputGroupText style="min-width: 150px;">
     {metricName} ({unit})
   </InputGroupText>
@@ -202,3 +220,76 @@
     />
   {/if}
 {/key}
+<Modal isOpen={modalOpen} toggle={() => (modalOpen = !modalOpen)} size="xl">
+  <ModalHeader>
+    <div class="d-flex align-items-center">
+      <span>
+        {metricName} ({unit})
+      </span>
+      <span>
+        <InputGroup class="ms-4">
+          <select class="form-select" bind:value={selectedScope}>
+            {#each availableScopes as scope, index}
+              <option value={scope}>{scope}</option>
+              {#if statsSeries[index]}
+                <option value={scope + '-stat'}>stats series ({scope})</option>
+              {/if}
+            {/each}
+            {#if requestedScopes.length == 1 && nativeScope != "node"}
+              <option value={"load-all"}>Load all...</option>
+            {/if}
+          </select>
+          {#if job.resources.length > 1}
+            <select class="form-select" bind:value={selectedHost} disabled={patternMatches}>
+              <option value={null}>All Hosts</option>
+              {#each job.resources as { hostname }}
+                <option value={hostname}>{hostname}</option>
+              {/each}
+            </select>
+          {/if}
+        </InputGroup>
+      </span>
+    </div>
+  </ModalHeader>
+  <ModalBody>
+    {#key selectedSeries}
+      {#if $metricData.fetching}
+        <Spinner />
+      {:else if selectedSeries != null && !patternMatches}
+        <MetricPlot
+          height="600"
+          onZoom={(modalDetail) => handleZoom(modalDetail, true)}
+          cluster={job.cluster}
+          subCluster={job.subCluster}
+          timestep={selectedData.timestep}
+          scope={selectedScope}
+          metric={metricName}
+          series={selectedSeries}
+          {isShared}
+          zoomState={modalZoom}
+          thresholdState={modalThreshold}
+          enableFlip
+        />
+      {:else if statsSeries[selectedScopeIndex] != null && patternMatches}
+        <MetricPlot
+          height="600"
+          onZoom={(modalDetail) => handleZoom(modalDetail, true)}
+          cluster={job.cluster}
+          subCluster={job.subCluster}
+          timestep={selectedData.timestep}
+          scope={selectedScope}
+          metric={metricName}
+          series={selectedSeries}
+          {isShared}
+          zoomState={modalZoom}
+          thresholdState={modalThreshold}
+          statisticsSeries={statsSeries[selectedScopeIndex]}
+          enableFlip
+        />
+      {/if}
+    {/key}
+  </ModalBody>
+  <ModalFooter>
+    <Button onclick={() => (modalOpen = false)}>Close</Button>
+  </ModalFooter>
+</Modal>
