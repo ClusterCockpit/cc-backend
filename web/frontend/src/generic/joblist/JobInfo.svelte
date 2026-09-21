@@ -28,6 +28,7 @@
     authlevel = null,
     roles = null,
     isSelected = $bindable(false),
+    rowModalOpen = $bindable()
   } = $props();
 
   /* State Init */
@@ -122,6 +123,16 @@
           placement="right">
             { displayCheck ? 'Copied!' : 'Copy Job ID to Clipboard' }
         </Tooltip>
+        {#if showJobSelect}
+          <Button
+            color="secondary"
+            title="Enlarge Plots"
+            size="sm"
+            onclick={() => (rowModalOpen = !rowModalOpen)}
+          >
+            <Icon name="box-arrow-up-right" />
+          </Button>
+        {/if}
       </span>
     </span>
     {#if job.metaData?.jobName}

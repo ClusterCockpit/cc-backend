@@ -17,7 +17,17 @@
 
 <script>
   import { queryStore, gql, getContextClient } from "@urql/svelte";
-  import { Card, Spinner } from "@sveltestrap/sveltestrap";
+  import { 
+    Card,
+    Spinner,
+    Modal,
+    ModalBody,
+    ModalHeader,
+    ModalFooter,
+    TabContent,
+    TabPane,
+    Button
+  } from "@sveltestrap/sveltestrap";
   import { maxScope, checkMetricAvailability } from "../utils.js";
   import uPlot from "uplot";
   import JobInfo from "./JobInfo.svelte";
@@ -80,6 +90,10 @@
   /* State Init */
   let zoomStates = $state({});
   let thresholdStates = $state({});
+  let rowModalOpen = $state(false);
+  let rowModalLast = $state(null)
+  let modalZoomStates = $state({});
+  let modalThresholdStates = $state({});
 
   /* Derived */
   const jobId = $derived(job.id);
@@ -121,18 +135,35 @@
   });
 
   /* Functions */
-  function handleZoom(detail, metric) {
+  function handleZoom(detail, metric, isModal = false) {
     // Buffer last zoom state to allow seamless zoom on rerender
     // console.log('Update zoomState for/with:', metric, {...detail.lastZoomState})
-    zoomStates[metric] = detail?.lastZoomState ? {...detail.lastZoomState} : null;
+    if (isModal) modalZoomStates[metric] = detail?.lastZoomState ? {...detail.lastZoomState} : null;
+    else zoomStates[metric] = detail?.lastZoomState ? {...detail.lastZoomState} : null;
     // Handle to correctly reset on summed metric scope change
     // console.log('Update thresholdState for/with:', metric, detail.lastThreshold)
-    thresholdStates[metric] = detail?.lastThreshold ? detail.lastThreshold : null;
+    if (isModal) modalThresholdStates[metric] = detail?.lastThreshold ? detail.lastThreshold : null;
+    else thresholdStates[metric] = detail?.lastThreshold ? detail.lastThreshold : null;
     // Triggers GQL
     if (detail?.newRes) { 
       // console.log('Update selectedResolution for/with:', metric, detail.newRes)
       selectedResolution = detail.newRes;
     }
+  }
+
+  // Sveltestrap renders every TabPane header as <a href="#"> and does not forward
+  // restProps to it, so draggable={false} cannot reach that anchor. NavLink only
+  // preventDefaults on click, so a native link drag escapes it and leaves the portalled
+  // modal unresponsive. Cancelling dragstart aborts the drag in every engine, unlike the
+  // CSS-only -webkit-user-drag. Match the anchor itself, never the .nav-tabs/.nav-pills
+  // wrapper: TabContent swaps that class and the guard would silently go dead.
+  function cancelTabHeaderDrag(event) {
+    if (event.target.closest?.(".nav-link")) event.preventDefault();
+  }
+
+  function closeRowModal() {
+    rowModalOpen = false;
+    rowModalLast = null;
   }
 
   function refreshMetrics() {
@@ -155,7 +186,8 @@
           job.cluster,
           job.subCluster,
         ),
-        data: null
+        data: null,
+        unit: getUnit(metricName)
       };
       const scopesData = jobMetrics.filter((jobMetric) => jobMetric.name == metricName)
       if (scopesData.length > 0) pendingMetric.data = selectScope(scopesData)
@@ -176,11 +208,17 @@
             : a,
       jobMetrics[0],
     );
+
+  const getUnit = (metricName) => {
+    const rawUnit = globalMetrics.find((gm) => gm.name === metricName)?.unit
+    return (rawUnit?.prefix ? rawUnit.prefix : "") + (rawUnit?.base ? rawUnit.base : "")
+  };
+
 </script>
 
 <tr>
   <td>
-    <JobInfo {job} bind:isSelected showJobSelect/>
+    <JobInfo {job} bind:isSelected bind:rowModalOpen showJobSelect/>
   </td>
   {#if job.monitoringStatus == 0 || job.monitoringStatus == 2}
     <td colspan={metrics.length}>
@@ -253,3 +291,53 @@
     {/each}
   {/if}
 </tr>
+
+<Modal isOpen={rowModalOpen} toggle={closeRowModal} size="xl">
+  <ModalHeader>
+    Job <a href="/monitoring/job/{job.id}" target="_blank">{job.jobId}</a> ({job.cluster}, {job.subCluster}): {job?.metaData?.jobName}
+  </ModalHeader>
+  <ModalBody>
+    <TabContent pills ondragstart={cancelTabHeaderDrag} on:tab={(e) => (rowModalLast = e.detail)}>
+      {#each refinedData as metric, i (metric?.name || i)}
+        <TabPane tabId="{job.jobId}-{i}" tab="{metric?.name || i} ({metric.unit})" active={rowModalLast ? (rowModalLast == `${job.jobId}-${i}`) : (i == 0)}>
+          {#if metric?.availability == "none"}
+            <Card body class="mx-2" color="light">
+              <p>No dataset(s) returned for <b>{metrics[i]}</b></p>
+              <p class="mb-1">Metric is not configured for cluster <b>{job.cluster}</b>.</p>
+            </Card>
+          {:else if metric?.availability == "disabled"}
+            <Card body class="mx-2" color="info">
+              <p>No dataset(s) returned for <b>{metrics[i]}</b></p>
+              <p class="mb-1">Metric has been disabled for subcluster <b>{job.subCluster}</b>.</p>
+            </Card>
+          {:else if metric?.data}
+            <MetricPlot
+              height="600"
+              onZoom={(modalDetail) => handleZoom(modalDetail, metric.data.name, true)}
+              timestep={metric.data.metric.timestep}
+              scope={metric.data.scope}
+              series={metric.data.metric.series}
+              statisticsSeries={metric.data.metric?.statisticsSeries}
+              metric={metric.data.name}
+              cluster={clusterInfos.find((c) => c.name == job.cluster)}
+              subCluster={job.subCluster}
+              isShared={job.shared != "none"}
+              zoomState={modalZoomStates[metric.data.name] || null}
+              thresholdState={modalThresholdStates[metric.data.name] || null}
+            />
+          {:else}
+            <Card body class="mx-2" color="warning">
+              <p>No dataset(s) returned for <b>{metrics[i]}</b></p>
+              <p class="mb-1">Metric or host was not found in metric store for cluster <b>{job.cluster}</b>:</p>
+              <p class="mb-1">Identical messages in <i>{metrics[i]} column</i>: Metric not found.</p>
+              <p class="mb-1">Identical messages in <i>job {job.jobId} row</i>: Host not found.</p>
+            </Card>
+          {/if}
+        </TabPane>
+      {/each}
+    </TabContent>
+  </ModalBody>
+  <ModalFooter>
+    <Button onclick={closeRowModal}>Close</Button>
+  </ModalFooter>
+</Modal>
