@@ -13,7 +13,6 @@
   - `unselectJob Func`: The callback function to unselect a job from comparison
   - `globalMetrics [Obj]`: Includes the backend supplied availabilities for cluster and subCluster
   - `clusterInfos [Obj]`: Includes the backend supplied cluster topology
-  - `resampleConfig [Obj]`: Includes the backend supplied resampling info
 -->
 
 <script>
@@ -37,8 +36,7 @@
     selectJob,
     unselectJob,
     globalMetrics,
-    clusterInfos,
-    resampleConfig
+    clusterInfos
   } = $props();
 
   /* Const Init */

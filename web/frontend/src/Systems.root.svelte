@@ -70,7 +70,6 @@
   /* Derived States */
   const ccconfig = $derived(thisInit ? getContext("cc-config") : null);
   const globalMetrics = $derived(thisInit ? getContext("globalMetrics") : null);
-  const resampleConfig = $derived(thisInit ? getContext("resampling") : null);
   const displayNodeOverview = $derived((displayType === 'OVERVIEW'));
 
   const systemMetrics = $derived(globalMetrics ? [...globalMetrics.filter((gm) => gm?.availability.find((av) => av.cluster == cluster))] : []);

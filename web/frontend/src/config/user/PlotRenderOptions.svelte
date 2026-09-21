@@ -16,7 +16,6 @@
     Card,
     CardTitle,
   } from "@sveltestrap/sveltestrap";
-  import { getContext } from "svelte";
   import { fade } from "svelte/transition";
 
   /* Svelte 5 Props */
@@ -27,7 +26,6 @@
     updateSetting
   } = $props();
 
-  const resampleConfig = getContext("resampling");
 </script>
 
 <Row cols={3} class="p-2 g-2">

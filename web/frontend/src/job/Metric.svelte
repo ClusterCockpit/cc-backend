@@ -12,9 +12,6 @@
 
 <script>
   import { 
-    getContext,
-  } from "svelte";
-  import { 
     queryStore,
     gql,
     getContextClient 
@@ -49,7 +46,6 @@
   /* Const Init */
   const client = getContextClient();
   const statsPattern = /(.*)-stat$/;
-  const resampleConfig = getContext("resampling") || null;
   const subQuery = gql`
     query ($dbid: ID!, $selectedMetrics: [String!]!, $selectedScopes: [MetricScope!]!, $selectedResolution: Int) {
       singleUpdate: jobMetrics(id: $dbid, metrics: $selectedMetrics, scopes: $selectedScopes, resolution: $selectedResolution) {
