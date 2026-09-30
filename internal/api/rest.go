@@ -22,6 +22,7 @@ import (
 
 	"github.com/ClusterCockpit/cc-backend/internal/auth"
 	"github.com/ClusterCockpit/cc-backend/internal/config"
+	"github.com/ClusterCockpit/cc-backend/internal/fleet"
 	"github.com/ClusterCockpit/cc-backend/internal/logviewer"
 	"github.com/ClusterCockpit/cc-backend/internal/repository"
 	"github.com/ClusterCockpit/cc-backend/internal/tagger"
@@ -61,6 +62,9 @@ type RestAPI struct {
 	// LogsEnabled reports whether a log source was resolved at startup. It is
 	// false when the log view is disabled by configuration.
 	LogsEnabled bool
+	// FleetEnabled reports whether the fleet subsystem was initialized at
+	// startup. It is false when the `fleet` config block is absent.
+	FleetEnabled bool
 	// RepositoryMutex protects job creation operations from race conditions
 	// when checking for duplicate jobs during startJob API calls.
 	// It prevents concurrent job starts with the same jobId/cluster/startTime
@@ -75,6 +79,7 @@ func New() *RestAPI {
 		MachineStateDir: config.Keys.MachineStateDir,
 		Authentication:  auth.GetAuthInstance(),
 		LogsEnabled:     logviewer.Enabled(),
+		FleetEnabled:    fleet.Enabled(),
 	}
 }
 
@@ -119,6 +124,11 @@ func (api *RestAPI) MountAPIRoutes(r chi.Router) {
 		r.Get("/machine_state/{cluster}/{host}", api.getMachineState)
 		r.Put("/machine_state/{cluster}/{host}", api.putMachineState)
 		r.Post("/machine_state/{cluster}/{host}", api.putMachineState)
+	}
+
+	if api.FleetEnabled {
+		cclog.Info("Enabling REST fleet service API")
+		api.mountFleetRoutes(r)
 	}
 }
 

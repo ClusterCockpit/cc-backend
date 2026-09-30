@@ -108,6 +108,14 @@ The backend follows a layered architecture with clear separation of concerns:
   - Subscribes to NATS subjects for job events (start/stop)
   - Handles node state updates via NATS
   - Uses InfluxDB line protocol message format
+- **internal/fleet**: Fleet service discovery and configuration deployment
+  - Registry for cluster-scope services, `InfraRegistry` for cluster-independent ones
+  - `ConfigStore`: hierarchical JSON config tree, deep-merged broad to specific
+  - `FleetPublisher`: per-consumer discovery rosters pushed over NATS
+  - `fleet.Init` owns the sweep, config reloader and publisher goroutines
+  - Disabled unless the `main.fleet` config block is present
+- **internal/api/fleet.go**: REST endpoints for fleet members (register, heartbeat, config pull, deregister)
+- **internal/api/nats_fleet.go**: NATS heartbeat consumer, coalescing writes into batched transactions
 - **pkg/archive**: Job archive backend implementations
   - File system backend (default)
   - S3 backend
@@ -169,6 +177,18 @@ applied automatically on startup. Version tracking in `version` table.
     - `subject-node-state`: Subject for node state updates (e.g., "cc.node.state")
     - `job-concurrency`: Worker goroutines for job events (default: 8)
     - `node-concurrency`: Worker goroutines for node state events (default: 2)
+  - `main.fleet`: Fleet discovery and configuration service (optional; absent
+    disables registry, config deployment, discovery publishing and the heartbeat
+    subscription together)
+    - `config-dir` (required): Root of the configuration tree served to services
+    - `stale-after`: Heartbeat age at which a service becomes `stale` (default "90s")
+    - `sweep-interval`: How often the stale sweep runs (default "30s")
+    - `config-reload-interval`: How often the config tree is re-scanned (default "1m")
+    - `heartbeat-subject`: NATS subject carrying heartbeats (e.g. "cc.fleet.event");
+      empty disables the consumer
+    - `heartbeat-concurrency`: Worker goroutines decoding heartbeats (default: 2)
+    - `discovery-subject-prefix`: Roster subject prefix (default "cc.fleet.discovery")
+    - `discovery-interval`: How often all rosters are re-published (default "1m")
   - `nats`: NATS client connection configuration (optional)
     - `address`: NATS server address (e.g., "nats://localhost:4222")
     - `username`: Authentication username (optional; or `CC_NATS_USERNAME`)
@@ -343,6 +363,40 @@ job,function=stop_job event="{\"jobId\":123,\"cluster\":\"test\",\"startTime\":1
 }
 ```
 
+#### Fleet Heartbeats
+
+```
+fleet,function=heartbeat event="{\"instanceId\":\"3f1c9a2b7d4e6f8a0b1c2d3e4f5a6b7c\"}" 1734000000000000000
+```
+
+- Subject: `main.fleet.heartbeat-subject`; measurement `fleet`
+- `heartbeat` is the **only** accepted `function`. `register`, `deregister` and
+  config operations are rejected with a warning — they require authenticated REST.
+- The message timestamp is ignored in favour of the server clock, so a skewed or
+  hostile publisher cannot park `last_heartbeat` in the future and evade the sweep.
+- Unknown or deregistered instance ids are a no-op, counted and summarised once
+  per minute rather than logged per message.
+- Multiple heartbeat lines may share one message — that is the supported way for
+  an edge aggregator to batch.
+- Writes are coalesced: decoder workers feed a single flusher that applies at
+  most one transaction per second (or every 512 distinct instances).
+- Subscribed with the queue group `cc-backend-fleet`, so several cc-backend
+  instances share the stream instead of each writing the same row.
+
+#### Fleet Discovery Rosters
+
+Published by cc-backend, not consumed:
+
+```
+fleetdiscovery,cluster=fritz,type=ccmc event="[{\"type\":\"ccb\",\"hostname\":\"mgmt01\",\"state\":\"active\"}]" <ts>
+```
+
+- Subject: `<discovery-subject-prefix>.<cluster-or-"infra">.<consumer-service-type>`
+- A consumer subscribes to exactly one subject and gets a ready-to-use provider list
+- Re-published every `discovery-interval`, and immediately (debounced by 2s) when
+  a service registers or deregisters
+- Rosters carry **no** `instance_id`, no configuration and no `config_revision`
+
 ### Implementation Notes
 
 - NATS API mirrors REST API functionality but uses messaging
@@ -363,13 +417,81 @@ those subjects on the broker can:
 - Insert arbitrary jobs (potentially attributed to other users)
 - Mark running jobs as stopped, triggering archive/finalization
 - Overwrite node state and health metadata for any cluster
+- Keep a dead or spoofed service listed as `active` in the discovery rosters,
+  if they have learned its `instance_id` (heartbeat subject)
 
 Operators MUST restrict publish ACLs at the NATS broker (per-account or
 per-subject permissions) so that only trusted producers — e.g. the scheduler
 integration on a known host or service account — can publish to the configured
-`subject-job-event` and `subject-node-state` subjects. A shared, unrestricted
-NATS broker is not a safe deployment topology for this API. A startup warning
-is logged when these subscriptions are enabled.
+`subject-job-event`, `subject-node-state` and `main.fleet.heartbeat-subject`
+subjects. A shared, unrestricted NATS broker is not a safe deployment topology
+for this API. A startup warning is logged when these subscriptions are enabled.
+
+For the fleet subject the blast radius is deliberately bounded: heartbeat is the
+**only** function reachable over NATS. Registration, deregistration and
+configuration require an authenticated REST call, so no NATS publisher can
+create, resurrect or terminate a service identity. An `instance_id` is a bearer
+credential — do not log or share it. Discovery rosters are broadcast
+unauthenticated and contain hostnames, service types and registration metadata,
+so never put secrets in a service's `meta_data`.
+
+## Fleet Service Discovery & Configuration
+
+Auxiliary cc-* services (`ccms`, `ccmc`, `ccb`, `cces`, `ccsa`, `ccnc`, `ccem`)
+register with cc-backend, are discovered by each other over NATS, and pull their
+configuration over REST. Enabled by the `main.fleet` config block.
+
+### REST endpoints
+
+All are machine-to-machine and mounted under `/api` (JWT with `RoleAPI`, plus the
+`api-allowed-ips` allowlist when configured — every fleet member's IP has to be
+listed there). Read views for the web UI are served by GraphQL, not from here.
+
+| Endpoint | Success | Notes |
+|---|---|---|
+| `POST /api/fleet/register/cluster/` | 201 `{instanceId, configRevision}` | Body: `cluster`, `hostname`, `serviceType`, optional `metaData` |
+| `POST /api/fleet/register/infra/` | 201 `{instanceId, configRevision}` | Same without `cluster` |
+| `POST /api/fleet/heartbeat/{instanceID}` | 204 | For deployments without NATS; 404 for an unknown or deregistered id |
+| `GET /api/fleet/config/{instanceID}` | 200 / 204 / 304 | Merged configuration |
+| `DELETE /api/fleet/deregister/{instanceID}` | 204 | Idempotent, terminal |
+
+Config pull contract:
+
+- The body is the merged configuration object itself; the revision (a content
+  hash) travels in `ETag` and `X-CC-Config-Revision`.
+- A client that sends `If-None-Match` gets `304` when nothing changed, so the
+  steady state is a header-only round trip.
+- `204` means no configuration has been authored for this service — a normal
+  state, not an error.
+- The revision is acknowledged only when it differs from the stored one, so
+  polling does not generate a write per member per interval.
+
+### Configuration tree
+
+Hand-edited JSON, deep-merged broad to specific, under `main.fleet.config-dir`:
+
+```
+defaults.json                        # all services
+<type>/defaults.json                 # all instances of one service type
+<type>/<cluster>/defaults.json       # cluster scope only
+<type>/<cluster>/<hostname>.json     # cluster scope only
+<type>/<hostname>.json               # infra scope
+```
+
+Objects merge recursively; scalars and arrays overwrite. The tree is re-scanned
+every `config-reload-interval` and swapped in atomically, so pulls never read
+from disk and a torn or malformed tree keeps the last good generation.
+
+### Registration lifecycle
+
+`pending` → `active` (first heartbeat) → `stale` (no heartbeat for
+`stale-after`) → `deregistered` (terminal). Re-registering the same
+cluster/hostname/serviceType issues a **new** `instance_id`, invalidating the
+previous one while preserving the config revision. Only `active` services appear
+in discovery rosters.
+
+**Security**: REST is the only path that can create or resurrect a service
+identity. See the NATS security section for what the heartbeat subject allows.
 
 ## Development Guidelines
 

@@ -138,6 +138,49 @@ var configSchema = `
       },
       "required": ["subject-job-event", "subject-node-state"]
     },
+    "fleet": {
+      "description": "Fleet discovery and configuration deployment service for auxiliary cc-* services. Absent disables the subsystem entirely.",
+      "type": "object",
+      "properties": {
+        "config-dir": {
+          "description": "Root directory of the hierarchical fleet configuration tree served over REST to registered services.",
+          "type": "string"
+        },
+        "stale-after": {
+          "description": "Duration without a heartbeat after which a service is marked 'stale' (default: '90s').",
+          "type": "string",
+          "pattern": "^([0-9]+(\\.[0-9]+)?(ns|us|ms|s|m|h))+$"
+        },
+        "sweep-interval": {
+          "description": "How often the stale sweep runs (default: '30s').",
+          "type": "string",
+          "pattern": "^([0-9]+(\\.[0-9]+)?(ns|us|ms|s|m|h))+$"
+        },
+        "config-reload-interval": {
+          "description": "How often the configuration tree is re-scanned from disk (default: '1m').",
+          "type": "string",
+          "pattern": "^([0-9]+(\\.[0-9]+)?(ns|us|ms|s|m|h))+$"
+        },
+        "heartbeat-subject": {
+          "description": "NATS subject carrying fleet heartbeats (measurement 'fleet', tag function=heartbeat). Empty or absent disables the heartbeat consumer.",
+          "type": "string"
+        },
+        "heartbeat-concurrency": {
+          "description": "Number of concurrent worker goroutines decoding fleet heartbeat events (default: 2).",
+          "type": "integer"
+        },
+        "discovery-subject-prefix": {
+          "description": "NATS subject prefix for discovery rosters, published to '<prefix>.<cluster-or-infra>.<service-type>' (default: 'cc.fleet.discovery').",
+          "type": "string"
+        },
+        "discovery-interval": {
+          "description": "How often the full set of discovery rosters is re-published (default: '1m').",
+          "type": "string",
+          "pattern": "^([0-9]+(\\.[0-9]+)?(ns|us|ms|s|m|h))+$"
+        }
+      },
+      "required": ["config-dir"]
+    },
     "footer-links": {
       "description": "Optional footer links for legal pages (imprint/privacy). Each value may be an internal path or an external URL.",
       "type": "object",

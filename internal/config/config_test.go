@@ -6,11 +6,14 @@
 package config
 
 import (
+	"encoding/json"
 	"testing"
+	"time"
 
 	ccconf "github.com/ClusterCockpit/cc-lib/v2/ccConfig"
 	cclog "github.com/ClusterCockpit/cc-lib/v2/ccLogger"
 	"github.com/ClusterCockpit/cc-lib/v2/resampler"
+	"github.com/santhosh-tekuri/jsonschema/v5"
 )
 
 func TestInit(t *testing.T) {
@@ -100,5 +103,107 @@ func TestInitSyncsResamplerThreshold(t *testing.T) {
 	if want := TargetPointsForPolicy(DefaultResamplePolicy); resampler.MinimumRequiredPoints != want {
 		t.Errorf("empty policy: MinimumRequiredPoints = %d, want %d",
 			resampler.MinimumRequiredPoints, want)
+	}
+}
+
+// TestFleetConfigFromExample asserts that the shipped example config parses into
+// the fleet block, which also proves the JSON schema accepts every key.
+func TestFleetConfigFromExample(t *testing.T) {
+	fp := "../../configs/config.json"
+	ccconf.Init(fp)
+	cfg := ccconf.GetPackageConfig("main")
+	if cfg == nil {
+		cclog.Abort("Main configuration must be present")
+	}
+	Init(cfg)
+
+	if Keys.Fleet == nil {
+		t.Fatal("fleet config missing")
+	}
+	if Keys.Fleet.ConfigDir != "./var/fleet-config" {
+		t.Errorf("wrong config-dir\ngot: %s \nwant: ./var/fleet-config", Keys.Fleet.ConfigDir)
+	}
+	if Keys.Fleet.HeartbeatSubject != "cc.fleet.event" {
+		t.Errorf("wrong heartbeat-subject\ngot: %s \nwant: cc.fleet.event", Keys.Fleet.HeartbeatSubject)
+	}
+	if got := Keys.Fleet.StaleAfterDuration(); got != 90*time.Second {
+		t.Errorf("wrong stale-after\ngot: %s \nwant: 1m30s", got)
+	}
+	if got := Keys.Fleet.DiscoveryIntervalDuration(); got != time.Minute {
+		t.Errorf("wrong discovery-interval\ngot: %s \nwant: 1m0s", got)
+	}
+	if got := Keys.Fleet.HeartbeatWorkers(); got != 2 {
+		t.Errorf("wrong heartbeat-concurrency\ngot: %d \nwant: 2", got)
+	}
+}
+
+func TestFleetDurationDefaults(t *testing.T) {
+	// Empty and malformed values must fall back instead of yielding a zero
+	// interval, which would spin a ticker.
+	for _, raw := range []string{"", "90 seconds", "nonsense"} {
+		c := &FleetConfig{
+			StaleAfter:           raw,
+			SweepInterval:        raw,
+			ConfigReloadInterval: raw,
+			DiscoveryInterval:    raw,
+		}
+		if got := c.StaleAfterDuration(); got != DefaultFleetStaleAfter {
+			t.Errorf("stale-after %q: got %s, want %s", raw, got, DefaultFleetStaleAfter)
+		}
+		if got := c.SweepIntervalDuration(); got != DefaultFleetSweepInterval {
+			t.Errorf("sweep-interval %q: got %s, want %s", raw, got, DefaultFleetSweepInterval)
+		}
+		if got := c.ConfigReloadIntervalDuration(); got != DefaultFleetConfigReloadInterval {
+			t.Errorf("config-reload-interval %q: got %s, want %s", raw, got, DefaultFleetConfigReloadInterval)
+		}
+		if got := c.DiscoveryIntervalDuration(); got != DefaultFleetDiscoveryInterval {
+			t.Errorf("discovery-interval %q: got %s, want %s", raw, got, DefaultFleetDiscoveryInterval)
+		}
+	}
+
+	c := &FleetConfig{}
+	if got := c.HeartbeatWorkers(); got != DefaultFleetHeartbeatConcurrency {
+		t.Errorf("heartbeat-concurrency: got %d, want %d", got, DefaultFleetHeartbeatConcurrency)
+	}
+	if got := (&FleetConfig{HeartbeatConcurrency: -1}).HeartbeatWorkers(); got != DefaultFleetHeartbeatConcurrency {
+		t.Errorf("negative heartbeat-concurrency: got %d, want %d", got, DefaultFleetHeartbeatConcurrency)
+	}
+}
+
+// TestFleetSchemaRejectsInvalidValues compiles the schema directly: Validate
+// aborts the process on failure, so rejection cannot be exercised via Init.
+func TestFleetSchemaRejectsInvalidValues(t *testing.T) {
+	sch, err := jsonschema.CompileString("schema.json", configSchema)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	tests := []struct {
+		name   string
+		config string
+		valid  bool
+	}{
+		{"complete block", `{"fleet":{"config-dir":"./var/fleet-config","stale-after":"90s","discovery-interval":"1m30s","heartbeat-concurrency":4}}`, true},
+		{"only the required key", `{"fleet":{"config-dir":"./var/fleet-config"}}`, true},
+		{"missing config-dir", `{"fleet":{"stale-after":"90s"}}`, false},
+		{"duration as a number", `{"fleet":{"config-dir":"./x","stale-after":90}}`, false},
+		{"unparseable duration", `{"fleet":{"config-dir":"./x","stale-after":"90 seconds"}}`, false},
+		{"concurrency as a string", `{"fleet":{"config-dir":"./x","heartbeat-concurrency":"two"}}`, false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var v any
+			if err := json.Unmarshal([]byte(tt.config), &v); err != nil {
+				t.Fatal(err)
+			}
+			err := sch.Validate(v)
+			if tt.valid && err != nil {
+				t.Fatalf("expected the config to validate, got: %v", err)
+			}
+			if !tt.valid && err == nil {
+				t.Fatal("expected the config to be rejected")
+			}
+		})
 	}
 }

@@ -136,6 +136,8 @@ func ResetConnection() error {
 	userRepoOnce = sync.Once{}
 	userCfgRepoInstance = nil
 	userCfgRepoOnce = sync.Once{}
+	fleetRepoInstance = nil
+	fleetRepoOnce = sync.Once{}
 
 	return nil
 }

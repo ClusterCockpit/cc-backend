@@ -28,6 +28,16 @@
       "subject-node-state": "cc.node.state",
       "job-concurrency": 8,
       "node-concurrency": 2
+    },
+    "fleet": {
+      "config-dir": "./var/fleet-config",
+      "stale-after": "90s",
+      "sweep-interval": "30s",
+      "config-reload-interval": "1m",
+      "heartbeat-subject": "cc.fleet.event",
+      "heartbeat-concurrency": 2,
+      "discovery-subject-prefix": "cc.fleet.discovery",
+      "discovery-interval": "1m"
     }
   },
   "nats": {

@@ -73,6 +73,325 @@
                 ]
             }
         },
+        "/api/fleet/config/{instanceID}": {
+            "get": {
+                "description": "Returns the configuration layers that apply to this instance, merged from\nbroad to specific. The revision is a content hash served as an ETag, so a\nclient that sends If-None-Match gets 204 (no configuration authored) or 304\n(unchanged) instead of the payload. 204 is not an error condition.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Fleet"
+                ],
+                "summary": "Pull the merged configuration of a fleet service",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Instance ID issued at registration",
+                        "name": "instanceID",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Config revision the client already has",
+                        "name": "If-None-Match",
+                        "in": "header"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Merged configuration",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "204": {
+                        "description": "No configuration applies to this service"
+                    },
+                    "304": {
+                        "description": "Configuration unchanged"
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/api.ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/api.ErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/api.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Unknown or deregistered instance",
+                        "schema": {
+                            "$ref": "#/definitions/api.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/api.ErrorResponse"
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/fleet/deregister/{instanceID}": {
+            "delete": {
+                "description": "Marks the instance deregistered and drops it from the discovery rosters.\nIdempotent; the identity can only be restored by registering again.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Fleet"
+                ],
+                "summary": "Deregister a fleet service",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Instance ID issued at registration",
+                        "name": "instanceID",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "Service deregistered"
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/api.ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/api.ErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/api.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/api.ErrorResponse"
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/fleet/heartbeat/{instanceID}": {
+            "post": {
+                "description": "Marks the instance active. Unknown or deregistered instance ids are never\nrecreated — the service has to register again to obtain a new instance id.\nDeployments running NATS should use the heartbeat subject instead.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Fleet"
+                ],
+                "summary": "Refresh liveness of a registered fleet service",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Instance ID issued at registration",
+                        "name": "instanceID",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "Heartbeat recorded"
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/api.ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/api.ErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/api.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Unknown or deregistered instance",
+                        "schema": {
+                            "$ref": "#/definitions/api.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/api.ErrorResponse"
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/fleet/register/cluster/": {
+            "post": {
+                "description": "Registers an auxiliary cc-* service that belongs to one cluster and\nreturns the instance id it must present on every heartbeat and config pull.\nRe-registering the same cluster/hostname/serviceType issues a new instance id\nand invalidates the previous one.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Fleet"
+                ],
+                "summary": "Register a cluster-scope fleet service",
+                "parameters": [
+                    {
+                        "description": "Registration",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/api.FleetRegisterRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Issued registration",
+                        "schema": {
+                            "$ref": "#/definitions/api.FleetRegisterResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/api.ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/api.ErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/api.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/api.ErrorResponse"
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/fleet/register/infra/": {
+            "post": {
+                "description": "Registers an auxiliary cc-* service that is not tied to a single cluster\n(monitoring infrastructure) and returns its instance id.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Fleet"
+                ],
+                "summary": "Register a cluster-independent fleet service",
+                "parameters": [
+                    {
+                        "description": "Registration",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/api.FleetInfraRegisterRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Issued registration",
+                        "schema": {
+                            "$ref": "#/definitions/api.FleetRegisterResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/api.ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/api.ErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/api.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/api.ErrorResponse"
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ]
+            }
+        },
         "/api/jobs/": {
             "get": {
                 "description": "Get a list of all jobs. Filters can be applied using query parameters.\nNumber of results can be limited by page. Results are sorted by descending startTime.",
@@ -1046,15 +1365,9 @@
                 ],
                 "responses": {
                     "200": {
-                        "description": "OK",
+                        "description": "Success message",
                         "schema": {
-                            "$ref": "#/definitions/api.DefaultAPIResponse"
-                        }
-                    },
-                    "400": {
-                        "description": "Bad Request",
-                        "schema": {
-                            "$ref": "#/definitions/api.ErrorResponse"
+                            "type": "string"
                         }
                     },
                     "403": {
@@ -1928,31 +2241,6 @@
                 }
             }
         },
-        "api.UpdateUserAPIRequest": {
-            "type": "object",
-            "properties": {
-                "add-role": {
-                    "description": "Role to add to user $ID",
-                    "type": "string",
-                    "example": "user"
-                },
-                "remove-role": {
-                    "description": "Role to remove from user $ID",
-                    "type": "string",
-                    "example": "user"
-                },
-                "add-project": {
-                    "description": "Project to add to user $ID managed array",
-                    "type": "string",
-                    "example": "abcd100"
-                },
-                "remove-project": {
-                    "description": "Project to remove from user $ID managed array",
-                    "type": "string",
-                    "example": "abcd100"
-                }
-            }
-        },
         "api.DefaultAPIResponse": {
             "type": "object",
             "properties": {
@@ -2007,6 +2295,70 @@
                 "status": {
                     "description": "Statustext of Errorcode",
                     "type": "string"
+                }
+            }
+        },
+        "api.FleetInfraRegisterRequest": {
+            "type": "object",
+            "properties": {
+                "hostname": {
+                    "description": "Host the service runs on",
+                    "type": "string",
+                    "example": "mgmt01"
+                },
+                "metaData": {
+                    "description": "Free-form registration metadata",
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "string"
+                    }
+                },
+                "serviceType": {
+                    "description": "Service type short code",
+                    "type": "string",
+                    "example": "ccb"
+                }
+            }
+        },
+        "api.FleetRegisterRequest": {
+            "type": "object",
+            "properties": {
+                "cluster": {
+                    "description": "Cluster the service runs on",
+                    "type": "string",
+                    "example": "fritz"
+                },
+                "hostname": {
+                    "description": "Host the service runs on",
+                    "type": "string",
+                    "example": "f0101"
+                },
+                "metaData": {
+                    "description": "Free-form registration metadata",
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "string"
+                    }
+                },
+                "serviceType": {
+                    "description": "Service type short code",
+                    "type": "string",
+                    "example": "ccms"
+                }
+            }
+        },
+        "api.FleetRegisterResponse": {
+            "type": "object",
+            "properties": {
+                "configRevision": {
+                    "description": "Config revision currently on record; 0 means no config was pulled yet",
+                    "type": "integer",
+                    "example": 0
+                },
+                "instanceId": {
+                    "description": "Credential to present on every subsequent heartbeat and config pull",
+                    "type": "string",
+                    "example": "3f1c9a2b7d4e6f8a0b1c2d3e4f5a6b7c"
                 }
             }
         },
@@ -2161,6 +2513,31 @@
                     "items": {
                         "$ref": "#/definitions/schema.NodePayload"
                     }
+                }
+            }
+        },
+        "api.UpdateUserAPIRequest": {
+            "type": "object",
+            "properties": {
+                "add-project": {
+                    "description": "Project to add to user $ID managed array",
+                    "type": "string",
+                    "example": "abcd100"
+                },
+                "add-role": {
+                    "description": "Role to add to user $ID",
+                    "type": "string",
+                    "example": "user"
+                },
+                "remove-project": {
+                    "description": "Project to remove from user $ID managed array",
+                    "type": "string",
+                    "example": "abcd100"
+                },
+                "remove-role": {
+                    "description": "Role to remove from user $ID",
+                    "type": "string",
+                    "example": "user"
                 }
             }
         },
@@ -2334,10 +2711,7 @@
                     "example": 1649723812
                 },
                 "statistics": {
-                    "type": "object",
-                    "additionalProperties": {
-                        "$ref": "#/definitions/schema.JobStatistics"
-                    }
+                    "$ref": "#/definitions/schema.JobStatisticsSet"
                 },
                 "subCluster": {
                     "type": "string",
@@ -2483,6 +2857,23 @@
                 }
             }
         },
+        "schema.JobStatisticsSet": {
+            "type": "object",
+            "properties": {
+                "groups": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/schema.StatsGroup"
+                    }
+                },
+                "metrics": {
+                    "type": "object",
+                    "additionalProperties": {
+                        "$ref": "#/definitions/schema.JobStatistics"
+                    }
+                }
+            }
+        },
         "schema.MetricConfig": {
             "type": "object",
             "properties": {
@@ -2544,6 +2935,10 @@
                 "timestep": {
                     "description": "Measurement interval in seconds",
                     "type": "integer"
+                },
+                "tooltip": {
+                    "description": "Tooltip text shown in frontend if defined",
+                    "type": "string"
                 },
                 "unit": {
                     "description": "Unit of measurement",
@@ -2695,6 +3090,31 @@
                             "$ref": "#/definitions/schema.MetricStatistics"
                         }
                     ]
+                }
+            }
+        },
+        "schema.StatsGroup": {
+            "type": "object",
+            "properties": {
+                "instances": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/schema.StatsGroupInstance"
+                    }
+                },
+                "key": {
+                    "type": "string"
+                }
+            }
+        },
+        "schema.StatsGroupInstance": {
+            "type": "object",
+            "properties": {
+                "name": {
+                    "type": "string"
+                },
+                "type": {
+                    "type": "string"
                 }
             }
         },

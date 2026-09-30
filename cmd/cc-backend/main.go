@@ -24,6 +24,7 @@ import (
 	"github.com/ClusterCockpit/cc-backend/internal/archiver"
 	"github.com/ClusterCockpit/cc-backend/internal/auth"
 	"github.com/ClusterCockpit/cc-backend/internal/config"
+	"github.com/ClusterCockpit/cc-backend/internal/fleet"
 	"github.com/ClusterCockpit/cc-backend/internal/importer"
 	"github.com/ClusterCockpit/cc-backend/internal/logviewer"
 	"github.com/ClusterCockpit/cc-backend/internal/metricdispatch"
@@ -405,6 +406,31 @@ func runServer(ctx context.Context) error {
 	// Start archiver and task manager
 	archiver.Start(repository.GetJobRepository(), ctx)
 	taskmanager.Start(ccconf.GetPackageConfig("cron"), ccconf.GetPackageConfig("archive"))
+
+	// Initialize the fleet service. It needs the connected database for the
+	// registry rows and, for discovery publishing, the connected NATS client,
+	// and it must run before NewServer so the REST layer sees it enabled.
+	if config.Keys.Fleet != nil {
+		fc := config.Keys.Fleet
+		opts := fleet.Options{
+			ConfigDir:         fc.ConfigDir,
+			StaleAfter:        fc.StaleAfterDuration(),
+			SweepInterval:     fc.SweepIntervalDuration(),
+			ReloadInterval:    fc.ConfigReloadIntervalDuration(),
+			DiscoveryPrefix:   fc.DiscoverySubjectPrefix,
+			DiscoveryInterval: fc.DiscoveryIntervalDuration(),
+		}
+		// The method value must stay behind the nil check: bound to a nil
+		// client it would panic on the first publish.
+		if nc := nats.GetClient(); nc != nil {
+			opts.Publish = nc.Publish
+		} else {
+			cclog.Warn("fleet: NATS client unavailable, discovery rosters will not be published")
+		}
+		if err := fleet.Init(ctx, opts); err != nil {
+			return fmt.Errorf("initializing fleet: %w", err)
+		}
+	}
 
 	// Initialize web UI
 	cfg := ccconf.GetPackageConfig("ui")
