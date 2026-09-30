@@ -52,6 +52,10 @@ func (ccms *InternalMetricStore) HealthCheck(cluster string,
 // When set to a non-nil function, LoadData will call this function instead of the default implementation.
 var TestLoadDataCallback func(job *schema.Job, metrics []string, scopes []schema.MetricScope, ctx context.Context, resolution int, resampleAlgo string) (schema.JobData, error)
 
+// TestLoadStatsCallback allows tests to override LoadStats behavior for testing purposes.
+// When set to a non-nil function, LoadStats will call this function instead of the default implementation.
+var TestLoadStatsCallback func(job *schema.Job, metrics []string, avgOnly map[string]bool, ctx context.Context) (map[string]map[string]schema.MetricStatistics, error)
+
 // LoadData loads metric data for a specific job with automatic scope transformation.
 //
 // This is the primary function for retrieving job metric data. It handles:
@@ -311,10 +315,13 @@ func buildQueries(
 //
 // This is an optimized version of LoadData that fetches only statistics without
 // time-series data, reducing bandwidth and memory usage. Always queries at node scope.
+// Statistics are answered from cached buffer aggregates where that is exact (see
+// FetchStats).
 //
 // Parameters:
 //   - job: Job metadata
 //   - metrics: List of metric names
+//   - avgOnly: Metrics whose min and max are not needed by the caller
 //   - ctx: Context (currently unused)
 //
 // Returns:
@@ -323,8 +330,13 @@ func buildQueries(
 func (ccms *InternalMetricStore) LoadStats(
 	job *schema.Job,
 	metrics []string,
+	avgOnly map[string]bool,
 	ctx context.Context,
 ) (map[string]map[string]schema.MetricStatistics, error) {
+	if TestLoadStatsCallback != nil {
+		return TestLoadStatsCallback(job, metrics, avgOnly, ctx)
+	}
+
 	// TODO(#166): Add scope parameter for analysis view accelerator normalization
 	queries, _, err := buildQueries(job, metrics, []schema.MetricScope{schema.MetricScopeNode}, 0)
 	if err != nil {
@@ -341,7 +353,11 @@ func (ccms *InternalMetricStore) LoadStats(
 		WithData:  false,
 	}
 
-	resBody, err := FetchData(req)
+	for i := range req.Queries {
+		req.Queries[i].AvgOnly = avgOnly[req.Queries[i].Metric]
+	}
+
+	resBody, err := FetchStats(req)
 	if err != nil {
 		cclog.Errorf("Error while fetching data : %s", err.Error())
 		return nil, err

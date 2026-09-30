@@ -22,7 +22,6 @@
 //	repository.SetConfig(&repository.RepositoryConfig{
 //	    CacheSize: 2 * 1024 * 1024,     // 2MB cache
 //	    MaxOpenConnections: 8,           // Connection pool size
-//	    MinRunningJobDuration: 300,      // Filter threshold
 //	})
 //
 // If not configured, sensible defaults are used automatically.
@@ -65,7 +64,6 @@ import (
 	"errors"
 	"fmt"
 	"maps"
-	"math"
 	"path/filepath"
 	"runtime"
 	"sort"
@@ -73,6 +71,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/ClusterCockpit/cc-backend/internal/footprint"
 	"github.com/ClusterCockpit/cc-backend/pkg/archive"
 	cclog "github.com/ClusterCockpit/cc-lib/v2/ccLogger"
 	"github.com/ClusterCockpit/cc-lib/v2/lrucache"
@@ -776,40 +775,6 @@ func (r *JobRepository) FindJobIdsByTag(tagID int64) ([]int64, error) {
 	return jobIds, nil
 }
 
-// FindRunningJobs returns all currently running jobs for a specific cluster.
-// Filters out short-running jobs based on repoConfig.MinRunningJobDuration threshold.
-//
-// Parameters:
-//   - cluster: Cluster name to filter jobs
-//
-// Returns a slice of running job objects or an error if the query fails.
-func (r *JobRepository) FindRunningJobs(cluster string) ([]*schema.Job, error) {
-	query := sq.Select(jobColumns...).From("job").
-		Where("job.cluster = ?", cluster).
-		Where("job.job_state = 'running'").
-		Where("job.duration > ?", repoConfig.MinRunningJobDuration)
-
-	rows, err := query.RunWith(r.stmtCache).Query()
-	if err != nil {
-		cclog.Errorf("Error while running FindRunningJobs query for cluster=%s: %v", cluster, err)
-		return nil, fmt.Errorf("failed to find running jobs for cluster %s: %w", cluster, err)
-	}
-	defer rows.Close()
-
-	jobs := make([]*schema.Job, 0, 50)
-	for rows.Next() {
-		job, err := scanJob(rows)
-		if err != nil {
-			cclog.Warnf("Error while scanning rows in FindRunningJobs: %v", err)
-			return nil, fmt.Errorf("failed to scan job in FindRunningJobs: %w", err)
-		}
-		jobs = append(jobs, job)
-	}
-
-	cclog.Debugf("JobRepository.FindRunningJobs(): Return job count %d (cluster: %s)", len(jobs), cluster)
-	return jobs, nil
-}
-
 // UpdateDuration recalculates and updates the duration field for all running jobs.
 // Called periodically to keep job durations current without querying individual jobs.
 //
@@ -941,18 +906,13 @@ func (r *JobRepository) MarkArchived(
 	return stmt.Set("monitoring_status", monitoringStatus)
 }
 
-// UpdateEnergy calculates and updates the energy consumption for a job.
-// This is called for running jobs during intermediate updates or when archiving.
+// UpdateEnergy calculates and updates the energy consumption for a job from its
+// archived statistics. It is called when a job is archived; running jobs get
+// their energy computed live (see metricdispatch.LiveFootprint).
 //
-// Energy calculation formula:
-//   - For "power" metrics: Energy (kWh) = (Power_avg * NumNodes * Duration_hours) / 1000
-//   - For "energy" metrics: Currently not implemented (would need sum statistics)
-//
-// The calculation accounts for:
-//   - Multi-node jobs: Multiplies by NumNodes to get total cluster energy
-//   - Shared jobs: Node average is already based on partial resources, so NumNodes=1
-//   - Unit conversion: Watts * hours / 1000 = kilowatt-hours (kWh)
-//   - Rounding: Results rounded to 2 decimal places
+// For "power" metrics: Energy (kWh) = (Power_avg * NumNodes * Duration_hours) / 1000.
+// "energy" metrics are not implemented yet (would need sum statistics) and
+// report 0. Results are rounded to 2 decimal places.
 func (r *JobRepository) UpdateEnergy(
 	stmt sq.UpdateBuilder,
 	jobMeta *schema.Job,
@@ -962,37 +922,9 @@ func (r *JobRepository) UpdateEnergy(
 		cclog.Errorf("cannot get subcluster: %s", err.Error())
 		return stmt, err
 	}
-	energyFootprint := make(map[string]float64)
 
-	// Accumulate total energy across all energy-related metrics
-	totalEnergy := 0.0
-	for _, fp := range sc.EnergyFootprint {
-		// Calculate energy for this specific metric
-		metricEnergy := 0.0
-		if i, err := archive.MetricIndex(sc.MetricConfig, fp); err == nil {
-			switch sc.MetricConfig[i].Energy {
-			case "energy": // Metric already in energy units (Joules or Wh)
-				cclog.Warnf("Update EnergyFootprint for Job %d and Metric %s on cluster %s: Set to 'energy' in cluster.json: Not implemented, will return 0.0", jobMeta.JobID, jobMeta.Cluster, fp)
-				// FIXME: Needs sum as stats type to accumulate energy values over time
-			case "power": // Metric in power units (Watts)
-				// Energy (kWh) = Power (W) × Time (h) / 1000
-				// Formula: (avg_power_per_node * num_nodes) * (duration_sec / 3600) / 1000
-				//
-				// Breakdown:
-				//   LoadJobStat(jobMeta, fp, "avg") = average power per node (W)
-				//   jobMeta.NumNodes = number of nodes (1 for shared jobs)
-				//   jobMeta.Duration / 3600.0 = duration in hours
-				//   / 1000.0 = convert Wh to kWh
-				rawEnergy := ((LoadJobStat(jobMeta, fp, "avg") * float64(jobMeta.NumNodes)) * (float64(jobMeta.Duration) / 3600.0)) / 1000.0
-				metricEnergy = math.Round(rawEnergy*100.0) / 100.0 // Round to 2 decimal places
-			}
-		} else {
-			cclog.Warnf("Error while collecting energy metric %s for job, DB ID '%v', return '0.0'", fp, jobMeta.ID)
-		}
-
-		energyFootprint[fp] = metricEnergy
-		totalEnergy += metricEnergy
-	}
+	energyFootprint, totalEnergy := footprint.BuildEnergy(sc,
+		footprint.FromJobStatistics(jobMeta.Statistics.Metrics), jobMeta.NumNodes, jobMeta.Duration)
 
 	var rawFootprint []byte
 	if rawFootprint, err = json.Marshal(energyFootprint); err != nil {
@@ -1000,15 +932,16 @@ func (r *JobRepository) UpdateEnergy(
 		return stmt, err
 	}
 
-	return stmt.Set("energy_footprint", string(rawFootprint)).Set("energy", (math.Round(totalEnergy*100.0) / 100.0)), nil
+	return stmt.Set("energy_footprint", string(rawFootprint)).Set("energy", totalEnergy), nil
 }
 
-// UpdateFootprint calculates and updates the performance footprint for a job.
-// This is called for running jobs during intermediate updates or when archiving.
+// UpdateFootprint calculates and updates the performance footprint for a job
+// from its archived statistics. It is called when a job is archived; running
+// jobs get their footprint computed live (see metricdispatch.LiveFootprint).
 //
 // A footprint is a summary statistic (avg/min/max) for each monitored metric.
-// The specific statistic type is defined in the cluster config's Footprint field.
-// Results are stored as JSON with keys like "metric_avg", "metric_max", etc.
+// The specific statistic type is defined in the subcluster metric config's
+// Footprint field. Results are stored as JSON with keys like "metric_avg".
 //
 // Example: For a "cpu_load" metric with Footprint="avg", this stores
 // the average CPU load across all nodes as "cpu_load_avg": 85.3
@@ -1021,37 +954,15 @@ func (r *JobRepository) UpdateFootprint(
 		cclog.Errorf("cannot get subcluster: %s", err.Error())
 		return stmt, err
 	}
-	footprint := make(map[string]float64)
 
-	// Build footprint map with metric_stattype as keys
-	for _, fp := range sc.Footprint {
-		// Determine which statistic to use: avg, min, or max
-		// First check global metric config, then cluster-specific config
-		var statType string
-		for _, gm := range archive.GlobalMetricList {
-			if gm.Name == fp {
-				statType = gm.Footprint
-			}
-		}
-
-		// Validate statistic type
-		if statType != "avg" && statType != "min" && statType != "max" {
-			cclog.Warnf("unknown statType for footprint update: %s", statType)
-			return stmt, fmt.Errorf("unknown statType for footprint update: %s", statType)
-		}
-
-		// Override with cluster-specific config if available
-		if i, err := archive.MetricIndex(sc.MetricConfig, fp); err != nil {
-			statType = sc.MetricConfig[i].Footprint
-		}
-
-		// Store as "metric_stattype": value (e.g., "cpu_load_avg": 85.3)
-		name := fmt.Sprintf("%s_%s", fp, statType)
-		footprint[name] = LoadJobStat(jobMeta, fp, statType)
+	fp, err := footprint.Build(sc, footprint.FromJobStatistics(jobMeta.Statistics.Metrics), true)
+	if err != nil {
+		cclog.Warnf("footprint update for job (dbid: %v): %v", jobMeta.ID, err)
+		return stmt, err
 	}
 
 	var rawFootprint []byte
-	if rawFootprint, err = json.Marshal(footprint); err != nil {
+	if rawFootprint, err = json.Marshal(fp); err != nil {
 		cclog.Warnf("Error while marshaling footprint for job INTO BYTES, DB ID '%v'", jobMeta.ID)
 		return stmt, err
 	}

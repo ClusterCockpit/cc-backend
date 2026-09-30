@@ -16,10 +16,10 @@ package importer
 import (
 	"encoding/json"
 	"fmt"
-	"math"
 	"strings"
 	"time"
 
+	"github.com/ClusterCockpit/cc-backend/internal/footprint"
 	"github.com/ClusterCockpit/cc-backend/internal/repository"
 	"github.com/ClusterCockpit/cc-backend/pkg/archive"
 	cclog "github.com/ClusterCockpit/cc-lib/v2/ccLogger"
@@ -173,18 +173,10 @@ func enrichJobMetadata(job *schema.Job) error {
 		return err
 	}
 
-	job.Footprint = make(map[string]float64)
-
-	for _, fp := range sc.Footprint {
-		statType := "avg"
-
-		if i, err := archive.MetricIndex(sc.MetricConfig, fp); err != nil {
-			statType = sc.MetricConfig[i].Footprint
-		}
-
-		name := fmt.Sprintf("%s_%s", fp, statType)
-
-		job.Footprint[name] = repository.LoadJobStat(job, fp, statType)
+	stats := footprint.FromJobStatistics(job.Statistics.Metrics)
+	if job.Footprint, err = footprint.Build(sc, stats, true); err != nil {
+		cclog.Warnf("Error while building footprint for job %d: %v", job.JobID, err)
+		return err
 	}
 
 	job.RawFootprint, err = json.Marshal(job.Footprint)
@@ -193,37 +185,7 @@ func enrichJobMetadata(job *schema.Job) error {
 		return err
 	}
 
-	job.EnergyFootprint = make(map[string]float64)
-
-	// Total Job Energy Outside Loop
-	totalEnergy := 0.0
-	for _, fp := range sc.EnergyFootprint {
-		// Always Init Metric Energy Inside Loop
-		metricEnergy := 0.0
-		if i, err := archive.MetricIndex(sc.MetricConfig, fp); err == nil {
-			// Note: For DB data, calculate and save as kWh
-			switch sc.MetricConfig[i].Energy {
-			case "energy": // this metric has energy as unit (Joules)
-				cclog.Warnf("Update EnergyFootprint for Job %d and Metric %s on cluster %s: Set to 'energy' in cluster.json: Not implemented, will return 0.0", job.JobID, job.Cluster, fp)
-				// FIXME: Needs sum as stats type
-			case "power": // this metric has power as unit (Watt)
-				// Energy: Power (in Watts) * Time (in Seconds)
-				// Unit: (W * (s / 3600)) / 1000 = kWh
-				// Round 2 Digits: round(Energy * 100) / 100
-				// Here: (All-Node Metric Average * Number of Nodes) * (Job Duration in Seconds / 3600) / 1000
-				// Note: Shared Jobs handled correctly since "Node Average" is based on partial resources, while "numNodes" factor is 1
-				rawEnergy := ((repository.LoadJobStat(job, fp, "avg") * float64(job.NumNodes)) * (float64(job.Duration) / 3600.0)) / 1000.0
-				metricEnergy = math.Round(rawEnergy*100.0) / 100.0
-			}
-		} else {
-			cclog.Warnf("Error while collecting energy metric %s for job, DB ID '%v', return '0.0'", fp, *job.ID)
-		}
-
-		job.EnergyFootprint[fp] = metricEnergy
-		totalEnergy += metricEnergy
-	}
-
-	job.Energy = (math.Round(totalEnergy*100.0) / 100.0)
+	job.EnergyFootprint, job.Energy = footprint.BuildEnergy(sc, stats, job.NumNodes, job.Duration)
 	if job.RawEnergyFootprint, err = json.Marshal(job.EnergyFootprint); err != nil {
 		cclog.Warnf("Error while marshaling energy footprint for job INTO BYTES, DB ID '%v'", *job.ID)
 		return err

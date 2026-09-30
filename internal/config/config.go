@@ -299,10 +299,14 @@ const DefaultResamplePolicy = "medium"
 // which keeps each plotted point a true mean of its interval.
 const DefaultResampleAlgo = "average"
 
-// ResampleAlgo returns the configured default resample algorithm, falling back
-// to DefaultResampleAlgo. Note that an empty string would select LTTB in
-// cc-lib's resampler, so callers must not pass "" when they mean "the default".
-func ResampleAlgo() string {
+// ConfiguredResampleAlgo returns the configured default resample algorithm,
+// falling back to DefaultResampleAlgo. Note that an empty string would select
+// LTTB in cc-lib's resampler, so callers must not pass "" when they mean "the
+// default".
+//
+// It must not be named ResampleAlgo: gqlgen autobinds this package and would
+// bind the GraphQL enum of that name to the function.
+func ConfiguredResampleAlgo() string {
 	if Keys.EnableResampling != nil && Keys.EnableResampling.DefaultAlgo != "" {
 		return Keys.EnableResampling.DefaultAlgo
 	}

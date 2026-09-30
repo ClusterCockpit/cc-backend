@@ -34,8 +34,7 @@ const configString = `
   },
   "cron": {
     "commit-job-worker": "1m",
-    "duration-worker": "5m",
-    "footprint-worker": "10m"
+    "duration-worker": "5m"
   },
   "archive": {
     "kind": "file",

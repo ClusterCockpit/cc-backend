@@ -10,9 +10,13 @@ package repository
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"regexp"
+	"slices"
+	"sort"
+	"strconv"
 	"strings"
 	"time"
 
@@ -30,6 +34,8 @@ const (
 
 // QueryJobs retrieves jobs from the database with optional filtering, pagination,
 // and sorting. Security controls are automatically applied based on the user context.
+// Queries that filter or sort on footprint or energy values are routed by job
+// state first (see RouteFootprintQuery).
 //
 // Parameters:
 //   - ctx: Context containing user authentication information
@@ -45,12 +51,33 @@ func (r *JobRepository) QueryJobs(
 	page *model.PageRequest,
 	order *model.OrderByInput,
 ) ([]*schema.Job, error) {
+	fq, err := r.RouteFootprintQuery(ctx, filters, order, false)
+	if err != nil {
+		return nil, err
+	}
+	return r.QueryJobsRouted(ctx, fq, page)
+}
+
+// QueryJobsRouted is QueryJobs for a filter list already routed by
+// RouteFootprintQuery, so that one request can share a single routing.
+func (r *JobRepository) QueryJobsRouted(
+	ctx context.Context,
+	fq *FootprintQuery,
+	page *model.PageRequest,
+) ([]*schema.Job, error) {
+	if fq.Empty {
+		return []*schema.Job{}, nil
+	}
+	if fq.SortedIDs != nil {
+		return r.queryJobsByIDs(ctx, fq, page)
+	}
+
 	query, qerr := SecurityCheck(ctx, sq.Select(jobColumns...).From("job"))
 	if qerr != nil {
 		return nil, qerr
 	}
 
-	if order != nil {
+	if order := fq.Order; order != nil {
 		field := toSnakeCase(order.Field)
 		if order.Type == "col" {
 			switch order.Order {
@@ -76,21 +103,87 @@ func (r *JobRepository) QueryJobs(
 	}
 
 	if page != nil && page.ItemsPerPage != -1 {
-		// -1 is the only valid non-positive value ("load all"); reject other
-		// non-positive values so that uint64(page.ItemsPerPage) cannot underflow
-		// into a huge limit. Clamp Page to >= 1 to avoid the same on the offset.
-		if page.ItemsPerPage < 1 {
-			return nil, fmt.Errorf("invalid items-per-page value: %d", page.ItemsPerPage)
+		offset, limit, err := pageBounds(page)
+		if err != nil {
+			return nil, err
 		}
-		p := max(page.Page, 1)
-		limit := uint64(page.ItemsPerPage)
-		query = query.Offset((uint64(p) - 1) * limit).Limit(limit)
+		query = query.Offset(offset).Limit(limit)
 	}
 
-	for _, f := range filters {
+	for _, f := range fq.Filters {
 		query = BuildWhereClause(f, query)
 	}
 
+	jobs, err := r.scanJobs(ctx, query)
+	if err != nil {
+		return nil, err
+	}
+	fq.applyLive(jobs)
+	return jobs, nil
+}
+
+// pageBounds converts a page request into an SQL offset and limit.
+// -1 is the only valid non-positive value ("load all") and is handled by the
+// callers; other non-positive values are rejected so that
+// uint64(page.ItemsPerPage) cannot underflow into a huge limit. Page is
+// clamped to >= 1 to avoid the same on the offset.
+func pageBounds(page *model.PageRequest) (offset, limit uint64, err error) {
+	if page.ItemsPerPage < 1 {
+		return 0, 0, fmt.Errorf("invalid items-per-page value: %d", page.ItemsPerPage)
+	}
+	p := max(page.Page, 1)
+	limit = uint64(page.ItemsPerPage)
+	return (uint64(p) - 1) * limit, limit, nil
+}
+
+// queryJobsByIDs returns one page of a LIVE footprint sort: the page is cut
+// from the ordered ids in Go and its rows are loaded by id.
+func (r *JobRepository) queryJobsByIDs(
+	ctx context.Context,
+	fq *FootprintQuery,
+	page *model.PageRequest,
+) ([]*schema.Job, error) {
+	ids := fq.SortedIDs
+	if page != nil && page.ItemsPerPage != -1 {
+		offset, limit, err := pageBounds(page)
+		if err != nil {
+			return nil, err
+		}
+		if offset >= uint64(len(ids)) {
+			return []*schema.Job{}, nil
+		}
+		ids = ids[offset:min(offset+limit, uint64(len(ids)))]
+	}
+	if len(ids) == 0 {
+		return []*schema.Job{}, nil
+	}
+
+	query, err := SecurityCheck(ctx, sq.Select(jobColumns...).From("job"))
+	if err != nil {
+		return nil, err
+	}
+	strIDs := make([]string, len(ids))
+	for i, id := range ids {
+		strIDs[i] = strconv.FormatInt(id, 10)
+	}
+	query = BuildWhereClause(&model.JobFilter{DbID: strIDs}, query)
+
+	jobs, err := r.scanJobs(ctx, query)
+	if err != nil {
+		return nil, err
+	}
+
+	pos := make(map[int64]int, len(ids))
+	for i, id := range ids {
+		pos[id] = i
+	}
+	sort.Slice(jobs, func(i, j int) bool { return pos[*jobs[i].ID] < pos[*jobs[j].ID] })
+	fq.applyLive(jobs)
+	return jobs, nil
+}
+
+// scanJobs runs a query selecting jobColumns and scans all rows.
+func (r *JobRepository) scanJobs(ctx context.Context, query sq.SelectBuilder) ([]*schema.Job, error) {
 	rows, err := query.RunWith(r.stmtCache).QueryContext(ctx)
 	if err != nil {
 		queryString, queryVars, _ := query.ToSql()
@@ -123,12 +216,29 @@ func (r *JobRepository) CountJobs(
 	ctx context.Context,
 	filters []*model.JobFilter,
 ) (int, error) {
+	fq, err := r.RouteFootprintQuery(ctx, filters, nil, false)
+	if err != nil {
+		return 0, err
+	}
+	return r.CountJobsRouted(ctx, fq)
+}
+
+// CountJobsRouted is CountJobs for a filter list already routed by
+// RouteFootprintQuery.
+func (r *JobRepository) CountJobsRouted(
+	ctx context.Context,
+	fq *FootprintQuery,
+) (int, error) {
+	if fq.Empty {
+		return 0, nil
+	}
+
 	query, qerr := SecurityCheck(ctx, sq.Select("count(DISTINCT job.id)").From("job"))
 	if qerr != nil {
 		return 0, qerr
 	}
 
-	for _, f := range filters {
+	for _, f := range fq.Filters {
 		query = BuildWhereClause(f, query)
 	}
 
@@ -189,9 +299,7 @@ func SecurityCheck(ctx context.Context, query sq.SelectBuilder) (sq.SelectBuilde
 func BuildWhereClause(filter *model.JobFilter, query sq.SelectBuilder) sq.SelectBuilder {
 	// Primary Key
 	if filter.DbID != nil {
-		dbIDs := make([]string, len(filter.DbID))
-		copy(dbIDs, filter.DbID)
-		query = query.Where(sq.Eq{"job.id": dbIDs})
+		query = buildDbIDCondition(filter.DbID, query)
 	}
 	// Explicit indices
 	if filter.Cluster != nil {
@@ -283,6 +391,34 @@ func BuildWhereClause(filter *model.JobFilter, query sq.SelectBuilder) sq.Select
 	}
 
 	return query
+}
+
+// maxInlineDbIDs is the largest id list bound as one placeholder per id. Larger
+// lists, as produced by the live footprint routing, are bound as a single JSON
+// array so that SQLite's limit on bound variables cannot be exceeded.
+const maxInlineDbIDs = 500
+
+// buildDbIDCondition restricts the query to the given job ids.
+func buildDbIDCondition(dbIDs []string, query sq.SelectBuilder) sq.SelectBuilder {
+	if len(dbIDs) > maxInlineDbIDs {
+		ids := make([]int64, len(dbIDs))
+		valid := true
+		for i, s := range dbIDs {
+			id, err := strconv.ParseInt(s, 10, 64)
+			if err != nil {
+				valid = false
+				break
+			}
+			ids[i] = id
+		}
+		if valid {
+			raw, err := json.Marshal(ids)
+			if err == nil {
+				return query.Where("job.id IN (SELECT value FROM json_each(?))", string(raw))
+			}
+		}
+	}
+	return query.Where(sq.Eq{"job.id": slices.Clone(dbIDs)})
 }
 
 // buildIntCondition creates clauses for integer range filters, using BETWEEN only if required.

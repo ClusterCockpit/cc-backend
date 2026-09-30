@@ -179,3 +179,61 @@ func (m *MemoryStore) Stats(selector util.Selector, metric string, from, to int6
 		Max:     schema.Float(max),
 	}, from, to, nil
 }
+
+// fastStats answers a statistics query from the buffers' cached aggregates
+// when that is exact. With a single buffer behind the selector, avg, min and
+// max are exact. With several buffers the store aggregates them per timestep
+// (sum or average), so only the average can be combined from per-buffer
+// aggregates; this is done when avgOnly is set, and min and max then carry the
+// average. ok is false when the caller has to read the series instead: no
+// buffer found, several buffers with min/max required, buffers that do not
+// align, or an aggregation that cannot combine several buffers.
+func (m *MemoryStore) fastStats(selector util.Selector, metric string, from, to int64, avgOnly bool) (Stats, int64, int64, bool) {
+	minfo, ok := m.Metrics[metric]
+	if !ok || from > to {
+		return Stats{}, 0, 0, false
+	}
+
+	n, samples := 0, 0
+	var first Stats
+	var cfrom, cto int64
+	aligned := true
+	avg := schema.Float(0)
+	err := m.root.findBuffers(selector, minfo.offset, func(b *buffer, path []string) error {
+		s, bfrom, bto, err := b.stats(from, to)
+		if err != nil {
+			return err
+		}
+		if n == 0 {
+			first, cfrom, cto = s, bfrom, bto
+		} else if bfrom != cfrom || bto != cto {
+			aligned = false
+		}
+		samples += s.Samples
+		avg += s.Avg
+		n++
+		return nil
+	}, nil)
+	if err != nil || n == 0 || !aligned {
+		return Stats{}, 0, 0, false
+	}
+
+	if n == 1 {
+		if first.Samples == 0 {
+			first.Avg, first.Min, first.Max = schema.NaN, schema.NaN, schema.NaN
+		}
+		return first, cfrom, cto, true
+	}
+
+	if !avgOnly {
+		return Stats{}, 0, 0, false
+	}
+	switch minfo.Aggregation {
+	case AvgAggregation:
+		avg /= schema.Float(n)
+	case SumAggregation:
+	default:
+		return Stats{}, 0, 0, false
+	}
+	return Stats{Samples: samples, Avg: avg, Min: avg, Max: avg}, cfrom, cto, true
+}

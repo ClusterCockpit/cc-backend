@@ -1114,6 +1114,7 @@ paths:
       description: |-
         Get a list of all jobs. Filters can be applied using query parameters.
         Number of results can be limited by page. Results are sorted by descending startTime.
+        Running jobs carry a footprint, energy footprint and total energy computed live from the metric store (empty below the short-running-jobs-duration); finished jobs carry the values persisted at archiving.
       parameters:
       - description: Job State
         enum:
@@ -1179,6 +1180,7 @@ paths:
       description: |-
         Job to get is specified by database ID
         Returns full job resource information according to 'Job' scheme and all metrics according to 'JobData'.
+        Running jobs carry a footprint, energy footprint and total energy computed live from the metric store (empty below the short-running-jobs-duration); finished jobs carry the values persisted at archiving.
       parameters:
       - description: Database ID of Job
         in: path
@@ -1232,6 +1234,7 @@ paths:
       description: |-
         Job to get is specified by database ID
         Returns full job resource information according to 'Job' scheme and all metrics according to 'JobData'.
+        Running jobs carry a footprint, energy footprint and total energy computed live from the metric store (empty below the short-running-jobs-duration); finished jobs carry the values persisted at archiving.
       parameters:
       - description: Database ID of Job
         in: path

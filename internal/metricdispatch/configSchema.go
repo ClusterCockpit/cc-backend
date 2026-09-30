@@ -22,6 +22,11 @@ const configSchema = `{
       "token": {
         "description": "Authentication token for the metric store. May be omitted and supplied through the environment instead: METRICSTORE_TOKEN_<SCOPE> takes precedence over METRICSTORE_TOKEN, which takes precedence over this value, and each also accepts a _FILE variant naming a file that holds the token. <SCOPE> is the scope uppercased with every character outside A-Z0-9 replaced by an underscore.",
         "type": "string"
+      },
+      "max-concurrent-requests": {
+        "description": "Maximum number of concurrent requests cc-backend sends to this metric store to compute live footprints of running jobs (default 8).",
+        "type": "integer",
+        "minimum": 1
       }
     },
     "required": ["scope", "url"]

@@ -58,6 +58,8 @@ models:
         resolver: true
       metaData:
         resolver: true
+      energy:
+        resolver: true
   Cluster:
     model: "github.com/ClusterCockpit/cc-lib/v2/schema.Cluster"
     fields:

@@ -30,8 +30,11 @@ type MetricDataRepository interface {
 		resampleAlgo string) (schema.JobData, error)
 
 	// Return a map of metrics to a map of nodes to the metric statistics of the job. node scope only.
+	// Metrics in avgOnly are only used for their average; implementations may then
+	// return min and max values that equal the average in exchange for a cheaper query.
 	LoadStats(job *schema.Job,
 		metrics []string,
+		avgOnly map[string]bool,
 		ctx context.Context) (map[string]map[string]schema.MetricStatistics, error)
 
 	// Return a map of metrics to a map of scopes to the scoped metric statistics of the job.
@@ -67,6 +70,22 @@ type CCMetricStoreConfig struct {
 	Scope string `json:"scope"`
 	URL   string `json:"url"`
 	Token string `json:"token"`
+	// MaxConcurrentRequests limits concurrent live footprint requests to this
+	// store. Nil means DefaultMaxConcurrentRequests.
+	MaxConcurrentRequests *int `json:"max-concurrent-requests"`
+}
+
+// storeConcurrency returns the live footprint request limit for one external
+// metric store.
+func storeConcurrency(cfg CCMetricStoreConfig) (int, error) {
+	if cfg.MaxConcurrentRequests == nil {
+		return DefaultMaxConcurrentRequests, nil
+	}
+	if n := *cfg.MaxConcurrentRequests; n >= 1 {
+		return n, nil
+	}
+	return 0, fmt.Errorf("max-concurrent-requests for metric store scope %q must be at least 1, got %d",
+		cfg.Scope, *cfg.MaxConcurrentRequests)
 }
 
 var metricDataRepos map[string]MetricDataRepository = map[string]MetricDataRepository{}
@@ -150,7 +169,13 @@ func Init(rawConfig json.RawMessage) error {
 				cclog.Warnf("[METRICDISPATCH]> no token for metric store scope %q: requests will be unauthenticated",
 					storeConfig.Scope)
 			}
-			metricDataRepos[storeConfig.Scope] = ccms.NewCCMetricStore(storeConfig.URL, token)
+			concurrency, err := storeConcurrency(storeConfig)
+			if err != nil {
+				return fmt.Errorf("[METRICDISPATCH]> External Metric Store Config Init: %w", err)
+			}
+			repo := ccms.NewCCMetricStore(storeConfig.URL, token)
+			metricDataRepos[storeConfig.Scope] = repo
+			setRepoConcurrency(repo, concurrency)
 		}
 	}
 

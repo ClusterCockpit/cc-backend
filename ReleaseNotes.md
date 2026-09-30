@@ -124,6 +124,24 @@ For release specific notes visit the [ClusterCockpit Documentation](https://clus
   `target-kind` and `target-path` (or the `target-*` S3 keys). The `location` key
   used by the old example configuration was never read by the code, so a `move`
   or `copy` policy configured that way ran against an empty target path.
+- **Live footprints for running jobs**: The footprint, energy footprint and total
+  energy of a running job are no longer written to the database by a recurring
+  worker. They are computed on demand from the metric store (internal or
+  external), cached per job for 60 seconds, and returned by GraphQL and by the
+  REST job endpoints (`GET /api/jobs/`, `GET`/`POST /api/jobs/{id}`). Running jobs
+  now also have an energy footprint, which the worker never computed. Jobs
+  shorter than `main.short-running-jobs-duration` get no live footprint. Finished
+  jobs keep the values persisted at archiving. If the metric store fails, the
+  footprint is empty instead of stale, and the request still succeeds.
+- **`cron.footprint-worker` deprecated**: The key is still accepted, so existing
+  configurations keep loading, but it has no effect and a deprecation warning is
+  logged at startup. Remove it from `config.json`.
+- **Footprint queries no longer mix running and finished jobs (breaking for API
+  clients)**: Sorting by a footprint field or by total energy, filtering by
+  footprint statistics or energy, and metric histograms either work on running
+  jobs only (live values) or on finished jobs only (persisted values). A query
+  that combines `running` with other states is rejected with an error. A query
+  without a state filter is answered for finished jobs only.
 
 ### New features
 
@@ -160,9 +178,21 @@ For release specific notes visit the [ClusterCockpit Documentation](https://clus
   nodes that still have running jobs, the full checkpoint history is loaded for
   those nodes at startup, and this also applies to the `-cleanup-checkpoints`
   CLI path.
+- **Per-store concurrency for live footprints**: `metric-store-external[]` entries
+  accept an optional `max-concurrent-requests` (default 8, minimum 1) that limits
+  how many live footprint requests cc-backend sends to that store at once. The
+  internal metric store is limited to `GOMAXPROCS` concurrent computations.
+- **Statistics queries answered from cached aggregates**: Statistics-only queries
+  against the internal metric store use the per-buffer aggregates whenever that
+  gives the same result as reading the series, instead of reading every sample.
 
 ### Bug fixes
 
+- **Footprint minimum**: The `min` footprint statistic of running jobs was always
+  0 or less, because the per-node fold started at 0.
+- **Subcluster footprint statistic**: A subcluster-specific footprint statistic
+  (e.g. `max` instead of the cluster-wide `avg`) was never applied when
+  footprints were persisted at archiving or import.
 - **Metric plots and the policy-based resample config**: `MetricPlot` still read
   the removed `trigger`/`resolutions` values, so the array-based resolution
   branch was unreachable and the zoom guard always fired. The zoom trigger is now

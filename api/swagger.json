@@ -394,7 +394,7 @@
         },
         "/api/jobs/": {
             "get": {
-                "description": "Get a list of all jobs. Filters can be applied using query parameters.\nNumber of results can be limited by page. Results are sorted by descending startTime.",
+                "description": "Get a list of all jobs. Filters can be applied using query parameters.\nNumber of results can be limited by page. Results are sorted by descending startTime.\nRunning jobs carry a footprint, energy footprint and total energy computed live from the metric store (empty below the short-running-jobs-duration); finished jobs carry the values persisted at archiving.",
                 "produces": [
                     "application/json"
                 ],
@@ -1115,7 +1115,7 @@
         },
         "/api/jobs/{id}": {
             "get": {
-                "description": "Job to get is specified by database ID\nReturns full job resource information according to 'Job' scheme and all metrics according to 'JobData'.",
+                "description": "Job to get is specified by database ID\nReturns full job resource information according to 'Job' scheme and all metrics according to 'JobData'.\nRunning jobs carry a footprint, energy footprint and total energy computed live from the metric store (empty below the short-running-jobs-duration); finished jobs carry the values persisted at archiving.",
                 "produces": [
                     "application/json"
                 ],
@@ -1189,7 +1189,7 @@
                 ]
             },
             "post": {
-                "description": "Job to get is specified by database ID\nReturns full job resource information according to 'Job' scheme and all metrics according to 'JobData'.",
+                "description": "Job to get is specified by database ID\nReturns full job resource information according to 'Job' scheme and all metrics according to 'JobData'.\nRunning jobs carry a footprint, energy footprint and total energy computed live from the metric store (empty below the short-running-jobs-duration); finished jobs carry the values persisted at archiving.",
                 "consumes": [
                     "application/json"
                 ],
