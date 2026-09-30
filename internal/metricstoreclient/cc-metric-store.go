@@ -353,6 +353,7 @@ func (ccms *CCMetricStore) LoadData(
 func (ccms *CCMetricStore) LoadStats(
 	job *schema.Job,
 	metrics []string,
+	_ map[string]bool, // avgOnly: the external store always computes full statistics
 	ctx context.Context,
 ) (map[string]map[string]schema.MetricStatistics, error) {
 	queries, _, err := ccms.buildQueries(job, metrics, []schema.MetricScope{schema.MetricScopeNode}, 0) // #166 Add scope shere for analysis view accelerator normalization?

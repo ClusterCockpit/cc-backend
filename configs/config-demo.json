@@ -4,8 +4,7 @@
   },
   "cron": {
     "commit-job-worker": "1m",
-    "duration-worker": "3m",
-    "footprint-worker": "5m"
+    "duration-worker": "3m"
   },
   "auth": {
     "jwts": {

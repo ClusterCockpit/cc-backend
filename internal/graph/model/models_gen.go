@@ -311,7 +311,7 @@ func (e *Aggregate) UnmarshalGQL(v any) error {
 }
 
 func (e Aggregate) MarshalGQL(w io.Writer) {
-	fmt.Fprint(w, strconv.Quote(e.String()))
+	_, _ = fmt.Fprint(w, strconv.Quote(e.String()))
 }
 
 func (e *Aggregate) UnmarshalJSON(b []byte) error {
@@ -368,7 +368,7 @@ func (e *ResampleAlgo) UnmarshalGQL(v any) error {
 }
 
 func (e ResampleAlgo) MarshalGQL(w io.Writer) {
-	fmt.Fprint(w, strconv.Quote(e.String()))
+	_, _ = fmt.Fprint(w, strconv.Quote(e.String()))
 }
 
 func (e *ResampleAlgo) UnmarshalJSON(b []byte) error {
@@ -437,7 +437,7 @@ func (e *SortByAggregate) UnmarshalGQL(v any) error {
 }
 
 func (e SortByAggregate) MarshalGQL(w io.Writer) {
-	fmt.Fprint(w, strconv.Quote(e.String()))
+	_, _ = fmt.Fprint(w, strconv.Quote(e.String()))
 }
 
 func (e *SortByAggregate) UnmarshalJSON(b []byte) error {
@@ -492,7 +492,7 @@ func (e *SortDirectionEnum) UnmarshalGQL(v any) error {
 }
 
 func (e SortDirectionEnum) MarshalGQL(w io.Writer) {
-	fmt.Fprint(w, strconv.Quote(e.String()))
+	_, _ = fmt.Fprint(w, strconv.Quote(e.String()))
 }
 
 func (e *SortDirectionEnum) UnmarshalJSON(b []byte) error {

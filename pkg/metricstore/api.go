@@ -91,6 +91,10 @@ type APIQuery struct {
 	SubTypeIds  []string     `json:"subtype-ids,omitempty"`
 	ScaleFactor schema.Float `json:"scale-by,omitempty"`
 	Aggregate   bool         `json:"aggreg"`
+	// AvgOnly marks queries whose caller only uses the average. FetchStats may then
+	// answer aggregated selectors from cached buffer aggregates. It is an
+	// in-process hint and never serialized.
+	AvgOnly bool `json:"-"`
 }
 
 // AddStats computes and populates the Avg, Min, and Max fields from the Data array.
@@ -212,68 +216,10 @@ func FetchData(req APIQueryRequest) (*APIQueryResponse, error) {
 	response := APIQueryResponse{
 		Results: make([][]APIMetricData, 0, len(req.Queries)),
 	}
-	if req.ForAllNodes != nil {
-		nodes := ms.ListChildren([]string{req.Cluster})
-		for _, node := range nodes {
-			for _, metric := range req.ForAllNodes {
-				q := APIQuery{
-					Metric:   metric,
-					Hostname: node,
-				}
-				req.Queries = append(req.Queries, q)
-				response.Queries = append(response.Queries, q)
-			}
-		}
-	}
+	expandForAllNodes(ms, &req, &response)
 
 	for _, query := range req.Queries {
-		sels := make([]util.Selector, 0, 1)
-		if query.Aggregate || query.Type == nil {
-			sel := util.Selector{{String: req.Cluster}, {String: query.Hostname}}
-			if query.Type != nil {
-				if len(query.TypeIds) == 1 {
-					sel = append(sel, util.SelectorElement{String: *query.Type + query.TypeIds[0]})
-				} else {
-					ids := make([]string, len(query.TypeIds))
-					for i, id := range query.TypeIds {
-						ids[i] = *query.Type + id
-					}
-					sel = append(sel, util.SelectorElement{Group: ids})
-				}
-
-				if query.SubType != nil {
-					if len(query.SubTypeIds) == 1 {
-						sel = append(sel, util.SelectorElement{String: *query.SubType + query.SubTypeIds[0]})
-					} else {
-						ids := make([]string, len(query.SubTypeIds))
-						for i, id := range query.SubTypeIds {
-							ids[i] = *query.SubType + id
-						}
-						sel = append(sel, util.SelectorElement{Group: ids})
-					}
-				}
-			}
-			sels = append(sels, sel)
-		} else {
-			for _, typeID := range query.TypeIds {
-				if query.SubType != nil {
-					for _, subTypeID := range query.SubTypeIds {
-						sels = append(sels, util.Selector{
-							{String: req.Cluster},
-							{String: query.Hostname},
-							{String: *query.Type + typeID},
-							{String: *query.SubType + subTypeID},
-						})
-					}
-				} else {
-					sels = append(sels, util.Selector{
-						{String: req.Cluster},
-						{String: query.Hostname},
-						{String: *query.Type + typeID},
-					})
-				}
-			}
-		}
+		sels := querySelectors(req.Cluster, query)
 
 		var err error
 		res := make([]APIMetricData, 0, len(sels))
@@ -305,6 +251,141 @@ func FetchData(req APIQueryRequest) (*APIQueryResponse, error) {
 			}
 			if !req.WithData {
 				data.Data = nil
+			}
+			res = append(res, data)
+		}
+		response.Results = append(response.Results, res)
+	}
+
+	return &response, nil
+}
+
+// expandForAllNodes appends one query per node of req.Cluster and metric in
+// req.ForAllNodes to req.Queries, echoing them in response.Queries.
+func expandForAllNodes(ms *MemoryStore, req *APIQueryRequest, response *APIQueryResponse) {
+	if req.ForAllNodes == nil {
+		return
+	}
+	nodes := ms.ListChildren([]string{req.Cluster})
+	for _, node := range nodes {
+		for _, metric := range req.ForAllNodes {
+			q := APIQuery{
+				Metric:   metric,
+				Hostname: node,
+			}
+			req.Queries = append(req.Queries, q)
+			response.Queries = append(response.Queries, q)
+		}
+	}
+}
+
+// querySelectors builds the memory store selectors for one query. Aggregated
+// queries and queries without a type yield a single selector; otherwise there
+// is one selector per type/subtype id combination.
+func querySelectors(cluster string, query APIQuery) []util.Selector {
+	sels := make([]util.Selector, 0, 1)
+	if query.Aggregate || query.Type == nil {
+		sel := util.Selector{{String: cluster}, {String: query.Hostname}}
+		if query.Type != nil {
+			if len(query.TypeIds) == 1 {
+				sel = append(sel, util.SelectorElement{String: *query.Type + query.TypeIds[0]})
+			} else {
+				ids := make([]string, len(query.TypeIds))
+				for i, id := range query.TypeIds {
+					ids[i] = *query.Type + id
+				}
+				sel = append(sel, util.SelectorElement{Group: ids})
+			}
+
+			if query.SubType != nil {
+				if len(query.SubTypeIds) == 1 {
+					sel = append(sel, util.SelectorElement{String: *query.SubType + query.SubTypeIds[0]})
+				} else {
+					ids := make([]string, len(query.SubTypeIds))
+					for i, id := range query.SubTypeIds {
+						ids[i] = *query.SubType + id
+					}
+					sel = append(sel, util.SelectorElement{Group: ids})
+				}
+			}
+		}
+		sels = append(sels, sel)
+	} else {
+		for _, typeID := range query.TypeIds {
+			if query.SubType != nil {
+				for _, subTypeID := range query.SubTypeIds {
+					sels = append(sels, util.Selector{
+						{String: cluster},
+						{String: query.Hostname},
+						{String: *query.Type + typeID},
+						{String: *query.SubType + subTypeID},
+					})
+				}
+			} else {
+				sels = append(sels, util.Selector{
+					{String: cluster},
+					{String: query.Hostname},
+					{String: *query.Type + typeID},
+				})
+			}
+		}
+	}
+	return sels
+}
+
+// FetchStats executes a statistics-only query request. It returns the same
+// response shape as FetchData with WithStats set and no data, but answers each
+// selector from the buffers' cached aggregates whenever that gives the same
+// result as reading the series: always when the selector resolves to a single
+// buffer, and for queries marked AvgOnly also when several buffers are
+// aggregated. All other selectors, and buffers that do not align, fall back to
+// a full read followed by AddStats.
+func FetchStats(req APIQueryRequest) (*APIQueryResponse, error) {
+	if req.From > req.To {
+		return nil, ErrInvalidTimeRange
+	}
+	if req.Cluster == "" && req.ForAllNodes != nil {
+		return nil, ErrEmptyCluster
+	}
+
+	ms := GetMemoryStore()
+	if ms == nil {
+		return nil, fmt.Errorf("[METRICSTORE]> memorystore not initialized")
+	}
+
+	response := APIQueryResponse{
+		Results: make([][]APIMetricData, 0, len(req.Queries)),
+	}
+	expandForAllNodes(ms, &req, &response)
+
+	for _, query := range req.Queries {
+		sels := querySelectors(req.Cluster, query)
+		res := make([]APIMetricData, 0, len(sels))
+		for _, sel := range sels {
+			data := APIMetricData{}
+
+			if st, from, to, ok := ms.fastStats(sel, query.Metric, req.From, req.To, query.AvgOnly); ok {
+				data.From, data.To = from, to
+				data.Avg, data.Min, data.Max = st.Avg, st.Min, st.Max
+			} else {
+				var err error
+				data.Data, data.From, data.To, data.Resolution, err = ms.Read(sel, query.Metric, req.From, req.To, query.Resolution, req.ResampleAlgo)
+				if err != nil {
+					if err != ErrNoHostOrMetric {
+						msg := err.Error()
+						data.Error = &msg
+						res = append(res, data)
+					} else {
+						cclog.Debugf("failed to fetch '%s' from host '%s' (cluster: %s): %s", query.Metric, query.Hostname, req.Cluster, err.Error())
+					}
+					continue
+				}
+				data.AddStats()
+				data.Data = nil
+			}
+
+			if query.ScaleFactor != 0 {
+				data.ScaleBy(query.ScaleFactor)
 			}
 			res = append(res, data)
 		}

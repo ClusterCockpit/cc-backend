@@ -122,6 +122,12 @@ The backend follows a layered architecture with clear separation of concerns:
   - SQLite backend (experimental)
   - **parquet** sub-package: Parquet format support (schema, reader, writer, conversion)
 - **internal/metricstoreclient**: Client for cc-metric-store queries
+- **internal/footprint**: Builds footprints and energy footprints from metric statistics
+  - Shared by the archiver, the importer and the live computation for running jobs
+- **internal/metricdispatch** (`live.go`): Live footprints of running jobs
+  - `LiveFootprint` computes footprint, energy footprint and total energy from the metric store
+  - Cached per job for 60s; concurrent callers share one computation
+  - Metric store calls limited per store (internal: `GOMAXPROCS`, external: `max-concurrent-requests`)
 
 ### Frontend Structure
 
@@ -153,6 +159,16 @@ recommended). Configuration is per-cluster in `config.json`.
 
 **Database Migrations**: SQL migrations in `internal/repository/migrations/sqlite3/` are
 applied automatically on startup. Version tracking in `version` table.
+
+**Job Footprints**: Summary statistics (`<metric>_<avg|min|max>`) plus energy.
+Finished jobs carry values persisted at archiving. Running jobs (and stopped jobs
+not yet archived) get live values from the metric store, which are never persisted;
+jobs shorter than `main.short-running-jobs-duration` get none. Queries using a
+footprint feature (footprint or energy sort, `metricStats` or `energy` filter,
+metric histograms) are routed by state in `internal/repository/footprintQuery.go`:
+`running` only uses live values (filters resolved to a job id set), no `running`
+uses SQL on the persisted columns, no state filter means finished jobs only, and
+mixing `running` with other states returns `ErrMixedStateFootprintQuery`.
 
 **Scopes**: Metrics can be collected at different scopes:
 
@@ -189,6 +205,12 @@ applied automatically on startup. Version tracking in `version` table.
     - `heartbeat-concurrency`: Worker goroutines decoding heartbeats (default: 2)
     - `discovery-subject-prefix`: Roster subject prefix (default "cc.fleet.discovery")
     - `discovery-interval`: How often all rosters are re-published (default "1m")
+  - `main.short-running-jobs-duration`: Also the cutoff below which running jobs
+    get no live footprint (default 300 s)
+  - `cron.footprint-worker`: **Deprecated** and ignored (warning at startup);
+    footprints of running jobs are computed live
+  - `metric-store-external[].max-concurrent-requests`: Concurrent live footprint
+    requests to that store (optional, default 8, minimum 1)
   - `nats`: NATS client connection configuration (optional)
     - `address`: NATS server address (e.g., "nats://localhost:4222")
     - `username`: Authentication username (optional; or `CC_NATS_USERNAME`)

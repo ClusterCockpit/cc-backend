@@ -30,11 +30,6 @@ type RepositoryConfig struct {
 	// Default: 10 minutes
 	ConnectionMaxIdleTime time.Duration
 
-	// MinRunningJobDuration is the minimum duration in seconds for a job to be
-	// considered in "running jobs" queries. This filters out very short jobs.
-	// Default: 600 seconds (10 minutes)
-	MinRunningJobDuration int
-
 	// DbCacheSizeMB is the SQLite page cache size per connection in MB.
 	// Uses negative PRAGMA cache_size notation (KiB). With MaxOpenConnections=4
 	// and DbCacheSizeMB=2048, total page cache is up to 8GB.
@@ -63,7 +58,6 @@ func DefaultConfig() *RepositoryConfig {
 		MaxIdleConnections:    4,
 		ConnectionMaxLifetime: time.Hour,
 		ConnectionMaxIdleTime: 10 * time.Minute,
-		MinRunningJobDuration: 600,   // 10 minutes
 		DbCacheSizeMB:         2048,  // 2GB per connection
 		DbSoftHeapLimitMB:     16384, // 16GB process-wide
 		BusyTimeoutMs:         60000, // 60 seconds

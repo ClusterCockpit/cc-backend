@@ -49,6 +49,7 @@ import (
 	"time"
 
 	"github.com/ClusterCockpit/cc-backend/internal/config"
+	"github.com/ClusterCockpit/cc-backend/internal/footprint"
 	"github.com/ClusterCockpit/cc-backend/internal/graph/model"
 	"github.com/ClusterCockpit/cc-backend/internal/metricdispatch"
 	"github.com/ClusterCockpit/cc-backend/pkg/archive"
@@ -239,10 +240,15 @@ func (r *JobRepository) JobsStatsGrouped(
 	groupBy *model.Aggregate,
 	reqFields map[string]bool,
 ) ([]*model.JobsStatistics, error) {
+	fq, err := r.RouteFootprintQuery(ctx, filter, nil, false)
+	if err != nil {
+		return nil, err
+	}
+	filter = fq.Filters
 	col := groupBy2column[*groupBy]
 	query := r.buildStatsQuery(filter, col, config.Keys.ShortRunningJobsDuration, reqFields)
 
-	query, err := SecurityCheck(ctx, query)
+	query, err = SecurityCheck(ctx, query)
 	if err != nil {
 		return nil, err
 	}
@@ -348,9 +354,14 @@ func (r *JobRepository) JobsStats(
 	filter []*model.JobFilter,
 	reqFields map[string]bool,
 ) ([]*model.JobsStatistics, error) {
+	fq, err := r.RouteFootprintQuery(ctx, filter, nil, false)
+	if err != nil {
+		return nil, err
+	}
+	filter = fq.Filters
 	start := time.Now()
 	query := r.buildStatsQuery(filter, "", config.Keys.ShortRunningJobsDuration, reqFields)
-	query, err := SecurityCheck(ctx, query)
+	query, err = SecurityCheck(ctx, query)
 	if err != nil {
 		return nil, err
 	}
@@ -393,32 +404,6 @@ func (r *JobRepository) JobsStats(
 	return stats, nil
 }
 
-// LoadJobStat retrieves a specific statistic for a metric from a job's statistics.
-// Returns 0.0 if the metric is not found or statType is invalid.
-//
-// Parameters:
-//   - job: Job struct with populated Statistics field
-//   - metric: Name of the metric to query (e.g., "cpu_load", "mem_used")
-//   - statType: Type of statistic: "avg", "min", or "max"
-//
-// Returns the requested statistic value or 0.0 if not found.
-func LoadJobStat(job *schema.Job, metric string, statType string) float64 {
-	if stats, ok := job.Statistics.Metrics[metric]; ok {
-		switch statType {
-		case "avg":
-			return stats.Avg
-		case "max":
-			return stats.Max
-		case "min":
-			return stats.Min
-		default:
-			cclog.Errorf("Unknown stat type %s", statType)
-		}
-	}
-
-	return 0.0
-}
-
 // JobCountGrouped counts jobs grouped by a dimension without computing detailed statistics.
 //
 // This is a lightweight alternative to JobsStatsGrouped when only job counts are needed,
@@ -435,10 +420,15 @@ func (r *JobRepository) JobCountGrouped(
 	filter []*model.JobFilter,
 	groupBy *model.Aggregate,
 ) ([]*model.JobsStatistics, error) {
+	fq, err := r.RouteFootprintQuery(ctx, filter, nil, false)
+	if err != nil {
+		return nil, err
+	}
+	filter = fq.Filters
 	start := time.Now()
 	col := groupBy2column[*groupBy]
 	query := r.buildCountQuery(filter, "", col)
-	query, err := SecurityCheck(ctx, query)
+	query, err = SecurityCheck(ctx, query)
 	if err != nil {
 		return nil, err
 	}
@@ -496,10 +486,15 @@ func (r *JobRepository) AddJobCountGrouped(
 	stats []*model.JobsStatistics,
 	kind string,
 ) ([]*model.JobsStatistics, error) {
+	fq, err := r.RouteFootprintQuery(ctx, filter, nil, false)
+	if err != nil {
+		return nil, err
+	}
+	filter = fq.Filters
 	start := time.Now()
 	col := groupBy2column[*groupBy]
 	query := r.buildCountQuery(filter, kind, col)
-	query, err := SecurityCheck(ctx, query)
+	query, err = SecurityCheck(ctx, query)
 	if err != nil {
 		return nil, err
 	}
@@ -561,9 +556,14 @@ func (r *JobRepository) AddJobCount(
 	stats []*model.JobsStatistics,
 	kind string,
 ) ([]*model.JobsStatistics, error) {
+	fq, err := r.RouteFootprintQuery(ctx, filter, nil, false)
+	if err != nil {
+		return nil, err
+	}
+	filter = fq.Filters
 	start := time.Now()
 	query := r.buildCountQuery(filter, kind, "")
-	query, err := SecurityCheck(ctx, query)
+	query, err = SecurityCheck(ctx, query)
 	if err != nil {
 		return nil, err
 	}
@@ -616,6 +616,11 @@ func (r *JobRepository) AddHistograms(
 	stat *model.JobsStatistics,
 	durationBins *string,
 ) (*model.JobsStatistics, error) {
+	fq, err := r.RouteFootprintQuery(ctx, filter, nil, false)
+	if err != nil {
+		return nil, err
+	}
+	filter = fq.Filters
 	start := time.Now()
 
 	var targetBinCount int
@@ -720,15 +725,17 @@ func (r *JobRepository) AddMetricHistograms(
 ) (*model.JobsStatistics, error) {
 	start := time.Now()
 
-	// Running Jobs Only: First query jobdata from sqlite, then query data and make bins
-	for _, f := range filter {
-		if f.State != nil {
-			if len(f.State) == 1 && f.State[0] == "running" {
-				stat.HistMetrics = r.runningJobsMetricStatisticsHistogram(ctx, metrics, filter, targetBinCount)
-				cclog.Debugf("Timer AddMetricHistograms %s", time.Since(start))
-				return stat, nil
-			}
-		}
+	fq, err := r.RouteFootprintQuery(ctx, filter, nil, len(metrics) > 0)
+	if err != nil {
+		return nil, err
+	}
+	filter = fq.Filters
+
+	// Running Jobs Only: bin the live footprint values of the matching jobs
+	if fq.mode == footprintLive {
+		stat.HistMetrics = r.runningJobsMetricStatisticsHistogram(ctx, metrics, filter, targetBinCount)
+		cclog.Debugf("Timer AddMetricHistograms %s", time.Since(start))
+		return stat, nil
 	}
 
 	// All other cases: Query and make bins in sqlite directly
@@ -1040,8 +1047,10 @@ func (r *JobRepository) jobsMetricStatisticsHistogram(
 
 // runningJobsMetricStatisticsHistogram generates metric histograms for running jobs using live data.
 //
-// Unlike completed jobs which use footprint data from the database, running jobs require
-// fetching current metric averages from the metric backend (via metricdispatch).
+// Unlike completed jobs which use footprint data from the database, running jobs are
+// binned by their live footprint values (metricdispatch.LiveFootprint), using the
+// footprint statistic configured for each metric - the same values footprint
+// filters on running jobs use.
 //
 // Parameters:
 //   - metrics: List of metric names
@@ -1057,9 +1066,9 @@ func (r *JobRepository) jobsMetricStatisticsHistogram(
 //
 // Algorithm:
 //  1. Query first 5001 jobs to check count limit
-//  2. Load metric averages for all jobs via metricdispatch
+//  2. Load the live footprint values of all jobs via metricdispatch
 //  3. For each metric, create bins based on peak value
-//  4. Iterate averages and count jobs per bin
+//  4. Iterate footprint values and count jobs per bin
 func (r *JobRepository) runningJobsMetricStatisticsHistogram(
 	ctx context.Context,
 	metrics []string,
@@ -1077,20 +1086,33 @@ func (r *JobRepository) runningJobsMetricStatisticsHistogram(
 		return nil
 	}
 
-	// Get AVGs from metric repo
-	avgs := make([][]schema.Float, len(metrics))
-	for i := range avgs {
-		avgs[i] = make([]schema.Float, 0, len(jobs))
+	// Collect the live footprint value of each metric, using the footprint
+	// statistic configured for the job's subcluster. Jobs without a value (short
+	// jobs, no data, not a footprint metric) are skipped.
+	values := make([][]float64, len(metrics))
+	stats := make([]string, len(metrics))
+	for i := range values {
+		values[i] = make([]float64, 0, len(jobs))
 	}
 
 	for _, job := range jobs {
-		if job.MonitoringStatus == schema.MonitoringStatusDisabled || job.MonitoringStatus == schema.MonitoringStatusArchivingFailed {
+		lv, ok := metricdispatch.LiveFootprint(ctx, job)
+		if !ok {
 			continue
 		}
-
-		if err := metricdispatch.LoadAverages(job, metrics, avgs, ctx); err != nil {
-			cclog.Errorf("Error while loading averages for histogram: %s", err)
-			return nil
+		sc, err := archive.GetSubCluster(job.Cluster, job.SubCluster)
+		if err != nil {
+			continue
+		}
+		for idx, metric := range metrics {
+			statType, err := footprint.StatType(sc, metric)
+			if err != nil {
+				continue
+			}
+			if v, ok := lv.Footprint[metric+"_"+statType]; ok {
+				values[idx] = append(values[idx], v)
+				stats[idx] = statType
+			}
 		}
 	}
 
@@ -1103,10 +1125,11 @@ func (r *JobRepository) runningJobsMetricStatisticsHistogram(
 		var unit string
 
 		for _, f := range filters {
-			if f.Cluster != nil {
-				metricConfig = archive.GetMetricConfig(*f.Cluster.Eq, metric)
-				peak = metricConfig.Peak
-				unit = metricConfig.Unit.Prefix + metricConfig.Unit.Base
+			if f.Cluster != nil && f.Cluster.Eq != nil {
+				if metricConfig = archive.GetMetricConfig(*f.Cluster.Eq, metric); metricConfig != nil {
+					peak = metricConfig.Peak
+					unit = metricConfig.Unit.Prefix + metricConfig.Unit.Base
+				}
 			}
 		}
 
@@ -1135,8 +1158,8 @@ func (r *JobRepository) runningJobsMetricStatisticsHistogram(
 			bmin := peakBin * b
 			bmax := peakBin * (b + 1)
 
-			// Iterate AVG values for indexed metric and count for bins
-			for _, val := range avgs[idx] {
+			// Iterate footprint values for indexed metric and count for bins
+			for _, val := range values[idx] {
 				if int(val) >= bmin && int(val) < bmax {
 					count += 1
 				}
@@ -1149,6 +1172,9 @@ func (r *JobRepository) runningJobsMetricStatisticsHistogram(
 
 		// Append Metric Result Array to final results array
 		result := model.MetricHistoPoints{Metric: metric, Unit: unit, Data: points}
+		if stats[idx] != "" {
+			result.Stat = &stats[idx]
+		}
 		data = append(data, &result)
 	}
 

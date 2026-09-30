@@ -450,12 +450,14 @@ type ClusterResolver interface {
 type JobResolver interface {
 	StartTime(ctx context.Context, obj *schema.Job) (*time.Time, error)
 
+	Energy(ctx context.Context, obj *schema.Job) (float64, error)
+
 	Tags(ctx context.Context, obj *schema.Job) ([]*schema.Tag, error)
 
 	ConcurrentJobs(ctx context.Context, obj *schema.Job) (*model.JobLinkResultList, error)
 	Footprint(ctx context.Context, obj *schema.Job) ([]*model.FootprintValue, error)
 	EnergyFootprint(ctx context.Context, obj *schema.Job) ([]*model.EnergyFootprintValue, error)
-	MetaData(ctx context.Context, obj *schema.Job) (interface{}, error)
+	MetaData(ctx context.Context, obj *schema.Job) (any, error)
 	UserData(ctx context.Context, obj *schema.Job) (*model.User, error)
 }
 type MetricValueResolver interface {
@@ -474,8 +476,8 @@ type NodeResolver interface {
 
 	SchedulerState(ctx context.Context, obj *schema.Node) (schema.SchedulerState, error)
 	HealthState(ctx context.Context, obj *schema.Node) (string, error)
-	MetaData(ctx context.Context, obj *schema.Node) (interface{}, error)
-	HealthData(ctx context.Context, obj *schema.Node) (interface{}, error)
+	MetaData(ctx context.Context, obj *schema.Node) (any, error)
+	HealthData(ctx context.Context, obj *schema.Node) (any, error)
 }
 type QueryResolver interface {
 	Clusters(ctx context.Context) ([]*schema.Cluster, error)
@@ -5639,7 +5641,7 @@ func (ec *executionContext) _Job_energy(ctx context.Context, field graphql.Colle
 			return ec.fieldContext_Job_energy(ctx, field)
 		},
 		func(ctx context.Context) (any, error) {
-			return obj.Energy, nil
+			return ec.Resolvers.Job().Energy(ctx, obj)
 		},
 		nil,
 		func(ctx context.Context, selections ast.SelectionSet, v float64) graphql.Marshaler {
@@ -5650,7 +5652,7 @@ func (ec *executionContext) _Job_energy(ctx context.Context, field graphql.Colle
 	)
 }
 func (ec *executionContext) fieldContext_Job_energy(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	return graphql.NewScalarFieldContext("Job", field, false, false, errors.New("field of type Float does not have child fields"))
+	return graphql.NewScalarFieldContext("Job", field, true, true, errors.New("field of type Float does not have child fields"))
 }
 
 func (ec *executionContext) _Job_SMT(ctx context.Context, field graphql.CollectedField, obj *schema.Job) (ret graphql.Marshaler) {
@@ -13600,10 +13602,43 @@ func (ec *executionContext) _Job(ctx context.Context, sel ast.SelectionSet, obj 
 				atomic.AddUint32(&out.Invalids, 1)
 			}
 		case "energy":
-			out.Values[i] = ec._Job_energy(ctx, field, obj)
-			if out.Values[i] == graphql.Null {
-				atomic.AddUint32(&out.Invalids, 1)
+			field := field
+
+			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Job_energy(ctx, field, obj)
+				if res == graphql.Null {
+					atomic.AddUint32(&fs.Invalids, 1)
+				}
+				return res
 			}
+
+			if field.IsDeferred() {
+				deferredFieldSet.AddField(field)
+				fieldIndex := len(deferredFieldSet.Values) - 1
+				deferredFieldSet.Concurrently(fieldIndex, func(ctx context.Context) graphql.Marshaler {
+					return innerFunc(ctx, deferredFieldSet)
+				})
+
+				for _, deferrable := range field.Deferrables {
+					view, ok := deferLabelToView[deferrable.Label]
+					if !ok {
+						view = deferredFieldSet.NewView()
+						deferLabelToView[deferrable.Label] = view
+					}
+					view.AddIndices(fieldIndex)
+				}
+
+				// don't run the out.Concurrently() call below
+				out.Values[i] = graphql.Null
+				continue
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
 		case "SMT":
 			out.Values[i] = ec._Job_SMT(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
@@ -17115,10 +17150,6 @@ func (ec *executionContext) marshalNClusterMetricWithName2ᚖgithubᚗcomᚋClus
 	return ec._ClusterMetricWithName(ctx, sel, v)
 }
 
-func (ec *executionContext) marshalNClusterMetrics2githubᚗcomᚋClusterCockpitᚋccᚑbackendᚋinternalᚋgraphᚋmodelᚐClusterMetrics(ctx context.Context, sel ast.SelectionSet, v model.ClusterMetrics) graphql.Marshaler {
-	return ec._ClusterMetrics(ctx, sel, &v)
-}
-
 func (ec *executionContext) marshalNClusterMetrics2ᚖgithubᚗcomᚋClusterCockpitᚋccᚑbackendᚋinternalᚋgraphᚋmodelᚐClusterMetrics(ctx context.Context, sel ast.SelectionSet, v *model.ClusterMetrics) graphql.Marshaler {
 	if v == nil {
 		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
@@ -17624,10 +17655,6 @@ func (ec *executionContext) marshalNJobMetricWithName2ᚖgithubᚗcomᚋClusterC
 	return ec._JobMetricWithName(ctx, sel, v)
 }
 
-func (ec *executionContext) marshalNJobResultList2githubᚗcomᚋClusterCockpitᚋccᚑbackendᚋinternalᚋgraphᚋmodelᚐJobResultList(ctx context.Context, sel ast.SelectionSet, v model.JobResultList) graphql.Marshaler {
-	return ec._JobResultList(ctx, sel, &v)
-}
-
 func (ec *executionContext) marshalNJobResultList2ᚖgithubᚗcomᚋClusterCockpitᚋccᚑbackendᚋinternalᚋgraphᚋmodelᚐJobResultList(ctx context.Context, sel ast.SelectionSet, v *model.JobResultList) graphql.Marshaler {
 	if v == nil {
 		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
@@ -17942,10 +17969,6 @@ func (ec *executionContext) marshalNNodeMetrics2ᚖgithubᚗcomᚋClusterCockpit
 	return ec._NodeMetrics(ctx, sel, v)
 }
 
-func (ec *executionContext) marshalNNodeStateResultList2githubᚗcomᚋClusterCockpitᚋccᚑbackendᚋinternalᚋgraphᚋmodelᚐNodeStateResultList(ctx context.Context, sel ast.SelectionSet, v model.NodeStateResultList) graphql.Marshaler {
-	return ec._NodeStateResultList(ctx, sel, &v)
-}
-
 func (ec *executionContext) marshalNNodeStateResultList2ᚖgithubᚗcomᚋClusterCockpitᚋccᚑbackendᚋinternalᚋgraphᚋmodelᚐNodeStateResultList(ctx context.Context, sel ast.SelectionSet, v *model.NodeStateResultList) graphql.Marshaler {
 	if v == nil {
 		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
@@ -18006,10 +18029,6 @@ func (ec *executionContext) marshalNNodeStatesTimed2ᚖgithubᚗcomᚋClusterCoc
 		return graphql.Null
 	}
 	return ec._NodeStatesTimed(ctx, sel, v)
-}
-
-func (ec *executionContext) marshalNNodesResultList2githubᚗcomᚋClusterCockpitᚋccᚑbackendᚋinternalᚋgraphᚋmodelᚐNodesResultList(ctx context.Context, sel ast.SelectionSet, v model.NodesResultList) graphql.Marshaler {
-	return ec._NodesResultList(ctx, sel, &v)
 }
 
 func (ec *executionContext) marshalNNodesResultList2ᚖgithubᚗcomᚋClusterCockpitᚋccᚑbackendᚋinternalᚋgraphᚋmodelᚐNodesResultList(ctx context.Context, sel ast.SelectionSet, v *model.NodesResultList) graphql.Marshaler {
@@ -18239,10 +18258,6 @@ func (ec *executionContext) marshalNSubClusterConfig2ᚖgithubᚗcomᚋClusterCo
 		return graphql.Null
 	}
 	return ec._SubClusterConfig(ctx, sel, v)
-}
-
-func (ec *executionContext) marshalNTag2githubᚗcomᚋClusterCockpitᚋccᚑlibᚋv2ᚋschemaᚐTag(ctx context.Context, sel ast.SelectionSet, v schema.Tag) graphql.Marshaler {
-	return ec._Tag(ctx, sel, &v)
 }
 
 func (ec *executionContext) marshalNTag2ᚕᚖgithubᚗcomᚋClusterCockpitᚋccᚑlibᚋv2ᚋschemaᚐTagᚄ(ctx context.Context, sel ast.SelectionSet, v []*schema.Tag) graphql.Marshaler {

@@ -45,8 +45,25 @@ type CronFrequency struct {
 	CommitJobWorker string `json:"commit-job-worker"`
 	// Duration Update Worker [Defaults to '5m']
 	DurationWorker string `json:"duration-worker"`
-	// Metric-Footprint Update Worker [Defaults to '10m']
+	// Deprecated: footprints of running jobs are computed live from the metric
+	// store. The key is still accepted so that existing configurations load,
+	// but it has no effect.
 	FootprintWorker string `json:"footprint-worker"`
+}
+
+// decodeCronConfig decodes the cron configuration, rejecting unknown keys, and
+// warns about deprecated ones.
+func decodeCronConfig(raw json.RawMessage) (CronFrequency, error) {
+	var keys CronFrequency
+	dec := json.NewDecoder(bytes.NewReader(raw))
+	dec.DisallowUnknownFields()
+	if err := dec.Decode(&keys); err != nil {
+		return keys, err
+	}
+	if keys.FootprintWorker != "" {
+		cclog.Warn("cron.footprint-worker is deprecated and ignored: footprints of running jobs are computed live from the metric store")
+	}
+	return keys, nil
 }
 
 var (
@@ -114,9 +131,7 @@ func Start(cronCfg, archiveConfig json.RawMessage) {
 		RegisterStopJobsExceedTime()
 	}
 
-	dec := json.NewDecoder(bytes.NewReader(cronCfg))
-	dec.DisallowUnknownFields()
-	if err := dec.Decode(&Keys); err != nil {
+	if Keys, err = decodeCronConfig(cronCfg); err != nil {
 		cclog.Errorf("error while decoding cron config: %v", err)
 	}
 
@@ -133,15 +148,19 @@ func Start(cronCfg, archiveConfig json.RawMessage) {
 		RegisterLdapSyncService(lc.SyncInterval)
 	}
 
-	RegisterFootprintWorker()
-	RegisterUpdateDurationWorker()
-	RegisterCommitJobService()
+	registerJobWorkers()
 
 	if config.Keys.NodeStateRetention != nil && config.Keys.NodeStateRetention.Policy != "" {
 		initNodeStateRetention()
 	}
 
 	s.Start()
+}
+
+// registerJobWorkers registers the recurring workers for running jobs.
+func registerJobWorkers() {
+	RegisterUpdateDurationWorker()
+	RegisterCommitJobService()
 }
 
 func initNodeStateRetention() {

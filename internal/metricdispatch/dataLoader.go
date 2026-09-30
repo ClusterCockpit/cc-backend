@@ -41,9 +41,9 @@ package metricdispatch
 import (
 	"context"
 	"fmt"
-	"math"
 	"time"
 
+	"github.com/ClusterCockpit/cc-backend/internal/footprint"
 	"github.com/ClusterCockpit/cc-backend/pkg/archive"
 	cclog "github.com/ClusterCockpit/cc-lib/v2/ccLogger"
 	"github.com/ClusterCockpit/cc-lib/v2/lrucache"
@@ -259,7 +259,12 @@ func LoadAverages(
 		return err
 	}
 
-	stats, err := ms.LoadStats(job, metrics, ctx)
+	avgOnly := make(map[string]bool, len(metrics))
+	for _, m := range metrics {
+		avgOnly[m] = true
+	}
+
+	stats, err := ms.LoadStats(job, metrics, avgOnly, ctx)
 	if err != nil {
 		cclog.Warnf("failed to load statistics from metric store for job %d (user: %s, project: %s, cluster: %s-%s): %s",
 			job.JobID, job.User, job.Project, job.Cluster, job.SubCluster, err.Error())
@@ -337,32 +342,17 @@ func LoadJobStats(
 
 	data := make(map[string]schema.MetricStatistics, len(metrics))
 
-	stats, err := ms.LoadStats(job, metrics, ctx)
+	stats, err := ms.LoadStats(job, metrics, nil, ctx)
 	if err != nil {
 		cclog.Warnf("failed to load statistics from metric store for job %d (user: %s, project: %s, cluster: %s-%s): %s",
 			job.JobID, job.User, job.Project, job.Cluster, job.SubCluster, err.Error())
 		return data, err
 	}
 
+	folded := footprint.Fold(job, stats)
 	for _, m := range metrics {
-		sum, avg, min, max := 0.0, 0.0, 0.0, 0.0
-		nodes, ok := stats[m]
-		if !ok {
-			data[m] = schema.MetricStatistics{Min: min, Avg: avg, Max: max}
-			continue
-		}
-
-		for _, node := range nodes {
-			sum += node.Avg
-			min = math.Min(min, node.Min)
-			max = math.Max(max, node.Max)
-		}
-
-		data[m] = schema.MetricStatistics{
-			Avg: (math.Round((sum/float64(job.NumNodes))*100) / 100),
-			Min: (math.Round(min*100) / 100),
-			Max: (math.Round(max*100) / 100),
-		}
+		// Metrics without data are reported as zero statistics.
+		data[m] = folded[m]
 	}
 
 	return data, nil

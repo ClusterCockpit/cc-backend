@@ -105,6 +105,7 @@ type JobMetricWithName struct {
 // @tags Job query
 // @description Get a list of all jobs. Filters can be applied using query parameters.
 // @description Number of results can be limited by page. Results are sorted by descending startTime.
+// @description Running jobs carry a footprint, energy footprint and total energy computed live from the metric store (empty below the short-running-jobs-duration); finished jobs carry the values persisted at archiving.
 // @produce     json
 // @param       state          query    string            false "Job State" Enums(running, completed, failed, cancelled, stopped, timeout)
 // @param       cluster        query    string            false "Job Cluster"
@@ -196,6 +197,8 @@ func (api *RestAPI) getJobs(rw http.ResponseWriter, r *http.Request) {
 		handleError(err, http.StatusInternalServerError, rw)
 		return
 	}
+	// Running jobs carry live footprints computed from the metric store.
+	metricdispatch.ApplyLiveFootprints(r.Context(), jobs...)
 
 	results := make([]*schema.Job, 0, len(jobs))
 	for _, job := range jobs {
@@ -245,6 +248,7 @@ func (api *RestAPI) getJobs(rw http.ResponseWriter, r *http.Request) {
 // @tags Job query
 // @description Job to get is specified by database ID
 // @description Returns full job resource information according to 'Job' scheme and all metrics according to 'JobData'.
+// @description Running jobs carry a footprint, energy footprint and total energy computed live from the metric store (empty below the short-running-jobs-duration); finished jobs carry the values persisted at archiving.
 // @produce     json
 // @param       id          path     int                  true "Database ID of Job"
 // @param       all-metrics query    bool                 false "Include all available metrics"
@@ -278,6 +282,7 @@ func (api *RestAPI) getCompleteJobByID(rw http.ResponseWriter, r *http.Request) 
 		handleError(fmt.Errorf("finding job with db id %s failed: %w", id, err), http.StatusUnprocessableEntity, rw)
 		return
 	}
+	metricdispatch.ApplyLiveFootprints(r.Context(), job)
 
 	job.Tags, err = api.JobRepository.GetTags(repository.GetUserFromContext(r.Context()), job.ID)
 	if err != nil {
@@ -337,6 +342,7 @@ func (api *RestAPI) getCompleteJobByID(rw http.ResponseWriter, r *http.Request) 
 // @tags Job query
 // @description Job to get is specified by database ID
 // @description Returns full job resource information according to 'Job' scheme and all metrics according to 'JobData'.
+// @description Running jobs carry a footprint, energy footprint and total energy computed live from the metric store (empty below the short-running-jobs-duration); finished jobs carry the values persisted at archiving.
 // @accept      json
 // @produce     json
 // @param       id          path     int                  true "Database ID of Job"
@@ -371,6 +377,7 @@ func (api *RestAPI) getJobByID(rw http.ResponseWriter, r *http.Request) {
 		handleError(fmt.Errorf("finding job with db id %s failed: %w", id, err), http.StatusUnprocessableEntity, rw)
 		return
 	}
+	metricdispatch.ApplyLiveFootprints(r.Context(), job)
 
 	job.Tags, err = api.JobRepository.GetTags(repository.GetUserFromContext(r.Context()), job.ID)
 	if err != nil {
