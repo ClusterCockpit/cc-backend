@@ -270,6 +270,15 @@ definitions:
           $ref: '#/definitions/schema.SubCluster'
         type: array
     type: object
+  schema.Filesystem:
+    properties:
+      id:
+        description: Mount point (e.g., "/home", "/scratch")
+        type: string
+      type:
+        description: Filesystem type (e.g., "nfs", "lustre")
+        type: string
+    type: object
   schema.Job:
     description: Information of a HPC job.
     properties:
@@ -477,10 +486,6 @@ definitions:
     type: object
   schema.JobStatisticsSet:
     properties:
-      groups:
-        items:
-          $ref: '#/definitions/schema.StatsGroup'
-        type: array
       metrics:
         additionalProperties:
           $ref: '#/definitions/schema.JobStatistics'
@@ -547,7 +552,22 @@ definitions:
     - core
     - hwthread
     - accelerator
+    - filesystem
+    - network
     type: string
+    x-enum-comments:
+      MetricScopeFilesystem: One mount point; Series.ID is the mount
+      MetricScopeNetwork: One network interface; Series.ID is the interface
+    x-enum-descriptions:
+    - ""
+    - ""
+    - ""
+    - ""
+    - ""
+    - ""
+    - ""
+    - One mount point; Series.ID is the mount
+    - One network interface; Series.ID is the interface
     x-enum-varnames:
     - MetricScopeInvalid
     - MetricScopeNode
@@ -556,6 +576,8 @@ definitions:
     - MetricScopeCore
     - MetricScopeHWThread
     - MetricScopeAccelerator
+    - MetricScopeFilesystem
+    - MetricScopeNetwork
   schema.MetricStatistics:
     properties:
       avg:
@@ -577,6 +599,15 @@ definitions:
       value:
         description: Numeric value of the measurement
         type: number
+    type: object
+  schema.Network:
+    properties:
+      id:
+        description: Interface name (e.g., "ib0", "eth0")
+        type: string
+      type:
+        description: Network type (e.g., "infiniband", "ethernet")
+        type: string
     type: object
   schema.NodePayload:
     properties:
@@ -638,22 +669,6 @@ definitions:
         allOf:
         - $ref: '#/definitions/schema.MetricStatistics'
         description: Statistical summary (min/avg/max)
-    type: object
-  schema.StatsGroup:
-    properties:
-      instances:
-        items:
-          $ref: '#/definitions/schema.StatsGroupInstance'
-        type: array
-      key:
-        type: string
-    type: object
-  schema.StatsGroupInstance:
-    properties:
-      name:
-        type: string
-      type:
-        type: string
     type: object
   schema.StatsSeries:
     properties:
@@ -811,12 +826,22 @@ definitions:
             type: integer
           type: array
         type: array
+      filesystems:
+        description: Mount points (static per subcluster)
+        items:
+          $ref: '#/definitions/schema.Filesystem'
+        type: array
       memoryDomain:
         description: Hardware threads grouped by NUMA domain
         items:
           items:
             type: integer
           type: array
+        type: array
+      networks:
+        description: Network interfaces (static per subcluster)
+        items:
+          $ref: '#/definitions/schema.Network'
         type: array
       node:
         description: All hardware thread IDs on this node

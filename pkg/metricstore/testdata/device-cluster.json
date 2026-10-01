@@ -1,0 +1,105 @@
+{
+  "name": "devcluster",
+  "metricConfig": [
+    {
+      "name": "flops_any",
+      "scope": "hwthread",
+      "unit": { "prefix": "G", "base": "F/s" },
+      "aggregation": "sum",
+      "timestep": 60,
+      "peak": 100,
+      "normal": 50,
+      "caution": 10,
+      "alert": 1
+    },
+    {
+      "name": "fs_read_bw",
+      "scope": "filesystem",
+      "unit": { "base": "B/s" },
+      "aggregation": "sum",
+      "timestep": 60,
+      "peak": 1000,
+      "normal": 500,
+      "caution": 100,
+      "alert": 10
+    },
+    {
+      "name": "acc_util",
+      "scope": "accelerator",
+      "unit": { "base": "" },
+      "aggregation": "avg",
+      "timestep": 60,
+      "peak": 100,
+      "normal": 50,
+      "caution": 10,
+      "alert": 1
+    }
+  ],
+  "subClusters": [
+    {
+      "name": "a",
+      "processorType": "Test CPU",
+      "socketsPerNode": 1,
+      "coresPerSocket": 2,
+      "threadsPerCore": 2,
+      "flopRateScalar": { "unit": { "prefix": "G", "base": "F/s" }, "value": 10 },
+      "flopRateSimd": { "unit": { "prefix": "G", "base": "F/s" }, "value": 40 },
+      "memoryBandwidth": { "unit": { "prefix": "G", "base": "B/s" }, "value": 20 },
+      "nodes": "a[01-02]",
+      "topology": {
+        "node": [0, 1, 2, 3],
+        "socket": [[0, 1, 2, 3]],
+        "memoryDomain": [[0, 1, 2, 3]],
+        "core": [[0, 1], [2, 3]],
+        "accelerators": [
+          { "id": "0", "type": "Nvidia GPU", "model": "A100" },
+          { "id": "1", "type": "Nvidia GPU", "model": "A100" }
+        ],
+        "filesystems": [
+          { "id": "/home", "type": "nfs" },
+          { "id": "/scratch", "type": "lustre" }
+        ],
+        "networks": [
+          { "id": "ib0", "type": "infiniband" }
+        ]
+      }
+    },
+    {
+      "name": "b",
+      "processorType": "Test CPU",
+      "socketsPerNode": 1,
+      "coresPerSocket": 2,
+      "threadsPerCore": 2,
+      "flopRateScalar": { "unit": { "prefix": "G", "base": "F/s" }, "value": 10 },
+      "flopRateSimd": { "unit": { "prefix": "G", "base": "F/s" }, "value": 40 },
+      "memoryBandwidth": { "unit": { "prefix": "G", "base": "B/s" }, "value": 20 },
+      "nodes": "b[01-02]",
+      "topology": {
+        "node": [0, 1, 2, 3],
+        "socket": [[0, 1, 2, 3]],
+        "memoryDomain": [[0, 1, 2, 3]],
+        "core": [[0, 1], [2, 3]],
+        "filesystems": [
+          { "id": "/work", "type": "gpfs" }
+        ]
+      }
+    },
+    {
+      "name": "c",
+      "processorType": "Test CPU",
+      "socketsPerNode": 1,
+      "coresPerSocket": 2,
+      "threadsPerCore": 2,
+      "flopRateScalar": { "unit": { "prefix": "G", "base": "F/s" }, "value": 10 },
+      "flopRateSimd": { "unit": { "prefix": "G", "base": "F/s" }, "value": 40 },
+      "memoryBandwidth": { "unit": { "prefix": "G", "base": "B/s" }, "value": 20 },
+      "nodes": "c[01-02]",
+      "topology": {
+        "node": [0, 1, 2, 3],
+        "socket": [[0, 1, 2, 3]],
+        "memoryDomain": [[0, 1, 2, 3]],
+        "core": [[0, 1], [2, 3]]
+      }
+    }
+  ]
+}

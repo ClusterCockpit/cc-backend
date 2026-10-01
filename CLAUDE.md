@@ -173,8 +173,26 @@ mixing `running` with other states returns `ErrMixedStateFootprintQuery`.
 **Scopes**: Metrics can be collected at different scopes:
 
 - Node scope (always available)
-- Core scope (for jobs with ≤8 nodes)
-- Accelerator scope (for GPU/accelerator metrics)
+- CPU scopes `hwthread`, `core`, `memoryDomain`, `socket`; archived at core
+  scope only for jobs with ≤8 nodes
+- Device scopes `accelerator`, `filesystem`, `network`: one series per device
+  instance, `Series.ID` = device id (GPU id, mount point, interface)
+  - A device metric is available at its own scope, or aggregated to node scope
+    by the metric's `aggregation`. It is never converted to or from a CPU scope,
+    and any other requested scope returns no data.
+  - Strict rule: a device scope requested for a CPU-native metric returns no
+    data. It does not fall back to the native scope, so e.g. `[core,
+    accelerator]` yields core series for `flops_any`, never hwthread series.
+  - Instances: a job's allocated accelerators, and otherwise the ids declared
+    in the subcluster's `topology.accelerators|filesystems|networks`. A
+    subcluster that declares none gets no data and no error.
+  - One `IsDevice()` branch in `pkg/metricstore/scopequery.go` handles all three
+    for both the internal store and the external cc-metric-store client.
+  - The archiver adds `filesystem`/`network` whenever the subcluster declares
+    them, regardless of node count. Statistics and footprints come from the node
+    total.
+  - Job data has no metric groups: a top-level array such as the former
+    `filesystems` is a decode error.
 
 ## Configuration
 
@@ -246,6 +264,18 @@ mixing `running` with other states returns `ErrMixedStateFootprintQuery`.
     `CC_` prefix and are referenced from their cc-lib package rather than
     redefined.
 - **cluster.json**: Cluster topology and metric definitions (loaded from archive or config)
+  - `subClusters[].topology.filesystems` / `.networks`: device instances as
+    `[{"id": "/scratch", "type": "lustre"}]` / `[{"id": "ib0", "type":
+    "infiniband"}]`. Static per subcluster, and the only instances queried.
+  - Device metrics (`scope: filesystem|network|accelerator`) need
+    `aggregation: sum` or `avg`, or node-scope queries fail in the metric store
+    with "invalid aggregation".
+  - Collector prerequisite: device data must arrive tagged
+    `type=filesystem|network` and `type-id=<id>` matching the declared `id`,
+    the same convention as `type=accelerator`. The metric store keeps it at the
+    host child level `<type><type-id>` (e.g. `filesystem/scratch`). Any other
+    tagging (`type=node` with `stype`/`stype-id`, `device=`, `filesystem=`)
+    lands in the host buffer itself, where instances overwrite each other.
 
 ## Database
 

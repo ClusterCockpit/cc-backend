@@ -27,6 +27,7 @@ import (
 //   - Node scope (always)
 //   - Core scope (for jobs with ≤8 nodes, to reduce data volume)
 //   - Accelerator scope (if job used accelerators)
+//   - Filesystem and network scopes (if the job's subcluster declares them)
 //
 // The function respects context cancellation. If ctx is cancelled (e.g., during
 // shutdown timeout), the operation will be interrupted and return an error.
@@ -48,16 +49,12 @@ func ArchiveJob(job *schema.Job, ctx context.Context) (*schema.Job, error) {
 		allMetrics = append(allMetrics, mc.Name)
 	}
 
-	scopes := []schema.MetricScope{schema.MetricScopeNode}
-	// FIXME: Add a config option for this
-	if job.NumNodes <= 8 {
-		// This will add the native scope if core scope is not available
-		scopes = append(scopes, schema.MetricScopeCore)
+	subCluster, err := archive.GetSubCluster(job.Cluster, job.SubCluster)
+	if err != nil {
+		cclog.Warnf("archiving job %d without filesystem and network scopes: %s", job.JobID, err.Error())
+		subCluster = nil
 	}
-
-	if job.NumAcc > 0 {
-		scopes = append(scopes, schema.MetricScopeAccelerator)
-	}
+	scopes := archiveScopes(job, subCluster)
 
 	jobData, err := metricdispatch.LoadData(job, allMetrics, scopes, ctx, 0, "") // 0 Resulotion-Value retrieves highest res (60s)
 	if err != nil {
@@ -94,4 +91,34 @@ func ArchiveJob(job *schema.Job, ctx context.Context) (*schema.Job, error) {
 	}
 
 	return job, archive.GetHandle().ImportJob(job, &jobData)
+}
+
+// archiveScopes returns the scopes at which a job's metrics are archived: node
+// scope always, core scope for jobs with at most 8 nodes, and every device
+// scope the job has instances of. subCluster may be nil when the lookup
+// failed, which omits the filesystem and network scopes.
+func archiveScopes(job *schema.Job, subCluster *schema.SubCluster) []schema.MetricScope {
+	scopes := []schema.MetricScope{schema.MetricScopeNode}
+	// FIXME: Add a config option for this
+	if job.NumNodes <= 8 {
+		// This will add the native scope if core scope is not available
+		scopes = append(scopes, schema.MetricScopeCore)
+	}
+
+	if job.NumAcc > 0 {
+		scopes = append(scopes, schema.MetricScopeAccelerator)
+	}
+
+	if subCluster != nil {
+		// Device scopes are independent of the node count: they are bounded by
+		// the few declared instances per node.
+		if len(subCluster.Topology.Filesystems) > 0 {
+			scopes = append(scopes, schema.MetricScopeFilesystem)
+		}
+		if len(subCluster.Topology.Networks) > 0 {
+			scopes = append(scopes, schema.MetricScopeNetwork)
+		}
+	}
+
+	return scopes
 }

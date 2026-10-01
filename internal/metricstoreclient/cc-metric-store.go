@@ -28,7 +28,8 @@
 // # Metric Scopes
 //
 // The client supports hierarchical metric scopes that map to HPC hardware topology:
-//   - MetricScopeAccelerator: GPU/accelerator level metrics
+//   - MetricScopeAccelerator, MetricScopeFilesystem, MetricScopeNetwork: per-device
+//     metrics, available at their own scope or aggregated to node scope
 //   - MetricScopeHWThread: Hardware thread (SMT) level metrics
 //   - MetricScopeCore: CPU core level metrics
 //   - MetricScopeSocket: CPU socket level metrics

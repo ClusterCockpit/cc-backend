@@ -5,6 +5,7 @@
 package metricstore
 
 import (
+	"slices"
 	"testing"
 
 	"github.com/ClusterCockpit/cc-lib/v2/schema"
@@ -25,8 +26,50 @@ func makeTopology() schema.Topology {
 			{ID: "gpu0"},
 			{ID: "gpu1"},
 		},
+		Filesystems: []*schema.Filesystem{
+			{ID: "/scratch", Type: "lustre"},
+			{ID: "/home", Type: "nfs"},
+		},
+		Networks: []*schema.Network{
+			{ID: "ib0", Type: "infiniband"},
+		},
 	}
 	return topo
+}
+
+var (
+	cpuScopes = []schema.MetricScope{
+		schema.MetricScopeHWThread, schema.MetricScopeCore,
+		schema.MetricScopeMemoryDomain, schema.MetricScopeSocket,
+	}
+	deviceScopes = []schema.MetricScope{
+		schema.MetricScopeAccelerator, schema.MetricScopeFilesystem, schema.MetricScopeNetwork,
+	}
+)
+
+func TestDeviceIDs(t *testing.T) {
+	topo := makeTopology()
+	allocated := []string{"gpu1"}
+
+	tests := []struct {
+		native schema.MetricScope
+		want   []string
+	}{
+		{schema.MetricScopeAccelerator, []string{"gpu1"}},
+		{schema.MetricScopeFilesystem, []string{"/scratch", "/home"}},
+		{schema.MetricScopeNetwork, []string{"ib0"}},
+		{schema.MetricScopeHWThread, nil},
+		{schema.MetricScopeNode, nil},
+	}
+	for _, tt := range tests {
+		if got := DeviceIDs(tt.native, &topo, allocated); !slices.Equal(got, tt.want) {
+			t.Errorf("DeviceIDs(%s) = %v, want %v", tt.native, got, tt.want)
+		}
+	}
+
+	if got := DeviceIDs(schema.MetricScopeAccelerator, &topo, nil); len(got) != 0 {
+		t.Errorf("DeviceIDs(accelerator) without allocation = %v, want none", got)
+	}
 }
 
 func TestBuildScopeQueries(t *testing.T) {
@@ -34,15 +77,19 @@ func TestBuildScopeQueries(t *testing.T) {
 	topo.InitTopologyMaps()
 	accIds := topo.GetAcceleratorIDs()
 
-	tests := []struct {
+	type testCase struct {
 		name           string
 		nativeScope    schema.MetricScope
 		requestedScope schema.MetricScope
+		noIDs          bool // pass no device ids
 		expectOk       bool
 		expectLen      int // expected number of results
 		expectAgg      bool
 		expectScope    schema.MetricScope
-	}{
+		expectType     string // expected Type of device queries; TypeIds must be the device ids
+	}
+
+	tests := []testCase{
 		// Same-scope cases
 		{
 			name: "HWThread->HWThread", nativeScope: schema.MetricScopeHWThread,
@@ -68,11 +115,6 @@ func TestBuildScopeQueries(t *testing.T) {
 			name: "Node->Node", nativeScope: schema.MetricScopeNode,
 			requestedScope: schema.MetricScopeNode, expectOk: true, expectLen: 1,
 			expectAgg: false, expectScope: schema.MetricScopeNode,
-		},
-		{
-			name: "Accelerator->Accelerator", nativeScope: schema.MetricScopeAccelerator,
-			requestedScope: schema.MetricScopeAccelerator, expectOk: true, expectLen: 1,
-			expectAgg: false, expectScope: schema.MetricScopeAccelerator,
 		},
 		// Aggregation cases
 		{
@@ -115,24 +157,71 @@ func TestBuildScopeQueries(t *testing.T) {
 			requestedScope: schema.MetricScopeSocket, expectOk: true, expectLen: 2, // 2 sockets
 			expectAgg: true, expectScope: schema.MetricScopeSocket,
 		},
-		{
-			name: "Accelerator->Node", nativeScope: schema.MetricScopeAccelerator,
-			requestedScope: schema.MetricScopeNode, expectOk: true, expectLen: 1,
-			expectAgg: true, expectScope: schema.MetricScopeNode,
-		},
-		// Expected exception: Accelerator scope requested but non-accelerator scope in between
-		{
-			name: "Accelerator->Core (exception)", nativeScope: schema.MetricScopeAccelerator,
-			requestedScope: schema.MetricScopeCore, expectOk: true, expectLen: 0,
-		},
+	}
+
+	// Device scopes: native -> native, native -> node, and nothing for every
+	// other requested scope, or when the host has no instances.
+	for _, native := range deviceScopes {
+		n := string(native)
+		tests = append(tests,
+			testCase{
+				name: n + "->" + n, nativeScope: native, requestedScope: native,
+				expectOk: true, expectLen: 1, expectAgg: false, expectScope: native,
+				expectType: n,
+			},
+			testCase{
+				name: n + "->Node", nativeScope: native, requestedScope: schema.MetricScopeNode,
+				expectOk: true, expectLen: 1, expectAgg: true, expectScope: schema.MetricScopeNode,
+				expectType: n,
+			},
+			testCase{
+				name: n + "->" + n + " (no ids)", nativeScope: native, requestedScope: native,
+				noIDs: true, expectOk: true, expectLen: 0,
+			},
+			testCase{
+				name: n + "->Node (no ids)", nativeScope: native, requestedScope: schema.MetricScopeNode,
+				noIDs: true, expectOk: true, expectLen: 0,
+			},
+		)
+		for _, requested := range cpuScopes {
+			tests = append(tests, testCase{
+				name: n + "->" + string(requested) + " (exception)", nativeScope: native,
+				requestedScope: requested, expectOk: true, expectLen: 0,
+			})
+		}
+		for _, requested := range deviceScopes {
+			if requested != native {
+				tests = append(tests, testCase{
+					name: n + "->" + string(requested) + " (exception)", nativeScope: native,
+					requestedScope: requested, expectOk: true, expectLen: 0,
+				})
+			}
+		}
+	}
+
+	// No fallback to the native scope when a device scope is requested for a
+	// CPU or node metric.
+	for _, native := range []schema.MetricScope{
+		schema.MetricScopeHWThread, schema.MetricScopeCore, schema.MetricScopeNode,
+	} {
+		for _, requested := range deviceScopes {
+			tests = append(tests, testCase{
+				name: string(native) + "->" + string(requested) + " (exception)", nativeScope: native,
+				requestedScope: requested, expectOk: true, expectLen: 0,
+			})
+		}
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			var deviceIDs []string
+			if !tt.noIDs {
+				deviceIDs = DeviceIDs(tt.nativeScope, &topo, accIds)
+			}
 			results, ok := BuildScopeQueries(
 				tt.nativeScope, tt.requestedScope,
 				"test_metric", "node001",
-				&topo, topo.Node, accIds,
+				&topo, topo.Node, deviceIDs,
 			)
 
 			if ok != tt.expectOk {
@@ -157,6 +246,14 @@ func TestBuildScopeQueries(t *testing.T) {
 					if r.Hostname != "node001" {
 						t.Errorf("expected hostname 'node001', got '%s'", r.Hostname)
 					}
+					if tt.expectType != "" {
+						if r.Type == nil || *r.Type != tt.expectType {
+							t.Errorf("expected type %q, got %v", tt.expectType, r.Type)
+						}
+						if !slices.Equal(r.TypeIds, deviceIDs) {
+							t.Errorf("expected type ids %v, got %v", deviceIDs, r.TypeIds)
+						}
+					}
 				}
 			}
 		})
@@ -167,23 +264,21 @@ func TestBuildScopeQueries_UnhandledCase(t *testing.T) {
 	topo := makeTopology()
 	topo.InitTopologyMaps()
 
-	// Node native with HWThread requested => scope.Max = Node, but let's try an invalid combination
-	// Actually all valid combinations are handled. An unhandled case would be something like
-	// a scope that doesn't exist in the if-chain. Since all real scopes are covered,
-	// we test with a synthetic unhandled combination by checking the bool return.
-	// The function should return ok=false for truly unhandled cases.
-
-	// For now, verify all known combinations return ok=true
+	// Every combination of a CPU/node scope and a device scope, in both
+	// directions, must be handled: either with queries or as an expected
+	// exception (empty, ok=true). memoryDomain is left out because hwthread and
+	// core metrics have no conversion to it.
 	scopes := []schema.MetricScope{
 		schema.MetricScopeHWThread, schema.MetricScopeCore,
 		schema.MetricScopeSocket, schema.MetricScopeNode,
+		schema.MetricScopeAccelerator, schema.MetricScopeFilesystem, schema.MetricScopeNetwork,
 	}
 
 	for _, native := range scopes {
 		for _, requested := range scopes {
 			results, ok := BuildScopeQueries(
 				native, requested,
-				"m", "h", &topo, topo.Node, nil,
+				"m", "h", &topo, topo.Node, DeviceIDs(native, &topo, topo.GetAcceleratorIDs()),
 			)
 			if !ok {
 				t.Errorf("unexpected unhandled case: native=%s, requested=%s", native, requested)

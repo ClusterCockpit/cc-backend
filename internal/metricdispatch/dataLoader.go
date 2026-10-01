@@ -169,7 +169,6 @@ func LoadData(job *schema.Job,
 
 				res := schema.JobData{
 					Metrics: make(map[string]schema.ScopedMetrics, len(metrics)),
-					Groups:  jd.Groups,
 				}
 				for _, metric := range metrics {
 					if perscope, ok := jd.Metrics[metric]; ok {
@@ -466,21 +465,7 @@ func LoadNodeListData(
 // archived data (e.g., during resampling). This ensures the cached archive data remains
 // immutable while allowing per-request transformations.
 func deepCopy(source schema.JobData) schema.JobData {
-	result := schema.JobData{Metrics: copyScopedMetrics(source.Metrics)}
-
-	for _, group := range source.Groups {
-		copied := schema.MetricGroup{Key: group.Key}
-		for _, inst := range group.Instances {
-			copied.Instances = append(copied.Instances, schema.MetricGroupInstance{
-				Name:    inst.Name,
-				Type:    inst.Type,
-				Metrics: copyScopedMetrics(inst.Metrics),
-			})
-		}
-		result.Groups = append(result.Groups, copied)
-	}
-
-	return result
+	return schema.JobData{Metrics: copyScopedMetrics(source.Metrics)}
 }
 
 func copyScopedMetrics(source map[string]schema.ScopedMetrics) map[string]schema.ScopedMetrics {

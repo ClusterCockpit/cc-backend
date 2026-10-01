@@ -13,14 +13,15 @@
 //   - Core: Per CPU core
 //   - Socket: Per CPU socket
 //   - MemoryDomain: Per memory domain (NUMA)
-//   - Accelerator: Per GPU/accelerator
+//   - Accelerator, Filesystem, Network: Per device attached to the node
 //   - Node: Per compute node
 //
 // Scope Transformation: The buildQueries functions transform between native scope
 // and requested scope by:
 //   - Aggregating finer-grained data (e.g., HWThread → Core → Socket → Node)
 //   - Rejecting requests for finer granularity than available
-//   - Handling special cases (e.g., Accelerator metrics)
+//   - Handling device metrics, which are only available at their own scope or
+//     aggregated to node scope
 //
 // Query Building: Constructs APIQuery structures with proper selectors (Type, TypeIds)
 // based on cluster topology and job resources.
@@ -212,7 +213,7 @@ func (ccms *InternalMetricStore) LoadData(
 // Scope Transformation Rules:
 //   - If native scope >= requested scope: Aggregates data (Aggregate=true in APIQuery)
 //   - If native scope < requested scope: Returns error (cannot increase granularity)
-//   - Special handling for Accelerator scope (independent of CPU hierarchy)
+//   - Device scopes (accelerator, filesystem, network) are independent of the CPU hierarchy
 //
 // The function generates one or more APIQuery per (metric, scope, host) combination:
 //   - For non-aggregated queries: One query with all relevant IDs
@@ -265,7 +266,10 @@ func buildQueries(
 	scopesLoop:
 		for _, requestedScope := range scopes {
 			nativeScope := mc.Scope
-			if nativeScope == schema.MetricScopeAccelerator && job.NumAcc == 0 {
+			// A device scope other than the native one yields no data. Skip it
+			// before de-duplication, which would otherwise record the native
+			// CPU scope as handled (Max ranks device scopes below hwthread).
+			if requestedScope.IsDevice() && requestedScope != nativeScope {
 				continue
 			}
 
@@ -283,10 +287,15 @@ func buildQueries(
 					hwthreads = topology.Node
 				}
 
+				deviceIDs := DeviceIDs(nativeScope, &topology, host.Accelerators)
+				if nativeScope.IsDevice() && len(deviceIDs) == 0 {
+					continue
+				}
+
 				scopeResults, ok := BuildScopeQueries(
 					nativeScope, requestedScope,
 					metric, host.Hostname,
-					&topology, hwthreads, host.Accelerators,
+					&topology, hwthreads, deviceIDs,
 				)
 
 				if !ok {
@@ -824,6 +833,10 @@ func buildNodeQueries(
 	nodeScopesLoop:
 		for _, requestedScope := range scopes {
 			nativeScope := mc.Scope
+			// See buildQueries: skip before de-duplication.
+			if requestedScope.IsDevice() && requestedScope != nativeScope {
+				continue
+			}
 
 			scope := nativeScope.Max(requestedScope)
 			for _, s := range handledScopes {
@@ -849,17 +862,16 @@ func buildNodeQueries(
 
 				// Always full node hwthread id list, no partial queries expected
 				topology := subClusterTopol.Topology
-				acceleratorIds := topology.GetAcceleratorIDs()
-
-				// Moved check here if metric matches hardware specs
-				if nativeScope == schema.MetricScopeAccelerator && len(acceleratorIds) == 0 {
+				// Outside a job every declared device is queried, accelerators included
+				deviceIDs := topology.GetDeviceIDs(nativeScope)
+				if nativeScope.IsDevice() && len(deviceIDs) == 0 {
 					continue
 				}
 
 				scopeResults, ok := BuildScopeQueries(
 					nativeScope, requestedScope,
 					metric, hostname,
-					&topology, topology.Node, acceleratorIds,
+					&topology, topology.Node, deviceIDs,
 				)
 
 				if !ok {
