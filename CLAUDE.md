@@ -173,6 +173,9 @@ mixing `running` with other states returns `ErrMixedStateFootprintQuery`.
 **Scopes**: Metrics can be collected at different scopes:
 
 - Node scope (always available)
+- Series ids: an aggregated series carries the id of the scope it represents
+  (core id, socket id, none at node scope), never that of a source; an
+  unaggregated series carries its source id
 - CPU scopes `hwthread`, `core`, `memoryDomain`, `socket`; archived at core
   scope only for jobs with ≤8 nodes
 - Device scopes `accelerator`, `filesystem`, `network`: one series per device

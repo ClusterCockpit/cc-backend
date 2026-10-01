@@ -79,13 +79,16 @@ func TestBuildQueriesDeviceScopes(t *testing.T) {
 	initDeviceArchive(t)
 
 	t.Run("device request does not drop hwthread", func(t *testing.T) {
-		queries, scopes, err := newTestStore().buildQueries(deviceJob("a", "a01"), []string{"flops_any"},
+		queries, targets, err := newTestStore().buildQueries(deviceJob("a", "a01"), []string{"flops_any"},
 			[]schema.MetricScope{schema.MetricScopeFilesystem, schema.MetricScopeHWThread}, 60)
 		if err != nil {
 			t.Fatal(err)
 		}
-		if len(queries) != 1 || *queries[0].Type != metricstore.HWThreadString || scopes[0] != schema.MetricScopeHWThread {
-			t.Fatalf("queries = %+v, scopes = %v; want one hwthread query", queries, scopes)
+		if len(queries) != 1 || *queries[0].Type != metricstore.HWThreadString || targets[0].Scope != schema.MetricScopeHWThread {
+			t.Fatalf("queries = %+v, targets = %v; want one hwthread query", queries, targets)
+		}
+		if targets[0].ID != nil {
+			t.Errorf("hwthread query target id = %q, want none", *targets[0].ID)
 		}
 		if !slices.Equal(queries[0].TypeIds, []string{"0", "1", "2", "3"}) {
 			t.Errorf("hwthread ids = %v", queries[0].TypeIds)
@@ -93,7 +96,7 @@ func TestBuildQueriesDeviceScopes(t *testing.T) {
 	})
 
 	t.Run("declared filesystems are queried", func(t *testing.T) {
-		queries, scopes, err := newTestStore().buildQueries(deviceJob("a", "a01", "a02"), []string{"fs_read_bw"},
+		queries, targets, err := newTestStore().buildQueries(deviceJob("a", "a01", "a02"), []string{"fs_read_bw"},
 			[]schema.MetricScope{schema.MetricScopeFilesystem, schema.MetricScopeNode}, 60)
 		if err != nil {
 			t.Fatal(err)
@@ -105,10 +108,38 @@ func TestBuildQueriesDeviceScopes(t *testing.T) {
 			if q.Type == nil || *q.Type != metricstore.FilesystemString || !slices.Equal(q.TypeIds, []string{"/home", "/scratch"}) {
 				t.Errorf("query %d = %+v, want type filesystem with ids [/home /scratch]", i, q)
 			}
-			wantAgg := scopes[i] == schema.MetricScopeNode
+			wantAgg := targets[i].Scope == schema.MetricScopeNode
 			if q.Aggregate != wantAgg {
-				t.Errorf("query %d at scope %s: aggregate = %v, want %v", i, scopes[i], q.Aggregate, wantAgg)
+				t.Errorf("query %d at scope %s: aggregate = %v, want %v", i, targets[i].Scope, q.Aggregate, wantAgg)
 			}
+			if targets[i].ID != nil {
+				t.Errorf("query %d at scope %s: target id = %q, want none", i, targets[i].Scope, *targets[i].ID)
+			}
+		}
+	})
+
+	t.Run("core targets carry the core id", func(t *testing.T) {
+		queries, targets, err := newTestStore().buildQueries(deviceJob("a", "a01"), []string{"flops_any"},
+			[]schema.MetricScope{schema.MetricScopeCore}, 60)
+		if err != nil {
+			t.Fatal(err)
+		}
+		want := map[string][]string{"0": {"0", "1"}, "1": {"2", "3"}}
+		if len(queries) != len(want) {
+			t.Fatalf("got %d queries, want %d: %+v", len(queries), len(want), queries)
+		}
+		for i, q := range queries {
+			target := targets[i]
+			if target.Scope != schema.MetricScopeCore || !q.Aggregate || target.ID == nil {
+				t.Fatalf("query %d = %+v, target = %+v; want aggregated core query with id", i, q, target)
+			}
+			if !slices.Equal(q.TypeIds, want[*target.ID]) {
+				t.Errorf("core %s: hwthread ids = %v, want %v", *target.ID, q.TypeIds, want[*target.ID])
+			}
+			delete(want, *target.ID)
+		}
+		if len(want) != 0 {
+			t.Errorf("cores without a query: %v", want)
 		}
 	})
 
@@ -140,7 +171,7 @@ func TestBuildQueriesDeviceScopes(t *testing.T) {
 func TestBuildNodeQueriesPerNodeSubCluster(t *testing.T) {
 	initDeviceArchive(t)
 
-	queries, scopes, err := newTestStore().buildNodeQueries(deviceCluster, "", []string{"a01", "b01", "c01"},
+	queries, targets, err := newTestStore().buildNodeQueries(deviceCluster, "", []string{"a01", "b01", "c01"},
 		[]string{"fs_read_bw"}, []schema.MetricScope{schema.MetricScopeFilesystem}, 60)
 	if err != nil {
 		t.Fatal(err)
@@ -151,8 +182,8 @@ func TestBuildNodeQueriesPerNodeSubCluster(t *testing.T) {
 		t.Fatalf("got %d queries, want %d: %+v", len(queries), len(want), queries)
 	}
 	for i, q := range queries {
-		if scopes[i] != schema.MetricScopeFilesystem || q.Aggregate {
-			t.Errorf("query %d: scope %s aggregate %v, want unaggregated filesystem", i, scopes[i], q.Aggregate)
+		if targets[i].Scope != schema.MetricScopeFilesystem || q.Aggregate || targets[i].ID != nil {
+			t.Errorf("query %d: target %+v aggregate %v, want unaggregated filesystem without target id", i, targets[i], q.Aggregate)
 		}
 		if ids, ok := want[q.Hostname]; !ok || !slices.Equal(q.TypeIds, ids) {
 			t.Errorf("host %s ids = %v, want %v", q.Hostname, q.TypeIds, want[q.Hostname])

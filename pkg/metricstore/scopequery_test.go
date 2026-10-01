@@ -81,12 +81,17 @@ func TestBuildScopeQueries(t *testing.T) {
 		name           string
 		nativeScope    schema.MetricScope
 		requestedScope schema.MetricScope
-		noIDs          bool // pass no device ids
+		noIDs          bool  // pass no device ids
+		hwthreads      []int // hardware threads of the job; nil means the whole node
 		expectOk       bool
 		expectLen      int // expected number of results
 		expectAgg      bool
 		expectScope    schema.MetricScope
 		expectType     string // expected Type of device queries; TypeIds must be the device ids
+		// expectTargets maps the id of every aggregated result to its TypeIds,
+		// compared as a set because some branches iterate maps. Nil means every
+		// result must have a nil id.
+		expectTargets map[string][]string
 	}
 
 	tests := []testCase{
@@ -121,11 +126,15 @@ func TestBuildScopeQueries(t *testing.T) {
 			name: "HWThread->Core", nativeScope: schema.MetricScopeHWThread,
 			requestedScope: schema.MetricScopeCore, expectOk: true, expectLen: 4, // 4 cores
 			expectAgg: true, expectScope: schema.MetricScopeCore,
+			expectTargets: map[string][]string{
+				"0": {"0", "1"}, "1": {"2", "3"}, "2": {"4", "5"}, "3": {"6", "7"},
+			},
 		},
 		{
 			name: "HWThread->Socket", nativeScope: schema.MetricScopeHWThread,
 			requestedScope: schema.MetricScopeSocket, expectOk: true, expectLen: 2, // 2 sockets
 			expectAgg: true, expectScope: schema.MetricScopeSocket,
+			expectTargets: map[string][]string{"0": {"0", "1", "2", "3"}, "1": {"4", "5", "6", "7"}},
 		},
 		{
 			name: "HWThread->Node", nativeScope: schema.MetricScopeHWThread,
@@ -136,6 +145,14 @@ func TestBuildScopeQueries(t *testing.T) {
 			name: "Core->Socket", nativeScope: schema.MetricScopeCore,
 			requestedScope: schema.MetricScopeSocket, expectOk: true, expectLen: 2, // 2 sockets
 			expectAgg: true, expectScope: schema.MetricScopeSocket,
+			expectTargets: map[string][]string{"0": {"0", "1"}, "1": {"2", "3"}},
+		},
+		{
+			name: "Core->Socket (job on socket 0)", nativeScope: schema.MetricScopeCore,
+			requestedScope: schema.MetricScopeSocket, hwthreads: []int{0, 1, 2, 3},
+			expectOk: true, expectLen: 1,
+			expectAgg: true, expectScope: schema.MetricScopeSocket,
+			expectTargets: map[string][]string{"0": {"0", "1"}},
 		},
 		{
 			name: "Core->Node", nativeScope: schema.MetricScopeCore,
@@ -156,6 +173,7 @@ func TestBuildScopeQueries(t *testing.T) {
 			name: "MemoryDomain->Socket", nativeScope: schema.MetricScopeMemoryDomain,
 			requestedScope: schema.MetricScopeSocket, expectOk: true, expectLen: 2, // 2 sockets
 			expectAgg: true, expectScope: schema.MetricScopeSocket,
+			expectTargets: map[string][]string{"0": {"0"}, "1": {"1"}},
 		},
 	}
 
@@ -218,10 +236,14 @@ func TestBuildScopeQueries(t *testing.T) {
 			if !tt.noIDs {
 				deviceIDs = DeviceIDs(tt.nativeScope, &topo, accIds)
 			}
+			hwthreads := tt.hwthreads
+			if hwthreads == nil {
+				hwthreads = topo.Node
+			}
 			results, ok := BuildScopeQueries(
 				tt.nativeScope, tt.requestedScope,
 				"test_metric", "node001",
-				&topo, topo.Node, deviceIDs,
+				&topo, hwthreads, deviceIDs,
 			)
 
 			if ok != tt.expectOk {
@@ -254,6 +276,33 @@ func TestBuildScopeQueries(t *testing.T) {
 							t.Errorf("expected type ids %v, got %v", deviceIDs, r.TypeIds)
 						}
 					}
+				}
+			}
+
+			if tt.expectTargets == nil {
+				for _, r := range results {
+					if r.ID != nil {
+						t.Errorf("expected nil id, got %q (type ids %v)", *r.ID, r.TypeIds)
+					}
+				}
+				return
+			}
+			got := make(map[string][]string, len(results))
+			for _, r := range results {
+				if r.ID == nil {
+					t.Fatalf("expected an id for type ids %v, got nil", r.TypeIds)
+				}
+				if _, dup := got[*r.ID]; dup {
+					t.Fatalf("duplicate id %q", *r.ID)
+				}
+				got[*r.ID] = r.TypeIds
+			}
+			if len(got) != len(tt.expectTargets) {
+				t.Fatalf("expected targets %v, got %v", tt.expectTargets, got)
+			}
+			for id, want := range tt.expectTargets {
+				if !slices.Equal(got[id], want) {
+					t.Errorf("target %q: expected type ids %v, got %v", id, want, got[id])
 				}
 			}
 		})

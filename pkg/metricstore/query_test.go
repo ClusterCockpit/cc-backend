@@ -6,16 +6,20 @@
 package metricstore
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
 	"slices"
+	"strings"
 	"sync"
 	"testing"
+	"time"
 
 	"github.com/ClusterCockpit/cc-backend/pkg/archive"
 	"github.com/ClusterCockpit/cc-lib/v2/schema"
+	"github.com/ClusterCockpit/cc-line-protocol/v2/lineprotocol"
 )
 
 const deviceCluster = "devcluster"
@@ -87,13 +91,16 @@ func TestBuildQueriesDeviceScopes(t *testing.T) {
 	initDeviceArchive(t)
 
 	t.Run("device request does not drop hwthread", func(t *testing.T) {
-		queries, scopes, err := buildQueries(deviceJob("a", "a01"), []string{"flops_any"},
+		queries, targets, err := buildQueries(deviceJob("a", "a01"), []string{"flops_any"},
 			[]schema.MetricScope{schema.MetricScopeFilesystem, schema.MetricScopeHWThread}, 60)
 		if err != nil {
 			t.Fatal(err)
 		}
-		if len(queries) != 1 || *queries[0].Type != HWThreadString || scopes[0] != schema.MetricScopeHWThread {
-			t.Fatalf("queries = %+v, scopes = %v; want one hwthread query", queries, scopes)
+		if len(queries) != 1 || *queries[0].Type != HWThreadString || targets[0].Scope != schema.MetricScopeHWThread {
+			t.Fatalf("queries = %+v, targets = %v; want one hwthread query", queries, targets)
+		}
+		if targets[0].ID != nil {
+			t.Errorf("hwthread query target id = %q, want none", *targets[0].ID)
 		}
 		if !slices.Equal(queries[0].TypeIds, []string{"0", "1", "2", "3"}) {
 			t.Errorf("hwthread ids = %v", queries[0].TypeIds)
@@ -101,7 +108,7 @@ func TestBuildQueriesDeviceScopes(t *testing.T) {
 	})
 
 	t.Run("declared filesystems are queried", func(t *testing.T) {
-		queries, scopes, err := buildQueries(deviceJob("a", "a01", "a02"), []string{"fs_read_bw"},
+		queries, targets, err := buildQueries(deviceJob("a", "a01", "a02"), []string{"fs_read_bw"},
 			[]schema.MetricScope{schema.MetricScopeFilesystem, schema.MetricScopeNode}, 60)
 		if err != nil {
 			t.Fatal(err)
@@ -113,10 +120,38 @@ func TestBuildQueriesDeviceScopes(t *testing.T) {
 			if q.Type == nil || *q.Type != FilesystemString || !slices.Equal(q.TypeIds, []string{"/home", "/scratch"}) {
 				t.Errorf("query %d = %+v, want type filesystem with ids [/home /scratch]", i, q)
 			}
-			wantAgg := scopes[i] == schema.MetricScopeNode
+			wantAgg := targets[i].Scope == schema.MetricScopeNode
 			if q.Aggregate != wantAgg {
-				t.Errorf("query %d at scope %s: aggregate = %v, want %v", i, scopes[i], q.Aggregate, wantAgg)
+				t.Errorf("query %d at scope %s: aggregate = %v, want %v", i, targets[i].Scope, q.Aggregate, wantAgg)
 			}
+			if targets[i].ID != nil {
+				t.Errorf("query %d at scope %s: target id = %q, want none", i, targets[i].Scope, *targets[i].ID)
+			}
+		}
+	})
+
+	t.Run("core targets carry the core id", func(t *testing.T) {
+		queries, targets, err := buildQueries(deviceJob("a", "a01"), []string{"flops_any"},
+			[]schema.MetricScope{schema.MetricScopeCore}, 60)
+		if err != nil {
+			t.Fatal(err)
+		}
+		want := map[string][]string{"0": {"0", "1"}, "1": {"2", "3"}}
+		if len(queries) != len(want) {
+			t.Fatalf("got %d queries, want %d: %+v", len(queries), len(want), queries)
+		}
+		for i, q := range queries {
+			target := targets[i]
+			if target.Scope != schema.MetricScopeCore || !q.Aggregate || target.ID == nil {
+				t.Fatalf("query %d = %+v, target = %+v; want aggregated core query with id", i, q, target)
+			}
+			if !slices.Equal(q.TypeIds, want[*target.ID]) {
+				t.Errorf("core %s: hwthread ids = %v, want %v", *target.ID, q.TypeIds, want[*target.ID])
+			}
+			delete(want, *target.ID)
+		}
+		if len(want) != 0 {
+			t.Errorf("cores without a query: %v", want)
 		}
 	})
 
@@ -148,7 +183,7 @@ func TestBuildQueriesDeviceScopes(t *testing.T) {
 func TestBuildNodeQueriesPerNodeSubCluster(t *testing.T) {
 	initDeviceArchive(t)
 
-	queries, scopes, err := buildNodeQueries(deviceCluster, "", []string{"a01", "b01", "c01"},
+	queries, targets, err := buildNodeQueries(deviceCluster, "", []string{"a01", "b01", "c01"},
 		[]string{"fs_read_bw"}, []schema.MetricScope{schema.MetricScopeFilesystem}, 60)
 	if err != nil {
 		t.Fatal(err)
@@ -159,11 +194,69 @@ func TestBuildNodeQueriesPerNodeSubCluster(t *testing.T) {
 		t.Fatalf("got %d queries, want %d: %+v", len(queries), len(want), queries)
 	}
 	for i, q := range queries {
-		if scopes[i] != schema.MetricScopeFilesystem || q.Aggregate {
-			t.Errorf("query %d: scope %s aggregate %v, want unaggregated filesystem", i, scopes[i], q.Aggregate)
+		if targets[i].Scope != schema.MetricScopeFilesystem || q.Aggregate || targets[i].ID != nil {
+			t.Errorf("query %d: target %+v aggregate %v, want unaggregated filesystem without target id", i, targets[i], q.Aggregate)
 		}
 		if ids, ok := want[q.Hostname]; !ok || !slices.Equal(q.TypeIds, ids) {
 			t.Errorf("host %s ids = %v, want %v", q.Hostname, q.TypeIds, want[q.Hostname])
 		}
+	}
+}
+
+// TestLoadDataSeriesIDs runs the full LoadData path for a filesystem metric:
+// the node series aggregates both mounts and carries no id, while the
+// filesystem series carry their mount points.
+func TestLoadDataSeriesIDs(t *testing.T) {
+	initDeviceArchive(t)
+
+	ms := newDeviceTestStore()
+	now := time.Now().Unix() / 60 * 60
+	var b strings.Builder
+	for ts := now - 300; ts <= now; ts += 60 {
+		fmt.Fprintf(&b, "fs_read_bw,cluster=%s,hostname=a01,type=filesystem,type-id=/home value=1 %d\n", deviceCluster, ts)
+		fmt.Fprintf(&b, "fs_read_bw,cluster=%s,hostname=a01,type=filesystem,type-id=/scratch value=2 %d\n", deviceCluster, ts)
+	}
+	if err := DecodeLine(lineprotocol.NewDecoderWithBytes([]byte(b.String())), ms, deviceCluster); err != nil {
+		t.Fatalf("DecodeLine: %v", err)
+	}
+	old := msInstance
+	msInstance = ms
+	t.Cleanup(func() { msInstance = old })
+
+	job := deviceJob("a", "a01")
+	job.StartTime = now - 240
+	job.Duration = 240
+	jobData, err := (&InternalMetricStore{}).LoadData(job, []string{"fs_read_bw"},
+		[]schema.MetricScope{schema.MetricScopeNode, schema.MetricScopeFilesystem},
+		context.Background(), 60, "")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	scoped := jobData.Metrics["fs_read_bw"]
+	node := scoped[schema.MetricScopeNode]
+	if node == nil || len(node.Series) != 1 {
+		t.Fatalf("node scope = %+v, want one series", node)
+	}
+	if id := node.Series[0].ID; id != nil {
+		t.Errorf("node series id = %q, want none", *id)
+	}
+	if node.Series[0].Statistics.Avg != 3 {
+		t.Errorf("node series avg = %v, want the sum 3", node.Series[0].Statistics.Avg)
+	}
+
+	fs := scoped[schema.MetricScopeFilesystem]
+	if fs == nil {
+		t.Fatal("no filesystem series")
+	}
+	var ids []string
+	for _, s := range fs.Series {
+		if s.ID == nil {
+			t.Fatalf("filesystem series without id: %+v", s)
+		}
+		ids = append(ids, *s.ID)
+	}
+	if !slices.Equal(ids, []string{"/home", "/scratch"}) {
+		t.Errorf("filesystem series ids = %v, want [/home /scratch]", ids)
 	}
 }

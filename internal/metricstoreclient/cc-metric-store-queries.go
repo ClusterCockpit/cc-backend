@@ -53,16 +53,17 @@ import (
 //   - Hardware thread list resolution (job-allocated vs full node)
 //   - Delegation to buildScopeQueries for scope transformations
 //
-// Returns queries and their corresponding assigned scopes (which may differ from requested scopes).
+// Returns queries and their targets: the assigned scope (which may differ from the
+// requested scope) and, for aggregated queries, the id the resulting series carries.
 func (ccms *CCMetricStore) buildQueries(
 	job *schema.Job,
 	metrics []string,
 	scopes []schema.MetricScope,
 	resolution int,
-) ([]APIQuery, []schema.MetricScope, error) {
+) ([]APIQuery, []metricstore.QueryTarget, error) {
 	// Initialize both slices together
 	queries := make([]APIQuery, 0, len(metrics)*len(scopes)*len(job.Resources))
-	assignedScope := make([]schema.MetricScope, 0, len(metrics)*len(scopes)*len(job.Resources))
+	targets := make([]metricstore.QueryTarget, 0, len(metrics)*len(scopes)*len(job.Resources))
 
 	topology, err := ccms.getTopology(job.Cluster, job.SubCluster)
 	if err != nil {
@@ -134,13 +135,13 @@ func (ccms *CCMetricStore) buildQueries(
 						TypeIds:    sr.TypeIds,
 						Resolution: resolution,
 					})
-					assignedScope = append(assignedScope, sr.Scope)
+					targets = append(targets, metricstore.QueryTarget{Scope: sr.Scope, ID: sr.ID})
 				}
 			}
 		}
 	}
 
-	return queries, assignedScope, nil
+	return queries, targets, nil
 }
 
 // buildNodeQueries constructs API queries for node-specific metric data (Systems View).
@@ -152,7 +153,7 @@ func (ccms *CCMetricStore) buildQueries(
 //   - All accelerators on each node
 //   - Metric configuration validation with subcluster filtering
 //
-// Returns queries and their corresponding assigned scopes.
+// Returns queries and their targets (assigned scope and aggregation target id).
 func (ccms *CCMetricStore) buildNodeQueries(
 	cluster string,
 	subCluster string,
@@ -160,10 +161,10 @@ func (ccms *CCMetricStore) buildNodeQueries(
 	metrics []string,
 	scopes []schema.MetricScope,
 	resolution int,
-) ([]APIQuery, []schema.MetricScope, error) {
+) ([]APIQuery, []metricstore.QueryTarget, error) {
 	// Initialize both slices together
 	queries := make([]APIQuery, 0, len(metrics)*len(scopes)*len(nodes))
-	assignedScope := make([]schema.MetricScope, 0, len(metrics)*len(scopes)*len(nodes))
+	targets := make([]metricstore.QueryTarget, 0, len(metrics)*len(scopes)*len(nodes))
 
 	for _, metric := range metrics {
 		remoteName := metric
@@ -238,11 +239,11 @@ func (ccms *CCMetricStore) buildNodeQueries(
 						TypeIds:    sr.TypeIds,
 						Resolution: resolution,
 					})
-					assignedScope = append(assignedScope, sr.Scope)
+					targets = append(targets, metricstore.QueryTarget{Scope: sr.Scope, ID: sr.ID})
 				}
 			}
 		}
 	}
 
-	return queries, assignedScope, nil
+	return queries, targets, nil
 }

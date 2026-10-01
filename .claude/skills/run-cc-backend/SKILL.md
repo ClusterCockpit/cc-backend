@@ -30,7 +30,7 @@ One command, end to end (~13 s; exit code 0 means healthy):
 It runs `setup`, `start`, ingests 11 one-minute samples of `fs_read_bw` for `/home` (1) and
 `/scratch` (2) on host `h1`, starts running job 4242, waits for it to be committed,
 queries `jobMetrics(scopes: [node, filesystem])`, asserts per-mount series 1 and 2 and a
-node series 3 with no gaps, prints `SMOKE OK`, and stops the server. On a failed
+node series 3 without an id, all with no gaps, prints `SMOKE OK`, and stops the server. On a failed
 assertion it prints `FAIL: ...`, exits 1, and still stops the server.
 
 Step by step (a running job on `h1` with ten minutes of per-mount data):

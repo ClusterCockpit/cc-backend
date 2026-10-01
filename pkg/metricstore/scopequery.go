@@ -10,6 +10,7 @@
 package metricstore
 
 import (
+	"slices"
 	"strconv"
 
 	cclog "github.com/ClusterCockpit/cc-lib/v2/ccLogger"
@@ -57,13 +58,32 @@ func DeviceIDs(nativeScope schema.MetricScope, topology *schema.Topology, alloca
 // ScopeQueryResult is a package-independent intermediate type returned by
 // BuildScopeQueries. Each consumer converts it to their own APIQuery type
 // (adding Resolution and any other package-specific fields).
+//
+// ID is the id of the scope instance an aggregated result represents: the core
+// id at core scope and the socket id at socket scope. It is nil for node-scope
+// and unaggregated results; the series of an unaggregated result carry their
+// source ids from TypeIds instead.
 type ScopeQueryResult struct {
 	Type      *string
+	ID        *string
 	Metric    string
 	Hostname  string
 	TypeIds   []string
 	Scope     schema.MetricScope
 	Aggregate bool
+}
+
+// QueryTarget is what a built query maps back to in the result: the scope of
+// its series and, for an aggregated query, the id that series carries.
+type QueryTarget struct {
+	ID    *string
+	Scope schema.MetricScope
+}
+
+// scopeID formats the id of an aggregation target.
+func scopeID(id int) *string {
+	s := strconv.Itoa(id)
+	return &s
 }
 
 // BuildScopeQueries generates scope query results for a given scope transformation.
@@ -146,6 +166,7 @@ func BuildScopeQueries(
 				Hostname:  hostname,
 				Aggregate: true,
 				Type:      &HWThreadString,
+				ID:        scopeID(core),
 				TypeIds:   IntToStringSlice(topology.Core[core]),
 				Scope:     scope,
 			})
@@ -162,6 +183,7 @@ func BuildScopeQueries(
 				Hostname:  hostname,
 				Aggregate: true,
 				Type:      &HWThreadString,
+				ID:        scopeID(socket),
 				TypeIds:   IntToStringSlice(topology.Socket[socket]),
 				Scope:     scope,
 			})
@@ -198,14 +220,18 @@ func BuildScopeQueries(
 
 	// Core -> Socket
 	if nativeScope == schema.MetricScopeCore && scope == schema.MetricScopeSocket {
-		sockets, _ := topology.GetSocketsFromCores(hwthreads)
+		cores, _ := topology.GetCoresFromHWThreads(hwthreads)
+		sockets, _ := topology.GetSocketsFromCores(cores)
 		for _, socket := range sockets {
+			socketCores, _ := topology.GetCoresFromHWThreads(topology.Socket[socket])
+			slices.Sort(socketCores)
 			results = append(results, ScopeQueryResult{
 				Metric:    metric,
 				Hostname:  hostname,
 				Aggregate: true,
 				Type:      &CoreString,
-				TypeIds:   IntToStringSlice(topology.Socket[socket]),
+				ID:        scopeID(socket),
+				TypeIds:   IntToStringSlice(socketCores),
 				Scope:     scope,
 			})
 		}
@@ -251,12 +277,13 @@ func BuildScopeQueries(
 		}
 
 		// Create a query for each socket
-		for _, domains := range socketToDomains {
+		for socket, domains := range socketToDomains {
 			results = append(results, ScopeQueryResult{
 				Metric:    metric,
 				Hostname:  hostname,
 				Aggregate: true,
 				Type:      &MemoryDomainString,
+				ID:        scopeID(socket),
 				TypeIds:   IntToStringSlice(domains),
 				Scope:     scope,
 			})

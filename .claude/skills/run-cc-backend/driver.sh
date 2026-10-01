@@ -206,7 +206,10 @@ for m in d["data"]["jobMetrics"]:
         got[key] = (None not in data and len(data) >= ingested, sorted(set(vals)))
         print(f"{m['name']} scope={m['scope']:10} host={s['hostname']} id={s['id']!s:9} "
               f"points={len(s['data'])} non-null={len(vals)} values={sorted(set(vals))}")
-want = {("filesystem", "/home"): 1.0, ("filesystem", "/scratch"): 2.0, ("node", "node"): 3.0}
+        # An aggregated series carries the id of its scope: none at node scope.
+        if m["scope"] == "node" and s["id"] is not None:
+            sys.exit(f"FAIL: node series carries id {s['id']!r}, want none")
+want ={("filesystem", "/home"): 1.0, ("filesystem", "/scratch"): 2.0, ("node", "node"): 3.0}
 for key, value in want.items():
     if key not in got:
         sys.exit(f"FAIL: missing series {key}")
