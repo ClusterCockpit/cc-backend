@@ -40,23 +40,9 @@ func DecodeJobStats(r io.Reader, k string) (schema.ScopedJobStats, error) {
 	}
 
 	// Convert schema.JobData to schema.ScopedJobStats
-	scopedJobStats := schema.ScopedJobStats{
+	return schema.ScopedJobStats{
 		Metrics: scopedStatsFromMetrics(jobData.Metrics),
-	}
-
-	for _, group := range jobData.Groups {
-		statsGroup := schema.ScopedStatsGroup{Key: group.Key}
-		for _, inst := range group.Instances {
-			statsGroup.Instances = append(statsGroup.Instances, schema.ScopedStatsGroupInstance{
-				Name:    inst.Name,
-				Type:    inst.Type,
-				Metrics: scopedStatsFromMetrics(inst.Metrics),
-			})
-		}
-		scopedJobStats.Groups = append(scopedJobStats.Groups, statsGroup)
-	}
-
-	return scopedJobStats, nil
+	}, nil
 }
 
 // scopedStatsFromMetrics reduces the full time series of every metric/scope to

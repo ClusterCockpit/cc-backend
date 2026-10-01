@@ -9,7 +9,7 @@ tool (
 
 require (
 	github.com/99designs/gqlgen v0.17.95
-	github.com/ClusterCockpit/cc-lib/v2 v2.14.0
+	github.com/ClusterCockpit/cc-lib/v2 v2.15.0
 	github.com/ClusterCockpit/cc-line-protocol/v2 v2.4.0
 	github.com/Masterminds/squirrel v1.5.4
 	github.com/alexedwards/scs/sqlite3store v0.0.0-20251002162104-209de6e426de

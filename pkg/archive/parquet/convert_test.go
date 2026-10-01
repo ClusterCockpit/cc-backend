@@ -228,7 +228,7 @@ func TestParquetRowToJobNilOptionalFields(t *testing.T) {
 	if gotMeta.Tags != nil {
 		t.Errorf("Tags should be nil, got %v", gotMeta.Tags)
 	}
-	if len(gotMeta.Statistics.Metrics) != 0 || len(gotMeta.Statistics.Groups) != 0 {
+	if len(gotMeta.Statistics.Metrics) != 0 {
 		t.Errorf("Statistics should be empty, got %v", gotMeta.Statistics)
 	}
 	if gotMeta.MetaData != nil {
@@ -301,5 +301,49 @@ func TestRoundTripThroughParquetFile(t *testing.T) {
 	}
 	if _, ok := gotData.Metrics["cpu_load"]; !ok {
 		t.Error("JobData missing cpu_load")
+	}
+}
+
+func TestParquetRowToJobDeviceScope(t *testing.T) {
+	home, scratch := "/home", "/scratch"
+	meta := &schema.Job{JobID: 7, Cluster: "testcluster", State: schema.JobStateCompleted}
+	data := &schema.JobData{Metrics: map[string]schema.ScopedMetrics{
+		"fs_read_bw": {
+			schema.MetricScopeNode: &schema.JobMetric{
+				Timestep: 60,
+				Series:   []schema.Series{{Hostname: "node001", Data: []schema.Float{3, 3}}},
+			},
+			schema.MetricScopeFilesystem: &schema.JobMetric{
+				Timestep: 60,
+				Series: []schema.Series{
+					{Hostname: "node001", ID: &home, Data: []schema.Float{1, 1}},
+					{Hostname: "node001", ID: &scratch, Data: []schema.Float{2, 2}},
+				},
+			},
+		},
+	}}
+
+	row, err := JobToParquetRow(meta, data)
+	if err != nil {
+		t.Fatalf("JobToParquetRow: %v", err)
+	}
+	_, gotData, err := ParquetRowToJob(row)
+	if err != nil {
+		t.Fatalf("ParquetRowToJob: %v", err)
+	}
+
+	scopes := gotData.Metrics["fs_read_bw"]
+	if scopes[schema.MetricScopeNode] == nil {
+		t.Error("fs_read_bw missing node scope")
+	}
+	fs := scopes[schema.MetricScopeFilesystem]
+	if fs == nil || len(fs.Series) != 2 {
+		t.Fatalf("fs_read_bw filesystem scope = %+v, want 2 series", fs)
+	}
+	if *fs.Series[0].ID != "/home" || *fs.Series[1].ID != "/scratch" {
+		t.Errorf("series ids = %q, %q; want /home, /scratch", *fs.Series[0].ID, *fs.Series[1].ID)
+	}
+	if fs.Series[1].Data[0] != 2 {
+		t.Errorf("/scratch data = %v, want 2", fs.Series[1].Data[0])
 	}
 }

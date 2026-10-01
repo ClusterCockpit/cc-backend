@@ -10,9 +10,8 @@ for breaking changes!
 
 [![Build](https://github.com/ClusterCockpit/cc-backend/actions/workflows/test.yml/badge.svg)](https://github.com/ClusterCockpit/cc-backend/actions/workflows/test.yml)
 
-This is a Golang backend implementation for a REST and GraphQL API according to
-the [ClusterCockpit
-specifications](https://github.com/ClusterCockpit/cc-specifications). It also
+This is a Golang backend implementation for the REST and GraphQL API of
+ClusterCockpit. It also
 includes a web interface for ClusterCockpit. This implementation replaces the
 previous PHP Symfony based ClusterCockpit web interface. The reasons for
 switching from PHP Symfony to a Golang based solution are explained
@@ -41,8 +40,8 @@ For real-time integration with HPC systems, the backend can subscribe to
 [NATS](https://nats.io/) subjects to receive job start/stop events and node
 state updates, providing an alternative to REST API polling.
 
-Completed batch jobs are stored in a file-based job archive according to
-[this specification](https://github.com/ClusterCockpit/cc-specifications/tree/main/job-archive).
+Completed batch jobs are stored in a file-based job archive following the
+[JSON schemas in cc-lib](https://github.com/ClusterCockpit/cc-lib/tree/main/schema/schemas).
 The backend supports authentication via local accounts, an external LDAP
 directory, an OpenID Connect provider, and JWT tokens. Authorization for APIs is
 implemented with [JWT](https://jwt.io/) tokens created with public/private key

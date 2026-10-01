@@ -2147,12 +2147,17 @@ const docTemplate = `{
         },
         "/write/": {
             "post": {
+                "description": "Write data to the in-memory store in the InfluxDB line-protocol, one sample per line:\n` + "`" + `\u003cmetric\u003e,cluster=\u003ccluster\u003e,hostname=\u003chost\u003e,type=\u003cscope\u003e[,type-id=\u003cid\u003e] value=\u003cvalue\u003e \u003ctimestamp\u003e` + "`" + `.\nDevice metrics use ` + "`" + `type=accelerator|filesystem|network` + "`" + ` with ` + "`" + `type-id=\u003cdevice id\u003e` + "`" + `.",
                 "consumes": [
                     "text/plain"
                 ],
                 "produces": [
                     "application/json"
                 ],
+                "tags": [
+                    "write"
+                ],
+                "summary": "Receive metrics in InfluxDB line-protocol",
                 "parameters": [
                     {
                         "type": "string",
@@ -2588,6 +2593,19 @@ const docTemplate = `{
                 }
             }
         },
+        "schema.Filesystem": {
+            "type": "object",
+            "properties": {
+                "id": {
+                    "description": "Mount point (e.g., \"/home\", \"/scratch\")",
+                    "type": "string"
+                },
+                "type": {
+                    "description": "Filesystem type (e.g., \"nfs\", \"lustre\")",
+                    "type": "string"
+                }
+            }
+        },
         "schema.Job": {
             "description": "Information of a HPC job.",
             "type": "object",
@@ -2867,12 +2885,6 @@ const docTemplate = `{
         "schema.JobStatisticsSet": {
             "type": "object",
             "properties": {
-                "groups": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/schema.StatsGroup"
-                    }
-                },
                 "metrics": {
                     "type": "object",
                     "additionalProperties": {
@@ -2966,7 +2978,24 @@ const docTemplate = `{
                 "memoryDomain",
                 "core",
                 "hwthread",
-                "accelerator"
+                "accelerator",
+                "filesystem",
+                "network"
+            ],
+            "x-enum-comments": {
+                "MetricScopeFilesystem": "One mount point; Series.ID is the mount",
+                "MetricScopeNetwork": "One network interface; Series.ID is the interface"
+            },
+            "x-enum-descriptions": [
+                "",
+                "",
+                "",
+                "",
+                "",
+                "",
+                "",
+                "One mount point; Series.ID is the mount",
+                "One network interface; Series.ID is the interface"
             ],
             "x-enum-varnames": [
                 "MetricScopeInvalid",
@@ -2975,7 +3004,9 @@ const docTemplate = `{
                 "MetricScopeMemoryDomain",
                 "MetricScopeCore",
                 "MetricScopeHWThread",
-                "MetricScopeAccelerator"
+                "MetricScopeAccelerator",
+                "MetricScopeFilesystem",
+                "MetricScopeNetwork"
             ]
         },
         "schema.MetricStatistics": {
@@ -3009,6 +3040,19 @@ const docTemplate = `{
                 "value": {
                     "description": "Numeric value of the measurement",
                     "type": "number"
+                }
+            }
+        },
+        "schema.Network": {
+            "type": "object",
+            "properties": {
+                "id": {
+                    "description": "Interface name (e.g., \"ib0\", \"eth0\")",
+                    "type": "string"
+                },
+                "type": {
+                    "description": "Network type (e.g., \"infiniband\", \"ethernet\")",
+                    "type": "string"
                 }
             }
         },
@@ -3097,31 +3141,6 @@ const docTemplate = `{
                             "$ref": "#/definitions/schema.MetricStatistics"
                         }
                     ]
-                }
-            }
-        },
-        "schema.StatsGroup": {
-            "type": "object",
-            "properties": {
-                "instances": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/schema.StatsGroupInstance"
-                    }
-                },
-                "key": {
-                    "type": "string"
-                }
-            }
-        },
-        "schema.StatsGroupInstance": {
-            "type": "object",
-            "properties": {
-                "name": {
-                    "type": "string"
-                },
-                "type": {
-                    "type": "string"
                 }
             }
         },
@@ -3355,6 +3374,13 @@ const docTemplate = `{
                         }
                     }
                 },
+                "filesystems": {
+                    "description": "Mount points (static per subcluster)",
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/schema.Filesystem"
+                    }
+                },
                 "memoryDomain": {
                     "description": "Hardware threads grouped by NUMA domain",
                     "type": "array",
@@ -3363,6 +3389,13 @@ const docTemplate = `{
                         "items": {
                             "type": "integer"
                         }
+                    }
+                },
+                "networks": {
+                    "description": "Network interfaces (static per subcluster)",
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/schema.Network"
                     }
                 },
                 "node": {

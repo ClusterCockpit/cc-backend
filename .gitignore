@@ -34,5 +34,8 @@ tools/archive-manager/archive-manager
 docs
 
 
-.claude
+.claude/*
+!.claude/skills/
+.claude/skills/*
+!.claude/skills/run-cc-backend/
 .superpowers

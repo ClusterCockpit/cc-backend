@@ -10,6 +10,7 @@
 package metricstore
 
 import (
+	"slices"
 	"strconv"
 
 	cclog "github.com/ClusterCockpit/cc-lib/v2/ccLogger"
@@ -24,13 +25,47 @@ var (
 	MemoryDomainString = string(schema.MetricScopeMemoryDomain)
 	SocketString       = string(schema.MetricScopeSocket)
 	AcceleratorString  = string(schema.MetricScopeAccelerator)
+	FilesystemString   = string(schema.MetricScopeFilesystem)
+	NetworkString      = string(schema.MetricScopeNetwork)
 )
+
+// deviceTypeString returns the pre-converted query type of a device scope, which
+// is also the level-key prefix the metric store uses for that device's data.
+func deviceTypeString(scope schema.MetricScope) *string {
+	switch scope {
+	case schema.MetricScopeAccelerator:
+		return &AcceleratorString
+	case schema.MetricScopeFilesystem:
+		return &FilesystemString
+	case schema.MetricScopeNetwork:
+		return &NetworkString
+	default:
+		return nil
+	}
+}
+
+// DeviceIDs returns the instance ids to query for a metric of the given native
+// scope on one host of a job: the accelerators allocated to the job for
+// accelerator metrics, the ids declared in the topology for filesystem and
+// network metrics, and nil for CPU and node scopes.
+func DeviceIDs(nativeScope schema.MetricScope, topology *schema.Topology, allocatedAccelerators []string) []string {
+	if nativeScope == schema.MetricScopeAccelerator {
+		return allocatedAccelerators
+	}
+	return topology.GetDeviceIDs(nativeScope)
+}
 
 // ScopeQueryResult is a package-independent intermediate type returned by
 // BuildScopeQueries. Each consumer converts it to their own APIQuery type
 // (adding Resolution and any other package-specific fields).
+//
+// ID is the id of the scope instance an aggregated result represents: the core
+// id at core scope and the socket id at socket scope. It is nil for node-scope
+// and unaggregated results; the series of an unaggregated result carry their
+// source ids from TypeIds instead.
 type ScopeQueryResult struct {
 	Type      *string
+	ID        *string
 	Metric    string
 	Hostname  string
 	TypeIds   []string
@@ -38,57 +73,76 @@ type ScopeQueryResult struct {
 	Aggregate bool
 }
 
+// QueryTarget is what a built query maps back to in the result: the scope of
+// its series and, for an aggregated query, the id that series carries.
+type QueryTarget struct {
+	ID    *string
+	Scope schema.MetricScope
+}
+
+// scopeID formats the id of an aggregation target.
+func scopeID(id int) *string {
+	s := strconv.Itoa(id)
+	return &s
+}
+
 // BuildScopeQueries generates scope query results for a given scope transformation.
 // It returns a slice of results and a boolean indicating success.
 // An empty slice means an expected exception (skip this combination).
 // ok=false means an unhandled case (caller should return an error).
+//
+// deviceIDs are the instances of a device-native metric (accelerator,
+// filesystem, network) on this host; see DeviceIDs. Device metrics are only
+// available at their own scope or aggregated to node scope, and a device scope
+// requested for a CPU-native metric yields no data rather than falling back to
+// the native scope.
 func BuildScopeQueries(
 	nativeScope, requestedScope schema.MetricScope,
 	metric, hostname string,
 	topology *schema.Topology,
 	hwthreads []int,
-	accelerators []string,
+	deviceIDs []string,
 ) ([]ScopeQueryResult, bool) {
-	scope := nativeScope.Max(requestedScope)
 	results := []ScopeQueryResult{}
 
+	// Device -> Device / Node
+	if nativeScope.IsDevice() {
+		if len(deviceIDs) == 0 {
+			// Expected Exception -> Return Empty Slice
+			return results, true
+		}
+
+		switch requestedScope {
+		case nativeScope:
+			results = append(results, ScopeQueryResult{
+				Metric:    metric,
+				Hostname:  hostname,
+				Aggregate: false,
+				Type:      deviceTypeString(nativeScope),
+				TypeIds:   deviceIDs,
+				Scope:     nativeScope,
+			})
+		case schema.MetricScopeNode:
+			results = append(results, ScopeQueryResult{
+				Metric:    metric,
+				Hostname:  hostname,
+				Aggregate: true,
+				Type:      deviceTypeString(nativeScope),
+				TypeIds:   deviceIDs,
+				Scope:     schema.MetricScopeNode,
+			})
+		}
+		// Any other requested scope: Expected Exception -> Return Empty Slice
+		return results, true
+	}
+
+	// CPU/Node -> Device: Expected Exception -> Return Empty Slice
+	if requestedScope.IsDevice() {
+		return results, true
+	}
+
+	scope := nativeScope.Max(requestedScope)
 	hwthreadsStr := IntToStringSlice(hwthreads)
-
-	// Accelerator -> Accelerator (Use "accelerator" scope if requested scope is lower than node)
-	if nativeScope == schema.MetricScopeAccelerator && scope.LT(schema.MetricScopeNode) {
-		if scope != schema.MetricScopeAccelerator {
-			// Expected Exception -> Return Empty Slice
-			return results, true
-		}
-
-		results = append(results, ScopeQueryResult{
-			Metric:    metric,
-			Hostname:  hostname,
-			Aggregate: false,
-			Type:      &AcceleratorString,
-			TypeIds:   accelerators,
-			Scope:     schema.MetricScopeAccelerator,
-		})
-		return results, true
-	}
-
-	// Accelerator -> Node
-	if nativeScope == schema.MetricScopeAccelerator && scope == schema.MetricScopeNode {
-		if len(accelerators) == 0 {
-			// Expected Exception -> Return Empty Slice
-			return results, true
-		}
-
-		results = append(results, ScopeQueryResult{
-			Metric:    metric,
-			Hostname:  hostname,
-			Aggregate: true,
-			Type:      &AcceleratorString,
-			TypeIds:   accelerators,
-			Scope:     scope,
-		})
-		return results, true
-	}
 
 	// HWThread -> HWThread
 	if nativeScope == schema.MetricScopeHWThread && scope == schema.MetricScopeHWThread {
@@ -112,6 +166,7 @@ func BuildScopeQueries(
 				Hostname:  hostname,
 				Aggregate: true,
 				Type:      &HWThreadString,
+				ID:        scopeID(core),
 				TypeIds:   IntToStringSlice(topology.Core[core]),
 				Scope:     scope,
 			})
@@ -128,6 +183,7 @@ func BuildScopeQueries(
 				Hostname:  hostname,
 				Aggregate: true,
 				Type:      &HWThreadString,
+				ID:        scopeID(socket),
 				TypeIds:   IntToStringSlice(topology.Socket[socket]),
 				Scope:     scope,
 			})
@@ -164,14 +220,18 @@ func BuildScopeQueries(
 
 	// Core -> Socket
 	if nativeScope == schema.MetricScopeCore && scope == schema.MetricScopeSocket {
-		sockets, _ := topology.GetSocketsFromCores(hwthreads)
+		cores, _ := topology.GetCoresFromHWThreads(hwthreads)
+		sockets, _ := topology.GetSocketsFromCores(cores)
 		for _, socket := range sockets {
+			socketCores, _ := topology.GetCoresFromHWThreads(topology.Socket[socket])
+			slices.Sort(socketCores)
 			results = append(results, ScopeQueryResult{
 				Metric:    metric,
 				Hostname:  hostname,
 				Aggregate: true,
 				Type:      &CoreString,
-				TypeIds:   IntToStringSlice(topology.Socket[socket]),
+				ID:        scopeID(socket),
+				TypeIds:   IntToStringSlice(socketCores),
 				Scope:     scope,
 			})
 		}
@@ -217,12 +277,13 @@ func BuildScopeQueries(
 		}
 
 		// Create a query for each socket
-		for _, domains := range socketToDomains {
+		for socket, domains := range socketToDomains {
 			results = append(results, ScopeQueryResult{
 				Metric:    metric,
 				Hostname:  hostname,
 				Aggregate: true,
 				Type:      &MemoryDomainString,
+				ID:        scopeID(socket),
 				TypeIds:   IntToStringSlice(domains),
 				Scope:     scope,
 			})

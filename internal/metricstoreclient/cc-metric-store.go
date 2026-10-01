@@ -28,7 +28,8 @@
 // # Metric Scopes
 //
 // The client supports hierarchical metric scopes that map to HPC hardware topology:
-//   - MetricScopeAccelerator: GPU/accelerator level metrics
+//   - MetricScopeAccelerator, MetricScopeFilesystem, MetricScopeNetwork: per-device
+//     metrics, available at their own scope or aggregated to node scope
 //   - MetricScopeHWThread: Hardware thread (SMT) level metrics
 //   - MetricScopeCore: CPU core level metrics
 //   - MetricScopeSocket: CPU socket level metrics
@@ -234,16 +235,16 @@ func (ccms *CCMetricStore) LoadData(
 	resolution int,
 	resampleAlgo string,
 ) (schema.JobData, error) {
-	queries, assignedScope, err := ccms.buildQueries(job, metrics, scopes, resolution)
+	queries, targets, err := ccms.buildQueries(job, metrics, scopes, resolution)
 	if err != nil {
 		cclog.Errorf("Error while building queries for jobId %d, Metrics %v, Scopes %v: %s", job.JobID, metrics, scopes, err.Error())
 		return schema.JobData{}, err
 	}
 
 	// Verify assignment is correct - log any inconsistencies for debugging
-	if len(queries) != len(assignedScope) {
-		cclog.Errorf("Critical error: queries and assignedScope have different lengths after buildQueries: %d vs %d",
-			len(queries), len(assignedScope))
+	if len(queries) != len(targets) {
+		cclog.Errorf("Critical error: queries and targets have different lengths after buildQueries: %d vs %d",
+			len(queries), len(targets))
 	}
 
 	req := APIQueryRequest{
@@ -266,21 +267,22 @@ func (ccms *CCMetricStore) LoadData(
 	jobData := schema.JobData{Metrics: make(map[string]schema.ScopedMetrics)}
 
 	// Add safety check for potential index out of range errors
-	if len(resBody.Results) != len(req.Queries) || len(assignedScope) != len(req.Queries) {
-		cclog.Warnf("Mismatch in query results count: queries=%d, results=%d, assignedScope=%d",
-			len(req.Queries), len(resBody.Results), len(assignedScope))
+	if len(resBody.Results) != len(req.Queries) || len(targets) != len(req.Queries) {
+		cclog.Warnf("Mismatch in query results count: queries=%d, results=%d, targets=%d",
+			len(req.Queries), len(resBody.Results), len(targets))
 		if len(resBody.Results) > len(req.Queries) {
 			resBody.Results = resBody.Results[:len(req.Queries)]
 		}
-		if len(assignedScope) > len(req.Queries) {
-			assignedScope = assignedScope[:len(req.Queries)]
+		if len(targets) > len(req.Queries) {
+			targets = targets[:len(req.Queries)]
 		}
 	}
 
 	for i, row := range resBody.Results {
 		query := req.Queries[i]
 		metric := query.Metric
-		scope := assignedScope[i]
+		target := targets[i]
+		scope := target.Scope
 		mc := archive.GetMetricConfig(job.Cluster, metric)
 
 		if mc == nil {
@@ -314,7 +316,10 @@ func (ccms *CCMetricStore) LoadData(
 				continue
 			}
 
-			id := ms.ExtractTypeID(query.Type, query.TypeIds, ndx, query.Metric, query.Hostname)
+			id := target.ID
+			if !query.Aggregate {
+				id = ms.ExtractTypeID(query.Type, query.TypeIds, ndx, query.Metric, query.Hostname)
+			}
 
 			ms.SanitizeStats(&res.Avg, &res.Min, &res.Max)
 
@@ -427,7 +432,7 @@ func (ccms *CCMetricStore) LoadScopedStats(
 	scopes []schema.MetricScope,
 	ctx context.Context,
 ) (schema.ScopedJobStats, error) {
-	queries, assignedScope, err := ccms.buildQueries(job, metrics, scopes, 0)
+	queries, targets, err := ccms.buildQueries(job, metrics, scopes, 0)
 	if err != nil {
 		cclog.Errorf("Error while building queries for jobId %d, Metrics %v, Scopes %v: %s", job.JobID, metrics, scopes, err.Error())
 		return schema.ScopedJobStats{}, err
@@ -454,7 +459,8 @@ func (ccms *CCMetricStore) LoadScopedStats(
 	for i, row := range resBody.Results {
 		query := req.Queries[i]
 		metric := query.Metric
-		scope := assignedScope[i]
+		target := targets[i]
+		scope := target.Scope
 
 		if _, ok := scopedJobStats.Metrics[metric]; !ok {
 			scopedJobStats.Metrics[metric] = make(schema.ScopedMetricStats)
@@ -471,7 +477,10 @@ func (ccms *CCMetricStore) LoadScopedStats(
 				continue
 			}
 
-			id := ms.ExtractTypeID(query.Type, query.TypeIds, ndx, query.Metric, query.Hostname)
+			id := target.ID
+			if !query.Aggregate {
+				id = ms.ExtractTypeID(query.Type, query.TypeIds, ndx, query.Metric, query.Hostname)
+			}
 
 			ms.SanitizeStats(&res.Avg, &res.Min, &res.Max)
 
@@ -623,16 +632,16 @@ func (ccms *CCMetricStore) LoadNodeListData(
 	ctx context.Context,
 	resampleAlgo string,
 ) (map[string]schema.JobData, error) {
-	queries, assignedScope, err := ccms.buildNodeQueries(cluster, subCluster, nodes, metrics, scopes, resolution)
+	queries, targets, err := ccms.buildNodeQueries(cluster, subCluster, nodes, metrics, scopes, resolution)
 	if err != nil {
 		cclog.Errorf("Error while building node queries for Cluster %s, SubCluster %s, Metrics %v, Scopes %v: %s", cluster, subCluster, metrics, scopes, err.Error())
 		return nil, err
 	}
 
 	// Verify assignment is correct - log any inconsistencies for debugging
-	if len(queries) != len(assignedScope) {
-		cclog.Errorf("Critical error: queries and assignedScope have different lengths after buildNodeQueries: %d vs %d",
-			len(queries), len(assignedScope))
+	if len(queries) != len(targets) {
+		cclog.Errorf("Critical error: queries and targets have different lengths after buildNodeQueries: %d vs %d",
+			len(queries), len(targets))
 	}
 
 	req := APIQueryRequest{
@@ -655,14 +664,14 @@ func (ccms *CCMetricStore) LoadNodeListData(
 	data := make(map[string]schema.JobData)
 
 	// Add safety check for index out of range issues
-	if len(resBody.Results) != len(req.Queries) || len(assignedScope) != len(req.Queries) {
-		cclog.Warnf("Mismatch in query results count: queries=%d, results=%d, assignedScope=%d",
-			len(req.Queries), len(resBody.Results), len(assignedScope))
+	if len(resBody.Results) != len(req.Queries) || len(targets) != len(req.Queries) {
+		cclog.Warnf("Mismatch in query results count: queries=%d, results=%d, targets=%d",
+			len(req.Queries), len(resBody.Results), len(targets))
 		if len(resBody.Results) > len(req.Queries) {
 			resBody.Results = resBody.Results[:len(req.Queries)]
 		}
-		if len(assignedScope) > len(req.Queries) {
-			assignedScope = assignedScope[:len(req.Queries)]
+		if len(targets) > len(req.Queries) {
+			targets = targets[:len(req.Queries)]
 		}
 	}
 
@@ -681,7 +690,8 @@ func (ccms *CCMetricStore) LoadNodeListData(
 		}
 
 		metric := query.Metric
-		scope := assignedScope[i]
+		target := targets[i]
+		scope := target.Scope
 		mc := archive.GetMetricConfig(cluster, metric)
 		if mc == nil {
 			cclog.Warnf("Metric config not found for %s on cluster %s", metric, cluster)
@@ -723,7 +733,10 @@ func (ccms *CCMetricStore) LoadNodeListData(
 				continue
 			}
 
-			id := ms.ExtractTypeID(query.Type, query.TypeIds, ndx, query.Metric, query.Hostname)
+			id := target.ID
+			if !query.Aggregate {
+				id = ms.ExtractTypeID(query.Type, query.TypeIds, ndx, query.Metric, query.Hostname)
+			}
 
 			ms.SanitizeStats(&res.Avg, &res.Min, &res.Max)
 
