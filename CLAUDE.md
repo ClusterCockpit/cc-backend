@@ -142,8 +142,8 @@ The backend follows a layered architecture with clear separation of concerns:
 ### Key Concepts
 
 **Job Archive**: Completed jobs are stored in a file-based archive following the
-[ClusterCockpit job-archive
-specification](https://github.com/ClusterCockpit/cc-specifications/tree/master/job-archive).
+JSON schemas embedded in cc-lib (`schema/schemas/job-meta.schema.json`,
+`job-data.schema.json`, `cluster.schema.json`), which are canonical.
 Each job has a `meta.json` file with metadata and metric data files.
 
 **Metric Data Repositories**: Time-series metric data is stored separately from

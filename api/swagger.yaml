@@ -2303,6 +2303,10 @@ paths:
     post:
       consumes:
       - text/plain
+      description: |-
+        Write data to the in-memory store in the InfluxDB line-protocol, one sample per line:
+        `<metric>,cluster=<cluster>,hostname=<host>,type=<scope>[,type-id=<id>] value=<value> <timestamp>`.
+        Device metrics use `type=accelerator|filesystem|network` with `type-id=<device id>`.
       parameters:
       - description: If the lines in the body do not have a cluster tag, use this
           value instead.
@@ -2334,6 +2338,9 @@ paths:
             $ref: '#/definitions/api.ErrorResponse'
       security:
       - ApiKeyAuth: []
+      summary: Receive metrics in InfluxDB line-protocol
+      tags:
+      - write
 securityDefinitions:
   ApiKeyAuth:
     in: header

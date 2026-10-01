@@ -76,8 +76,9 @@ func freeMetrics(rw http.ResponseWriter, r *http.Request) {
 // handleWrite godoc
 // @summary Receive metrics in InfluxDB line-protocol
 // @tags write
-// @description Write data to the in-memory store in the InfluxDB line-protocol using [this format](https://github.com/ClusterCockpit/cc-specifications/blob/master/metrics/lineprotocol_alternative.md)
-
+// @description Write data to the in-memory store in the InfluxDB line-protocol, one sample per line:
+// @description `<metric>,cluster=<cluster>,hostname=<host>,type=<scope>[,type-id=<id>] value=<value> <timestamp>`.
+// @description Device metrics use `type=accelerator|filesystem|network` with `type-id=<device id>`.
 // @accept      plain
 // @produce     json
 // @param       cluster        query string false "If the lines in the body do not have a cluster tag, use this value instead."
