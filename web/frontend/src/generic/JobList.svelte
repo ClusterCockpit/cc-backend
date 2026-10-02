@@ -104,7 +104,6 @@
   const ccconfig = $derived(initialized ? getContext("cc-config") : null);
   const globalMetrics = $derived(initialized ? getContext("globalMetrics") : null);
   const clusterInfos = $derived(initialized ? getContext("clusters"): null);
-  const resampleConfig = $derived(initialized ? getContext("resampling") : null);
   const usePaging = $derived(ccconfig?.jobList_usePaging || false);
 
   let itemsPerPage = $derived(usePaging ? (ccconfig?.jobList_jobsPerPage || 10) : 10);
@@ -291,7 +290,7 @@
           </tr>
         {:else}
           {#each jobs as job (job.id)}
-            <JobListRow {triggerMetricRefresh} {job} {metrics} {plotWidth} {showFootprint} {globalMetrics} {clusterInfos} {resampleConfig}
+            <JobListRow {triggerMetricRefresh} {job} {metrics} {plotWidth} {showFootprint} {globalMetrics} {clusterInfos}
               previousSelect={selectedJobs.includes(job.id)}
               selectJob={(detail) => selectedJobs = [...selectedJobs, detail]}
               unselectJob={(detail) => selectedJobs = selectedJobs.filter(item => item !== detail)}
