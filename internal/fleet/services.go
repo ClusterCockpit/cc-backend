@@ -12,33 +12,21 @@ import (
 
 	"github.com/ClusterCockpit/cc-backend/internal/repository"
 	cclog "github.com/ClusterCockpit/cc-lib/v2/ccLogger"
+	ccfleet "github.com/ClusterCockpit/cc-lib/v2/fleet"
 )
 
-// Scope values distinguish the two kinds of fleet member persisted in the
-// shared "service" table:
+// The scope (ccfleet.ScopeCluster, ccfleet.ScopeInfra) distinguishes the two
+// kinds of fleet member persisted in the shared "service" table:
 //
-//   - ScopeCluster: per-node agents, identified by (cluster, hostname,
+//   - cluster: per-node agents, identified by (cluster, hostname,
 //     service_type). This is the default and what Registry issues.
-//   - ScopeInfra: cluster-independent monitoring infrastructure services
+//   - infra: cluster-independent monitoring infrastructure services
 //     (metric stores, collectors, gateways). They are not tied to a single
 //     cluster, so their cluster column is empty and identity is
 //     (hostname, service_type). InfraRegistry issues these.
-const (
-	ScopeCluster = "cluster"
-	ScopeInfra   = "infra"
-)
-
-// InfraRegistrationRequest is what a cluster-independent monitoring
-// infrastructure service posts to the REST registration endpoint. Unlike
-// RegistrationRequest it has no Cluster field: these services span clusters.
-type InfraRegistrationRequest struct {
-	Hostname    string
-	ServiceType ServiceType
-	MetaData    map[string]string
-}
 
 // InfraRegistry is the business-logic layer for cluster-independent monitoring
-// infrastructure services. It is the ScopeInfra sibling of Registry and shares
+// infrastructure services. It is the infra-scope sibling of Registry and shares
 // the same FleetRepository and "service" table; identity issuance, the
 // pending/active/stale/deregistered state machine and the config-revision
 // handshake are identical. The only differences are that registration takes no
@@ -64,10 +52,14 @@ func NewInfraRegistry() *InfraRegistry {
 // Register upserts a cluster-independent service's identity by
 // (hostname, service_type) and returns a freshly issued instance_id plus the
 // config_revision currently on record (0 for a never-before-seen service, so
-// the caller knows to pull its initial config).
-func (r *InfraRegistry) Register(req InfraRegistrationRequest) (*Registration, error) {
+// the caller knows to pull its initial config). These services span clusters,
+// so a request naming one is rejected.
+func (r *InfraRegistry) Register(req ccfleet.RegisterRequest) (*ccfleet.RegisterResponse, error) {
 	if req.Hostname == "" {
 		return nil, errors.New("fleet: hostname is required")
+	}
+	if req.Cluster != "" {
+		return nil, errors.New("fleet: cluster must be empty for an infra registration")
 	}
 	if !req.ServiceType.Valid() {
 		return nil, fmt.Errorf("fleet: unknown service_type %q", req.ServiceType)
@@ -88,7 +80,7 @@ func (r *InfraRegistry) Register(req InfraRegistrationRequest) (*Registration, e
 		Hostname:     req.Hostname,
 		ServiceType:  string(req.ServiceType),
 		InstanceID:   instanceID,
-		Scope:        ScopeInfra,
+		Scope:        string(ccfleet.ScopeInfra),
 		RegisteredAt: time.Now().Unix(),
 		MetaData:     metaJSON,
 	}
@@ -104,7 +96,7 @@ func (r *InfraRegistry) Register(req InfraRegistrationRequest) (*Registration, e
 	}
 
 	cclog.Infof("fleet: registered infra %s/%s as instance '%s'", req.Hostname, req.ServiceType, instanceID)
-	return &Registration{InstanceID: instanceID, ConfigRevision: stored.ConfigRevision}, nil
+	return &ccfleet.RegisterResponse{InstanceID: instanceID, ConfigRevision: stored.ConfigRevision}, nil
 }
 
 // Heartbeat refreshes liveness for an already-registered infra instance. It is
@@ -143,7 +135,7 @@ func (r *InfraRegistry) Get(instanceID string) (*Service, error) {
 
 // List returns all registered cluster-independent infrastructure services.
 func (r *InfraRegistry) List() ([]*Service, error) {
-	rows, err := r.repo.ListByScope(ScopeInfra)
+	rows, err := r.repo.ListByScope(string(ccfleet.ScopeInfra))
 	if err != nil {
 		return nil, err
 	}

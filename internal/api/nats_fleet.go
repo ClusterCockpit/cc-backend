@@ -6,8 +6,6 @@
 package api
 
 import (
-	"encoding/json"
-	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -15,23 +13,21 @@ import (
 	"github.com/ClusterCockpit/cc-backend/internal/config"
 	"github.com/ClusterCockpit/cc-backend/internal/fleet"
 	cclog "github.com/ClusterCockpit/cc-lib/v2/ccLogger"
+	ccfleet "github.com/ClusterCockpit/cc-lib/v2/fleet"
 	"github.com/ClusterCockpit/cc-lib/v2/nats"
 	"github.com/ClusterCockpit/cc-lib/v2/receivers"
 	influx "github.com/ClusterCockpit/cc-line-protocol/v2/lineprotocol"
 )
 
+// The heartbeat wire format (measurement ccfleet.HeartbeatMeasurement, function
+// tag ccfleet.HeartbeatFunction, JSON payload) is defined by the cc-lib fleet
+// package and parsed with ccfleet.ParseHeartbeat. Heartbeat is the only
+// accepted function: registration, deregistration and configuration
+// deliberately require an authenticated REST call, because the NATS subject has
+// no application-layer auth and a publisher must not be able to create,
+// resurrect or terminate a service identity.
+
 const (
-	// fleetMeasurement is the only line protocol measurement accepted on the
-	// fleet subject.
-	fleetMeasurement = "fleet"
-
-	// fleetFunctionHeartbeat is the only accepted value of the "function" tag.
-	// Registration, deregistration and configuration deliberately require an
-	// authenticated REST call: the NATS subject has no application-layer auth,
-	// so a publisher must not be able to create, resurrect or terminate a
-	// service identity.
-	fleetFunctionHeartbeat = "heartbeat"
-
 	// fleetQueueGroup makes several cc-backend instances share the heartbeat
 	// stream instead of each writing the same row.
 	fleetQueueGroup = "cc-backend-fleet"
@@ -46,13 +42,6 @@ const (
 	// flood the log.
 	fleetReportInterval = time.Minute
 )
-
-// FleetHeartbeatRequest is the on-wire heartbeat payload. The instance id is the
-// credential the REST registration endpoint issued; nothing else is accepted,
-// and in particular no field that could create or modify a registration.
-type FleetHeartbeatRequest struct {
-	InstanceID string `json:"instanceId" example:"3f1c9a2b7d4e6f8a0b1c2d3e4f5a6b7c"`
-}
 
 // fleetHeartbeatMsg is a decoded heartbeat on its way to the flusher.
 type fleetHeartbeatMsg struct {
@@ -203,48 +192,33 @@ func (api *FleetNatsAPI) handleFleetEvent(subject string, data []byte) {
 			continue
 		}
 
-		if m.Name() != fleetMeasurement {
+		if m.Name() != ccfleet.HeartbeatMeasurement {
 			cclog.Debugf("NATS %s: ignoring unexpected measurement %q", subject, m.Name())
 			continue
 		}
 
-		function, ok := m.GetTag("function")
-		if !ok {
-			cclog.Warnf("NATS fleet: message is missing required tag 'function'")
-			api.rejected.Add(1)
-			continue
-		}
-		if function != fleetFunctionHeartbeat {
+		// Checked ahead of ParseHeartbeat so the warning can say why other
+		// functions are refused.
+		if function, _ := m.GetTag("function"); function != ccfleet.HeartbeatFunction {
 			cclog.Warnf("NATS fleet: rejected function %q — only %q is permitted on this subject; "+
 				"registration, deregistration and configuration require an authenticated REST call",
-				function, fleetFunctionHeartbeat)
+				function, ccfleet.HeartbeatFunction)
 			api.rejected.Add(1)
 			continue
 		}
 
-		payload, ok := m.GetEventValue()
-		if !ok {
-			cclog.Warnf("NATS fleet: heartbeat is missing the 'event' field")
-			api.rejected.Add(1)
-			continue
-		}
-
-		var req FleetHeartbeatRequest
-		dec := json.NewDecoder(strings.NewReader(payload))
-		dec.DisallowUnknownFields()
-		if err := dec.Decode(&req); err != nil {
-			cclog.Warnf("NATS fleet: decoding heartbeat payload failed: %v", err)
-			api.rejected.Add(1)
-			continue
-		}
-		if req.InstanceID == "" {
-			cclog.Warnf("NATS fleet: heartbeat without an instance id")
+		// The payload carries only the instance id, the credential the REST
+		// registration issued. Unknown keys are rejected, so no field that could
+		// create or modify a registration is ever accepted.
+		instanceID, err := ccfleet.ParseHeartbeat(m)
+		if err != nil {
+			cclog.Warnf("NATS fleet: %v", err)
 			api.rejected.Add(1)
 			continue
 		}
 
 		select {
-		case api.beatCh <- fleetHeartbeatMsg{instanceID: req.InstanceID, at: time.Now()}:
+		case api.beatCh <- fleetHeartbeatMsg{instanceID: instanceID, at: time.Now()}:
 		case <-api.stop:
 			return
 		default:

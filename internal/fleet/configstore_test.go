@@ -9,6 +9,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	ccfleet "github.com/ClusterCockpit/cc-lib/v2/fleet"
 	"os"
 	"path/filepath"
 	"sync"
@@ -34,7 +35,7 @@ func TestConfigStoreResolve(t *testing.T) {
 	writeFile(t, filepath.Join(root, "metric-store", "ms01.json"), `{"log":{"level":"debug"}}`)
 
 	cs := NewConfigStore(root)
-	blob, rev, err := cs.Resolve(ScopeInfra, "", "metric-store", "ms01")
+	blob, rev, err := cs.Resolve(ccfleet.ScopeInfra, "", "metric-store", "ms01")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -64,7 +65,7 @@ func TestConfigStoreResolve(t *testing.T) {
 	}
 
 	// Stable across resolves of an unchanged tree (served from cache).
-	_, rev2, err := cs.Resolve(ScopeInfra, "", "metric-store", "ms01")
+	_, rev2, err := cs.Resolve(ccfleet.ScopeInfra, "", "metric-store", "ms01")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -80,7 +81,7 @@ func TestConfigStoreClusterScope(t *testing.T) {
 	writeFile(t, filepath.Join(root, "agent", "fritz", "node01.json"), `{"b":3}`)
 
 	cs := NewConfigStore(root)
-	blob, _, err := cs.Resolve(ScopeCluster, "fritz", "agent", "node01")
+	blob, _, err := cs.Resolve(ccfleet.ScopeCluster, "fritz", "agent", "node01")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -100,7 +101,7 @@ func TestConfigStoreRevisionChangesOnEdit(t *testing.T) {
 	writeFile(t, leaf, `{"y":1}`)
 
 	cs := NewConfigStore(root)
-	_, rev1, err := cs.Resolve(ScopeInfra, "", "metric-store", "ms01")
+	_, rev1, err := cs.Resolve(ccfleet.ScopeInfra, "", "metric-store", "ms01")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -116,7 +117,7 @@ func TestConfigStoreRevisionChangesOnEdit(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	_, rev2, err := cs.Resolve(ScopeInfra, "", "metric-store", "ms01")
+	_, rev2, err := cs.Resolve(ccfleet.ScopeInfra, "", "metric-store", "ms01")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -128,7 +129,7 @@ func TestConfigStoreRevisionChangesOnEdit(t *testing.T) {
 func TestConfigStoreErrors(t *testing.T) {
 	t.Run("no config", func(t *testing.T) {
 		cs := NewConfigStore(t.TempDir())
-		_, _, err := cs.Resolve(ScopeInfra, "", "metric-store", "nope")
+		_, _, err := cs.Resolve(ccfleet.ScopeInfra, "", "metric-store", "nope")
 		if !errors.Is(err, ErrNoConfig) {
 			t.Fatalf("want ErrNoConfig, got %v", err)
 		}
@@ -142,7 +143,7 @@ func TestConfigStoreErrors(t *testing.T) {
 		if err := cs.Reload(); err == nil || errors.Is(err, ErrNoConfig) {
 			t.Fatalf("want parse error from Reload, got %v", err)
 		}
-		_, _, err := cs.Resolve(ScopeInfra, "", "bad", "h1")
+		_, _, err := cs.Resolve(ccfleet.ScopeInfra, "", "bad", "h1")
 		if err == nil || errors.Is(err, ErrNoConfig) {
 			t.Fatalf("want parse error, got %v", err)
 		}
@@ -150,7 +151,7 @@ func TestConfigStoreErrors(t *testing.T) {
 
 	t.Run("path traversal rejected", func(t *testing.T) {
 		cs := NewConfigStore(t.TempDir())
-		_, _, err := cs.Resolve(ScopeInfra, "", "../etc", "h1")
+		_, _, err := cs.Resolve(ccfleet.ScopeInfra, "", "../etc", "h1")
 		if err == nil {
 			t.Fatal("want error for traversal in service_type")
 		}
@@ -176,7 +177,7 @@ func TestConfigStoreLastKnownGood(t *testing.T) {
 	if err := cs.Reload(); err != nil {
 		t.Fatal(err)
 	}
-	blob1, rev1, err := cs.Resolve(ScopeInfra, "", "metric-store", "ms01")
+	blob1, rev1, err := cs.Resolve(ccfleet.ScopeInfra, "", "metric-store", "ms01")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -192,7 +193,7 @@ func TestConfigStoreLastKnownGood(t *testing.T) {
 	if err := cs.Reload(); err == nil {
 		t.Fatal("reload of a broken tree should fail")
 	}
-	blob2, rev2, err := cs.Resolve(ScopeInfra, "", "metric-store", "ms01")
+	blob2, rev2, err := cs.Resolve(ccfleet.ScopeInfra, "", "metric-store", "ms01")
 	if err != nil {
 		t.Fatalf("resolve after broken edit should still serve last-good, got %v", err)
 	}
@@ -209,7 +210,7 @@ func TestConfigStoreLastKnownGood(t *testing.T) {
 	if err := cs.Reload(); err != nil {
 		t.Fatal(err)
 	}
-	_, rev3, err := cs.Resolve(ScopeInfra, "", "metric-store", "ms01")
+	_, rev3, err := cs.Resolve(ccfleet.ScopeInfra, "", "metric-store", "ms01")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -241,7 +242,7 @@ func TestConfigStoreConcurrentResolveReload(t *testing.T) {
 				case <-stop:
 					return
 				default:
-					if _, _, err := cs.Resolve(ScopeInfra, "", "metric-store", "ms01"); err != nil && !errors.Is(err, ErrNoConfig) {
+					if _, _, err := cs.Resolve(ccfleet.ScopeInfra, "", "metric-store", "ms01"); err != nil && !errors.Is(err, ErrNoConfig) {
 						t.Errorf("resolve: %v", err)
 						return
 					}
@@ -273,7 +274,7 @@ func TestConfigStoreValidator(t *testing.T) {
 	sentinel := errors.New("rejected")
 	cs.SetValidator("metric-store", func(json.RawMessage) error { return sentinel })
 
-	_, _, err := cs.Resolve(ScopeInfra, "", "metric-store", "ms01")
+	_, _, err := cs.Resolve(ccfleet.ScopeInfra, "", "metric-store", "ms01")
 	if !errors.Is(err, sentinel) {
 		t.Fatalf("want validator error, got %v", err)
 	}

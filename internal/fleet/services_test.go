@@ -13,6 +13,7 @@ import (
 
 	"github.com/ClusterCockpit/cc-backend/internal/repository"
 	cclog "github.com/ClusterCockpit/cc-lib/v2/ccLogger"
+	ccfleet "github.com/ClusterCockpit/cc-lib/v2/fleet"
 	_ "github.com/mattn/go-sqlite3"
 )
 
@@ -38,21 +39,26 @@ func TestInfraRegistry(t *testing.T) {
 	reg := NewInfraRegistry()
 
 	t.Run("register requires hostname and a valid service_type", func(t *testing.T) {
-		if _, err := reg.Register(InfraRegistrationRequest{ServiceType: ServiceTypeMetricStore}); err == nil {
+		if _, err := reg.Register(ccfleet.RegisterRequest{ServiceType: ccfleet.ServiceMetricStore}); err == nil {
 			t.Fatal("expected error for missing hostname")
 		}
-		if _, err := reg.Register(InfraRegistrationRequest{Hostname: "ms01"}); err == nil {
+		if _, err := reg.Register(ccfleet.RegisterRequest{Hostname: "ms01"}); err == nil {
 			t.Fatal("expected error for missing service_type")
 		}
-		if _, err := reg.Register(InfraRegistrationRequest{Hostname: "ms01", ServiceType: "bogus"}); err == nil {
+		if _, err := reg.Register(ccfleet.RegisterRequest{Hostname: "ms01", ServiceType: "bogus"}); err == nil {
 			t.Fatal("expected error for unknown service_type")
+		}
+		if _, err := reg.Register(ccfleet.RegisterRequest{
+			Cluster: "fritz", Hostname: "ms01", ServiceType: ccfleet.ServiceMetricStore,
+		}); err == nil {
+			t.Fatal("expected error for an infra registration naming a cluster")
 		}
 	})
 
 	var instanceID string
 	t.Run("register issues identity with revision 0", func(t *testing.T) {
-		r, err := reg.Register(InfraRegistrationRequest{
-			Hostname: "ms01", ServiceType: ServiceTypeMetricStore,
+		r, err := reg.Register(ccfleet.RegisterRequest{
+			Hostname: "ms01", ServiceType: ccfleet.ServiceMetricStore,
 			MetaData: map[string]string{"version": "1.2.3"},
 		})
 		if err != nil {
@@ -69,7 +75,7 @@ func TestInfraRegistry(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		if svc.Cluster != "" || svc.ServiceType != ServiceTypeMetricStore || svc.State != "pending" {
+		if svc.Cluster != "" || svc.ServiceType != ccfleet.ServiceMetricStore || svc.State != "pending" {
 			t.Fatalf("unexpected service: %+v", svc)
 		}
 		if svc.MetaData["version"] != "1.2.3" {
@@ -93,8 +99,8 @@ func TestInfraRegistry(t *testing.T) {
 	t.Run("list returns only infra services", func(t *testing.T) {
 		// A cluster-scope agent must not appear in the infra listing.
 		cReg := NewRegistry(time.Hour)
-		if _, err := cReg.Register(RegistrationRequest{
-			Cluster: "fritz", Hostname: "node01", ServiceType: ServiceTypeCollector,
+		if _, err := cReg.Register(ccfleet.RegisterRequest{
+			Cluster: "fritz", Hostname: "node01", ServiceType: ccfleet.ServiceMetricCollector,
 		}); err != nil {
 			t.Fatal(err)
 		}
@@ -103,7 +109,7 @@ func TestInfraRegistry(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		if len(list) != 1 || list[0].ServiceType != ServiceTypeMetricStore {
+		if len(list) != 1 || list[0].ServiceType != ccfleet.ServiceMetricStore {
 			t.Fatalf("unexpected infra list: %+v", list)
 		}
 	})

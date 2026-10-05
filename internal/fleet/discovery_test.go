@@ -8,24 +8,22 @@ package fleet
 import (
 	"context"
 	"database/sql"
-	"encoding/json"
 	"strings"
 	"sync"
 	"testing"
 	"time"
 
 	"github.com/ClusterCockpit/cc-backend/internal/repository"
-	"github.com/ClusterCockpit/cc-lib/v2/receivers"
-	influx "github.com/ClusterCockpit/cc-line-protocol/v2/lineprotocol"
+	ccfleet "github.com/ClusterCockpit/cc-lib/v2/fleet"
 )
 
-func mkSvc(scope, cluster, stype, host, state, metaJSON string) *repository.ServiceDB {
+func mkSvc(scope ccfleet.Scope, cluster, stype, host, state, metaJSON string) *repository.ServiceDB {
 	meta := sql.NullString{}
 	if metaJSON != "" {
 		meta = sql.NullString{String: metaJSON, Valid: true}
 	}
 	return &repository.ServiceDB{
-		Scope: scope, Cluster: cluster, ServiceType: stype, Hostname: host,
+		Scope: string(scope), Cluster: cluster, ServiceType: stype, Hostname: host,
 		State: state, InstanceID: "iid-" + host, MetaData: meta,
 	}
 }
@@ -41,14 +39,14 @@ func findRoster(rosters []roster, subject string) *roster {
 
 func TestBuildRosters(t *testing.T) {
 	active := []*repository.ServiceDB{
-		mkSvc(ScopeInfra, "", "ccb", "mgmt01", "active", `{"endpoint":"https://mgmt:8080"}`),
-		mkSvc(ScopeCluster, "fritz", "ccb", "f-ccb", "active", ""), // a cluster-local backend
-		mkSvc(ScopeInfra, "", "ccms", "store01", "active", ""),
-		mkSvc(ScopeCluster, "fritz", "ccmc", "f-node01", "active", ""),
-		mkSvc(ScopeCluster, "alex", "ccmc", "a-node01", "active", ""),
+		mkSvc(ccfleet.ScopeInfra, "", "ccb", "mgmt01", "active", `{"endpoint":"https://mgmt:8080"}`),
+		mkSvc(ccfleet.ScopeCluster, "fritz", "ccb", "f-ccb", "active", ""), // a cluster-local backend
+		mkSvc(ccfleet.ScopeInfra, "", "ccms", "store01", "active", ""),
+		mkSvc(ccfleet.ScopeCluster, "fritz", "ccmc", "f-node01", "active", ""),
+		mkSvc(ccfleet.ScopeCluster, "alex", "ccmc", "a-node01", "active", ""),
 	}
 
-	rosters := buildRosters(active, DefaultDiscoveryPrefix)
+	rosters := buildRosters(active, ccfleet.DefaultDiscoveryPrefix)
 
 	t.Run("cluster consumer sees own-cluster + infra providers", func(t *testing.T) {
 		r := findRoster(rosters, "cc.fleet.discovery.fritz.ccmc")
@@ -63,7 +61,7 @@ func TestBuildRosters(t *testing.T) {
 			t.Fatalf("unexpected providers/order: %+v", r.providers)
 		}
 		for _, p := range r.providers {
-			if p.Type != ServiceTypeBackend {
+			if p.Type != ccfleet.ServiceBackend {
 				t.Fatalf("only ccb is relevant to ccmc, got %q", p.Type)
 			}
 		}
@@ -93,7 +91,7 @@ func TestBuildRosters(t *testing.T) {
 
 	t.Run("meta is carried through", func(t *testing.T) {
 		r := findRoster(rosters, "cc.fleet.discovery.fritz.ccmc")
-		var mgmt *ProviderInfo
+		var mgmt *ccfleet.Provider
 		for i := range r.providers {
 			if r.providers[i].Hostname == "mgmt01" {
 				mgmt = &r.providers[i]
@@ -126,18 +124,18 @@ func TestPublishRostersRoundTripNoLeak(t *testing.T) {
 	reg := NewRegistry(time.Hour)
 
 	// Register + activate a global backend, a metric store, and a cluster collector.
-	rb, err := infraReg.Register(InfraRegistrationRequest{
-		Hostname: "mgmt01", ServiceType: ServiceTypeBackend,
+	rb, err := infraReg.Register(ccfleet.RegisterRequest{
+		Hostname: "mgmt01", ServiceType: ccfleet.ServiceBackend,
 		MetaData: map[string]string{"endpoint": "https://mgmt:8080"},
 	})
 	if err != nil {
 		t.Fatal(err)
 	}
-	rs, err := infraReg.Register(InfraRegistrationRequest{Hostname: "store01", ServiceType: ServiceTypeMetricStore})
+	rs, err := infraReg.Register(ccfleet.RegisterRequest{Hostname: "store01", ServiceType: ccfleet.ServiceMetricStore})
 	if err != nil {
 		t.Fatal(err)
 	}
-	rc, err := reg.Register(RegistrationRequest{Cluster: "fritz", Hostname: "f-node01", ServiceType: ServiceTypeCollector})
+	rc, err := reg.Register(ccfleet.RegisterRequest{Cluster: "fritz", Hostname: "f-node01", ServiceType: ccfleet.ServiceMetricCollector})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -177,7 +175,7 @@ func TestPublishRostersRoundTripNoLeak(t *testing.T) {
 	providers := decodeRoster(t, data)
 	found := false
 	for _, p := range providers {
-		if p.Type == ServiceTypeBackend && p.Hostname == "mgmt01" {
+		if p.Type == ccfleet.ServiceBackend && p.Hostname == "mgmt01" {
 			found = true
 			if p.Meta["endpoint"] != "https://mgmt:8080" {
 				t.Errorf("endpoint meta lost in round-trip: %+v", p)
@@ -189,22 +187,12 @@ func TestPublishRostersRoundTripNoLeak(t *testing.T) {
 	}
 }
 
-func decodeRoster(t *testing.T, data []byte) []ProviderInfo {
+// decodeRoster decodes with the client-side decoder from cc-lib, so these
+// tests also prove that what the publisher sends is what members can read.
+func decodeRoster(t *testing.T, data []byte) []ccfleet.Provider {
 	t.Helper()
-	d := influx.NewDecoderWithBytes(data)
-	if !d.Next() {
-		t.Fatal("no line-protocol message decoded")
-	}
-	m, err := receivers.DecodeInfluxMessage(d)
+	providers, err := ccfleet.DecodeRoster(data)
 	if err != nil {
-		t.Fatal(err)
-	}
-	ev, ok := m.GetEventValue()
-	if !ok {
-		t.Fatal("message has no event field")
-	}
-	var providers []ProviderInfo
-	if err := json.Unmarshal([]byte(ev), &providers); err != nil {
 		t.Fatal(err)
 	}
 	return providers
@@ -255,8 +243,8 @@ func TestPublisherNotify(t *testing.T) {
 	setupDB(t)
 
 	reg := NewRegistry(time.Hour)
-	if _, err := reg.Register(RegistrationRequest{
-		Cluster: "fritz", Hostname: "f0101", ServiceType: ServiceTypeCollector,
+	if _, err := reg.Register(ccfleet.RegisterRequest{
+		Cluster: "fritz", Hostname: "f0101", ServiceType: ccfleet.ServiceMetricCollector,
 	}); err != nil {
 		t.Fatal(err)
 	}

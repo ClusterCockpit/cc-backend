@@ -286,7 +286,7 @@
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/api.FleetRegisterRequest"
+                            "$ref": "#/definitions/fleet.RegisterRequest"
                         }
                     }
                 ],
@@ -294,7 +294,7 @@
                     "201": {
                         "description": "Issued registration",
                         "schema": {
-                            "$ref": "#/definitions/api.FleetRegisterResponse"
+                            "$ref": "#/definitions/fleet.RegisterResponse"
                         }
                     },
                     "400": {
@@ -344,12 +344,12 @@
                 "summary": "Register a cluster-independent fleet service",
                 "parameters": [
                     {
-                        "description": "Registration",
+                        "description": "Registration without cluster",
                         "name": "request",
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/api.FleetInfraRegisterRequest"
+                            "$ref": "#/definitions/fleet.RegisterRequest"
                         }
                     }
                 ],
@@ -357,7 +357,7 @@
                     "201": {
                         "description": "Issued registration",
                         "schema": {
-                            "$ref": "#/definitions/api.FleetRegisterResponse"
+                            "$ref": "#/definitions/fleet.RegisterResponse"
                         }
                     },
                     "400": {
@@ -2303,70 +2303,6 @@
                 }
             }
         },
-        "api.FleetInfraRegisterRequest": {
-            "type": "object",
-            "properties": {
-                "hostname": {
-                    "description": "Host the service runs on",
-                    "type": "string",
-                    "example": "mgmt01"
-                },
-                "metaData": {
-                    "description": "Free-form registration metadata",
-                    "type": "object",
-                    "additionalProperties": {
-                        "type": "string"
-                    }
-                },
-                "serviceType": {
-                    "description": "Service type short code",
-                    "type": "string",
-                    "example": "ccb"
-                }
-            }
-        },
-        "api.FleetRegisterRequest": {
-            "type": "object",
-            "properties": {
-                "cluster": {
-                    "description": "Cluster the service runs on",
-                    "type": "string",
-                    "example": "fritz"
-                },
-                "hostname": {
-                    "description": "Host the service runs on",
-                    "type": "string",
-                    "example": "f0101"
-                },
-                "metaData": {
-                    "description": "Free-form registration metadata",
-                    "type": "object",
-                    "additionalProperties": {
-                        "type": "string"
-                    }
-                },
-                "serviceType": {
-                    "description": "Service type short code",
-                    "type": "string",
-                    "example": "ccms"
-                }
-            }
-        },
-        "api.FleetRegisterResponse": {
-            "type": "object",
-            "properties": {
-                "configRevision": {
-                    "description": "Config revision currently on record; 0 means no config was pulled yet",
-                    "type": "integer",
-                    "example": 0
-                },
-                "instanceId": {
-                    "description": "Credential to present on every subsequent heartbeat and config pull",
-                    "type": "string",
-                    "example": "3f1c9a2b7d4e6f8a0b1c2d3e4f5a6b7c"
-                }
-            }
-        },
         "api.GetClustersAPIResponse": {
             "type": "object",
             "properties": {
@@ -2545,6 +2481,77 @@
                     "example": "user"
                 }
             }
+        },
+        "fleet.RegisterRequest": {
+            "type": "object",
+            "properties": {
+                "cluster": {
+                    "type": "string"
+                },
+                "hostname": {
+                    "type": "string"
+                },
+                "metaData": {
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "string"
+                    }
+                },
+                "serviceType": {
+                    "$ref": "#/definitions/fleet.ServiceType"
+                }
+            }
+        },
+        "fleet.RegisterResponse": {
+            "type": "object",
+            "properties": {
+                "configRevision": {
+                    "description": "ConfigRevision is the revision this identity last acknowledged, or 0 if\nit never pulled a configuration.",
+                    "type": "integer"
+                },
+                "instanceId": {
+                    "type": "string"
+                }
+            }
+        },
+        "fleet.ServiceType": {
+            "type": "string",
+            "enum": [
+                "ccms",
+                "ccmc",
+                "ccb",
+                "cces",
+                "ccsa",
+                "ccnc",
+                "ccem"
+            ],
+            "x-enum-comments": {
+                "ServiceBackend": "cc-backend",
+                "ServiceEnergyManager": "cc-energy-manager",
+                "ServiceEventStore": "cc-event-store",
+                "ServiceMetricCollector": "cc-metric-collector",
+                "ServiceMetricStore": "cc-metric-store",
+                "ServiceNodeController": "cc-node-controller",
+                "ServiceSlurmAdapter": "cc-slurm-adapter"
+            },
+            "x-enum-descriptions": [
+                "cc-metric-store",
+                "cc-metric-collector",
+                "cc-backend",
+                "cc-event-store",
+                "cc-slurm-adapter",
+                "cc-node-controller",
+                "cc-energy-manager"
+            ],
+            "x-enum-varnames": [
+                "ServiceMetricStore",
+                "ServiceMetricCollector",
+                "ServiceBackend",
+                "ServiceEventStore",
+                "ServiceSlurmAdapter",
+                "ServiceNodeController",
+                "ServiceEnergyManager"
+            ]
         },
         "schema.Accelerator": {
             "type": "object",

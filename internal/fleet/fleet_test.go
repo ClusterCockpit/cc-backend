@@ -9,6 +9,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	ccfleet "github.com/ClusterCockpit/cc-lib/v2/fleet"
 	"os"
 	"path/filepath"
 	"strings"
@@ -101,7 +102,7 @@ func TestInitStartsPublisherWhenPublishSupplied(t *testing.T) {
 	// Start publishes once immediately, even with an empty roster.
 	select {
 	case subject := <-published:
-		if !strings.HasPrefix(subject, DefaultDiscoveryPrefix+".") {
+		if !strings.HasPrefix(subject, ccfleet.DefaultDiscoveryPrefix+".") {
 			t.Fatalf("unexpected subject %q", subject)
 		}
 	case <-time.After(2 * time.Second):
@@ -139,8 +140,8 @@ func TestResolveConfig(t *testing.T) {
 	initFleet(t, Options{ConfigDir: root, StaleAfter: time.Minute, SweepInterval: time.Minute})
 	m := Get()
 
-	reg, err := m.Registry().Register(RegistrationRequest{
-		Cluster: "fritz", Hostname: "f0101", ServiceType: ServiceTypeMetricStore,
+	reg, err := m.Registry().Register(ccfleet.RegisterRequest{
+		Cluster: "fritz", Hostname: "f0101", ServiceType: ccfleet.ServiceMetricStore,
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -187,8 +188,8 @@ func TestResolveConfig(t *testing.T) {
 	})
 
 	t.Run("infra scope resolves without a cluster layer", func(t *testing.T) {
-		infra, err := m.InfraRegistry().Register(InfraRegistrationRequest{
-			Hostname: "i0101", ServiceType: ServiceTypeCollector,
+		infra, err := m.InfraRegistry().Register(ccfleet.RegisterRequest{
+			Hostname: "i0101", ServiceType: ccfleet.ServiceMetricCollector,
 		})
 		if err != nil {
 			t.Fatal(err)
@@ -213,8 +214,8 @@ func TestResolveConfig(t *testing.T) {
 	})
 
 	t.Run("deregistered instance is unknown", func(t *testing.T) {
-		dead, err := m.Registry().Register(RegistrationRequest{
-			Cluster: "fritz", Hostname: "f0199", ServiceType: ServiceTypeMetricStore,
+		dead, err := m.Registry().Register(ccfleet.RegisterRequest{
+			Cluster: "fritz", Hostname: "f0199", ServiceType: ccfleet.ServiceMetricStore,
 		})
 		if err != nil {
 			t.Fatal(err)
@@ -233,8 +234,8 @@ func TestResolveConfigWithoutConfigDir(t *testing.T) {
 	initFleet(t, Options{StaleAfter: time.Minute, SweepInterval: time.Minute})
 	m := Get()
 
-	reg, err := m.Registry().Register(RegistrationRequest{
-		Cluster: "fritz", Hostname: "f0101", ServiceType: ServiceTypeMetricStore,
+	reg, err := m.Registry().Register(ccfleet.RegisterRequest{
+		Cluster: "fritz", Hostname: "f0101", ServiceType: ccfleet.ServiceMetricStore,
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -250,8 +251,8 @@ func TestResolveConfigEmptyTree(t *testing.T) {
 	initFleet(t, Options{ConfigDir: t.TempDir(), StaleAfter: time.Minute, SweepInterval: time.Minute})
 	m := Get()
 
-	reg, err := m.Registry().Register(RegistrationRequest{
-		Cluster: "fritz", Hostname: "f0101", ServiceType: ServiceTypeMetricStore,
+	reg, err := m.Registry().Register(ccfleet.RegisterRequest{
+		Cluster: "fritz", Hostname: "f0101", ServiceType: ccfleet.ServiceMetricStore,
 	})
 	if err != nil {
 		t.Fatal(err)

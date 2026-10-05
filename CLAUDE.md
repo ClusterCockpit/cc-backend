@@ -114,6 +114,10 @@ The backend follows a layered architecture with clear separation of concerns:
   - `FleetPublisher`: per-consumer discovery rosters pushed over NATS
   - `fleet.Init` owns the sweep, config reloader and publisher goroutines
   - Disabled unless the `main.fleet` config block is present
+  - Wire definitions (service types, scope, register request/response, roster
+    `Provider`, heartbeat/roster encoding, subjects) come from the cc-lib
+    `fleet` package (imported as `ccfleet`). Never redefine them here; only
+    server policy such as `RelevantProviders` lives in cc-backend
 - **internal/api/fleet.go**: REST endpoints for fleet members (register, heartbeat, config pull, deregister)
 - **internal/api/nats_fleet.go**: NATS heartbeat consumer, coalescing writes into batched transactions
 - **pkg/archive**: Job archive backend implementations

@@ -17,32 +17,14 @@ import (
 	"github.com/ClusterCockpit/cc-backend/internal/fleet"
 	"github.com/ClusterCockpit/cc-backend/internal/repository"
 	cclog "github.com/ClusterCockpit/cc-lib/v2/ccLogger"
+	ccfleet "github.com/ClusterCockpit/cc-lib/v2/fleet"
 	"github.com/ClusterCockpit/cc-lib/v2/schema"
 	"github.com/go-chi/chi/v5"
 )
 
-// FleetRegisterRequest model
-type FleetRegisterRequest struct {
-	Cluster     string            `json:"cluster" example:"fritz"`    // Cluster the service runs on
-	Hostname    string            `json:"hostname" example:"f0101"`   // Host the service runs on
-	ServiceType string            `json:"serviceType" example:"ccms"` // Service type short code
-	MetaData    map[string]string `json:"metaData,omitempty"`         // Free-form registration metadata
-}
-
-// FleetInfraRegisterRequest model
-type FleetInfraRegisterRequest struct {
-	Hostname    string            `json:"hostname" example:"mgmt01"` // Host the service runs on
-	ServiceType string            `json:"serviceType" example:"ccb"` // Service type short code
-	MetaData    map[string]string `json:"metaData,omitempty"`        // Free-form registration metadata
-}
-
-// FleetRegisterResponse model
-type FleetRegisterResponse struct {
-	// Credential to present on every subsequent heartbeat and config pull
-	InstanceID string `json:"instanceId" example:"3f1c9a2b7d4e6f8a0b1c2d3e4f5a6b7c"`
-	// Config revision currently on record; 0 means no config was pulled yet
-	ConfigRevision int64 `json:"configRevision" example:"0"`
-}
+// The request and response bodies of the fleet endpoints are the wire types of
+// the cc-lib fleet client (ccfleet.RegisterRequest, ccfleet.RegisterResponse),
+// so client and server cannot drift apart.
 
 // mountFleetRoutes registers the fleet service endpoints. They are
 // machine-to-machine only: fleet members register, heartbeat, pull their
@@ -102,18 +84,18 @@ func fleetInstanceID(rw http.ResponseWriter, r *http.Request) (string, bool) {
 // validateRegistration applies the checks that map to 400. The registry returns
 // unclassified errors, and hostname and cluster become path components of the
 // configuration tree, so both are validated before an identity is persisted.
-func validateRegistration(cluster, hostname, serviceType string) error {
-	if hostname == "" {
+func validateRegistration(req *ccfleet.RegisterRequest) error {
+	if req.Hostname == "" {
 		return errors.New("hostname is required")
 	}
-	if !fleet.ServiceType(serviceType).Valid() {
-		return fmt.Errorf("unknown serviceType %q", serviceType)
+	if !req.ServiceType.Valid() {
+		return fmt.Errorf("unknown serviceType %q", req.ServiceType)
 	}
-	if err := validatePathComponent(hostname, "hostname"); err != nil {
+	if err := validatePathComponent(req.Hostname, "hostname"); err != nil {
 		return err
 	}
-	if cluster != "" {
-		if err := validatePathComponent(cluster, "cluster"); err != nil {
+	if req.Cluster != "" {
+		if err := validatePathComponent(req.Cluster, "cluster"); err != nil {
 			return err
 		}
 	}
@@ -123,14 +105,11 @@ func validateRegistration(cluster, hostname, serviceType string) error {
 // writeRegistration answers a successful registration and asks the discovery
 // publisher to emit an updated roster, so the new member is discoverable
 // immediately instead of at the next publish interval.
-func writeRegistration(rw http.ResponseWriter, reg *fleet.Registration) {
+func writeRegistration(rw http.ResponseWriter, reg *ccfleet.RegisterResponse) {
 	fleet.Get().Publisher().Notify()
 	rw.Header().Add("Content-Type", "application/json")
 	rw.WriteHeader(http.StatusCreated)
-	if err := json.NewEncoder(rw).Encode(FleetRegisterResponse{
-		InstanceID:     reg.InstanceID,
-		ConfigRevision: reg.ConfigRevision,
-	}); err != nil {
+	if err := json.NewEncoder(rw).Encode(reg); err != nil {
 		cclog.Errorf("Failed to encode fleet registration response: %v", err)
 	}
 }
@@ -144,8 +123,8 @@ func writeRegistration(rw http.ResponseWriter, reg *fleet.Registration) {
 // @description and invalidates the previous one.
 // @accept      json
 // @produce     json
-// @param       request body     api.FleetRegisterRequest true "Registration"
-// @success     201     {object} api.FleetRegisterResponse "Issued registration"
+// @param       request body     fleet.RegisterRequest true "Registration"
+// @success     201     {object} fleet.RegisterResponse "Issued registration"
 // @failure     400     {object} api.ErrorResponse         "Bad Request"
 // @failure     401     {object} api.ErrorResponse         "Unauthorized"
 // @failure     403     {object} api.ErrorResponse         "Forbidden"
@@ -157,7 +136,7 @@ func (api *RestAPI) registerClusterService(rw http.ResponseWriter, r *http.Reque
 		return
 	}
 
-	var req FleetRegisterRequest
+	var req ccfleet.RegisterRequest
 	if err := decode(r.Body, &req); err != nil {
 		handleError(fmt.Errorf("decoding request failed: %w", err), http.StatusBadRequest, rw)
 		return
@@ -167,17 +146,12 @@ func (api *RestAPI) registerClusterService(rw http.ResponseWriter, r *http.Reque
 		handleError(errors.New("cluster is required"), http.StatusBadRequest, rw)
 		return
 	}
-	if err := validateRegistration(req.Cluster, req.Hostname, req.ServiceType); err != nil {
+	if err := validateRegistration(&req); err != nil {
 		handleError(err, http.StatusBadRequest, rw)
 		return
 	}
 
-	reg, err := fleet.Get().Registry().Register(fleet.RegistrationRequest{
-		Cluster:     req.Cluster,
-		Hostname:    req.Hostname,
-		ServiceType: fleet.ServiceType(req.ServiceType),
-		MetaData:    req.MetaData,
-	})
+	reg, err := fleet.Get().Registry().Register(req)
 	if err != nil {
 		handleError(fmt.Errorf("registering service failed: %w", err), http.StatusInternalServerError, rw)
 		return
@@ -193,8 +167,8 @@ func (api *RestAPI) registerClusterService(rw http.ResponseWriter, r *http.Reque
 // @description (monitoring infrastructure) and returns its instance id.
 // @accept      json
 // @produce     json
-// @param       request body     api.FleetInfraRegisterRequest true "Registration"
-// @success     201     {object} api.FleetRegisterResponse "Issued registration"
+// @param       request body     fleet.RegisterRequest true "Registration without cluster"
+// @success     201     {object} fleet.RegisterResponse "Issued registration"
 // @failure     400     {object} api.ErrorResponse         "Bad Request"
 // @failure     401     {object} api.ErrorResponse         "Unauthorized"
 // @failure     403     {object} api.ErrorResponse         "Forbidden"
@@ -206,22 +180,24 @@ func (api *RestAPI) registerInfraService(rw http.ResponseWriter, r *http.Request
 		return
 	}
 
-	var req FleetInfraRegisterRequest
+	var req ccfleet.RegisterRequest
 	if err := decode(r.Body, &req); err != nil {
 		handleError(fmt.Errorf("decoding request failed: %w", err), http.StatusBadRequest, rw)
 		return
 	}
 
-	if err := validateRegistration("", req.Hostname, req.ServiceType); err != nil {
+	// The shared request body has an optional cluster; an infra service spans
+	// clusters, so naming one is a client error rather than silently ignored.
+	if req.Cluster != "" {
+		handleError(errors.New("cluster must be empty for infra registration"), http.StatusBadRequest, rw)
+		return
+	}
+	if err := validateRegistration(&req); err != nil {
 		handleError(err, http.StatusBadRequest, rw)
 		return
 	}
 
-	reg, err := fleet.Get().InfraRegistry().Register(fleet.InfraRegistrationRequest{
-		Hostname:    req.Hostname,
-		ServiceType: fleet.ServiceType(req.ServiceType),
-		MetaData:    req.MetaData,
-	})
+	reg, err := fleet.Get().InfraRegistry().Register(req)
 	if err != nil {
 		handleError(fmt.Errorf("registering service failed: %w", err), http.StatusInternalServerError, rw)
 		return
@@ -316,7 +292,7 @@ func (api *RestAPI) getFleetConfig(rw http.ResponseWriter, r *http.Request) {
 
 	revision := strconv.FormatInt(res.Revision, 10)
 	rw.Header().Set("ETag", `"`+revision+`"`)
-	rw.Header().Set("X-CC-Config-Revision", revision)
+	rw.Header().Set(ccfleet.HeaderConfigRevision, revision)
 
 	// The revision is already a content hash of the merged blob, so recording it
 	// only when it differs turns the steady state into a pure read.

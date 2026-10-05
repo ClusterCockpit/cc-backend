@@ -6,6 +6,8 @@ github.com/Azure/go-ntlmssp v0.1.1 h1:l+FM/EEMb0U9QZE7mKNEDw5Mu3mFiaa2GKOoTSsNDP
 github.com/Azure/go-ntlmssp v0.1.1/go.mod h1:NYqdhxd/8aAct/s4qSYZEerdPuH1liG2/X9DiVTbhpk=
 github.com/ClusterCockpit/cc-lib/v2 v2.15.0 h1:Ek1h7xXiTRO3OQIt8pzAU9RHcoF2QTQpA/NcY3J7f9c=
 github.com/ClusterCockpit/cc-lib/v2 v2.15.0/go.mod h1:r0dgoiLiMFKxEHjZzqCQVFh3e0x/j+EqVdBzEtj4YRg=
+github.com/ClusterCockpit/cc-lib/v2 v2.17.0 h1:HPUn9yNF0pMs3jcig+0sknuK3Y3dHBeV+PXQe383ddM=
+github.com/ClusterCockpit/cc-lib/v2 v2.17.0/go.mod h1:s+zyD47OzkephELXPNTCYkVrIif27Jgq2YLNRM8yYSI=
 github.com/ClusterCockpit/cc-line-protocol/v2 v2.4.0 h1:hIzxgTBWcmCIHtoDKDkSCsKCOCOwUC34sFsbD2wcW0Q=
 github.com/ClusterCockpit/cc-line-protocol/v2 v2.4.0/go.mod h1:y42qUu+YFmu5fdNuUAS4VbbIKxVjxCvbVqFdpdh8ahY=
 github.com/DATA-DOG/go-sqlmock v1.5.2 h1:OcvFkGmslmlZibjAjaHm3L//6LiuBgolP7OputlJIzU=
@@ -238,6 +240,7 @@ github.com/prometheus/client_model v0.6.3 h1:O0jaTVAYNxTHYInEPFJt5I3+sN8zqBtVMPT
 github.com/prometheus/client_model v0.6.3/go.mod h1:gpN5P9S7Rr6Yr92PiQ+Ixvhf6JZEkF1dnxsYL2aPBEM=
 github.com/prometheus/common v0.71.0 h1:9KDAKb7Mj3HEVKyFCK6Dc/HIwlBzZIN2l7/lrHl3KK8=
 github.com/prometheus/common v0.71.0/go.mod h1:CLJ5H8TEsGX8bl31BdMkfhIZ+QmZ9tBPPotUxUbfcmk=
+github.com/prometheus/common v0.72.0 h1:tAYsE+sPJxIncDAobm4H5aQjmox9ZxEIIqPbiffa8G4=
 github.com/prometheus/procfs v0.22.0 h1:6q9+/JL9IKAPbCmBrv9n5O5Ty3NKnciV5X7YGw0oics=
 github.com/prometheus/procfs v0.22.0/go.mod h1:CvmFr/GVhIjIvWJZW3tgkODBQMRIf0EyWMQLHCHab58=
 github.com/questdb/go-questdb-client/v4 v4.2.0 h1:+d0HJwCjUWMj7zmY6qmhoqTJzTyoYKl+LSTYGN0T8T8=
