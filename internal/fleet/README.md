@@ -44,6 +44,11 @@ configuration tree, and used as a NATS subject token.
 
 An unknown code is rejected at registration with `400`.
 
+The codes, like every other wire definition of the fleet protocol (registration
+bodies, roster entry, heartbeat and roster encoding), are defined once in the
+cc-lib [`fleet`](https://github.com/ClusterCockpit/cc-lib/tree/main/fleet)
+package (`fleet.ServiceTypes`) and used by both cc-backend and its members.
+
 ### Scope
 
 A registration is either **cluster-scope** or **infra-scope**:
@@ -369,6 +374,11 @@ re-apply their configuration.
 The full client lifecycle is: **register → pull config → heartbeat forever →
 (subscribe to discovery) → deregister on shutdown.**
 
+A Go service should not implement this itself: the cc-lib
+[`fleet`](https://github.com/ClusterCockpit/cc-lib/tree/main/fleet) client
+drives the whole lifecycle (see [5.1](#51-go-client-cc-lib-fleet)). The steps
+below document the protocol for other languages and for debugging with `curl`.
+
 Throughout, `$CCB` is the cc-backend base URL and `$TOKEN` the API JWT.
 
 ### Step 1 — Register
@@ -559,158 +569,43 @@ immediately (the publisher is notified, not left to the next tick). Skipping
 this is not fatal — the service simply ages to `stale` after `stale-after` —
 but a clean deregistration removes it from rosters at once.
 
-### 5.1 Reference client skeleton (Go)
+### 5.1 Go client (cc-lib `fleet`)
+
+The cc-lib `fleet` package implements the steps above, plus the parts that are
+easy to get wrong by hand: falling back from NATS to REST heartbeats, re-registering
+when cc-backend answers `404`, backing off on failures, and an optional on-disk
+cache of the last configuration so a member can start while cc-backend is down.
 
 ```go
-type FleetClient struct {
- BaseURL    string // e.g. "https://cc.example.org"
- Token      string // API JWT
- InstanceID string
+cfg, err := fleet.ParseConfig(ccconfig.GetPackageConfig("fleet"))
+client, err := fleet.New(fleet.Options{
+    Config:      cfg,
+    ServiceType: fleet.ServiceMetricCollector,
+    Meta:        map[string]string{"version": version}, // broadcast: no secrets
+    NATS:        natsClient.Load, // func() *nats.Client, nil until connected
+})
 
- etag string
- http *http.Client
-}
+initial, err := client.Bootstrap(ctx, 10*time.Second) // register + first pull
+applyConfig(initial.Config) // nil: run with the local configuration
 
-func (c *FleetClient) do(method, path string, body io.Reader) (*http.Response, error) {
- req, err := http.NewRequest(method, c.BaseURL+path, body)
- if err != nil {
-  return nil, err
- }
- req.Header.Set("X-Auth-Token", c.Token)
- if body != nil {
-  req.Header.Set("Content-Type", "application/json")
- }
- return c.http.Do(req)
-}
-
-// Register issues a fresh instance id. Call it at startup and whenever a config
-// pull or heartbeat reports that the current identity is gone.
-func (c *FleetClient) Register(cluster, hostname, serviceType string, meta map[string]string) error {
- payload, _ := json.Marshal(map[string]any{
-  "cluster": cluster, "hostname": hostname,
-  "serviceType": serviceType, "metaData": meta,
- })
-
- resp, err := c.do(http.MethodPost, "/api/fleet/register/cluster/", bytes.NewReader(payload))
- if err != nil {
-  return err
- }
- defer resp.Body.Close()
- if resp.StatusCode != http.StatusCreated {
-  return fmt.Errorf("fleet register: unexpected status %s", resp.Status)
- }
-
- var reg struct {
-  InstanceID     string `json:"instanceId"`
-  ConfigRevision int64  `json:"configRevision"`
- }
- if err := json.NewDecoder(resp.Body).Decode(&reg); err != nil {
-  return err
- }
-
- c.InstanceID, c.etag = reg.InstanceID, ""
- return nil
-}
-
-// PullConfig returns the merged configuration, or nil when nothing changed
-// (304) and when no configuration applies to this member (204).
-func (c *FleetClient) PullConfig() (json.RawMessage, error) {
- req, err := http.NewRequest(http.MethodGet, c.BaseURL+"/api/fleet/config/"+c.InstanceID, nil)
- if err != nil {
-  return nil, err
- }
- req.Header.Set("X-Auth-Token", c.Token)
- if c.etag != "" {
-  req.Header.Set("If-None-Match", c.etag)
- }
-
- resp, err := c.http.Do(req)
- if err != nil {
-  return nil, err
- }
- defer resp.Body.Close()
-
- switch resp.StatusCode {
- case http.StatusOK:
-  blob, err := io.ReadAll(resp.Body)
-  if err != nil {
-   return nil, err
-  }
-  c.etag = resp.Header.Get("ETag")
-  return blob, nil
- case http.StatusNotModified, http.StatusNoContent:
-  return nil, nil
- case http.StatusNotFound:
-  // Identity is gone: re-register, then pull again.
-  return nil, errUnknownInstance
- default:
-  return nil, fmt.Errorf("fleet config: unexpected status %s", resp.Status)
- }
-}
-
-// Deregister drops the identity and removes the service from discovery rosters
-// immediately. Idempotent.
-func (c *FleetClient) Deregister() error {
- resp, err := c.do(http.MethodDelete, "/api/fleet/deregister/"+c.InstanceID, nil)
- if err != nil {
-  return err
- }
- defer resp.Body.Close()
- if resp.StatusCode != http.StatusNoContent {
-  return fmt.Errorf("fleet deregister: unexpected status %s", resp.Status)
- }
- return nil
-}
-
-// Heartbeat over NATS. The timestamp is ignored server-side but the line
-// protocol encoder requires one.
-func (c *FleetClient) Heartbeat(publish func(subject string, data []byte) error, subject string) error {
- payload, _ := json.Marshal(map[string]string{"instanceId": c.InstanceID})
- msg, err := lp.NewEvent("fleet", map[string]string{"function": "heartbeat"}, nil,
-  string(payload), time.Now())
- if err != nil {
-  return err
- }
- return publish(subject, []byte(msg.ToLineProtocol(nil)))
-}
-```
-
-Driving loop, in outline:
-
-```go
-_ = client.Register(cluster, hostname, "ccmc", meta)
-
-blob, err := client.PullConfig()
-if err == nil && blob != nil {
- applyConfig(blob)
-}
-
-heartbeat := time.NewTicker(30 * time.Second)
-configPoll := time.NewTicker(30 * time.Second)
-defer heartbeat.Stop()
-defer configPoll.Stop()
+go client.Run(ctx)
+defer client.Close(shutdownCtx) // stops Run, then deregisters
 
 for {
- select {
- case <-ctx.Done():
-  client.Deregister()
-  return
- case <-heartbeat.C:
-  _ = client.Heartbeat(publish, heartbeatSubject)
- case <-configPoll.C:
-  blob, err := client.PullConfig()
-  if errors.Is(err, errUnknownInstance) {
-   _ = client.Register(cluster, hostname, "ccmc", meta) // identity rotated
-   continue
-  }
-  if err == nil && blob != nil {
-   applyConfig(blob) // only reached when the revision actually changed
-  }
- case roster := <-discoveryCh: // from the NATS discovery subscription
-  replaceProviders(roster)  // full replacement, not a delta
- }
+    select {
+    case u := <-client.Configs():
+        applyConfig(u.Config) // only sent when the configuration really changed
+    case providers := <-client.Rosters():
+        replaceProviders(providers) // full list, not a delta
+    case <-ctx.Done():
+        return
+    }
 }
 ```
+
+The member's local `fleet` section (`url`, `token`, `cluster`, intervals,
+`heartbeat-subject`, `cache-path`) and the full behaviour are documented in the
+cc-lib `fleet` README.
 
 ---
 

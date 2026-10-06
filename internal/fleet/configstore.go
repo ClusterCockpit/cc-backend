@@ -21,6 +21,7 @@ import (
 	"time"
 
 	cclog "github.com/ClusterCockpit/cc-lib/v2/ccLogger"
+	ccfleet "github.com/ClusterCockpit/cc-lib/v2/fleet"
 )
 
 // ErrNoConfig is returned by ConfigStore.Resolve when no configuration file
@@ -167,8 +168,9 @@ func (c *ConfigStore) Reload() error {
 
 // Resolve merges the applicable layers for a fleet member and returns the
 // merged configuration plus its content-hash revision. scope must be
-// ScopeCluster or ScopeInfra; cluster is ignored (and may be empty) for infra.
-func (c *ConfigStore) Resolve(scope, cluster, serviceType, hostname string) (json.RawMessage, int64, error) {
+// ccfleet.ScopeCluster or ccfleet.ScopeInfra; cluster is ignored (and may be
+// empty) for infra.
+func (c *ConfigStore) Resolve(scope ccfleet.Scope, cluster, serviceType, hostname string) (json.RawMessage, int64, error) {
 	if err := validComponent(serviceType); err != nil {
 		return nil, 0, fmt.Errorf("fleet: invalid service_type: %w", err)
 	}
@@ -191,7 +193,7 @@ func (c *ConfigStore) Resolve(scope, cluster, serviceType, hostname string) (jso
 		snap = c.snap.Load()
 	}
 
-	key := scope + "|" + cluster + "|" + serviceType + "|" + hostname
+	key := string(scope) + "|" + cluster + "|" + serviceType + "|" + hostname
 	if v, ok := snap.cache.Load(key); ok {
 		r := v.(resolved)
 		return cloneRaw(r.blob), r.revision, nil
@@ -303,9 +305,9 @@ func (c *ConfigStore) scan() (map[string]map[string]any, string, error) {
 // layerRelPaths returns the ordered list of candidate layer files (broad ->
 // specific) for a member, as paths relative to root — the keys into a
 // snapshot's files map.
-func (c *ConfigStore) layerRelPaths(scope, cluster, serviceType, hostname string) ([]string, error) {
+func (c *ConfigStore) layerRelPaths(scope ccfleet.Scope, cluster, serviceType, hostname string) ([]string, error) {
 	switch scope {
-	case ScopeCluster:
+	case ccfleet.ScopeCluster:
 		if err := validComponent(cluster); err != nil {
 			return nil, fmt.Errorf("fleet: invalid cluster: %w", err)
 		}
@@ -315,7 +317,7 @@ func (c *ConfigStore) layerRelPaths(scope, cluster, serviceType, hostname string
 			filepath.Join(serviceType, cluster, "defaults.json"),
 			filepath.Join(serviceType, cluster, hostname+".json"),
 		}, nil
-	case ScopeInfra:
+	case ccfleet.ScopeInfra:
 		return []string{
 			"defaults.json",
 			filepath.Join(serviceType, "defaults.json"),

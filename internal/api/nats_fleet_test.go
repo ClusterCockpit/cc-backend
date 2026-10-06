@@ -15,6 +15,7 @@ import (
 	"github.com/ClusterCockpit/cc-backend/internal/fleet"
 	"github.com/ClusterCockpit/cc-backend/internal/repository"
 	cclog "github.com/ClusterCockpit/cc-lib/v2/ccLogger"
+	ccfleet "github.com/ClusterCockpit/cc-lib/v2/fleet"
 	_ "github.com/mattn/go-sqlite3"
 )
 
@@ -61,8 +62,8 @@ func heartbeatLineAt(instanceID string, tm time.Time) []byte {
 // registerForHeartbeat creates a cluster-scope registration and returns its id.
 func registerForHeartbeat(t *testing.T, hostname string) string {
 	t.Helper()
-	reg, err := fleet.Get().Registry().Register(fleet.RegistrationRequest{
-		Cluster: "fritz", Hostname: hostname, ServiceType: fleet.ServiceTypeMetricStore,
+	reg, err := fleet.Get().Registry().Register(ccfleet.RegisterRequest{
+		Cluster: "fritz", Hostname: hostname, ServiceType: ccfleet.ServiceMetricStore,
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -259,6 +260,26 @@ func TestFleetNatsMultiLinePayload(t *testing.T) {
 
 	waitForState(t, first, "active")
 	waitForState(t, second, "active")
+}
+
+// TestFleetNatsAcceptsClientEncoding feeds the batched output of the cc-lib
+// fleet client's encoder, so a change on either side of the wire shows up here.
+func TestFleetNatsAcceptsClientEncoding(t *testing.T) {
+	api := setupFleetNats(t)
+	first := registerForHeartbeat(t, "f0101")
+	second := registerForHeartbeat(t, "f0102")
+
+	batch, err := ccfleet.EncodeHeartbeat(time.Now(), first, second)
+	if err != nil {
+		t.Fatal(err)
+	}
+	api.handleFleetEvent("cc.fleet.event", batch)
+
+	waitForState(t, first, "active")
+	waitForState(t, second, "active")
+	if n := api.rejected.Load(); n != 0 {
+		t.Fatalf("client-encoded heartbeats must not be rejected, got %d", n)
+	}
 }
 
 func TestFleetNatsCoalescesRepeatedHeartbeats(t *testing.T) {

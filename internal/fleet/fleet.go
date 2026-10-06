@@ -16,6 +16,7 @@ import (
 
 	"github.com/ClusterCockpit/cc-backend/internal/repository"
 	cclog "github.com/ClusterCockpit/cc-lib/v2/ccLogger"
+	ccfleet "github.com/ClusterCockpit/cc-lib/v2/fleet"
 )
 
 // Service states, matching the CHECK constraint on the service table. A
@@ -113,7 +114,7 @@ func Init(ctx context.Context, opts Options) error {
 		opts.DiscoveryInterval = DefaultDiscoveryInterval
 	}
 	if opts.DiscoveryPrefix == "" {
-		opts.DiscoveryPrefix = DefaultDiscoveryPrefix
+		opts.DiscoveryPrefix = ccfleet.DefaultDiscoveryPrefix
 	}
 
 	ctx, cancel := context.WithCancel(ctx)
@@ -221,7 +222,7 @@ func (m *Manager) ResolveConfig(instanceID string) (ConfigResult, error) {
 		return ConfigResult{}, ErrNoConfig
 	}
 
-	blob, revision, err := m.configs.Resolve(row.Scope, row.Cluster, row.ServiceType, row.Hostname)
+	blob, revision, err := m.configs.Resolve(ccfleet.Scope(row.Scope), row.Cluster, row.ServiceType, row.Hostname)
 	if err != nil {
 		return ConfigResult{}, err
 	}

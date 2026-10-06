@@ -20,6 +20,7 @@ import (
 	"github.com/ClusterCockpit/cc-backend/internal/fleet"
 	"github.com/ClusterCockpit/cc-backend/internal/repository"
 	cclog "github.com/ClusterCockpit/cc-lib/v2/ccLogger"
+	ccfleet "github.com/ClusterCockpit/cc-lib/v2/fleet"
 	"github.com/ClusterCockpit/cc-lib/v2/schema"
 	"github.com/go-chi/chi/v5"
 	_ "github.com/mattn/go-sqlite3"
@@ -100,7 +101,7 @@ func fleetRequest(t *testing.T, r *chi.Mux, method, target, body string, roles [
 func apiRoles() []string { return []string{schema.GetRoleString(schema.RoleAPI)} }
 
 // registerFleetService registers a service and returns the decoded response.
-func registerFleetService(t *testing.T, r *chi.Mux, path, body string) api.FleetRegisterResponse {
+func registerFleetService(t *testing.T, r *chi.Mux, path, body string) ccfleet.RegisterResponse {
 	t.Helper()
 
 	resp := fleetRequest(t, r, http.MethodPost, path, body, apiRoles(), nil)
@@ -110,7 +111,7 @@ func registerFleetService(t *testing.T, r *chi.Mux, path, body string) api.Fleet
 		t.Fatalf("register %s: got %s, want 201 (%s)", path, resp.Status, payload)
 	}
 
-	var reg api.FleetRegisterResponse
+	var reg ccfleet.RegisterResponse
 	if err := json.NewDecoder(resp.Body).Decode(&reg); err != nil {
 		t.Fatal(err)
 	}
@@ -276,6 +277,7 @@ func TestFleetRegisterInvalid(t *testing.T) {
 		{"malformed json", "/fleet/register/cluster/", `{`},
 		{"infra without hostname", "/fleet/register/infra/", `{"serviceType":"ccb"}`},
 		{"infra with unknown service type", "/fleet/register/infra/", `{"hostname":"mgmt01","serviceType":"zzz"}`},
+		{"infra with cluster", "/fleet/register/infra/", `{"cluster":"fritz","hostname":"mgmt01","serviceType":"ccb"}`},
 	}
 
 	for _, tt := range tests {

@@ -71,55 +71,6 @@ definitions:
         description: Statustext of Errorcode
         type: string
     type: object
-  api.FleetInfraRegisterRequest:
-    properties:
-      hostname:
-        description: Host the service runs on
-        example: mgmt01
-        type: string
-      metaData:
-        additionalProperties:
-          type: string
-        description: Free-form registration metadata
-        type: object
-      serviceType:
-        description: Service type short code
-        example: ccb
-        type: string
-    type: object
-  api.FleetRegisterRequest:
-    properties:
-      cluster:
-        description: Cluster the service runs on
-        example: fritz
-        type: string
-      hostname:
-        description: Host the service runs on
-        example: f0101
-        type: string
-      metaData:
-        additionalProperties:
-          type: string
-        description: Free-form registration metadata
-        type: object
-      serviceType:
-        description: Service type short code
-        example: ccms
-        type: string
-    type: object
-  api.FleetRegisterResponse:
-    properties:
-      configRevision:
-        description: Config revision currently on record; 0 means no config was pulled
-          yet
-        example: 0
-        type: integer
-      instanceId:
-        description: Credential to present on every subsequent heartbeat and config
-          pull
-        example: 3f1c9a2b7d4e6f8a0b1c2d3e4f5a6b7c
-        type: string
-    type: object
   api.GetClustersAPIResponse:
     properties:
       clusters:
@@ -242,6 +193,63 @@ definitions:
         example: user
         type: string
     type: object
+  fleet.RegisterRequest:
+    properties:
+      cluster:
+        type: string
+      hostname:
+        type: string
+      metaData:
+        additionalProperties:
+          type: string
+        type: object
+      serviceType:
+        $ref: '#/definitions/fleet.ServiceType'
+    type: object
+  fleet.RegisterResponse:
+    properties:
+      configRevision:
+        description: |-
+          ConfigRevision is the revision this identity last acknowledged, or 0 if
+          it never pulled a configuration.
+        type: integer
+      instanceId:
+        type: string
+    type: object
+  fleet.ServiceType:
+    enum:
+    - ccms
+    - ccmc
+    - ccb
+    - cces
+    - ccsa
+    - ccnc
+    - ccem
+    type: string
+    x-enum-comments:
+      ServiceBackend: cc-backend
+      ServiceEnergyManager: cc-energy-manager
+      ServiceEventStore: cc-event-store
+      ServiceMetricCollector: cc-metric-collector
+      ServiceMetricStore: cc-metric-store
+      ServiceNodeController: cc-node-controller
+      ServiceSlurmAdapter: cc-slurm-adapter
+    x-enum-descriptions:
+    - cc-metric-store
+    - cc-metric-collector
+    - cc-backend
+    - cc-event-store
+    - cc-slurm-adapter
+    - cc-node-controller
+    - cc-energy-manager
+    x-enum-varnames:
+    - ServiceMetricStore
+    - ServiceMetricCollector
+    - ServiceBackend
+    - ServiceEventStore
+    - ServiceSlurmAdapter
+    - ServiceNodeController
+    - ServiceEnergyManager
   schema.Accelerator:
     properties:
       id:
@@ -1063,14 +1071,14 @@ paths:
         name: request
         required: true
         schema:
-          $ref: '#/definitions/api.FleetRegisterRequest'
+          $ref: '#/definitions/fleet.RegisterRequest'
       produces:
       - application/json
       responses:
         "201":
           description: Issued registration
           schema:
-            $ref: '#/definitions/api.FleetRegisterResponse'
+            $ref: '#/definitions/fleet.RegisterResponse'
         "400":
           description: Bad Request
           schema:
@@ -1100,19 +1108,19 @@ paths:
         Registers an auxiliary cc-* service that is not tied to a single cluster
         (monitoring infrastructure) and returns its instance id.
       parameters:
-      - description: Registration
+      - description: Registration without cluster
         in: body
         name: request
         required: true
         schema:
-          $ref: '#/definitions/api.FleetInfraRegisterRequest'
+          $ref: '#/definitions/fleet.RegisterRequest'
       produces:
       - application/json
       responses:
         "201":
           description: Issued registration
           schema:
-            $ref: '#/definitions/api.FleetRegisterResponse'
+            $ref: '#/definitions/fleet.RegisterResponse'
         "400":
           description: Bad Request
           schema:

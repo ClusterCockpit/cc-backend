@@ -5,41 +5,36 @@
 
 package fleet
 
-import "testing"
+import (
+	"testing"
 
-func TestServiceTypeValid(t *testing.T) {
-	for _, st := range AllServiceTypes {
+	ccfleet "github.com/ClusterCockpit/cc-lib/v2/fleet"
+)
+
+func TestRelevantProvidersCoversEveryServiceType(t *testing.T) {
+	// A service type added to cc-lib must get an explicit routing decision.
+	for _, st := range ccfleet.ServiceTypes {
+		if _, ok := relevantProviders[st]; !ok {
+			t.Errorf("%q has no entry in relevantProviders", st)
+		}
+	}
+	for st := range relevantProviders {
 		if !st.Valid() {
-			t.Errorf("%q should be valid", st)
+			t.Errorf("relevantProviders lists unknown service type %q", st)
 		}
-	}
-	for _, bad := range []ServiceType{"", "bogus", "metric-store", "CCMS"} {
-		if bad.Valid() {
-			t.Errorf("%q should be invalid", bad)
-		}
-	}
-}
-
-func TestServiceTypeDescription(t *testing.T) {
-	if got := ServiceTypeMetricStore.Description(); got != "cc-metric-store" {
-		t.Errorf("ccms description = %q, want cc-metric-store", got)
-	}
-	// Unknown code falls back to the raw string.
-	if got := ServiceType("bogus").Description(); got != "bogus" {
-		t.Errorf("unknown description = %q, want bogus", got)
 	}
 }
 
 func TestRelevantProviders(t *testing.T) {
 	// Confirmed universal edge: every non-ccb service must discover ccb.
-	for _, st := range AllServiceTypes {
-		if st == ServiceTypeBackend {
+	for _, st := range ccfleet.ServiceTypes {
+		if st == ccfleet.ServiceBackend {
 			continue
 		}
 		rel := RelevantProviders(st)
 		found := false
 		for _, p := range rel {
-			if p == ServiceTypeBackend {
+			if p == ccfleet.ServiceBackend {
 				found = true
 			}
 		}
@@ -48,7 +43,7 @@ func TestRelevantProviders(t *testing.T) {
 		}
 	}
 	// ccb discovers no peers by default.
-	if rel := RelevantProviders(ServiceTypeBackend); len(rel) != 0 {
+	if rel := RelevantProviders(ccfleet.ServiceBackend); len(rel) != 0 {
 		t.Errorf("ccb should have no relevant providers, got %v", rel)
 	}
 }

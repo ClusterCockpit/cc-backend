@@ -26,6 +26,7 @@ import (
 
 	"github.com/ClusterCockpit/cc-backend/internal/repository"
 	cclog "github.com/ClusterCockpit/cc-lib/v2/ccLogger"
+	ccfleet "github.com/ClusterCockpit/cc-lib/v2/fleet"
 )
 
 // ErrUnknownInstance is returned by Heartbeat for an instance_id that was
@@ -37,29 +38,13 @@ var ErrUnknownInstance = errors.New("fleet: unknown or deregistered instance id"
 type Service struct {
 	Cluster        string
 	Hostname       string
-	ServiceType    ServiceType
+	ServiceType    ccfleet.ServiceType
 	InstanceID     string
 	State          string
 	RegisteredAt   time.Time
 	LastHeartbeat  *time.Time
 	ConfigRevision int64
 	MetaData       map[string]string
-}
-
-// RegistrationRequest is what a service posts to the REST registration
-// endpoint.
-type RegistrationRequest struct {
-	Cluster     string
-	Hostname    string
-	ServiceType ServiceType
-	MetaData    map[string]string
-}
-
-// Registration is returned from Register: the instance_id must be presented
-// on every subsequent heartbeat and config pull.
-type Registration struct {
-	InstanceID     string
-	ConfigRevision int64
 }
 
 // Registry is the business-logic layer on top of FleetRepository: it owns
@@ -85,7 +70,8 @@ func NewRegistry(staleAfter time.Duration) *Registry {
 // Register upserts a service's identity and returns a freshly issued
 // instance_id plus the config_revision it currently has on record (0 for a
 // never-before-seen service, so the caller knows to pull its initial config).
-func (r *Registry) Register(req RegistrationRequest) (*Registration, error) {
+// The request and response are the REST bodies shared with the cc-lib client.
+func (r *Registry) Register(req ccfleet.RegisterRequest) (*ccfleet.RegisterResponse, error) {
 	if req.Cluster == "" || req.Hostname == "" {
 		return nil, errors.New("fleet: cluster and hostname are required")
 	}
@@ -108,7 +94,7 @@ func (r *Registry) Register(req RegistrationRequest) (*Registration, error) {
 		Hostname:     req.Hostname,
 		ServiceType:  string(req.ServiceType),
 		InstanceID:   instanceID,
-		Scope:        ScopeCluster,
+		Scope:        string(ccfleet.ScopeCluster),
 		RegisteredAt: time.Now().Unix(),
 		MetaData:     metaJSON,
 	}
@@ -124,7 +110,7 @@ func (r *Registry) Register(req RegistrationRequest) (*Registration, error) {
 	}
 
 	cclog.Infof("fleet: registered %s/%s/%s as instance '%s'", req.Cluster, req.Hostname, req.ServiceType, instanceID)
-	return &Registration{InstanceID: instanceID, ConfigRevision: stored.ConfigRevision}, nil
+	return &ccfleet.RegisterResponse{InstanceID: instanceID, ConfigRevision: stored.ConfigRevision}, nil
 }
 
 // Heartbeat refreshes liveness for an already-registered instance. It is a
@@ -265,7 +251,7 @@ func toService(row *repository.ServiceDB) (*Service, error) {
 	svc := &Service{
 		Cluster:        row.Cluster,
 		Hostname:       row.Hostname,
-		ServiceType:    ServiceType(row.ServiceType),
+		ServiceType:    ccfleet.ServiceType(row.ServiceType),
 		InstanceID:     row.InstanceID,
 		State:          row.State,
 		RegisteredAt:   time.Unix(row.RegisteredAt, 0),
