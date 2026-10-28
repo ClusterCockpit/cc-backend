@@ -22,6 +22,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"strconv"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -190,9 +191,9 @@ var decodeStatePool = sync.Pool{
 //   - []byte→string conversions for type/stype selectors are cached via
 //     prevType*/prevSubType* fields because batches typically repeat the same
 //     sub-device identifiers.
-//   - Timestamp parsing tries Second precision first; if that fails it retries
-//     Millisecond, Microsecond, and Nanosecond in turn. A missing timestamp
-//     falls back to time.Now().
+//   - Timestamps may be in seconds, milliseconds, microseconds or nanoseconds;
+//     see decodeTimestamp. A missing timestamp falls back to the time DecodeLine
+//     was called.
 //
 // When the checkpoint format is "wal" each successfully decoded sample is also
 // sent to WALMessages so the WAL staging goroutine can persist it durably
@@ -212,7 +213,7 @@ func DecodeLine(dec *lineprotocol.Decoder,
 	clusterDefault string,
 ) error {
 	// Reduce allocations in loop:
-	t := time.Now()
+	now := time.Now().Unix()
 	metric := Metric{}
 	st := decodeStatePool.Get().(*decodeState)
 	defer decodeStatePool.Put(st)
@@ -355,24 +356,10 @@ func DecodeLine(dec *lineprotocol.Decoder,
 			}
 		}
 
-		if t, err = dec.Time(lineprotocol.Second, t); err != nil {
-			t = time.Now()
-			if t, err = dec.Time(lineprotocol.Millisecond, t); err != nil {
-				t = time.Now()
-				if t, err = dec.Time(lineprotocol.Microsecond, t); err != nil {
-					t = time.Now()
-					if t, err = dec.Time(lineprotocol.Nanosecond, t); err != nil {
-						return fmt.Errorf("host %s: timestamp : %#v with error : %#v", host, t, err.Error())
-					}
-				}
-			}
-		}
-
+		time, err := decodeTimestamp(dec, now)
 		if err != nil {
-			return fmt.Errorf("host %s: timestamp : %#v with error : %#v", host, t, err.Error())
+			return fmt.Errorf("host %s: %w", host, err)
 		}
-
-		time := t.Unix()
 
 		if Keys.Checkpoints.FileFormat == "wal" {
 			msg := &WALMessage{
@@ -398,4 +385,34 @@ func DecodeLine(dec *lineprotocol.Decoder,
 		}
 	}
 	return nil
+}
+
+// decodeTimestamp returns the timestamp of the current line in Unix seconds,
+// or now if the line has none. The precision (s, ms, µs or ns) is inferred
+// from the magnitude: the decoder can read a timestamp only once, so retrying
+// dec.Time with another precision would silently return the default time.
+// The thresholds hold for seconds until the year 5138 and for milliseconds
+// from 1973 on.
+func decodeTimestamp(dec *lineprotocol.Decoder, now int64) (int64, error) {
+	raw, err := dec.TimeBytes()
+	if err != nil {
+		return 0, err
+	}
+	if raw == nil {
+		return now, nil
+	}
+	ts, err := strconv.ParseInt(string(raw), 10, 64)
+	if err != nil {
+		return 0, fmt.Errorf("invalid timestamp %q: %w", raw, err)
+	}
+	switch {
+	case ts < 1e11: // seconds
+		return ts, nil
+	case ts < 1e14: // milliseconds
+		return ts / 1e3, nil
+	case ts < 1e17: // microseconds
+		return ts / 1e6, nil
+	default: // nanoseconds: ts >= 1e17, up to the int64 limit (year 2262)
+		return ts / 1e9, nil
+	}
 }

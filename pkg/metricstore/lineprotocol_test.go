@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/ClusterCockpit/cc-lib/v2/schema"
+	"github.com/ClusterCockpit/cc-lib/v2/util"
 	"github.com/ClusterCockpit/cc-line-protocol/v2/lineprotocol"
 )
 
@@ -37,6 +38,42 @@ func ingestDeviceLines(t *testing.T, ms *MemoryStore, tags string) int64 {
 		t.Fatalf("DecodeLine: %v", err)
 	}
 	return now
+}
+
+// TestDecodeLineTimestampPrecision checks that timestamps in s, ms, µs and ns
+// all land at their own time, not at the time of arrival.
+func TestDecodeLineTimestampPrecision(t *testing.T) {
+	past := time.Now().Unix()/60*60 - 600
+	for _, tc := range []struct {
+		name string
+		ts   string
+	}{
+		{"s", fmt.Sprintf("%d", past)},
+		{"ms", fmt.Sprintf("%d123", past)},
+		{"us", fmt.Sprintf("%d123456", past)},
+		{"ns", fmt.Sprintf("%d123456789", past)},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			ms := newDeviceTestStore()
+			line := "fs_read_bw,cluster=c,hostname=h1 value=7 " + tc.ts + "\n"
+			if err := DecodeLine(lineprotocol.NewDecoderWithBytes([]byte(line)), ms, "c"); err != nil {
+				t.Fatalf("DecodeLine: %v", err)
+			}
+			data, from, _, _, err := ms.Read(util.Selector{{String: "c"}, {String: "h1"}}, "fs_read_bw", past, past+60, 60, "")
+			if err != nil || len(data) == 0 || data[0] != 7 {
+				t.Errorf("Read at %d: from=%d data=%v err=%v, want 7 at %d", past, from, data, err, past)
+			}
+		})
+	}
+}
+
+// TestDecodeLineInvalidTimestamp checks that a timestamp that does not fit in
+// int64 is rejected instead of being replaced by the time of arrival.
+func TestDecodeLineInvalidTimestamp(t *testing.T) {
+	line := "fs_read_bw,cluster=c,hostname=h1 value=7 99999999999999999999\n"
+	if err := DecodeLine(lineprotocol.NewDecoderWithBytes([]byte(line)), newDeviceTestStore(), "c"); err == nil {
+		t.Error("DecodeLine accepted an out-of-range timestamp")
+	}
 }
 
 // TestDeviceTagsReachDeviceQueries pins the collector convention for device
