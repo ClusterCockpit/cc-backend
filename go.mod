@@ -43,6 +43,12 @@ require (
 )
 
 require (
+	github.com/antithesishq/antithesis-sdk-go v0.8.0-default-no-op // indirect
+	github.com/minio/highwayhash v1.0.4 // indirect
+	github.com/nats-io/jwt/v2 v2.8.2 // indirect
+)
+
+require (
 	github.com/Azure/go-ntlmssp v0.1.1 // indirect
 	github.com/KyleBanks/depth v1.2.1 // indirect
 	github.com/agnivade/levenshtein v1.2.1 // indirect
@@ -88,6 +94,7 @@ require (
 	github.com/kr/pretty v0.3.1 // indirect
 	github.com/lann/builder v0.0.0-20180802200727-47ae307949d0 // indirect
 	github.com/lann/ps v0.0.0-20150810152359-62de8c46ede0 // indirect
+	github.com/nats-io/nats-server/v2 v2.15.1
 	github.com/nats-io/nats.go v1.54.0 // indirect
 	github.com/nats-io/nkeys v0.4.16 // indirect
 	github.com/nats-io/nuid v1.0.1 // indirect
@@ -96,7 +103,7 @@ require (
 	github.com/parquet-go/jsonlite v1.5.5 // indirect
 	github.com/pierrec/lz4/v4 v4.1.31 // indirect
 	github.com/robfig/cron/v3 v3.0.1 // indirect
-	github.com/rogpeppe/go-internal v1.10.0 // indirect
+	github.com/rogpeppe/go-internal v1.11.0 // indirect
 	github.com/russross/blackfriday/v2 v2.1.0 // indirect
 	github.com/sosodev/duration v1.4.0 // indirect
 	github.com/stmcginnis/gofish v0.26.0 // indirect

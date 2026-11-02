@@ -55,11 +55,52 @@ func ReceiveNats(ms *MemoryStore,
 		return nil
 	}
 
+	return receiveNats(ms, workers, ctx, nc)
+}
+
+type metricSubscriptionClient interface {
+	Subscribe(string, nats.MessageHandler) error
+}
+
+type metricNatsMessage struct {
+	data       []byte
+	clusterTag string
+}
+
+func receiveNats(ms *MemoryStore, workers int, ctx context.Context, nc metricSubscriptionClient) error {
+	ctx, cancel := context.WithCancel(ctx)
+	defer cancel()
+
 	var wg sync.WaitGroup
-	msgs := make(chan []byte, max(workers*256, 8192))
+	var subscriptionErr error
+	msgs := make(chan metricNatsMessage, max(workers*256, 8192))
+	var deliveryMu sync.RWMutex
+	stopped := false
+	deliver := func(clusterTag string, data []byte) {
+		// Close does not join NATS callbacks already in progress. Gate every
+		// delivery against cancellation, then wait for active deliveries before
+		// closing the queue. Single-worker decoding participates in the same gate.
+		deliveryMu.RLock()
+		defer deliveryMu.RUnlock()
+		if stopped || ctx.Err() != nil {
+			return
+		}
+		if workers > 1 {
+			select {
+			case msgs <- metricNatsMessage{data: data, clusterTag: clusterTag}:
+			case <-ctx.Done():
+			}
+			return
+		}
+		dec := lineprotocol.NewDecoderWithBytes(data)
+		if err := DecodeLine(dec, ms, clusterTag); err != nil {
+			cclog.Errorf("error: %s", err.Error())
+		}
+	}
 
 	for _, sc := range *Keys.Subscriptions {
 		clusterTag := sc.ClusterTag
+		var err error
 		if workers > 1 {
 			wg.Add(workers)
 
@@ -67,39 +108,34 @@ func ReceiveNats(ms *MemoryStore,
 				go func() {
 					defer wg.Done()
 					for m := range msgs {
-						dec := lineprotocol.NewDecoderWithBytes(m)
-						if err := DecodeLine(dec, ms, clusterTag); err != nil {
+						dec := lineprotocol.NewDecoderWithBytes(m.data)
+						if err := DecodeLine(dec, ms, m.clusterTag); err != nil {
 							cclog.Errorf("error: %s", err.Error())
 						}
 					}
 				}()
 			}
 
-			nc.Subscribe(sc.SubscribeTo, func(subject string, data []byte) {
-				select {
-				case msgs <- data:
-				case <-ctx.Done():
-				}
-			})
-		} else {
-			nc.Subscribe(sc.SubscribeTo, func(subject string, data []byte) {
-				dec := lineprotocol.NewDecoderWithBytes(data)
-				if err := DecodeLine(dec, ms, clusterTag); err != nil {
-					cclog.Errorf("error: %s", err.Error())
-				}
-			})
+		}
+		err = nc.Subscribe(sc.SubscribeTo, func(subject string, data []byte) {
+			deliver(clusterTag, data)
+		})
+		if err != nil {
+			subscriptionErr = fmt.Errorf("metric NATS subscription %q: %w", sc.SubscribeTo, err)
+			cancel()
+			break
 		}
 		cclog.Infof("NATS subscription to '%s' established", sc.SubscribeTo)
 	}
 
-	go func() {
-		<-ctx.Done()
-		close(msgs)
-	}()
-
+	<-ctx.Done()
+	deliveryMu.Lock()
+	stopped = true
+	close(msgs)
+	deliveryMu.Unlock()
 	wg.Wait()
 
-	return nil
+	return subscriptionErr
 }
 
 // reorder prepends prefix to buf in-place when buf has enough spare capacity,
