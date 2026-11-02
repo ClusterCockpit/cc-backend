@@ -218,9 +218,8 @@ func DecodeLine(dec *lineprotocol.Decoder,
 	st := decodeStatePool.Get().(*decodeState)
 	defer decodeStatePool.Put(st)
 
-	// Optimize for the case where all lines in a "batch" are about the same
-	// cluster and host. By using `WriteToLevel` (level = host), we do not need
-	// to take the root- and cluster-level lock as often.
+	// Reuse converted names within a batch, but resolve writes from the root:
+	// retention may remove an empty cached host level before its first write.
 	var lvl *Level = nil
 	prevCluster, prevHost := "", ""
 
@@ -379,7 +378,8 @@ func DecodeLine(dec *lineprotocol.Decoder,
 			}
 		}
 
-		if err := ms.WriteToLevel(lvl, st.selector, time, []Metric{metric}); err != nil {
+		selector := append([]string{cluster, host}, st.selector...)
+		if err := ms.WriteToLevel(&ms.root, selector, time, []Metric{metric}); err != nil {
 			cclog.Warnf("write error for host %s metric %s at ts %d: %s", host, string(st.metricBuf), time, err.Error())
 			continue
 		}

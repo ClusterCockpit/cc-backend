@@ -580,7 +580,28 @@ func (m *MemoryStore) GetLevel(selector []string) *Level {
 
 // WriteToLevel assumes that `minfo` in `metrics` is filled in
 func (m *MemoryStore) WriteToLevel(l *Level, selector []string, ts int64, metrics []Metric) error {
-	l = l.findLevelOrCreate(selector, len(m.Metrics))
+	if len(selector) > 0 {
+		l.lock.RLock()
+		child := l.children[selector[0]]
+		if child == nil {
+			l.lock.RUnlock()
+			l.lock.Lock()
+			defer l.lock.Unlock()
+			child = l.children[selector[0]]
+			if child == nil {
+				if l.children == nil {
+					l.children = make(map[string]*Level)
+				}
+				child = &Level{metrics: make([]*buffer, len(m.Metrics))}
+				l.children[selector[0]] = child
+			}
+		} else {
+			defer l.lock.RUnlock()
+		}
+		// Retention must not remove an ancestor before the leaf is written.
+		return m.WriteToLevel(child, selector[1:], ts, metrics)
+	}
+
 	l.lock.Lock()
 	defer l.lock.Unlock()
 
