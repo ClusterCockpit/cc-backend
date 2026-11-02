@@ -258,6 +258,7 @@ func (b *buffer) write(ts int64, value schema.Float) (*buffer, error) {
 	// Overwriting value or writing value from past
 	if idx < len(b.data) {
 		b.data[idx] = value
+		b.archived = false
 		// The replaced value may have been the running min/max; the cached
 		// aggregate can no longer be trusted. Force a recompute on next query.
 		b.statsValid = false
@@ -270,6 +271,7 @@ func (b *buffer) write(ts int64, value schema.Float) (*buffer, error) {
 	}
 
 	b.data = append(b.data, value)
+	b.archived = false
 	b.updateStats(value)
 	return b, nil
 }

@@ -646,7 +646,7 @@ func parseTimestampFromFilename(name string) (int64, error) {
 
 // findFiles returns filenames from direntries whose timestamps satisfy the filter.
 // If findMoreRecentFiles is true, returns files with timestamps >= t (plus the
-// last file before t if t falls between two files).
+// last file before t, which may still overlap the requested retention window).
 func findFiles(direntries []fs.DirEntry, t int64, findMoreRecentFiles bool) ([]string, error) {
 	nums := map[string]int64{}
 	for _, e := range direntries {
@@ -683,6 +683,9 @@ func findFiles(direntries []fs.DirEntry, t int64, findMoreRecentFiles bool) ([]s
 		}
 
 		if i == len(direntries)-1 {
+			if findMoreRecentFiles && ts1 < t {
+				filenames = append(filenames, e.Name())
+			}
 			continue
 		}
 
