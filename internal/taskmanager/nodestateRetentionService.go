@@ -6,6 +6,7 @@
 package taskmanager
 
 import (
+	"context"
 	"fmt"
 	"time"
 
@@ -105,48 +106,57 @@ func RegisterNodeStateRetentionMoveService(cfgPtr *config.NodeStateRetention) {
 				cutoff := time.Now().Unix() - int64(ageHours*3600)
 				nodeRepo := repository.GetNodeRepository()
 
-				rows, err := nodeRepo.FindNodeStatesBefore(cutoff)
-				if err != nil {
-					cclog.Errorf("NodeState move retention: error finding rows: %v", err)
-					return
-				}
-				if len(rows) == 0 {
-					return
-				}
-
-				cclog.Infof("NodeState move retention: archiving %d rows", len(rows))
-				pw := pqarchive.NewNodeStateParquetWriter(target, maxFileSizeMB)
-
-				for _, ns := range rows {
-					row := pqarchive.ParquetNodeStateRow{
-						TimeStamp:       ns.TimeStamp,
-						NodeState:       ns.NodeState,
-						HealthState:     ns.HealthState,
-						HealthMetrics:   ns.HealthMetrics,
-						CpusAllocated:   int32(ns.CpusAllocated),
-						MemoryAllocated: ns.MemoryAllocated,
-						GpusAllocated:   int32(ns.GpusAllocated),
-						JobsRunning:     int32(ns.JobsRunning),
-						Hostname:        ns.Hostname,
-						Cluster:         ns.Cluster,
-						SubCluster:      ns.SubCluster,
-					}
-					if err := pw.AddRow(row); err != nil {
-						cclog.Errorf("NodeState move retention: add row: %v", err)
-						continue
-					}
-				}
-
-				if err := pw.Close(); err != nil {
-					cclog.Errorf("NodeState move retention: close writer: %v", err)
-					return
-				}
-
-				cnt, err := nodeRepo.DeleteNodeStatesBefore(cutoff)
-				if err != nil {
-					cclog.Errorf("NodeState move retention: error deleting rows: %v", err)
-				} else {
-					cclog.Infof("NodeState move retention: deleted %d rows from db", cnt)
+				if err := archiveNodeStatesBefore(nodeRepo, cutoff, target, maxFileSizeMB); err != nil {
+					cclog.Errorf("NodeState move retention: %v", err)
 				}
 			}))
+}
+
+// archiveNodeStatesBefore completes the export before removing source rows.
+func archiveNodeStatesBefore(repo *repository.NodeRepository, cutoff int64, target pqarchive.ParquetTarget, maxSizeMB int) error {
+	rows, err := repo.FindNodeStatesBefore(cutoff)
+	if err != nil {
+		return fmt.Errorf("finding rows: %w", err)
+	}
+	if len(rows) == 0 {
+		return nil
+	}
+	cclog.Infof("NodeState move retention: archiving %d rows", len(rows))
+	if err := transferNodeStatesParquet(rows, target, maxSizeMB); err != nil {
+		return err
+	}
+	if err := repo.DeleteNodeStatesByIDs(context.Background(), rows); err != nil {
+		return fmt.Errorf("deleting archived rows: %w", err)
+	}
+	return nil
+}
+
+// transferNodeStatesParquet completes the export before source rows may be deleted.
+func transferNodeStatesParquet(rows []repository.NodeStateWithNode, target pqarchive.ParquetTarget, maxSizeMB int) error {
+	pw := pqarchive.NewNodeStateParquetWriter(target, maxSizeMB)
+
+	for _, ns := range rows {
+		row := pqarchive.ParquetNodeStateRow{
+			TimeStamp:       ns.TimeStamp,
+			NodeState:       ns.NodeState,
+			HealthState:     ns.HealthState,
+			HealthMetrics:   ns.HealthMetrics,
+			CpusAllocated:   int32(ns.CpusAllocated),
+			MemoryAllocated: ns.MemoryAllocated,
+			GpusAllocated:   int32(ns.GpusAllocated),
+			JobsRunning:     int32(ns.JobsRunning),
+			Hostname:        ns.Hostname,
+			Cluster:         ns.Cluster,
+			SubCluster:      ns.SubCluster,
+		}
+		if err := pw.AddRow(row); err != nil {
+			return fmt.Errorf("node-state retention: add row: %w", err)
+		}
+	}
+
+	if err := pw.Close(); err != nil {
+		cclog.Errorf("NodeState move retention: close writer: %v", err)
+		return err
+	}
+	return nil
 }

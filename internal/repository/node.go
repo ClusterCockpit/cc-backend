@@ -53,11 +53,11 @@ func GetNodeRepository() *NodeRepository {
 }
 
 // latestStateCondition returns a squirrel expression that restricts node_state
-// rows to the latest per node_id using a correlated subquery.
+// rows to the latest per node_id, breaking timestamp ties with the latest ID.
 // Requires the query to join node and node_state tables.
 func latestStateCondition() sq.Sqlizer {
 	return sq.Expr(
-		"node_state.id = (SELECT ns2.id FROM node_state ns2 WHERE ns2.node_id = node.id ORDER BY ns2.time_stamp DESC LIMIT 1)",
+		"node_state.id = (SELECT ns2.id FROM node_state ns2 WHERE ns2.node_id = node.id ORDER BY ns2.time_stamp DESC, ns2.id DESC LIMIT 1)",
 	)
 }
 

@@ -11,6 +11,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	awsconfig "github.com/aws/aws-sdk-go-v2/config"
@@ -40,7 +41,46 @@ func (ft *FileTarget) WriteFile(name string, data []byte) error {
 	if err := os.MkdirAll(filepath.Dir(fullPath), 0o750); err != nil {
 		return fmt.Errorf("create parent directory: %w", err)
 	}
-	return os.WriteFile(fullPath, data, 0o640)
+	file, err := os.CreateTemp(filepath.Dir(fullPath), ".cc-parquet-*")
+	if err != nil {
+		return fmt.Errorf("create temporary output: %w", err)
+	}
+	defer os.Remove(file.Name())
+	if err := file.Chmod(0o640); err != nil {
+		file.Close()
+		return fmt.Errorf("set output permissions: %w", err)
+	}
+	if _, err := file.Write(data); err != nil {
+		file.Close()
+		return fmt.Errorf("write temporary output: %w", err)
+	}
+	if err := file.Sync(); err != nil {
+		file.Close()
+		return fmt.Errorf("sync temporary output: %w", err)
+	}
+	if err := file.Close(); err != nil {
+		return fmt.Errorf("close temporary output: %w", err)
+	}
+	if strings.HasSuffix(name, ".parquet") {
+		// Publish an immutable archive without replacing earlier successful data.
+		err = os.Link(file.Name(), fullPath)
+	} else {
+		// Metadata such as cluster.json may be updated, but readers must only
+		// observe complete old or new contents.
+		err = os.Rename(file.Name(), fullPath)
+	}
+	if err != nil {
+		return fmt.Errorf("publish output: %w", err)
+	}
+	directory, err := os.Open(filepath.Dir(fullPath))
+	if err != nil {
+		return fmt.Errorf("open output directory: %w", err)
+	}
+	defer directory.Close()
+	if err := directory.Sync(); err != nil {
+		return fmt.Errorf("sync output directory: %w", err)
+	}
+	return nil
 }
 
 // S3TargetConfig holds the configuration for an S3 parquet target.

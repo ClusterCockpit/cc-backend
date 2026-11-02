@@ -105,10 +105,10 @@ func transferJobsJSON(jobs []*schema.Job, src archive.ArchiveBackend, dst archiv
 		}
 		clusterCfg, err := src.LoadClusterCfg(job.Cluster)
 		if err != nil {
-			cclog.Warnf("Retention: load cluster config %q: %v", job.Cluster, err)
+			return fmt.Errorf("retention: load cluster config %q: %w", job.Cluster, err)
 		} else {
 			if err := dst.StoreClusterCfg(job.Cluster, clusterCfg); err != nil {
-				cclog.Warnf("Retention: store cluster config %q: %v", job.Cluster, err)
+				return fmt.Errorf("retention: store cluster config %q: %w", job.Cluster, err)
 			}
 		}
 		clustersDone[job.Cluster] = true
@@ -117,17 +117,14 @@ func transferJobsJSON(jobs []*schema.Job, src archive.ArchiveBackend, dst archiv
 	for _, job := range jobs {
 		meta, err := src.LoadJobMeta(job)
 		if err != nil {
-			cclog.Warnf("Retention: load meta for job %d: %v", job.JobID, err)
-			continue
+			return fmt.Errorf("retention: load meta for job %d: %w", job.JobID, err)
 		}
 		data, err := src.LoadJobData(job)
 		if err != nil {
-			cclog.Warnf("Retention: load data for job %d: %v", job.JobID, err)
-			continue
+			return fmt.Errorf("retention: load data for job %d: %w", job.JobID, err)
 		}
 		if err := dst.ImportJob(meta, &data); err != nil {
-			cclog.Warnf("Retention: import job %d: %v", job.JobID, err)
-			continue
+			return fmt.Errorf("retention: import job %d: %w", job.JobID, err)
 		}
 	}
 	return nil
@@ -145,7 +142,7 @@ func transferJobsParquet(jobs []*schema.Job, src archive.ArchiveBackend, target 
 		}
 		clusterCfg, err := src.LoadClusterCfg(job.Cluster)
 		if err != nil {
-			cclog.Warnf("Retention: load cluster config %q: %v", job.Cluster, err)
+			return fmt.Errorf("retention: load cluster config %q: %w", job.Cluster, err)
 		} else {
 			cw.SetClusterConfig(job.Cluster, clusterCfg)
 		}
@@ -155,22 +152,18 @@ func transferJobsParquet(jobs []*schema.Job, src archive.ArchiveBackend, target 
 	for _, job := range jobs {
 		meta, err := src.LoadJobMeta(job)
 		if err != nil {
-			cclog.Warnf("Retention: load meta for job %d: %v", job.JobID, err)
-			continue
+			return fmt.Errorf("retention: load meta for job %d: %w", job.JobID, err)
 		}
 		data, err := src.LoadJobData(job)
 		if err != nil {
-			cclog.Warnf("Retention: load data for job %d: %v", job.JobID, err)
-			continue
+			return fmt.Errorf("retention: load data for job %d: %w", job.JobID, err)
 		}
 		row, err := pqarchive.JobToParquetRow(meta, &data)
 		if err != nil {
-			cclog.Warnf("Retention: convert job %d: %v", job.JobID, err)
-			continue
+			return fmt.Errorf("retention: convert job %d: %w", job.JobID, err)
 		}
 		if err := cw.AddJob(*row); err != nil {
-			cclog.Errorf("Retention: add job %d to writer: %v", job.JobID, err)
-			continue
+			return fmt.Errorf("retention: add job %d to writer: %w", job.JobID, err)
 		}
 	}
 
