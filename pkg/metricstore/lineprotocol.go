@@ -218,9 +218,7 @@ func DecodeLine(dec *lineprotocol.Decoder,
 	st := decodeStatePool.Get().(*decodeState)
 	defer decodeStatePool.Put(st)
 
-	// Reuse converted names within a batch, but resolve writes from the root:
-	// retention may remove an empty cached host level before its first write.
-	var lvl *Level = nil
+	// Reuse converted cluster and host names within a batch.
 	prevCluster, prevHost := "", ""
 
 	var ok bool
@@ -258,14 +256,12 @@ func DecodeLine(dec *lineprotocol.Decoder,
 					cluster = prevCluster
 				} else {
 					cluster = string(val)
-					lvl = nil
 				}
 			case "hostname", "host":
 				if string(val) == prevHost {
 					host = prevHost
 				} else {
 					host = string(val)
-					lvl = nil
 				}
 			case "type":
 				if string(val) == "node" {
@@ -304,13 +300,7 @@ func DecodeLine(dec *lineprotocol.Decoder,
 			continue
 		}
 
-		// If the cluster or host changed, the lvl was set to nil
-		if lvl == nil {
-			st.selector = st.selector[:2]
-			st.selector[0], st.selector[1] = cluster, host
-			lvl = ms.GetLevel(st.selector)
-			prevCluster, prevHost = cluster, host
-		}
+		prevCluster, prevHost = cluster, host
 
 		// subtypes: cache []byte→string conversions; messages in a batch typically
 		// share the same type/stype so the hit rate is very high.

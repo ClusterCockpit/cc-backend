@@ -205,10 +205,9 @@ func (l *Level) freeAndCheckEmpty(t int64) (int, bool, error) {
 // used nodes are never freed, so never empty, so never pruned. Holding the root
 // write lock for the full pass matches the existing root free (ms.Free(nil, t)).
 //
-// Holding the root lock for the entire traversal is intentional: it serializes
-// this pass against findLevelOrCreate (which RLocks root first), preventing a
-// writer from grabbing a node pointer that this pass then deletes as empty,
-// which would silently lose data. Do not "optimize" this to per-cluster locking.
+// Writes that start at the root hold ancestor locks in WriteToLevel until the
+// leaf write completes. The root write lock keeps this pass from detaching
+// any part of that path during the write.
 func (l *Level) freeExcludingUsed(t int64, used map[string][]string) (int, error) {
 	l.lock.Lock()
 	defer l.lock.Unlock()
