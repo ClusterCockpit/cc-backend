@@ -642,13 +642,16 @@ func (m *MemoryStore) Read(selector util.Selector, metric string, from, to, reso
 			node := strings.Join(path, "/")
 			switch {
 			case missingfront > 0 && missingback > 0:
-				cclog.Warnf("%v: metric=%s node=%s requested[%d,%d] actual[%d,%d] missing_front=%d pts missing_back=%d pts",
+				// TODO While the log messages below are in debug loglevel only, they may cause incredibly high log spam.
+				// So much that it'll take over the entire log. This needs a more through fix so that the debug log is still
+				// somewhat usable.
+				cclog.Debugf("%v: metric=%s node=%s requested[%d,%d] actual[%d,%d] missing_front=%d pts missing_back=%d pts",
 					ErrDataDoesNotAlignMissingFront, metric, node, from, to, cfrom, cto, missingfront, missingback)
 			case missingfront > 0:
-				cclog.Warnf("%v: metric=%s node=%s requested[%d,%d] actual[%d,%d] missing_front=%d pts",
+				cclog.Debugf("%v: metric=%s node=%s requested[%d,%d] actual[%d,%d] missing_front=%d pts",
 					ErrDataDoesNotAlignMissingFront, metric, node, from, to, cfrom, cto, missingfront)
 			case missingback > 0:
-				cclog.Warnf("%v: metric=%s node=%s requested[%d,%d] actual[%d,%d] missing_back=%d pts",
+				cclog.Debugf("%v: metric=%s node=%s requested[%d,%d] actual[%d,%d] missing_back=%d pts",
 					ErrDataDoesNotAlignMissingBack, metric, node, from, to, cfrom, cto, missingback)
 			}
 		}
