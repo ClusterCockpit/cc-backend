@@ -34,8 +34,8 @@ func TestMissingReportMergesPerHost(t *testing.T) {
 
 	got := r.lines("cl", 100, 200)
 	want := []string{
-		"[METRICSTORE]> missing data points: node=cl/n1 requested[100,200] metrics=2 [flops temp] max_missing_front=3 pts max_missing_back=6 pts (set verbose-missing-data for per-buffer detail)",
-		"[METRICSTORE]> missing data points: node=cl/n2 requested[100,200] metrics=1 [flops] max_missing_front=2 pts max_missing_back=1 pts (set verbose-missing-data for per-buffer detail)",
+		"[METRICSTORE]> missing data points: node=cl/n1 requested[100,200] metrics=2 max_missing_front=3 pts max_missing_back=6 pts",
+		"[METRICSTORE]> missing data points: node=cl/n2 requested[100,200] metrics=1 max_missing_front=2 pts max_missing_back=1 pts",
 	}
 	if !slices.Equal(got, want) {
 		t.Errorf("lines =\n%q\nwant\n%q", got, want)
@@ -119,7 +119,7 @@ func TestFetchDataLogsOneSummaryPerHost(t *testing.T) {
 	if n := strings.Count(out, "missing data points"); n != 1 {
 		t.Fatalf("got %d summary lines, want 1:\n%s", n, out)
 	}
-	if want := "node=cl/n1 requested[1000,1200] metrics=2 [flops temp] max_missing_front=3 pts max_missing_back=0 pts"; !strings.Contains(out, want) {
+	if want := "node=cl/n1 requested[1000,1200] metrics=2 max_missing_front=3 pts max_missing_back=0 pts"; !strings.Contains(out, want) {
 		t.Errorf("summary missing %q:\n%s", want, out)
 	}
 	if strings.Contains(out, "does not align") {
@@ -156,7 +156,7 @@ func TestFetchStatsFallbackLogsSummary(t *testing.T) {
 	if n := strings.Count(out, "missing data points"); n != 1 {
 		t.Fatalf("got %d summary lines, want 1:\n%s", n, out)
 	}
-	if want := "node=cl/n1 requested[1000,1200] metrics=1 [temp] max_missing_front=3 pts max_missing_back=0 pts"; !strings.Contains(out, want) {
+	if want := "node=cl/n1 requested[1000,1200] metrics=1 max_missing_front=3 pts max_missing_back=0 pts"; !strings.Contains(out, want) {
 		t.Errorf("summary missing %q:\n%s", want, out)
 	}
 }

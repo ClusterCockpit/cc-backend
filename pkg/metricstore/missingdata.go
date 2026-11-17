@@ -9,7 +9,6 @@ import (
 	"fmt"
 	"maps"
 	"slices"
-	"strings"
 
 	cclog "github.com/ClusterCockpit/cc-lib/v2/ccLogger"
 )
@@ -69,7 +68,7 @@ func (r *missingReport) add(host, metric string, g gapInfo) {
 	h.merge(g)
 }
 
-// lines formats one summary line per host, hosts and metrics sorted.
+// lines formats one summary line per host, hosts sorted.
 func (r *missingReport) lines(cluster string, from, to int64) []string {
 	if len(r.hosts) == 0 {
 		return nil
@@ -77,10 +76,9 @@ func (r *missingReport) lines(cluster string, from, to int64) []string {
 	out := make([]string, 0, len(r.hosts))
 	for _, host := range slices.Sorted(maps.Keys(r.hosts)) {
 		h := r.hosts[host]
-		metrics := slices.Sorted(maps.Keys(h.metrics))
 		out = append(out, fmt.Sprintf(
-			"[METRICSTORE]> missing data points: node=%s/%s requested[%d,%d] metrics=%d [%s] max_missing_front=%d pts max_missing_back=%d pts (set verbose-missing-data for per-buffer detail)",
-			cluster, host, from, to, len(metrics), strings.Join(metrics, " "), h.maxFront, h.maxBack))
+			"[METRICSTORE]> missing data points: node=%s/%s requested[%d,%d] metrics=%d max_missing_front=%d pts max_missing_back=%d pts",
+			cluster, host, from, to, len(h.metrics), h.maxFront, h.maxBack))
 	}
 	return out
 }
