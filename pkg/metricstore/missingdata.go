@@ -79,8 +79,8 @@ func (r *missingReport) lines(cluster string, from, to int64) []string {
 		h := r.hosts[host]
 		metrics := slices.Sorted(maps.Keys(h.metrics))
 		out = append(out, fmt.Sprintf(
-			"[METRICSTORE]> missing data points: node=%s/%s requested[%d,%d] metrics=%d [%s] buffers=%d max_missing_front=%d pts max_missing_back=%d pts (set verbose-missing-data for per-buffer detail)",
-			cluster, host, from, to, len(metrics), strings.Join(metrics, " "), h.buffers, h.maxFront, h.maxBack))
+			"[METRICSTORE]> missing data points: node=%s/%s requested[%d,%d] metrics=%d [%s] max_missing_front=%d pts max_missing_back=%d pts (set verbose-missing-data for per-buffer detail)",
+			cluster, host, from, to, len(metrics), strings.Join(metrics, " "), h.maxFront, h.maxBack))
 	}
 	return out
 }
