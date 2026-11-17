@@ -614,16 +614,15 @@ func (m *MemoryStore) WriteToLevel(l *Level, selector []string, ts int64, metric
 // The second and third return value are the actual from/to for the data. Those can be different from
 // the range asked for if no data was available.
 //
-// Buffers that miss data in the window are only logged when
-// Keys.VerboseMissingData is set; FetchData and FetchStats summarise them per
-// host instead.
+// Each buffer that misses data in the window is logged at debug level only;
+// FetchData and FetchStats additionally warn once per host and request.
 func (m *MemoryStore) Read(selector util.Selector, metric string, from, to, resolution int64, resampleAlgo string) ([]schema.Float, int64, int64, int64, error) {
 	return m.read(selector, metric, from, to, resolution, resampleAlgo, nil)
 }
 
-// read implements Read. A buffer that does not cover [from, to] is logged
-// with one line when Keys.VerboseMissingData is set; otherwise it is recorded
-// in gaps, when gaps is not nil, for the caller to summarise.
+// read implements Read. A buffer that does not cover [from, to] is recorded
+// in gaps, when gaps is not nil, for the caller to summarise, and logged with
+// one line at debug level.
 func (m *MemoryStore) read(selector util.Selector, metric string, from, to, resolution int64, resampleAlgo string, gaps *gapInfo) ([]schema.Float, int64, int64, int64, error) {
 	if from > to {
 		return nil, 0, 0, 0, errors.New("[METRICSTORE]> invalid time range")
@@ -650,21 +649,23 @@ func (m *MemoryStore) read(selector util.Selector, metric string, from, to, reso
 		missingfront := int((cfrom - from) / minfo.Frequency)
 		missingback := int((to - cto) / minfo.Frequency)
 		if missingfront > 0 || missingback > 0 {
-			if Keys.VerboseMissingData {
+			if gaps != nil {
+				gaps.record(missingfront, missingback)
+			}
+			// Guarded so the per-buffer formatting is skipped below debug level.
+			if cclog.Loglevel() == "debug" {
 				node := strings.Join(path, "/")
 				switch {
 				case missingfront > 0 && missingback > 0:
-					cclog.Warnf("%v: metric=%s node=%s requested[%d,%d] actual[%d,%d] missing_front=%d pts missing_back=%d pts",
+					cclog.Debugf("%v: metric=%s node=%s requested[%d,%d] actual[%d,%d] missing_front=%d pts missing_back=%d pts",
 						ErrDataDoesNotAlignMissingFront, metric, node, from, to, cfrom, cto, missingfront, missingback)
 				case missingfront > 0:
-					cclog.Warnf("%v: metric=%s node=%s requested[%d,%d] actual[%d,%d] missing_front=%d pts",
+					cclog.Debugf("%v: metric=%s node=%s requested[%d,%d] actual[%d,%d] missing_front=%d pts",
 						ErrDataDoesNotAlignMissingFront, metric, node, from, to, cfrom, cto, missingfront)
 				case missingback > 0:
-					cclog.Warnf("%v: metric=%s node=%s requested[%d,%d] actual[%d,%d] missing_back=%d pts",
+					cclog.Debugf("%v: metric=%s node=%s requested[%d,%d] actual[%d,%d] missing_back=%d pts",
 						ErrDataDoesNotAlignMissingBack, metric, node, from, to, cfrom, cto, missingback)
 				}
-			} else if gaps != nil {
-				gaps.record(missingfront, missingback)
 			}
 		}
 

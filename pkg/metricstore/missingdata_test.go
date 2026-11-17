@@ -53,17 +53,8 @@ func TestMissingReportEmptyAllocatesNothing(t *testing.T) {
 	}
 }
 
-// setVerboseMissingData sets Keys.VerboseMissingData for the duration of the test.
-func setVerboseMissingData(t *testing.T, v bool) {
-	t.Helper()
-	old := Keys.VerboseMissingData
-	Keys.VerboseMissingData = v
-	t.Cleanup(func() { Keys.VerboseMissingData = old })
-}
-
 func TestReadRecordsGaps(t *testing.T) {
 	ms := newFetchStatsStore(t, 3)
-	setVerboseMissingData(t, false)
 	sel := querySelectors("cl", coreQuery("temp", false))[0]
 
 	var g gapInfo
@@ -73,20 +64,6 @@ func TestReadRecordsGaps(t *testing.T) {
 	want := gapInfo{buffers: 1, maxFront: 3, maxBack: 0}
 	if g != want {
 		t.Errorf("gapInfo = %+v, want %+v", g, want)
-	}
-}
-
-func TestReadVerboseDoesNotRecordGaps(t *testing.T) {
-	ms := newFetchStatsStore(t, 3)
-	setVerboseMissingData(t, true)
-	sel := querySelectors("cl", coreQuery("temp", false))[0]
-
-	var g gapInfo
-	if _, _, _, _, err := ms.read(sel, "temp", fsFrom, fsFrom+fsCount*fsFreq, 0, "", &g); err != nil {
-		t.Fatal(err)
-	}
-	if g != (gapInfo{}) {
-		t.Errorf("verbose read recorded gaps %+v", g)
 	}
 }
 
@@ -100,6 +77,23 @@ func captureWarnings(t *testing.T) *bytes.Buffer {
 	return &buf
 }
 
+// captureDebug switches cclog to debug level and redirects debug output to a
+// buffer for the duration of the test. cclog.Init replaces every logger, so
+// call it before captureWarnings.
+func captureDebug(t *testing.T) *bytes.Buffer {
+	t.Helper()
+	oldLevel := cclog.Loglevel()
+	oldDebug, oldInfo, oldWarn, oldErr, oldCrit := cclog.DebugLog, cclog.InfoLog, cclog.WarnLog, cclog.ErrLog, cclog.CritLog
+	cclog.Init("debug", false)
+	var buf bytes.Buffer
+	cclog.DebugLog.SetOutput(&buf)
+	t.Cleanup(func() {
+		cclog.Init(oldLevel, false)
+		cclog.DebugLog, cclog.InfoLog, cclog.WarnLog, cclog.ErrLog, cclog.CritLog = oldDebug, oldInfo, oldWarn, oldErr, oldCrit
+	})
+	return &buf
+}
+
 func gappedRequest(queries ...APIQuery) APIQueryRequest {
 	return APIQueryRequest{
 		Cluster: "cl", From: fsFrom, To: fsFrom + fsCount*fsFreq,
@@ -109,7 +103,6 @@ func gappedRequest(queries ...APIQuery) APIQueryRequest {
 
 func TestFetchDataLogsOneSummaryPerHost(t *testing.T) {
 	newFetchStatsStore(t, 3)
-	setVerboseMissingData(t, false)
 	buf := captureWarnings(t)
 
 	if _, err := FetchData(gappedRequest(coreQuery("temp", false), coreQuery("flops", false))); err != nil {
@@ -123,30 +116,35 @@ func TestFetchDataLogsOneSummaryPerHost(t *testing.T) {
 		t.Errorf("summary missing %q:\n%s", want, out)
 	}
 	if strings.Contains(out, "does not align") {
-		t.Errorf("per-buffer warning logged without verbose-missing-data:\n%s", out)
+		t.Errorf("per-buffer line logged as warning:\n%s", out)
 	}
 }
 
-func TestFetchDataVerboseLogsPerBuffer(t *testing.T) {
+func TestFetchDataLogsPerBufferAtDebug(t *testing.T) {
 	newFetchStatsStore(t, 3)
-	setVerboseMissingData(t, true)
-	buf := captureWarnings(t)
+	debug := captureDebug(t)
+	warn := captureWarnings(t)
 
 	if _, err := FetchData(gappedRequest(coreQuery("temp", false), coreQuery("flops", false))); err != nil {
 		t.Fatal(err)
 	}
-	out := buf.String()
-	if n := strings.Count(out, "does not align"); n != 2 {
-		t.Errorf("got %d per-buffer warnings, want 2 (core1 of temp and flops):\n%s", n, out)
+	if n := strings.Count(debug.String(), "does not align"); n != 2 {
+		t.Errorf("got %d per-buffer debug lines, want 2 (core1 of temp and flops):\n%s", n, debug.String())
 	}
-	if strings.Contains(out, "missing data points") {
-		t.Errorf("summary logged in verbose mode:\n%s", out)
+	if !strings.Contains(debug.String(), "node=cl/n1/core1") {
+		t.Errorf("debug lines do not name the buffer:\n%s", debug.String())
+	}
+	out := warn.String()
+	if n := strings.Count(out, "missing data points"); n != 1 {
+		t.Errorf("got %d summary warnings, want 1:\n%s", n, out)
+	}
+	if strings.Contains(out, "does not align") {
+		t.Errorf("per-buffer line logged as warning:\n%s", out)
 	}
 }
 
 func TestFetchStatsFallbackLogsSummary(t *testing.T) {
 	newFetchStatsStore(t, 3)
-	setVerboseMissingData(t, false)
 	buf := captureWarnings(t)
 
 	if _, err := FetchStats(gappedRequest(coreQuery("temp", true))); err != nil {

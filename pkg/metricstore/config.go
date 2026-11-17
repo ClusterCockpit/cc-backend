@@ -13,7 +13,6 @@
 //	├─ NumWorkers: Parallel checkpoint/archive workers
 //	├─ RetentionInMemory: How long to keep data in RAM (also used as cleanup interval)
 //	├─ MemoryCap: Memory limit in bytes (triggers forceFree)
-//	├─ VerboseMissingData: Log every buffer that misses data (default: one summary per node and request)
 //	├─ Checkpoints: Persistence configuration
 //	│  ├─ FileFormat: "json" or "wal" (default: "wal")
 //	│  └─ RootDir: Checkpoint storage path
@@ -118,8 +117,6 @@ type Subscriptions []struct {
 //   - NumWorkers:        Parallel workers for checkpoint/archive (0 = auto: min(NumCPU/2+1, 10))
 //   - RetentionInMemory: Duration string (e.g., "48h") for in-memory data retention
 //   - MemoryCap:         Max memory in GB for buffer data (0 = unlimited); triggers forceFree when exceeded
-//   - VerboseMissingData: Log one warning per buffer that misses data in a query
-//     window, instead of one summary line per node and request (default false)
 //   - Checkpoints:       Periodic persistence configuration
 //   - Debug:             Development/profiling options (nil = disabled)
 //   - Archive:           Long-term storage configuration (nil = disabled)
@@ -135,11 +132,6 @@ type MetricStoreConfig struct {
 	Debug              *Debug         `json:"debug"`
 	Cleanup            *Cleanup       `json:"cleanup"`
 	Subscriptions      *Subscriptions `json:"nats-subscriptions"`
-
-	// Log one warning per buffer (metric × node × child scope) that misses
-	// data in a query window. When false, FetchData and FetchStats log one
-	// summary line per node and request instead.
-	VerboseMissingData bool `json:"verbose-missing-data"`
 }
 
 // Keys is the global metricstore configuration instance.
