@@ -649,7 +649,8 @@ func (m *MemoryStore) read(selector util.Selector, metric string, from, to, reso
 		missingfront := int((cfrom - from) / minfo.Frequency)
 		missingback := int((to - cto) / minfo.Frequency)
 		if missingfront > 0 || missingback > 0 {
-			if gaps != nil {
+    
+    if gaps != nil {
 				gaps.record(missingfront, missingback)
 			}
 			// Guarded so the per-buffer formatting is skipped below debug level.
@@ -666,6 +667,7 @@ func (m *MemoryStore) read(selector util.Selector, metric string, from, to, reso
 					cclog.Debugf("%v: metric=%s node=%s requested[%d,%d] actual[%d,%d] missing_back=%d pts",
 						ErrDataDoesNotAlignMissingBack, metric, node, from, to, cfrom, cto, missingback)
 				}
+
 			}
 		}
 
