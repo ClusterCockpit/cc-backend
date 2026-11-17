@@ -67,6 +67,10 @@ const configSchema = `{
       "description": "Upper memory capacity limit used by metricstore in GB",
       "type": "integer"
     },
+    "verbose-missing-data": {
+      "description": "Log one warning per buffer (metric, node and child scope) that misses data in a query window. Default false logs one summary line per node and request.",
+      "type": "boolean"
+    },
     "nats-subscriptions": {
       "description": "Array of various subscriptions. Allows to subscribe to different subjects and publishers.",
       "type": "array",
