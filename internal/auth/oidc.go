@@ -185,7 +185,8 @@ func (oa *OIDC) OAuth2Callback(rw http.ResponseWriter, r *http.Request) {
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 
-	token, err := oa.client.Exchange(ctx, code, oauth2.VerifierOption(codeVerifier))
+	token, err := oa.client.Exchange(ctx, code, oauth2.VerifierOption(codeVerifier),
+		oauth2.SetAuthURLParam("redirect_uri", oidcRedirectURL(r)))
 	if err != nil {
 		cclog.Errorf("token exchange failed: %s", err.Error())
 		http.Error(rw, "Authentication failed during token exchange", http.StatusInternalServerError)
@@ -223,6 +224,12 @@ func (oa *OIDC) OAuth2Callback(rw http.ResponseWriter, r *http.Request) {
 
 	if idToken.Nonce != nonceCookie.Value {
 		http.Error(rw, "Nonce mismatch", http.StatusBadRequest)
+		return
+	}
+
+	// UserInfo claims must refer to the identity in the verified ID token.
+	if userInfo.Subject == "" || userInfo.Subject != idToken.Subject {
+		http.Error(rw, "OIDC subject mismatch", http.StatusUnauthorized)
 		return
 	}
 
@@ -291,9 +298,9 @@ func (oa *OIDC) OAuth2Callback(rw http.ResponseWriter, r *http.Request) {
 	// Collect roles from realm_access (realm roles) in the ID token
 	oidcRoles := append([]string{}, idTokenClaims.RealmAccess.Roles...)
 
-	// Also collect roles from resource_access (client roles) for all clients
-	for clientID, access := range idTokenClaims.ResourceAccess {
-		cclog.Debugf("OIDC ID token resource_access[%q] roles: %v", clientID, access.Roles)
+	// Client roles belong to their client namespace; ignore other applications.
+	if access, ok := idTokenClaims.ResourceAccess[oa.clientID]; ok && oa.clientID != "" {
+		cclog.Debugf("OIDC ID token resource_access[%q] roles: %v", oa.clientID, access.Roles)
 		oidcRoles = append(oidcRoles, access.Roles...)
 	}
 
@@ -341,16 +348,19 @@ func (oa *OIDC) OAuth2Login(rw http.ResponseWriter, r *http.Request) {
 	}
 	setCallbackCookie(rw, r, "nonce", nonce)
 
-	// Build redirect URL from the incoming request
+	// Redirect user to consent page to ask for permission
+	url := oa.client.AuthCodeURL(state, oauth2.AccessTypeOffline,
+		oauth2.S256ChallengeOption(codeVerifier),
+		oidc.Nonce(nonce),
+		oauth2.SetAuthURLParam("redirect_uri", oidcRedirectURL(r)))
+	http.Redirect(rw, r, url, http.StatusFound)
+}
+
+// oidcRedirectURL binds authorization and exchange to the request's origin.
+func oidcRedirectURL(r *http.Request) string {
 	scheme := "https"
 	if r.TLS == nil && r.Header.Get("X-Forwarded-Proto") != "https" {
 		scheme = "http"
 	}
-	oa.client.RedirectURL = fmt.Sprintf("%s://%s/oidc-callback", scheme, r.Host)
-
-	// Redirect user to consent page to ask for permission
-	url := oa.client.AuthCodeURL(state, oauth2.AccessTypeOffline,
-		oauth2.S256ChallengeOption(codeVerifier),
-		oidc.Nonce(nonce))
-	http.Redirect(rw, r, url, http.StatusFound)
+	return fmt.Sprintf("%s://%s/oidc-callback", scheme, r.Host)
 }
