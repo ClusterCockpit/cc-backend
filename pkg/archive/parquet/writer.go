@@ -7,6 +7,7 @@ package parquet
 
 import (
 	"bytes"
+	"crypto/rand"
 	"encoding/json"
 	"fmt"
 	"path"
@@ -34,7 +35,7 @@ func NewParquetWriter(target ParquetTarget, maxSizeMB int) *ParquetWriter {
 	return &ParquetWriter{
 		target:       target,
 		maxSizeBytes: int64(maxSizeMB) * 1024 * 1024,
-		datePrefix:   time.Now().Format("2006-01-02"),
+		datePrefix:   time.Now().Format("2006-01-02") + "-" + rand.Text(),
 	}
 }
 
