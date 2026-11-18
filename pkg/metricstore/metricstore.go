@@ -613,7 +613,17 @@ func (m *MemoryStore) WriteToLevel(l *Level, selector []string, ts int64, metric
 // If the level does not hold the metric itself, the data will be aggregated recursively from the children.
 // The second and third return value are the actual from/to for the data. Those can be different from
 // the range asked for if no data was available.
+//
+// Each buffer that misses data in the window is logged at debug level only;
+// FetchData and FetchStats additionally warn once per host and request.
 func (m *MemoryStore) Read(selector util.Selector, metric string, from, to, resolution int64, resampleAlgo string) ([]schema.Float, int64, int64, int64, error) {
+	return m.read(selector, metric, from, to, resolution, resampleAlgo, nil)
+}
+
+// read implements Read. A buffer that does not cover [from, to] is recorded
+// in gaps, when gaps is not nil, for the caller to summarise, and logged with
+// one line at debug level.
+func (m *MemoryStore) read(selector util.Selector, metric string, from, to, resolution int64, resampleAlgo string, gaps *gapInfo) ([]schema.Float, int64, int64, int64, error) {
 	if from > to {
 		return nil, 0, 0, 0, errors.New("[METRICSTORE]> invalid time range")
 	}
@@ -626,7 +636,7 @@ func (m *MemoryStore) Read(selector util.Selector, metric string, from, to, reso
 	// data spans the full requested window; every scope's read() writes into the
 	// same index-aligned slice (NaN where it has no value), so aggregation never
 	// needs trimming. We check each buffer's extent against the original request
-	// and warn if it doesn't cover the full range.
+	// and report it (see read) if it doesn't cover the full range.
 	n, data := 0, make([]schema.Float, (to-from)/minfo.Frequency+1)
 
 	err := m.root.findBuffers(selector, minfo.offset, func(b *buffer, path []string) error {
@@ -639,20 +649,25 @@ func (m *MemoryStore) Read(selector util.Selector, metric string, from, to, reso
 		missingfront := int((cfrom - from) / minfo.Frequency)
 		missingback := int((to - cto) / minfo.Frequency)
 		if missingfront > 0 || missingback > 0 {
-			node := strings.Join(path, "/")
-			switch {
-			case missingfront > 0 && missingback > 0:
-				// TODO While the log messages below are in debug loglevel only, they may cause incredibly high log spam.
-				// So much that it'll take over the entire log. This needs a more through fix so that the debug log is still
-				// somewhat usable.
-				cclog.Debugf("%v: metric=%s node=%s requested[%d,%d] actual[%d,%d] missing_front=%d pts missing_back=%d pts",
-					ErrDataDoesNotAlignMissingFront, metric, node, from, to, cfrom, cto, missingfront, missingback)
-			case missingfront > 0:
-				cclog.Debugf("%v: metric=%s node=%s requested[%d,%d] actual[%d,%d] missing_front=%d pts",
-					ErrDataDoesNotAlignMissingFront, metric, node, from, to, cfrom, cto, missingfront)
-			case missingback > 0:
-				cclog.Debugf("%v: metric=%s node=%s requested[%d,%d] actual[%d,%d] missing_back=%d pts",
-					ErrDataDoesNotAlignMissingBack, metric, node, from, to, cfrom, cto, missingback)
+    
+    if gaps != nil {
+				gaps.record(missingfront, missingback)
+			}
+			// Guarded so the per-buffer formatting is skipped below debug level.
+			if cclog.Loglevel() == "debug" {
+				node := strings.Join(path, "/")
+				switch {
+				case missingfront > 0 && missingback > 0:
+					cclog.Debugf("%v: metric=%s node=%s requested[%d,%d] actual[%d,%d] missing_front=%d pts missing_back=%d pts",
+						ErrDataDoesNotAlignMissingFront, metric, node, from, to, cfrom, cto, missingfront, missingback)
+				case missingfront > 0:
+					cclog.Debugf("%v: metric=%s node=%s requested[%d,%d] actual[%d,%d] missing_front=%d pts",
+						ErrDataDoesNotAlignMissingFront, metric, node, from, to, cfrom, cto, missingfront)
+				case missingback > 0:
+					cclog.Debugf("%v: metric=%s node=%s requested[%d,%d] actual[%d,%d] missing_back=%d pts",
+						ErrDataDoesNotAlignMissingBack, metric, node, from, to, cfrom, cto, missingback)
+				}
+
 			}
 		}
 

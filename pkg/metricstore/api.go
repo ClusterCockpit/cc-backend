@@ -218,6 +218,11 @@ func FetchData(req APIQueryRequest) (*APIQueryResponse, error) {
 	}
 	expandForAllNodes(ms, &req, &response)
 
+	// One gap collector per request; it escapes into read's closure, so it is
+	// declared once here rather than per selector.
+	var report missingReport
+	var gaps gapInfo
+
 	for _, query := range req.Queries {
 		sels := querySelectors(req.Cluster, query)
 
@@ -226,7 +231,9 @@ func FetchData(req APIQueryRequest) (*APIQueryResponse, error) {
 		for _, sel := range sels {
 			data := APIMetricData{}
 
-			data.Data, data.From, data.To, data.Resolution, err = ms.Read(sel, query.Metric, req.From, req.To, query.Resolution, req.ResampleAlgo)
+			gaps = gapInfo{}
+			data.Data, data.From, data.To, data.Resolution, err = ms.read(sel, query.Metric, req.From, req.To, query.Resolution, req.ResampleAlgo, &gaps)
+			report.add(query.Hostname, query.Metric, gaps)
 			if err != nil {
 				// Skip Error If Just Missing Host or Metric, Continue
 				// Empty Return For Metric Handled Gracefully By Frontend
@@ -257,6 +264,7 @@ func FetchData(req APIQueryRequest) (*APIQueryResponse, error) {
 		response.Results = append(response.Results, res)
 	}
 
+	report.log(req.Cluster, req.From, req.To)
 	return &response, nil
 }
 
@@ -358,6 +366,11 @@ func FetchStats(req APIQueryRequest) (*APIQueryResponse, error) {
 	}
 	expandForAllNodes(ms, &req, &response)
 
+	// One gap collector per request; it escapes into read's closure, so it is
+	// declared once here rather than per selector.
+	var report missingReport
+	var gaps gapInfo
+
 	for _, query := range req.Queries {
 		sels := querySelectors(req.Cluster, query)
 		res := make([]APIMetricData, 0, len(sels))
@@ -369,7 +382,9 @@ func FetchStats(req APIQueryRequest) (*APIQueryResponse, error) {
 				data.Avg, data.Min, data.Max = st.Avg, st.Min, st.Max
 			} else {
 				var err error
-				data.Data, data.From, data.To, data.Resolution, err = ms.Read(sel, query.Metric, req.From, req.To, query.Resolution, req.ResampleAlgo)
+				gaps = gapInfo{}
+				data.Data, data.From, data.To, data.Resolution, err = ms.read(sel, query.Metric, req.From, req.To, query.Resolution, req.ResampleAlgo, &gaps)
+				report.add(query.Hostname, query.Metric, gaps)
 				if err != nil {
 					if err != ErrNoHostOrMetric {
 						msg := err.Error()
@@ -392,5 +407,6 @@ func FetchStats(req APIQueryRequest) (*APIQueryResponse, error) {
 		response.Results = append(response.Results, res)
 	}
 
+	report.log(req.Cluster, req.From, req.To)
 	return &response, nil
 }
