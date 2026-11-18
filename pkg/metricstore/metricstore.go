@@ -52,6 +52,7 @@ var (
 	// and is called during Shutdown to cancel all background goroutines
 	shutdownFunc   context.CancelFunc
 	shutdownFuncMu sync.Mutex // Protects shutdownFunc from concurrent access
+	ingestionDone  <-chan struct{}
 	// Create a global instance
 	state = &GlobalState{}
 )
@@ -186,12 +187,18 @@ func Init(rawConfig json.RawMessage, metrics map[string]MetricConfig, provider N
 	// The caller is responsible for handling shutdown signals and calling
 	// the shutdown() function when appropriate.
 	// Store the shutdown function for later use by Shutdown()
+	var natsDone chan struct{}
+	if Keys.Subscriptions != nil {
+		natsDone = make(chan struct{})
+	}
 	shutdownFuncMu.Lock()
 	shutdownFunc = shutdown
+	ingestionDone = natsDone
 	shutdownFuncMu.Unlock()
 
-	if Keys.Subscriptions != nil {
+	if natsDone != nil {
 		wg.Go(func() {
+			defer close(natsDone)
 			if err := ReceiveNats(ms, Keys.NumWorkers, ctx); err != nil {
 				cclog.Fatal(err)
 			}
@@ -292,8 +299,15 @@ func Shutdown() {
 	}
 	shutdownFunc()
 	shutdownFunc = nil
+	natsDone := ingestionDone
+	ingestionDone = nil
 	shutdownFuncMu.Unlock()
 	cclog.Infof("[METRICSTORE]> Background workers cancelled (%v)", time.Since(totalStart))
+
+	// Drain accepted samples before closing WAL and writing the final checkpoint.
+	if natsDone != nil {
+		<-natsDone
+	}
 
 	if Keys.Checkpoints.FileFormat == "wal" {
 		// Signal producers to stop sending before closing channels,
