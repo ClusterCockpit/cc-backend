@@ -218,10 +218,7 @@ func DecodeLine(dec *lineprotocol.Decoder,
 	st := decodeStatePool.Get().(*decodeState)
 	defer decodeStatePool.Put(st)
 
-	// Optimize for the case where all lines in a "batch" are about the same
-	// cluster and host. By using `WriteToLevel` (level = host), we do not need
-	// to take the root- and cluster-level lock as often.
-	var lvl *Level = nil
+	// Reuse converted cluster and host names within a batch.
 	prevCluster, prevHost := "", ""
 
 	var ok bool
@@ -259,14 +256,12 @@ func DecodeLine(dec *lineprotocol.Decoder,
 					cluster = prevCluster
 				} else {
 					cluster = string(val)
-					lvl = nil
 				}
 			case "hostname", "host":
 				if string(val) == prevHost {
 					host = prevHost
 				} else {
 					host = string(val)
-					lvl = nil
 				}
 			case "type":
 				if string(val) == "node" {
@@ -305,13 +300,7 @@ func DecodeLine(dec *lineprotocol.Decoder,
 			continue
 		}
 
-		// If the cluster or host changed, the lvl was set to nil
-		if lvl == nil {
-			st.selector = st.selector[:2]
-			st.selector[0], st.selector[1] = cluster, host
-			lvl = ms.GetLevel(st.selector)
-			prevCluster, prevHost = cluster, host
-		}
+		prevCluster, prevHost = cluster, host
 
 		// subtypes: cache []byte→string conversions; messages in a batch typically
 		// share the same type/stype so the hit rate is very high.
@@ -379,7 +368,8 @@ func DecodeLine(dec *lineprotocol.Decoder,
 			}
 		}
 
-		if err := ms.WriteToLevel(lvl, st.selector, time, []Metric{metric}); err != nil {
+		selector := append([]string{cluster, host}, st.selector...)
+		if err := ms.WriteToLevel(&ms.root, selector, time, []Metric{metric}); err != nil {
 			cclog.Warnf("write error for host %s metric %s at ts %d: %s", host, string(st.metricBuf), time, err.Error())
 			continue
 		}
