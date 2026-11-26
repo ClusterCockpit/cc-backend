@@ -44,3 +44,44 @@ func TestLoadJobStatsRunning(t *testing.T) {
 		t.Errorf("metric without data: got %+v (present %v), want zero entry", missing, ok)
 	}
 }
+
+func TestLoadAveragesLive(t *testing.T) {
+	repo := &fakeRepo{stats: map[string]map[string]schema.MetricStatistics{
+		"flops_any": {
+			"n1": {Avg: 20},
+			"n2": {Avg: 10},
+		},
+	}}
+	useRepo(t, "avgcluster", repo)
+
+	for _, tc := range []struct {
+		name   string
+		state  schema.JobState
+		status int32
+	}{
+		{"running", schema.JobStateRunning, schema.MonitoringStatusRunningOrArchiving},
+		{"stopped, not yet archived", schema.JobStateCompleted, schema.MonitoringStatusRunningOrArchiving},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			job := &schema.Job{
+				Cluster:          "avgcluster",
+				State:            tc.state,
+				MonitoringStatus: tc.status,
+				NumNodes:         2,
+				Resources:        []*schema.Resource{{Hostname: "n1"}, {Hostname: "n2"}},
+			}
+
+			data := [][]schema.Float{{}, {}}
+			if err := LoadAverages(job, []string{"flops_any", "mem_bw"}, data, context.Background()); err != nil {
+				t.Fatal(err)
+			}
+
+			if len(data[0]) != 1 || data[0][0] != 15 {
+				t.Errorf("flops_any = %v, want [15] (per-node mean, as archived)", data[0])
+			}
+			if len(data[1]) != 1 || !data[1][0].IsNaN() {
+				t.Errorf("mem_bw = %v, want [NaN] for a metric without data", data[1])
+			}
+		})
+	}
+}

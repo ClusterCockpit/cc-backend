@@ -18,7 +18,7 @@ import (
 	"github.com/ClusterCockpit/cc-lib/v2/schema"
 )
 
-const MAX_JOBS_FOR_ANALYSIS = 500
+const MAX_JOBS_FOR_ANALYSIS = 1000
 
 // Helper function for the rooflineHeatmap GraphQL query placed here so that schema.resolvers.go is not too full.
 func (r *queryResolver) rooflineHeatmap(
@@ -103,6 +103,7 @@ func (r *queryResolver) rooflineHeatmap(
 }
 
 // Helper function for the jobsFootprints GraphQL query placed here so that schema.resolvers.go is not too full.
+// NOTE: Legacy Naming! This helper is for normalized histograms in analysis view only - *Not* related to DB "footprint" column!
 func (r *queryResolver) jobsFootprints(ctx context.Context, filter []*model.JobFilter, metrics []string) (*model.Footprints, error) {
 	jobs, err := r.Repo.QueryJobs(ctx, filter, &model.PageRequest{Page: 1, ItemsPerPage: MAX_JOBS_FOR_ANALYSIS + 1}, nil)
 	if err != nil {
@@ -133,17 +134,20 @@ func (r *queryResolver) jobsFootprints(ctx context.Context, filter []*model.JobF
 			return nil, err
 		}
 
-		// #166 collect arrays: Null values or no null values?
-		timeweights.NodeHours = append(timeweights.NodeHours, schema.Float(float64(job.Duration)/60.0*float64(job.NumNodes)))
+		// job.Duration is in seconds. Jobs without accelerator or hwthread
+		// counts fall back to their node hours.
+		hours := float64(job.Duration) / 3600.0
+		nodeHours := schema.Float(hours * float64(job.NumNodes))
+		timeweights.NodeHours = append(timeweights.NodeHours, nodeHours)
 		if job.NumAcc > 0 {
-			timeweights.AccHours = append(timeweights.AccHours, schema.Float(float64(job.Duration)/60.0*float64(job.NumAcc)))
+			timeweights.AccHours = append(timeweights.AccHours, schema.Float(hours*float64(job.NumAcc)))
 		} else {
-			timeweights.AccHours = append(timeweights.AccHours, schema.Float(1.0))
+			timeweights.AccHours = append(timeweights.AccHours, nodeHours)
 		}
 		if job.NumHWThreads > 0 {
-			timeweights.CoreHours = append(timeweights.CoreHours, schema.Float(float64(job.Duration)/60.0*float64(job.NumHWThreads))) // SQLite HWThreads == Cores; numCoresForJob(job)
+			timeweights.CoreHours = append(timeweights.CoreHours, schema.Float(hours*float64(job.NumHWThreads))) // SQLite HWThreads == Cores; numCoresForJob(job)
 		} else {
-			timeweights.CoreHours = append(timeweights.CoreHours, schema.Float(1.0))
+			timeweights.CoreHours = append(timeweights.CoreHours, nodeHours)
 		}
 	}
 

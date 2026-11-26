@@ -193,6 +193,13 @@ For release specific notes visit the [ClusterCockpit Documentation](https://clus
 - **Subcluster footprint statistic**: A subcluster-specific footprint statistic
   (e.g. `max` instead of the cluster-wide `avg`) was never applied when
   footprints were persisted at archiving or import.
+- **Analysis view histograms**: The metric histograms were weighted by node, core
+  and accelerator *minutes* while labelled as hours. The `timeWeights` of the
+  `jobsFootprints` GraphQL query now carry hours, and jobs without accelerator
+  or hwthread counts fall back to their node hours instead of a flat 1. Jobs
+  without a value for a metric are no longer counted into the first bin, running
+  jobs enter with the mean instead of the sum of their node averages, and a job
+  stopped but not yet archived no longer fails the whole query.
 - **Metric plots and the policy-based resample config**: `MetricPlot` still read
   the removed `trigger`/`resolutions` values, so the array-based resolution
   branch was unreachable and the zoom guard always fired. The zoom trigger is now
