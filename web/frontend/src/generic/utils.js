@@ -475,12 +475,16 @@ export function convert2uplot(canvasData, secondsToMinutes = false, secondsToHou
 }
 
 export function binsFromFootprint(weights, scope, values, numBins) {
+    // Jobs without a value for the metric arrive as null (NaN in the backend) and are not binned
+    const hasValue = (x) => x != null && !Number.isNaN(x)
+
     let min = 0, max = 0 //, median = 0
     if (values.length != 0) {
         // Extreme, wrong peak vlaues: Filter here or backend?
         // median = median(values)
 
         for (let x of values) {
+            if (!hasValue(x)) continue
             min = Math.min(min, x)
             max = Math.max(max, x)
         }
@@ -503,8 +507,10 @@ export function binsFromFootprint(weights, scope, values, numBins) {
     }
 
     const rawBins = new Array(numBins).fill(0)
-    for (let i = 0; i < values.length; i++)
+    for (let i = 0; i < values.length; i++) {
+        if (!hasValue(values[i])) continue
         rawBins[Math.floor(((values[i] - min) / (max - min)) * numBins)] += scopeWeights ? scopeWeights[i] : 1
+    }
 
     const bins = rawBins.map((count, idx) => ({ 
         value: Math.floor(min + ((idx + 1) / numBins) * (max - min)),

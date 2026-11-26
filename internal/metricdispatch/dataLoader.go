@@ -238,17 +238,18 @@ func LoadData(job *schema.Job,
 	return data.(schema.JobData), nil
 }
 
-// LoadAverages computes average values for the specified metrics across all nodes of a job.
-// For running jobs, it loads statistics from the metric store. For completed jobs, it uses
-// the pre-calculated averages from the job archive. The results are appended to the data slice.
+// LoadAverages computes the per-node mean of the average values for the specified metrics
+// of a job. For live jobs (see IsLive), it loads statistics from the metric store and folds
+// them like the archiver does. For archived jobs, it uses the pre-calculated averages from
+// the job archive. The results are appended to the data slice, NaN for metrics without data.
 func LoadAverages(
 	job *schema.Job,
 	metrics []string,
 	data [][]schema.Float,
 	ctx context.Context,
 ) error {
-	if job.State != schema.JobStateRunning {
-		return archive.LoadAveragesFromArchive(job, metrics, data) // #166 change also here?
+	if !IsLive(job) {
+		return archive.LoadAveragesFromArchive(job, metrics, data)
 	}
 
 	ms, err := GetMetricDataRepo(job.Cluster, job.SubCluster)
@@ -270,18 +271,14 @@ func LoadAverages(
 		return err
 	}
 
+	folded := footprint.Fold(job, stats)
 	for i, m := range metrics {
-		nodes, ok := stats[m]
+		s, ok := folded[m]
 		if !ok {
 			data[i] = append(data[i], schema.NaN)
 			continue
 		}
-
-		sum := 0.0
-		for _, node := range nodes {
-			sum += node.Avg
-		}
-		data[i] = append(data[i], schema.Float(sum))
+		data[i] = append(data[i], schema.Float(s.Avg))
 	}
 
 	return nil
