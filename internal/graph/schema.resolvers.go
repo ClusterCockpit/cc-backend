@@ -98,9 +98,11 @@ func (r *jobResolver) EnergyFootprint(ctx context.Context, obj *schema.Job) ([]*
 		matchAcc := regexp.MustCompile(`acc|Acc|ACC`)
 		matchMem := regexp.MustCompile(`mem|Mem|MEM`)
 		matchCore := regexp.MustCompile(`core|Core|CORE`)
+		matchFan := regexp.MustCompile(`fan|Fan|FAN`)
+		matchNode := regexp.MustCompile(`node|Node|NODE`)
 
 		hwType := ""
-		switch test := name; { // NOtice ';' for var declaration
+		switch test := name; { // Notice ';' for var declaration
 		case matchCPU.MatchString(test):
 			hwType = "CPU"
 		case matchAcc.MatchString(test):
@@ -109,6 +111,10 @@ func (r *jobResolver) EnergyFootprint(ctx context.Context, obj *schema.Job) ([]*
 			hwType = "Memory"
 		case matchCore.MatchString(test):
 			hwType = "Core"
+		case matchFan.MatchString(test):
+			hwType = "Fan"
+		case matchNode.MatchString(test):
+			hwType = "Node"
 		default:
 			hwType = "Other"
 		}
