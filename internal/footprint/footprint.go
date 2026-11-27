@@ -29,6 +29,12 @@ func Round(v float64) float64 {
 // and max the largest host maximum. Hosts without data for a metric do not
 // contribute to it, and a metric without data on any host is omitted.
 //
+// The archiver averages differently (archiver.ArchiveJob): it divides the summed
+// host averages by job.NumNodes, so a host without data counts as 0 there. As
+// BuildEnergy multiplies the average by the node count, a multi-node job with
+// missing host data shows a live energy that extrapolates the hosts with data,
+// and a lower energy once archived.
+//
 // stats maps metric name to hostname to statistics, as returned by the metric
 // data repositories.
 func Fold(job *schema.Job, stats map[string]map[string]schema.MetricStatistics) map[string]schema.MetricStatistics {
@@ -146,8 +152,10 @@ func BuildEnergy(
 				// FIXME: Needs sum as stats type to accumulate energy values over time
 				cclog.Debugf("energy footprint for metric %s: energy type 'energy' is not implemented, reporting 0", metric)
 			case "power":
-				// Energy (kWh) = Power (W) * Time (h) / 1000; for shared jobs the node
-				// average already reflects the partial resources and numNodes is 1.
+				// Energy (kWh) = Power (W) * Time (h) / 1000. For shared jobs, sub-node
+				// metrics (socket, core, accelerator, ...) only cover the job's own
+				// resources, but node-scope metrics cover the whole node and are not
+				// scaled here (the job view scales them by the job's share of the node).
 				energy = Round(stats[metric].Avg * float64(numNodes) * (float64(durationSec) / 3600.0) / 1000.0)
 			}
 		} else {

@@ -78,7 +78,8 @@ func ArchiveJob(job *schema.Job, ctx context.Context) (*schema.Job, error) {
 			max = math.Max(max, series.Statistics.Max)
 		}
 
-		// Round AVG Result to 2 Digits
+		// Round AVG Result to 2 Digits. Dividing by NumNodes counts hosts without
+		// data as 0; live values (footprint.Fold) leave them out instead.
 		job.Statistics.Metrics[metric] = schema.JobStatistics{
 			Unit: schema.Unit{
 				Prefix: archive.GetMetricConfig(job.Cluster, metric).Unit.Prefix,

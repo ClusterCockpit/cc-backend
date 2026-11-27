@@ -295,7 +295,7 @@
 {#if thisJob && thisJob?.energyFootprint?.length != 0}
   <Row class="mb-3">
     <Col>
-      <EnergySummary jobId={thisJob.jobId} jobEnergy={thisJob.energy} jobEnergyFootprint={thisJob.energyFootprint}/>
+      <EnergySummary job={thisJob}/>
     </Col>
   </Row>
 {/if}
